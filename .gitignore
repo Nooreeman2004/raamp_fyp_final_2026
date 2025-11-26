@@ -41,3 +41,6 @@ dist/
 build/
 *.egg-info/
 
+# Dependencies
+node_modules/
+
