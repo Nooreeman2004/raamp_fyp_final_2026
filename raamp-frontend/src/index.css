@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 200 50% 12%;
+    --foreground: 0 0% 98%;
+
+    --card: 200 45% 15%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 200 45% 15%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 180 100% 30%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 40% 20%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 200 30% 18%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 180 100% 30%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 200 30% 25%;
+    --input: 200 30% 22%;
+    --ring: 180 100% 30%;
+
+    --radius: 0.75rem;
+    
+    --glow-primary: 180 100% 40%;
+    --glow-secondary: 180 100% 25%;
+    
+    --gradient-radial: radial-gradient(circle at center, hsl(var(--glow-primary) / 0.15), transparent 70%);
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(200 45% 20%) 100%);
+    
+    --shadow-glow: 0 0 40px hsl(var(--glow-primary) / 0.3);
+    --shadow-card: 0 10px 30px -10px hsl(200 50% 8% / 0.5);
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 45 93% 47%;
+    --warning-foreground: 0 0% 100%;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(270 100% 40%), hsl(320 100% 50%));
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 200 50% 12%;
+    --foreground: 0 0% 98%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .glow-effect {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .card-shadow {
+    box-shadow: var(--shadow-card);
+  }
+  
+  .breathing-glow {
+    animation: breathe 3s ease-in-out infinite;
+  }
+  
+  @keyframes breathe {
+    0%, 100% {
+      box-shadow: 0 0 20px hsl(var(--glow-primary) / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px hsl(var(--glow-primary) / 0.5);
+    }
+  }
+  
+  .pulse-glow {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+}
+
+/* Map marker / popup visibility helpers */
+.marker-label, .popup-text {
+  color: black !important;
+  background-color: rgba(255,255,255,0.92) !important;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.map-preview-container iframe {
+  background: white;
+}
