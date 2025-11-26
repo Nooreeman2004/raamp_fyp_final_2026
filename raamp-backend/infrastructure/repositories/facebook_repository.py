@@ -1,0 +1,24 @@
+from typing import Optional
+from infrastructure.database.models.facebook_connection_model import FacebookConnectionModel
+
+
+class FacebookRepository:
+    async def find_by_user_id(self, user_id: str) -> Optional[FacebookConnectionModel]:
+        return await FacebookConnectionModel.find_one(FacebookConnectionModel.user_id == user_id)
+
+    async def create_or_update(self, user_id: str, access_token: str, fb_user_id: Optional[str] = None, fb_pages: Optional[list] = None, granted_scopes: Optional[list] = None) -> FacebookConnectionModel:
+        doc = await self.find_by_user_id(user_id)
+        if not doc:
+            doc = FacebookConnectionModel(user_id=user_id, access_token=access_token, fb_user_id=fb_user_id or None, fb_pages=fb_pages or [], granted_scopes=granted_scopes or [])
+            await doc.insert()
+            return doc
+        doc.access_token = access_token
+        if fb_user_id:
+            doc.fb_user_id = fb_user_id
+        if fb_pages is not None:
+            doc.fb_pages = fb_pages
+        if granted_scopes is not None:
+            doc.granted_scopes = granted_scopes
+        doc.updated_at = __import__('datetime').datetime.utcnow()
+        await doc.save()
+        return doc
