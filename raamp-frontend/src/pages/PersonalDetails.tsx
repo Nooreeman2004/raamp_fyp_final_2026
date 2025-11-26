@@ -8,12 +8,13 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import raampIcon from "@/assets/raamp-icon-transparent.png";
-import { Phone, Building, Briefcase, Loader2, ArrowLeft, HelpCircle } from "lucide-react";
+import { Phone, Building, Briefcase, Loader2, ArrowLeft, ArrowRight, HelpCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
 import ProgressIndicator from "@/components/ProgressIndicator";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { cn } from "@/lib/utils";
 
 interface BusinessDomain {
   id: string;
@@ -323,11 +324,21 @@ const PersonalDetails = () => {
                   type="tel"
                   placeholder="+1 (555) 123-4567"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setTouched(prev => ({ ...prev, phone: true }));
+                  }}
+                  onBlur={() => setTouched(prev => ({ ...prev, phone: true }))}
                   required
-                  className="bg-background/50 pl-10"
+                  className={cn(
+                    "bg-background/50 pl-10",
+                    getFieldError('phone') && "border-destructive"
+                  )}
                 />
               </div>
+              {getFieldError('phone') && (
+                <p className="text-sm text-destructive">{getFieldError('phone')}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -342,11 +353,21 @@ const PersonalDetails = () => {
                     type="text"
                     placeholder="Acme Marketing Solutions"
                     value={company}
-                    onChange={(e) => setCompany(e.target.value)}
+                    onChange={(e) => {
+                      setCompany(e.target.value);
+                      setTouched(prev => ({ ...prev, company: true }));
+                    }}
+                    onBlur={() => setTouched(prev => ({ ...prev, company: true }))}
                     required
-                    className="bg-background/50 pl-10"
+                    className={cn(
+                      "bg-background/50 pl-10",
+                      getFieldError('company') && "border-destructive"
+                    )}
                   />
                 </div>
+                {getFieldError('company') && (
+                  <p className="text-sm text-destructive">{getFieldError('company')}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -360,26 +381,58 @@ const PersonalDetails = () => {
                     type="text"
                     placeholder="Head of Digital Marketing"
                     value={role}
-                    onChange={(e) => setRole(e.target.value)}
+                    onChange={(e) => {
+                      setRole(e.target.value);
+                      setTouched(prev => ({ ...prev, role: true }));
+                    }}
+                    onBlur={() => setTouched(prev => ({ ...prev, role: true }))}
                     required
-                    className="bg-background/50 pl-10"
+                    className={cn(
+                      "bg-background/50 pl-10",
+                      getFieldError('role') && "border-destructive"
+                    )}
                   />
                 </div>
+                {getFieldError('role') && (
+                  <p className="text-sm text-destructive">{getFieldError('role')}</p>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="businessDomain">
-                Business Domain <span className="text-red-500">*</span>
-              </Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="businessDomain">
+                  Business Domain <span className="text-red-500">*</span>
+                </Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Select the category that best describes your business</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               {isLoadingDomains ? (
                 <div className="flex items-center justify-center p-4 bg-background/50 rounded-md">
                   <Loader2 className="w-5 h-5 animate-spin text-primary" />
                   <span className="ml-2 text-sm text-muted-foreground">Loading categories...</span>
                 </div>
               ) : (
-                <Select value={businessDomain} onValueChange={setBusinessDomain} required>
-                  <SelectTrigger className="bg-background/50">
+                <Select 
+                  value={businessDomain} 
+                  onValueChange={(value) => {
+                    setBusinessDomain(value);
+                    setTouched(prev => ({ ...prev, businessDomain: true }));
+                  }}
+                  required
+                >
+                  <SelectTrigger className={cn(
+                    "bg-background/50",
+                    touched.businessDomain && !businessDomain && "border-destructive"
+                  )}>
                     <SelectValue placeholder="Select your business category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -394,20 +447,50 @@ const PersonalDetails = () => {
                   </SelectContent>
                 </Select>
               )}
+              {touched.businessDomain && !businessDomain && (
+                <p className="text-sm text-destructive">Please select a business category</p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bio">
-                Bio <span className="text-red-500">*</span>
-              </Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="bio">
+                  Bio <span className="text-red-500">*</span>
+                </Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Write a brief description about yourself (minimum 10 characters)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Textarea
                 id="bio"
                 placeholder="A dedicated digital marketing professional with over 10 years of experience, passionate about leveraging AI to optimize campaign performance and drive ROI."
                 value={bio}
-                onChange={(e) => setBio(e.target.value)}
+                onChange={(e) => {
+                  setBio(e.target.value);
+                  setTouched(prev => ({ ...prev, bio: true }));
+                }}
+                onBlur={() => setTouched(prev => ({ ...prev, bio: true }))}
                 required
-                className="bg-background/50 min-h-[120px]"
+                className={cn(
+                  "bg-background/50 min-h-[120px]",
+                  getFieldError('bio') && "border-destructive"
+                )}
               />
+              {getFieldError('bio') && (
+                <p className="text-sm text-destructive">{getFieldError('bio')}</p>
+              )}
+              {bio && !getFieldError('bio') && (
+                <p className="text-xs text-muted-foreground">
+                  {bio.length} characters (minimum 10 required)
+                </p>
+              )}
             </div>
 
             <Button 
@@ -427,8 +510,9 @@ const PersonalDetails = () => {
               )}
             </Button>
           </form>
-        </div>
-      </Card>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 };
