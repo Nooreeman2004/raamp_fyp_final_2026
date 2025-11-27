@@ -56,6 +56,8 @@ async def init_db():
     from infrastructure.database.models.business_domain_model import BusinessDomainModel
     from infrastructure.database.models.facebook_connection_model import FacebookConnectionModel
     from infrastructure.database.models.instagram_connection_model import InstagramConnectionModel
+    from infrastructure.database.models.social_media_account_model import SocialMediaAccountModel
+    from infrastructure.database.models.password_reset_model import PasswordResetModel
     from infrastructure.database.models.google_business_location_model import GoogleBusinessLocationModel
     from infrastructure.database.models.oauth_state_model import OAuthStateModel
     from infrastructure.database.seed_data import seed_business_domains
@@ -66,9 +68,11 @@ async def init_db():
             UserModel,
             PendingVerificationModel,
             ProfileEditVerificationModel,
+            PasswordResetModel,
             BusinessDomainModel,
             FacebookConnectionModel,
             InstagramConnectionModel,
+            SocialMediaAccountModel,
             GoogleBusinessLocationModel,
             OAuthStateModel,
         ]

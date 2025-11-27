@@ -217,11 +217,19 @@ async def signup_with_google(request: GoogleSignupRequest):
         password_hash=password_hash,
         agreed_to_terms=True,  # Implicit via Google OAuth
         is_verified=True,  # Google accounts are pre-verified
-        profile_picture=request.photo_url  # Use Google profile picture if provided
+        profile_picture=request.photo_url,  # Use Google profile picture if provided
+        profile_completed=False,  # ensure newly created Google users must finish onboarding/profile
     )
     
     # Save to database (lastLogin automatically set to utcnow)
     created_user = await user_repository.create(user)
+    # Ensure onboarding is not skipped for Google signups: mark profile incomplete
+    try:
+        await user_repository.update_profile_completed(created_user.email, completed=False)
+    except Exception:
+        # non-fatal: log and continue
+        import logging
+        logging.exception("Failed to explicitly set profile_completed for Google signup")
     
     return SignupResponse(
         id=created_user.id,
@@ -291,7 +299,7 @@ async def signin(
         value=token,
         httponly=True,
         secure=False,  # Set to True in production with HTTPS
-        samesite="strict",
+        samesite="lax",
         max_age=60 * 60 * 24 * 7,  # 7 days
     )
     
@@ -396,7 +404,7 @@ async def signin_with_google(request: GoogleSignupRequest, response: Response):
         value=token,
         httponly=True,
         secure=False,  # Set to True in production with HTTPS
-        samesite="strict",
+        samesite="lax",
         max_age=60 * 60 * 24 * 7,  # 7 days
     )
     

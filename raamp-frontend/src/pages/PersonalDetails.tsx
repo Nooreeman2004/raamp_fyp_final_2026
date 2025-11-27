@@ -116,9 +116,16 @@ const PersonalDetails = () => {
       case 'firstName':
       case 'lastName':
         return value.trim().length < 1 ? 'This field is required' : '';
-      case 'phone':
-        return value.trim().length < 1 ? 'Phone number is required' : 
-               !/^[\d\s\-\+\(\)]+$/.test(value) ? 'Invalid phone number format' : '';
+      case 'phone': {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return 'Phone number is required';
+        }
+        if (!/^\d{11}$/.test(trimmed)) {
+          return 'Phone number must be exactly 11 digits';
+        }
+        return '';
+      }
       case 'company':
       case 'role':
         return value.trim().length < 1 ? 'This field is required' : '';
@@ -138,13 +145,15 @@ const PersonalDetails = () => {
   };
 
   const isFormValid = () => {
-    return firstName.trim() && 
-           lastName.trim() && 
-           phone.trim() && 
-           company.trim() && 
-           role.trim() && 
-           bio.trim().length >= 10 && 
-           businessDomain;
+    return (
+      firstName.trim().length > 0 &&
+      lastName.trim().length > 0 &&
+      /^\d{11}$/.test(phone.trim()) &&
+      company.trim().length > 0 &&
+      role.trim().length > 0 &&
+      bio.trim().length >= 10 &&
+      !!businessDomain
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -240,25 +249,7 @@ const PersonalDetails = () => {
               completedSteps={[]}
             />
 
-            {/* Navigation */}
-            <div className="flex justify-between">
-              <Button
-                variant="outline"
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Dashboard
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/profile/onboarding')}
-                className="flex items-center gap-2"
-              >
-                Skip to Connections
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </div>
+            {/* Navigation - removed Back/Skip buttons per design request */}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
@@ -322,7 +313,7 @@ const PersonalDetails = () => {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="+1 (555) 123-4567"
+                  placeholder="03001234567"
                   value={phone}
                   onChange={(e) => {
                     setPhone(e.target.value);

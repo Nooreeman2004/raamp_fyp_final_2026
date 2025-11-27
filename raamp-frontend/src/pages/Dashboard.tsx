@@ -12,6 +12,8 @@ import { apiClient } from "@/services/api";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import CommandPalette from "@/components/CommandPalette";
+import RecentPages from "@/components/RecentPages";
 import { 
   LayoutDashboard, 
   MapPin, 
@@ -45,6 +47,8 @@ const Dashboard = () => {
   }>>([]);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showBudgetDialog, setShowBudgetDialog] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [isLoadingMaps, setIsLoadingMaps] = useState(true);
   const navigate = useNavigate();
 
   // Fetch user and restaurant location data
@@ -85,8 +89,10 @@ const Dashboard = () => {
             { lat: 24.8000, lng: 67.0500, name: 'DHA Phase 6', intensity: 0.85 },
             { lat: 24.8200, lng: 67.0800, name: 'DHA Phase 4', intensity: 0.75 },
           ]);
+          setIsLoadingMaps(false);
         } catch (err) {
           // Ignore - location data not available
+          setIsLoadingMaps(false);
         }
       } catch (err) {
         // Ignore - user is not authenticated or endpoint missing
@@ -298,11 +304,20 @@ const Dashboard = () => {
                   </div>
                   
                   {/* Heatmap Map with user location (yellow) and high intent areas (red) */}
-                  <HeatmapMap
-                    userLocation={userLocation || undefined}
-                    highIntentAreas={highIntentAreas}
-                    height="400px"
-                  />
+                  {isLoadingMaps ? (
+                    <div className="h-[400px] bg-muted/30 flex items-center justify-center rounded-lg">
+                      <div className="text-center space-y-2">
+                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+                        <p className="text-sm text-muted-foreground">Loading heatmap...</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <HeatmapMap
+                      userLocation={userLocation || undefined}
+                      highIntentAreas={highIntentAreas}
+                      height="400px"
+                    />
+                  )}
                   
                   {/* Legend */}
                   <div className="flex items-center space-x-4 text-xs">
@@ -467,6 +482,9 @@ const Dashboard = () => {
         cancelText="Cancel"
         variant="default"
       />
+
+      {/* Command Palette for Quick Navigation */}
+      <CommandPalette open={showCommandPalette} onOpenChange={setShowCommandPalette} />
     </div>
   );
 };

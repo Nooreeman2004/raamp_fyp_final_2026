@@ -9,6 +9,22 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  // Dev proxy to avoid CORS and cookie issues during local development.
+  // For any request starting with `/api`, the dev server will forward
+  // it to the backend at http://localhost:8000 and return the response
+  // to the browser as if it came from the same origin.
+  server: {
+    host: "::",
+    port: 8080,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
+      }
+    }
+  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {

@@ -17,9 +17,9 @@ class Config:
     # Mailtrap Email Configuration
     # SMTP Sandbox for Testing (emails go to Mailtrap inbox, not real recipients)
     MAILTRAP_SMTP_HOST: str = "sandbox.smtp.mailtrap.io"
-    MAILTRAP_SMTP_PORT: int = 2525
-    MAILTRAP_SMTP_USERNAME: str = "838325674effad"
-    MAILTRAP_SMTP_PASSWORD: str = "6e26219353b6e8"
+    MAILTRAP_SMTP_PORT: int = int(os.getenv("MAILTRAP_SMTP_PORT", "2525"))
+    MAILTRAP_SMTP_USERNAME: str = os.getenv("MAILTRAP_SMTP_USERNAME", "7d75862a2e985a")
+    MAILTRAP_SMTP_PASSWORD: str = os.getenv("MAILTRAP_SMTP_PASSWORD", "9a3b0f07864cb2")
     
     # Fallback API configuration (not used with SMTP)
     MAILTRAP_API_TOKEN: str = os.getenv("MAILTRAP_API_TOKEN", "78049356a1e16f8ffe78c57832a34eed")
@@ -29,7 +29,8 @@ class Config:
     SENDER_NAME: str = "RAAMP Team"
     
     # Email delivery method: 'smtp' or 'api'
-    EMAIL_METHOD: str = "smtp"
+    # Use API by default for sandbox/testing to avoid local SMTP TLS issues
+    EMAIL_METHOD: str = os.getenv("EMAIL_METHOD", "api")
     
     # OTP Configuration
     OTP_LENGTH: int = 6
@@ -54,6 +55,8 @@ class Config:
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     # Facebook OAuth scopes (comma-separated string). Configure per-environment.
     FACEBOOK_OAUTH_SCOPES: str = os.getenv("FACEBOOK_OAUTH_SCOPES", "public_profile,pages_show_list,pages_read_engagement,pages_read_user_content")
+    # Google Maps API Key (used for server-side Places requests if needed)
+    GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
     
     @classmethod
     def is_production(cls) -> bool:

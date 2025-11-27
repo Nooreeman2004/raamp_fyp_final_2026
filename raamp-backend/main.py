@@ -73,6 +73,7 @@ from presentation.routers import onboarding_router
 from presentation.routers import profile_connections_router
 from presentation.routers import maps_router
 from presentation.routers import maps_public_router
+from presentation.routers import instagram_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
@@ -87,6 +88,7 @@ app.include_router(onboarding_router.router)
 app.include_router(profile_connections_router.router)
 app.include_router(maps_router.router)
 app.include_router(maps_public_router.router)
+app.include_router(instagram_router.router)
 
 
 @app.get("/profile/onboarding")

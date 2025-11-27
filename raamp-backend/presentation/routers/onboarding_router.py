@@ -6,6 +6,8 @@ from fastapi.responses import RedirectResponse
 import httpx
 from fastapi.responses import HTMLResponse
 import logging
+from config import settings as cfg
+import httpx
 
 router = APIRouter(prefix="/api/profile/onboarding", tags=["onboarding"])
 service = OnboardingService()
@@ -60,7 +62,7 @@ async def facebook_auth(current_user_email: str = Depends(get_current_user_email
 
 
 @router.get("/facebook/callback")
-async def facebook_callback(code: str = None, state: str = None, request: Request = None):
+async def facebook_callback(request: Request, code: str = None, state: str = None):
     if not code:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing code")
     if not state:
@@ -88,6 +90,8 @@ async def facebook_callback(code: str = None, state: str = None, request: Reques
     try:
         token_data = await service.exchange_fb_code_for_token(code)
     except Exception as e:
+        # provide a clearer message for debugging/token exchange failures
+        logging.exception("Facebook token exchange failed")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"FB token exchange failed: {e}")
 
     access_token = token_data.get("access_token")
@@ -309,3 +313,74 @@ async def instagram_accounts(page_id: str, current_user_email: str = Depends(get
 async def google_maps_connect(payload: GoogleConnectRequest, current_user_email: str = Depends(get_current_user_email)):
     await service.store_google_business(current_user_email, business_name=payload.business_name, address=payload.address, latitude=payload.latitude, longitude=payload.longitude, place_id=payload.google_place_id)
     return {"success": True}
+
+
+@router.post("/maps/search")
+async def maps_search(payload: dict, current_user_email: str = Depends(get_current_user_email)):
+    """Server-side search using Google Places Text Search to support clients without JS Maps."""
+    query = (payload.get('query') or '').strip()
+    if not query:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Query is required")
+    key = getattr(cfg, 'GOOGLE_MAPS_API_KEY', '')
+    if not key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Server not configured with Google Maps API key")
+    url = 'https://maps.googleapis.com/maps/api/place/textsearch/json'
+    params = {'query': query, 'key': key}
+    async with httpx.AsyncClient() as client:
+        r = await client.get(url, params=params, timeout=10.0)
+        r.raise_for_status()
+        data = r.json()
+    results = []
+    for item in data.get('results', []):
+        loc = item.get('geometry', {}).get('location', {})
+        results.append({
+            'place_id': item.get('place_id'),
+            'name': item.get('name'),
+            'formatted_address': item.get('formatted_address') or item.get('vicinity'),
+            'lat': loc.get('lat'),
+            'lng': loc.get('lng')
+        })
+    return {'results': results}
+
+
+@router.post('/maps/confirm')
+async def maps_confirm(payload: dict, current_user_email: str = Depends(get_current_user_email)):
+    place_id = payload.get('place_id')
+    if not place_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='place_id is required')
+    key = getattr(cfg, 'GOOGLE_MAPS_API_KEY', '')
+    if not key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Server not configured with Google Maps API key")
+    url = 'https://maps.googleapis.com/maps/api/place/details/json'
+    params = {'place_id': place_id, 'key': key, 'fields': 'place_id,name,formatted_address,geometry'}
+    async with httpx.AsyncClient() as client:
+        r = await client.get(url, params=params, timeout=10.0)
+        r.raise_for_status()
+        data = r.json()
+    result = data.get('result', {})
+    loc = result.get('geometry', {}).get('location', {})
+    return {
+        'place_id': result.get('place_id'),
+        'name': result.get('name'),
+        'formatted_address': result.get('formatted_address'),
+        'lat': loc.get('lat'),
+        'lng': loc.get('lng')
+    }
+
+
+@router.post('/maps/save')
+async def maps_save(payload: dict, current_user_email: str = Depends(get_current_user_email)):
+    # Expecting: place_id, name, address, optional lat/lng
+    place_id = payload.get('place_id')
+    name = payload.get('name')
+    address = payload.get('address')
+    lat = payload.get('lat')
+    lng = payload.get('lng')
+    if not place_id or not name or not address:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='place_id, name and address are required')
+    try:
+        await service.store_google_business(current_user_email, business_name=name, address=address, latitude=lat or 0.0, longitude=lng or 0.0, place_id=place_id)
+    except Exception as e:
+        logging.exception('Failed to save google business')
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    return {'success': True}

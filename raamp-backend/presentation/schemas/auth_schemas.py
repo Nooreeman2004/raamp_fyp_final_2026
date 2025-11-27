@@ -156,11 +156,25 @@ class UpdateProfileRequest(BaseModel):
     """Request schema for updating user profile - all fields required for profile creation"""
     first_name: str = Field(..., min_length=1, max_length=50)
     last_name: str = Field(..., min_length=1, max_length=50)
-    phone_number: str = Field(..., min_length=1, max_length=20)
+    # Phone number must be exactly 11 digits (e.g. local mobile format)
+    phone_number: str = Field(
+        ...,
+        min_length=11,
+        max_length=11,
+        description="Phone number must be exactly 11 digits",
+    )
     company: str = Field(..., min_length=1, max_length=100)
     role: str = Field(..., min_length=1, max_length=100)
     bio: str = Field(..., min_length=1, max_length=500)
     business_domain: str = Field(..., description="ObjectId of the business domain category")
+
+    @field_validator("phone_number")
+    @classmethod
+    def phone_must_be_11_digits(cls, v: str) -> str:
+        """Validate that phone number contains exactly 11 digits."""
+        if not v.isdigit() or len(v) != 11:
+            raise ValueError("Phone number must contain exactly 11 digits")
+        return v
 
 
 class UpdateProfileResponse(BaseModel):

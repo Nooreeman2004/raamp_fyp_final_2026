@@ -21,6 +21,7 @@ const Onboarding = () => {
   const [fbScopes, setFbScopes] = useState<string[]>([]);
   const [mapsModalOpen, setMapsModalOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [linkHelpOpen, setLinkHelpOpen] = useState(false);
   // Instagram will open a backend-hosted popup to list pages and link IG
 
   const useMock = import.meta.env.VITE_USE_MOCK_API === 'true';
@@ -61,7 +62,7 @@ const Onboarding = () => {
           // fetch granted FB scopes for debugging/display
           if (s.facebook_connected) {
             try {
-              const g: any = await apiClient.get('/profile/facebook/granted-scopes');
+              const g: any = await apiClient.get('/profile/connections/facebook/granted-scopes');
               setFbScopes(g.granted_scopes || []);
             } catch (e) {
               setFbScopes([]);
@@ -84,7 +85,7 @@ const Onboarding = () => {
           // fetch granted scopes when facebook connected
           try {
             if (fb.status === 'fulfilled' && (fb as any).value?.connected) {
-              const g: any = await apiClient.get('/profile/facebook/granted-scopes');
+              const g: any = await apiClient.get('/profile/connections/facebook/granted-scopes');
               setFbScopes(g.granted_scopes || []);
             } else {
               setFbScopes([]);
@@ -291,18 +292,19 @@ const Onboarding = () => {
                     const resp: any = await apiClient.get('/profile/onboarding/instagram/pages');
                     const pages = resp?.pages || [];
                     if (!Array.isArray(pages) || pages.length === 0) {
-                      toast({ title: 'No Facebook Pages', description: 'No Facebook Pages found on your account. Please create or add a Page and try again.', variant: 'destructive' });
+                      toast({
+                        title: 'No Facebook Pages found',
+                        description: 'We could not find any Facebook Pages on your account. Create or add a Page, then try again.',
+                        variant: 'destructive',
+                      });
                       return;
                     }
 
                     const pagesWithIG = pages.filter((p: any) => p.has_instagram);
-                    if (pagesWithIG.length === 0) {
-                      const ok = window.confirm('Please link your Instagram account to one of your Facebook Pages before continuing. Open Meta Help for guidance?');
-                      if (ok) window.open('https://help.instagram.com/1533933820244654', '_blank');
-                      return;
-                    }
 
-                    // If any linked IG account is not Business/Creator, prompt to convert
+                    // If any linked IG account is not Business/Creator, prompt to convert.
+                    // We still allow the user to proceed to the page picker; the backend
+                    // will enforce actual linkage and account type.
                     const nonProfessional = pagesWithIG.find((p: any) => {
                       const acct = p.instagram;
                       const type = acct?.account_type || acct?.accountType || '';
@@ -316,7 +318,9 @@ const Onboarding = () => {
                       window.open('https://help.instagram.com/1533933820244654', '_blank');
                     }
 
-                    // All checks passed — show the pages modal so user can pick which Page to link
+                    // Always show the pages modal so user can pick which Page to link.
+                    // The backend will validate whether the selected page actually has
+                    // an Instagram Business/Creator account linked and return clear errors.
                     setPagesList(pages);
                     setPagesModalOpen(true);
                   } catch (err: any) {
@@ -368,6 +372,68 @@ const Onboarding = () => {
             fetchConnections();
           }}
         />
+
+        {/* Help modal when no Instagram-linked Pages are found */}
+        {linkHelpOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-card p-6 rounded-lg w-full max-w-lg">
+              <h3 className="text-lg font-bold mb-2">Link a Facebook Page to Instagram</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                We couldn&apos;t find any Facebook Pages that are currently linked to an Instagram Business or Creator account.
+                To continue, link one of your Pages to Instagram in Meta, then return here and retry the connection.
+              </p>
+              {pagesList && pagesList.length > 0 && (
+                <div className="mb-4 space-y-2 max-h-40 overflow-auto">
+                  {pagesList.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between p-2 bg-muted/40 rounded">
+                      <div>
+                        <div className="font-semibold text-sm">{p.name}</div>
+                        <div className="text-xs text-muted-foreground">Page ID: {p.id}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          // Open the Page in a new tab so the user can manage Instagram linking.
+                          window.open(`https://www.facebook.com/${p.id}`, '_blank');
+                        }}
+                      >
+                        Open Page
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-between gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    window.open('https://help.instagram.com/1533933820244654', '_blank');
+                  }}
+                >
+                  Open Meta Help
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setLinkHelpOpen(false)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setLinkHelpOpen(false);
+                      // Re-run connection checks so user can continue after linking.
+                      fetchConnections();
+                    }}
+                  >
+                    I&apos;ve linked my account
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pages modal - simple themed modal to choose a Facebook page to link Instagram */}
         {pagesModalOpen && (

@@ -30,6 +30,7 @@ export default function HeatmapMap({
   const [map, setMap] = useState<any>(null);
   const [markers, setMarkers] = useState<any[]>([]);
   const [heatmap, setHeatmap] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
   useEffect(() => {
@@ -48,7 +49,12 @@ export default function HeatmapMap({
     }
 
     function initializeMap() {
-      if (!mapRef.current || !window.google) return;
+      if (!mapRef.current || !window.google) {
+        setIsLoading(false);
+        return;
+      }
+      
+      setIsLoading(true);
 
       // Determine center - use user location or first high intent area
       const defaultCenter = userLocation 
@@ -175,6 +181,8 @@ export default function HeatmapMap({
         });
         mapInstance.fitBounds(bounds);
       }
+      
+      setIsLoading(false);
     }
 
     return () => {

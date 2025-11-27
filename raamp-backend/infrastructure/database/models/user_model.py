@@ -16,13 +16,13 @@ class UserModel(Document):
     code_expires_at: Optional[datetime] = None
     code_sent_at: Optional[datetime] = None
     
-    # Profile fields - All required for profile creation
-    first_name: str = ""
-    last_name: str = ""
-    phone_number: str = ""
-    company: str = ""
-    role: str = ""
-    bio: str = ""
+    # Profile fields - allow missing/null values from older records
+    first_name: Optional[str] = ""
+    last_name: Optional[str] = ""
+    phone_number: Optional[str] = ""
+    company: Optional[str] = ""
+    role: Optional[str] = ""
+    bio: Optional[str] = ""
     business_domain: Optional[str] = None  # ObjectId reference to BusinessDomain
     profile_completed: bool = False
     # Connection flags

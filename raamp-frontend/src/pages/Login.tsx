@@ -8,6 +8,7 @@ import { Eye, EyeOff } from "lucide-react";
 import raampIcon from "@/assets/raamp-icon-transparent.png";
 import { toast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
+import { signInWithGoogle } from "@/services/googleAuth";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -15,6 +16,43 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      const googleResult = await signInWithGoogle();
+      const response = await authService.signinWithGoogle({
+        id_token: googleResult.idToken,
+        email: googleResult.email,
+        display_name: googleResult.displayName,
+        photo_url: googleResult.photoURL,
+      });
+
+      toast({
+        title: "Welcome!",
+        description: response.message || "Signed in with Google.",
+      });
+
+      if (response.user && !response.user.profile_completed) {
+        navigate("/profile/personal-details");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      console.error("Google sign-in error:", error);
+      const description =
+        error?.message ||
+        error?.detail ||
+        "Unable to sign in with Google. Please try again or use email/password.";
+      toast({
+        title: "Google Sign-in Failed",
+        description,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,7 +239,8 @@ const Login = () => {
               type="button"
               variant="outline"
               className="w-full"
-              onClick={() => toast({ title: "Google OAuth coming soon!" })}
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
             >
               <svg
                 className="w-5 h-5 mr-2"

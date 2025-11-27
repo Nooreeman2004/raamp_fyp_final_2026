@@ -105,6 +105,13 @@ export const authService = {
   },
 
   /**
+   * Sign in with Google OAuth
+   */
+  signinWithGoogle: async (data: GoogleSignupRequest): Promise<SignInResponse> => {
+    return apiClient.post<SignInResponse>('/auth/signin/google', data);
+  },
+
+  /**
    * Verify email with OTP code
    */
   verifyEmail: async (data: VerifyEmailRequest): Promise<VerifyEmailResponse> => {

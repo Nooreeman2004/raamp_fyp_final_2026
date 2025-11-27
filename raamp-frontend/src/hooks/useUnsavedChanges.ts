@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import { useBlocker } from "react-router-dom";
+import { useEffect } from "react";
 
 interface UseUnsavedChangesOptions {
   hasUnsavedChanges: boolean;
@@ -10,19 +9,32 @@ export function useUnsavedChanges({
   hasUnsavedChanges, 
   message = "You have unsaved changes. Are you sure you want to leave?" 
 }: UseUnsavedChangesOptions) {
-  const blocker = useBlocker(hasUnsavedChanges);
+  // Fallback implementation: modern react-router data routers expose
+  // `useBlocker`, but the app may use a plain BrowserRouter. To avoid
+  // crashing the app we don't call `useBlocker` here. Instead we
+  // install a `beforeunload` handler to warn the user when they try
+  // to close/refresh the page. This does not block internal SPA
+  // navigation, but avoids runtime errors and covers the most common
+  // cause of lost work (reload/close).
 
   useEffect(() => {
-    if (blocker.state === "blocked") {
-      const shouldLeave = window.confirm(message);
-      if (shouldLeave) {
-        blocker.proceed();
-      } else {
-        blocker.reset();
-      }
-    }
-  }, [blocker, message]);
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) return undefined;
+      e.preventDefault();
+      e.returnValue = message; // Chrome requires returnValue to be set
+      return message;
+    };
 
-  return blocker;
+    if (hasUnsavedChanges) {
+      window.addEventListener('beforeunload', handler);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handler);
+    };
+  }, [hasUnsavedChanges, message]);
+
+  // No blocker object to return in this simplified implementation
+  return null as any;
 }
 

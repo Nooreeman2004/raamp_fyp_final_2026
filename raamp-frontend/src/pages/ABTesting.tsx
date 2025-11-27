@@ -6,15 +6,17 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Zap, FlaskConical, TrendingUp, CheckCircle, Play, Eye, HelpCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import Celebration from "@/components/Celebration";
+import ChartSkeleton from "@/components/ChartSkeleton";
 
 const ABTesting = () => {
   const { toast } = useToast();
   const [showBudgetDialog, setShowBudgetDialog] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [isLoadingChart, setIsLoadingChart] = useState(true);
 
   // Variant preview data
   const variants = [
@@ -47,6 +49,12 @@ const ABTesting = () => {
       tagColor: "bg-blue-500/20 text-blue-400"
     },
   ];
+
+  // Simulate chart loading
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoadingChart(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Conversion trend data
   const conversionData = [
@@ -156,8 +164,11 @@ const ABTesting = () => {
             <Card className="bg-card/50 backdrop-blur-sm border-primary/20 p-6 hover:border-primary/40 transition-all">
               <h3 className="text-lg font-semibold mb-4">Comparative Conversion Trend: Conversion Rate (%)</h3>
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={conversionData}>
+                {isLoadingChart ? (
+                  <ChartSkeleton height="256px" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={conversionData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                     <XAxis dataKey="day" stroke="rgba(255,255,255,0.5)" />
                     <YAxis domain={[0, 16]} stroke="rgba(255,255,255,0.5)" />
@@ -190,8 +201,9 @@ const ABTesting = () => {
                       strokeWidth={2}
                       dot={{ r: 4 }}
                     />
-                  </LineChart>
-                </ResponsiveContainer>
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </Card>
 

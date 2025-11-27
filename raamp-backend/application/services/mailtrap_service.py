@@ -488,10 +488,36 @@ class MailtrapService:
                 msg.attach(part2)
                 
                 # Send via SMTP with timeout
-                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10) as server:
-                    server.starttls()
-                    server.login(self.smtp_username, self.smtp_password)
-                    server.sendmail(self.sender_email, to_email, msg.as_string())
+                import ssl
+                context = ssl.create_default_context()
+
+                # Choose secure connection method based on port
+                import traceback
+
+                if self.smtp_port == 465:
+                    # SMTPS (implicit TLS)
+                    with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=10, context=context) as server:
+                        # Enable verbose SMTP debug to stdout for diagnosis
+                        server.set_debuglevel(1)
+                        server.login(self.smtp_username, self.smtp_password)
+                        server.sendmail(self.sender_email, to_email, msg.as_string())
+                else:
+                    # Plain SMTP with STARTTLS
+                    with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10) as server:
+                        # Enable verbose SMTP debug to stdout for diagnosis
+                        server.set_debuglevel(1)
+                        # Ensure EHLO/HELO
+                        try:
+                            server.ehlo()
+                        except Exception:
+                            pass
+                        server.starttls(context=context)
+                        try:
+                            server.ehlo()
+                        except Exception:
+                            pass
+                        server.login(self.smtp_username, self.smtp_password)
+                        server.sendmail(self.sender_email, to_email, msg.as_string())
                 
                 print(f"✅ Email sent via SMTP to {to_email}: {subject}")
                 return True
@@ -574,8 +600,8 @@ class MailtrapService:
                 timeout=10
             )
             
-            if response.status_code == 200:
-                print(f"✅ Email sent to {to_email}: {subject}")
+            if response.ok:
+                print(f"✅ Email sent to {to_email}: {subject} (API)")
                 return True
             else:
                 print(f"❌ Mailtrap API error {response.status_code}: {response.text}")
@@ -584,7 +610,9 @@ class MailtrapService:
                 return False
             
         except Exception as e:
+            import traceback
             print(f"❌ Failed to send email: {e}")
+            print(traceback.format_exc())
             # Fallback to console in case of error
             print(f"\n📧 EMAIL CONTENT:\nTo: {to_email}\nSubject: {subject}\n{text_content}\n")
             return False

@@ -124,7 +124,7 @@ const EmailVerification = () => {
       console.error("Verification error:", error);
       
       // Special case: User already exists (verification already completed)
-      if (error.errors?.email && typeof error.errors.email === 'string' && 
+      if (error.errors?.email && typeof error.errors.email === "string" && 
           error.errors.email.includes("already exists")) {
         toast({
           title: "Already Verified!",
@@ -135,10 +135,18 @@ const EmailVerification = () => {
         }, 1500);
         return;
       }
+
+      const firstError =
+        error.errors?.code ||
+        error.errors?.email ||
+        error.errors?.system ||
+        (error.errors && Array.isArray(Object.values(error.errors)) 
+          ? String((Object.values(error.errors) as any[])[0])
+          : undefined);
       
       toast({
         title: "Verification Failed",
-        description: error.errors?.code || error.message || "Invalid or expired code.",
+        description: firstError || error.message || "Invalid or expired code.",
         variant: "destructive",
       });
       

@@ -91,11 +91,15 @@ class VerifyEmailUseCase:
             # Delete pending verification
             await self.pending_repo.delete_by_email(email.lower())
             
-            # Send welcome email
-            await self.email_service.send_welcome_email(
-                to_email=created_user.email,
-                name=created_user.username
-            )
+            # Send welcome email (do not fail the verification flow if email sending fails)
+            try:
+                await self.email_service.send_welcome_email(
+                    to_email=created_user.email,
+                    name=created_user.username
+                )
+            except Exception as e:
+                # Log and continue - email failures should not block account creation
+                print(f"❌ Failed to send welcome email for {created_user.email}: {e}")
             
             return True, None
         finally:

@@ -168,14 +168,14 @@ const Signup = () => {
         photo_url: googleResult.photoURL,
       });
       
-      // Success
+      // Success - Google account created, now require onboarding/profile
       toast({
         title: "Account created!",
-        description: response.message || "Welcome to RAAMP!",
+        description: response.message || "Welcome to RAAMP! Let’s complete your profile.",
       });
       
-      // Navigate to dashboard or appropriate page
-      navigate("/dashboard");
+      // Newly created Google users must complete profile before using the app
+      navigate("/profile/personal-details");
       
     } catch (error: any) {
       console.error("Google signup error:", error);

@@ -13,7 +13,8 @@ class OAuthStateRepository:
 
     async def validate_and_consume(self, user_id: str, state: str) -> bool:
         now = datetime.utcnow()
-        doc = await OAuthStateModel.find_one((OAuthStateModel.user_id == user_id) & (OAuthStateModel.state == state))
+        # Use a dict filter to avoid combining Eq objects which isn't supported
+        doc = await OAuthStateModel.find_one({"user_id": user_id, "state": state})
         if not doc:
             return False
         if doc.expires_at < now:
@@ -31,7 +32,8 @@ class OAuthStateRepository:
         Returns the user_id (email) if valid, otherwise None.
         """
         now = datetime.utcnow()
-        doc = await OAuthStateModel.find_one(OAuthStateModel.state == state)
+        # single-field lookup by state
+        doc = await OAuthStateModel.find_one({"state": state})
         if not doc:
             return None
         if doc.expires_at < now:

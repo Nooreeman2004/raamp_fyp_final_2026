@@ -29,6 +29,7 @@ export default function GoogleMap({
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<any>(null);
   const [markers, setMarkers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
   useEffect(() => {
@@ -47,7 +48,12 @@ export default function GoogleMap({
     }
 
     function initializeMap() {
-      if (!mapRef.current || !window.google) return;
+      if (!mapRef.current || !window.google) {
+        setIsLoading(false);
+        return;
+      }
+      
+      setIsLoading(true);
 
       const defaultCenter = center || (locations.length > 0 
         ? { lat: locations[0].lat, lng: locations[0].lng }
@@ -103,6 +109,8 @@ export default function GoogleMap({
         });
         mapInstance.fitBounds(bounds);
       }
+      
+      setIsLoading(false);
     }
 
     return () => {

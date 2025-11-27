@@ -22,6 +22,7 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Place | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [pickerReady, setPickerReady] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const loaderRef = useRef<HTMLElement | null>(null);
   const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
@@ -31,6 +32,7 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
       setQuery('');
       setResults([]);
       setSelected(null);
+      setPickerReady(false);
     }
     // when modal opens, if Google key present, ensure the extended component lib is loaded
     if (isOpen && GOOGLE_KEY) {
@@ -44,13 +46,15 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
         document.head.appendChild(s);
       }
     }
-  }, [isOpen]);
+  }, [isOpen, GOOGLE_KEY]);
 
   // When Google key present, configure loader and wire up the place-picker change event
   useEffect(() => {
     if (!isOpen || !GOOGLE_KEY) return;
 
     let mounted = true;
+    let cleanupFn: (() => void) | undefined;
+
     const configure = async () => {
       // wait for the extended lib to define custom elements
       const waitFor = (name: string, timeout = 5000) => new Promise<boolean>((resolve) => {
@@ -65,13 +69,51 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
 
       const ok = await waitFor('gmpx-place-picker', 8000);
       if (!mounted) return;
-      // set loader attributes
+      setPickerReady(ok);
+
+      // If GMPX didn't register in time, attempt a graceful fallback by loading
+      // the Google Maps JS API with the Places library so the page can still
+      // provide a search + selection UX.
+      if (!ok) {
+        console.error('GMPX place-picker did not register within timeout. Falling back to Google Maps JS API loader.');
+        try {
+          if (!document.getElementById('google-maps-js')) {
+            (window as any).__raamp_gmaps_loaded = false;
+            (window as any).__raamp_gmaps_error = false;
+            (window as any).__raamp_init_maps = () => { (window as any).__raamp_gmaps_loaded = true; };
+            const s = document.createElement('script');
+            s.id = 'google-maps-js';
+            s.async = true;
+            s.defer = true;
+            s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places&callback=__raamp_init_maps`;
+            s.onerror = () => { (window as any).__raamp_gmaps_error = true; console.error('Failed to load Google Maps JS API fallback'); };
+            document.head.appendChild(s);
+            // wait briefly for load to complete
+            const start = Date.now();
+            while (Date.now() - start < 6000 && !(window as any).__raamp_gmaps_loaded && !(window as any).__raamp_gmaps_error) {
+              // eslint-disable-next-line no-await-in-loop
+              await new Promise((r) => setTimeout(r, 150));
+            }
+            if ((window as any).__raamp_gmaps_loaded) console.info('Google Maps JS API loaded (fallback)');
+            else console.warn('Google Maps JS API fallback did not finish loading');
+          }
+        } catch (e) {
+          console.error('Error while loading Google Maps fallback', e);
+        }
+      }
+
+      // set loader attributes (use correct attribute name expected by gmpx-api-loader)
       if (loaderRef.current) {
         try {
-          loaderRef.current.setAttribute('key', GOOGLE_KEY);
+          // Give the loader the API key and request the Places library.
+          loaderRef.current.setAttribute('api-key', GOOGLE_KEY);
+          loaderRef.current.setAttribute('libraries', 'places');
           loaderRef.current.setAttribute('solution-channel', 'GMP_GE_placepicker_v2');
+          // Disable auto-init to allow the app to wire events explicitly.
+          loaderRef.current.setAttribute('auto-init', 'false');
+          loaderRef.current.setAttribute('autoinit', 'false');
         } catch (e) {
-          // ignore
+          console.error('Failed to configure gmpx-api-loader', e);
         }
       }
 
@@ -126,19 +168,21 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
 
       if (placePicker) {
         placePicker.addEventListener('gmpx-placechange', onPlaceChange);
+        // Return cleanup function
+        return () => {
+          placePicker.removeEventListener('gmpx-placechange', onPlaceChange);
+        };
       }
-
-      // cleanup
-      return () => {
-        mounted = false;
-        if (placePicker) placePicker.removeEventListener('gmpx-placechange', onPlaceChange);
-      };
     };
 
-    let cleanupFn: (() => void) | undefined;
-    configure().then((c) => { if (typeof c === 'function') cleanupFn = c as any; }).catch(() => {});
+    configure().then((c) => { 
+      if (typeof c === 'function') cleanupFn = c;
+    }).catch(() => {});
 
-    return () => { if (cleanupFn) cleanupFn(); };
+    return () => { 
+      mounted = false;
+      if (cleanupFn) cleanupFn(); 
+    };
   }, [isOpen, GOOGLE_KEY]);
 
   const doSearch = async (q: string) => {
@@ -148,12 +192,12 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
     }
     setLoading(true);
     try {
-      const encoded = encodeURIComponent(q.trim());
-      const res: any = await apiClient.get(`/maps/search?query=${encoded}`);
-      setResults(res || []);
+      // Use onboarding maps search endpoint
+      const res: any = await apiClient.post('/profile/onboarding/maps/search', { query: q.trim() });
+      // expect res.data.results or res.results depending on client adapter
+      setResults((res && (res.data?.results || res.results)) || []);
     } catch (err: any) {
       console.error('Search error', err);
-      // eslint-disable-next-line no-console
       alert('Search failed. Please try again.');
     } finally {
       setLoading(false);
@@ -163,13 +207,15 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
   const fetchDetails = async (place_id: string) => {
     setDetailsLoading(true);
     try {
-      const res: any = await apiClient.get(`/maps/details?place_id=${encodeURIComponent(place_id)}`);
+      // Use onboarding maps confirm endpoint to get canonical details
+      const res: any = await apiClient.post('/profile/onboarding/maps/confirm', { place_id });
+      const data = res && (res.data || res);
       setSelected({
-        place_id: res.place_id,
-        name: res.name,
-        formatted_address: res.formatted_address,
-        lat: res.lat,
-        lng: res.lng,
+        place_id: data.place_id,
+        name: data.name,
+        formatted_address: data.formatted_address || data.address,
+        lat: data.lat,
+        lng: data.lng,
       });
     } catch (err: any) {
       console.error('Details error', err);
@@ -185,12 +231,11 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
       const payload = {
         place_id: selected.place_id,
         name: selected.name,
-        formatted_address: selected.formatted_address,
-        lat: selected.lat,
-        lng: selected.lng,
+        address: selected.formatted_address,
       };
-      await apiClient.post('/maps/connect', payload);
-      onConnected(payload);
+      // Save via maps save endpoint in onboarding router
+      await apiClient.post('/profile/onboarding/maps/save', payload);
+      onConnected({ ...payload, formatted_address: selected.formatted_address, lat: selected.lat, lng: selected.lng });
       onClose();
     } catch (err: any) {
       console.error('Connect error', err);
@@ -209,8 +254,9 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
         </div>
         {!selected && (
           <div>
-            {/* If Google key present, render the client-side Place Picker UI using the GMPX components */}
-            {GOOGLE_KEY ? (
+            {/* If Google key present AND the GMPX place picker loaded, render the client-side UI.
+                Otherwise, fall back to the backend-powered search list so users always see a search box. */}
+            {GOOGLE_KEY && pickerReady ? (
               <div>
                 {/* gmpx loader and map/place-picker are custom elements; set loader attributes after mount */}
                 <gmpx-api-loader ref={(el) => { loaderRef.current = el as any; }}></gmpx-api-loader>
@@ -221,6 +267,18 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
                     </div>
                     <gmp-advanced-marker></gmp-advanced-marker>
                   </gmp-map>
+                  <style>{`
+                    gmp-map {
+                      display: block;
+                      width: 100%;
+                      min-height: 320px;
+                      border-radius: 8px;
+                      overflow: hidden;
+                    }
+                    gmpx-place-picker, gmpx-place-picker input, .place-picker-container { z-index: 9999 !important; }
+                    .place-picker-container { position: relative; }
+                    gmpx-place-picker .gmpx-search-box { z-index: 10000 !important; }
+                  `}</style>
                 </div>
                 <div className="text-sm text-muted-foreground">Use the search box on the map to pick your business. After selection, confirm below.</div>
               </div>
@@ -275,7 +333,7 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
                   width="100%"
                   height="100%"
                   frameBorder={0}
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${selected.lng! - 0.002}%2C${selected.lat! - 0.002}%2C${selected.lng! + 0.002}%2C${selected.lat! + 0.002}&layer=mapnik&marker=${selected.lat}%2C${selected.lng}`}
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${selected.lng - 0.002}%2C${selected.lat - 0.002}%2C${selected.lng + 0.002}%2C${selected.lat + 0.002}&layer=mapnik&marker=${selected.lat}%2C${selected.lng}`}
                 />
                 <div className="text-xs text-muted-foreground mt-1">Map preview (OpenStreetMap)</div>
               </div>
