@@ -1,0 +1,2197 @@
+{
+  "faqs": [
+    {
+      "id": "FAQ001",
+      "category": "General",
+      "question": "What is RAAMP?",
+      "answer": "RAAMP stands for the Revolutionary AI-Powered Autonomous Marketing Platform. It's an advanced, AI-driven marketing system designed to transform how local businesses, particularly restaurants and fashion brands, plan, execute, and optimize their digital campaigns. Think of it as your intelligent marketing partner that works 24/7!",
+      "related_modules": [
+        "All"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "RAAMP",
+        "platform",
+        "overview",
+        "introduction"
+      ]
+    },
+    {
+      "id": "FAQ002",
+      "category": "General",
+      "question": "What problem does RAAMP solve for my business?",
+      "answer": "RAAMP solves the frustrating problem of costly, complex, and inefficient marketing tools that waste advertising budgets on poorly targeted campaigns. Instead of spending up to half your ad budget on the wrong audience, RAAMP offers a fully automated solution to create highly targeted, location-specific campaigns that actually reach the customers who matter most to your business.",
+      "related_modules": [
+        "All"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "problem",
+        "solution",
+        "benefits",
+        "value proposition"
+      ]
+    },
+    {
+      "id": "FAQ003",
+      "category": "General",
+      "question": "Which types of businesses can benefit from RAAMP?",
+      "answer": "RAAMP is specifically designed for local businesses like restaurants and fashion boutiques. Whether you're running a cozy café, a fine dining restaurant, a trendy clothing store, or a boutique fashion brand, RAAMP helps you connect with nearby customers who are actively looking for what you offer.",
+      "related_modules": [
+        "User Onboarding"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "business type",
+        "restaurant",
+        "fashion",
+        "target audience"
+      ]
+    },
+    {
+      "id": "FAQ004",
+      "category": "General",
+      "question": "How is RAAMP different from other marketing tools?",
+      "answer": "Unlike traditional marketing tools that require expert knowledge and manual setup, RAAMP delivers an intelligent, seamless, and fully automated experience powered by Bayesian analytics and generative intelligence. It doesn't just report what happened – it predicts what will work, creates the content for you, and continuously optimizes your campaigns in real-time. Plus, it explains WHY things work, so you're always learning!",
+      "related_modules": [
+        "All"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "comparison",
+        "competitive advantage",
+        "automation",
+        "AI"
+      ]
+    },
+    {
+      "id": "FAQ005",
+      "category": "Getting Started",
+      "question": "How do I create an account?",
+      "answer": "Creating an account is super easy! Just head to the signup page, enter your email address, and click 'Subscribe'. You'll then provide your business details like your business name, industry type (restaurant or fashion), and location. The whole onboarding process takes about 10 minutes, and you'll be ready to launch your first campaign!",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "signup",
+        "registration",
+        "account creation",
+        "onboarding"
+      ]
+    },
+    {
+      "id": "FAQ006",
+      "category": "Getting Started",
+      "question": "What information do I need to provide during signup?",
+      "answer": "You'll need your email address, business name, business type (restaurant or fashion), industry category, target demographics, and your business location. You'll also connect your Instagram account using OAuth for secure integration. Don't worry – we'll guide you through each step!",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "signup",
+        "business details",
+        "required information"
+      ]
+    },
+    {
+      "id": "FAQ007",
+      "category": "Getting Started",
+      "question": "How long does onboarding take?",
+      "answer": "A new user can complete the entire onboarding process – from account creation and Instagram connection to providing business details – in approximately 10 minutes. We've designed it to be quick and painless so you can start marketing faster!",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "onboarding",
+        "setup time",
+        "getting started"
+      ],
+      "non_functional_requirements": [
+        "USE-1"
+      ]
+    },
+    {
+      "id": "FAQ008",
+      "category": "Getting Started",
+      "question": "Can I connect multiple social media accounts?",
+      "answer": "Currently, RAAMP supports Instagram, Facebook, and Google Maps integrations. During onboarding, you'll connect your Instagram account, and you can manage your Facebook and Google Maps connections from the Onboarding & Integrations page. Each integration enhances your campaign targeting and delivery capabilities!",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "social media",
+        "integrations",
+        "Instagram",
+        "Facebook",
+        "Google Maps"
+      ]
+    },
+    {
+      "id": "FAQ009",
+      "category": "Account Management",
+      "question": "How do I reset my password?",
+      "answer": "If you've forgotten your password, simply click the 'Forgot Password?' link on the login page. Enter the email address associated with your account, and we'll send you a secure, time-sensitive password reset link. Once you receive it, just click the link and set your new password!",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "password",
+        "reset",
+        "forgot password",
+        "login issues"
+      ]
+    },
+    {
+      "id": "FAQ010",
+      "category": "Account Management",
+      "question": "How do I update my profile information?",
+      "answer": "To update your profile, click on your account icon in the header and select 'Manage Profile'. You can edit your first name, last name, phone number, company, and role. Your email address serves as your unique identifier and cannot be changed. Don't forget to click 'Save' after making changes!",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "profile",
+        "edit profile",
+        "update information",
+        "account settings"
+      ]
+    },
+    {
+      "id": "FAQ011",
+      "category": "Account Management",
+      "question": "How do I change my password?",
+      "answer": "Go to your profile settings and click the 'Change Password' link. You'll need to enter your current password, then your new password twice to confirm. Make sure your new password meets our security requirements – we'll let you know if it doesn't! Once everything checks out, click 'Update Password' and you're all set.",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "password change",
+        "security",
+        "account security"
+      ]
+    },
+    {
+      "id": "FAQ012",
+      "category": "Account Management",
+      "question": "Can I manage which devices have access to my account?",
+      "answer": "Absolutely! In your profile settings, you'll see a 'Managed Devices' list showing all devices that have accessed your account, including device name, location, and last active time. You can select any device and revoke its access remotely – super handy if you've logged in from a public computer or lost a device!",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "device management",
+        "security",
+        "access control",
+        "device access"
+      ]
+    },
+    {
+      "id": "FAQ013",
+      "category": "Account Management",
+      "question": "What security features does RAAMP offer?",
+      "answer": "We take security seriously! RAAMP offers Two-Factor Authentication (2FA), password strength monitoring, and activity monitoring. You can enable these features from your Security Settings. Plus, your session automatically expires after 30 minutes of inactivity to prevent unauthorized access. All your data is encrypted with HTTPS (TLS 1.2+), and we never store passwords in plain text.",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "security",
+        "2FA",
+        "authentication",
+        "encryption",
+        "data protection"
+      ],
+      "non_functional_requirements": [
+        "SEC-1",
+        "SEC-2",
+        "SEC-3",
+        "SEC-5"
+      ]
+    },
+    {
+      "id": "FAQ014",
+      "category": "Geo-Intent Marketing",
+      "question": "What is Geo-Intent Marketing?",
+      "answer": "Geo-Intent Marketing is one of RAAMP's coolest features! It identifies potential customers based on their location and what they're searching for right now. By analyzing data from Google Trends, Instagram hashtags, and local events, we pinpoint areas where people are actively looking for businesses like yours. It's like having a crystal ball that shows you exactly where your next customers are!",
+      "related_modules": [
+        "Intelligent Geo-Intent Marketing Engine"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "geo-intent",
+        "location targeting",
+        "hyperlocal",
+        "targeting"
+      ],
+      "module_features": [
+        "FE-1",
+        "FE-4",
+        "FE-5"
+      ]
+    },
+    {
+      "id": "FAQ015",
+      "category": "Geo-Intent Marketing",
+      "question": "How do I set up a geo-targeted campaign?",
+      "answer": "It's easy! Navigate to the Geo-Intent module and click 'Explore Geo-Intent Features'. You'll see a Dynamic Targeting Zone Builder with an interactive map. Simply name your zone, adjust the radius slider (typically 500m–2km), and the system will generate heatmaps showing high-intent areas based on lead scores (0–100). You can even draw custom zones or let our AI Smart Zone feature optimize boundaries for you!",
+      "related_modules": [
+        "Intelligent Geo-Intent Marketing Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "setup",
+        "geo-targeting",
+        "campaign creation",
+        "targeting zones"
+      ]
+    },
+    {
+      "id": "FAQ016",
+      "category": "Geo-Intent Marketing",
+      "question": "What are lead scores and how are they calculated?",
+      "answer": "Lead scores are ratings from 0–100 that indicate how likely people in a specific area are to become your customers. RAAMP calculates these scores by analyzing location-based data from Google Trends, Instagram engagement, and local events. Higher scores mean higher intent – for example, you might see '#BubbleTea +34% in DHA' if there's a surge in bubble tea interest in that neighborhood. These scores help you focus your marketing where it matters most!",
+      "related_modules": [
+        "Intelligent Geo-Intent Marketing Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "lead scores",
+        "scoring",
+        "metrics",
+        "intent signals"
+      ],
+      "module_features": [
+        "FE-4",
+        "FE-5",
+        "FE-8"
+      ]
+    },
+    {
+      "id": "FAQ017",
+      "category": "Geo-Intent Marketing",
+      "question": "What is the AI Smart Zone feature?",
+      "answer": "AI Smart Zone is like having a marketing expert draw your targeting boundaries for you! Instead of manually setting a circular radius, you can enable this feature to let our AI analyze engagement patterns, competitor activity, and demographic data to create optimized, custom-shaped targeting zones. Just check the 'Enable AI Smart Zone' box and click 'Apply AI Smart Zone' – the system will automatically generate the best targeting area for your campaign.",
+      "related_modules": [
+        "Intelligent Geo-Intent Marketing Engine"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "AI Smart Zone",
+        "automation",
+        "AI optimization",
+        "advanced targeting"
+      ]
+    },
+    {
+      "id": "FAQ018",
+      "category": "Geo-Intent Marketing",
+      "question": "How often is the geo-intent data updated?",
+      "answer": "Our geo-intent data updates in near real-time! The system continuously collects location-based data from Google Trends, Instagram hashtags and stories, and web-scraped local events. Lead scores and heatmaps typically refresh within 30 seconds after new data becomes available, ensuring you're always working with the freshest insights.",
+      "related_modules": [
+        "Intelligent Geo-Intent Marketing Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "data refresh",
+        "real-time",
+        "updates",
+        "data freshness"
+      ],
+      "non_functional_requirements": [
+        "PER-1"
+      ]
+    },
+    {
+      "id": "FAQ019",
+      "category": "Geo-Intent Marketing",
+      "question": "What does 'urgency level' mean in geo-intent targeting?",
+      "answer": "Urgency levels (Low/Med/High) indicate how time-sensitive an opportunity is based on engagement recency and lead scores. A 'High' urgency might mean there's a trending event happening RIGHT NOW in your area, while 'Low' urgency could be a gradual trend building over time. This helps you prioritize which areas to target first for maximum impact!",
+      "related_modules": [
+        "Intelligent Geo-Intent Marketing Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "urgency",
+        "priority",
+        "timing",
+        "campaign timing"
+      ],
+      "module_features": [
+        "FE-6"
+      ]
+    },
+    {
+      "id": "FAQ020",
+      "category": "Creative Studio",
+      "question": "What types of content can the Creative Studio generate?",
+      "answer": "The Generative Creative Studio is incredibly versatile! It can auto-generate Instagram Ads, Stories, carousels, Reels captions, Google Maps snippets, WhatsApp campaigns, and email content – all tailored to your brand tone and current trends. Whether you're promoting a new menu item or a fashion collection, we've got you covered with industry-specific templates for fitness, beauty, events, and more!",
+      "related_modules": [
+        "Generative Creative Studio"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "content creation",
+        "creative generation",
+        "ad formats",
+        "content types"
+      ],
+      "module_features": [
+        "FE1",
+        "FE2",
+        "FE3"
+      ]
+    },
+    {
+      "id": "FAQ021",
+      "category": "Creative Studio",
+      "question": "How do I generate creatives for my campaign?",
+      "answer": "It's super simple! Go to the Creative Studio and describe your campaign idea in natural language in the text area – for example, 'Promote our new spring collection with 20% off for students'. Click 'Generate Creative Brief', and our AI will create a structured campaign brief with goals, target audience, key messages, and call-to-action. You can edit any section or click 'AI Suggestion' for alternatives. Then, the system automatically generates 5–10 unique creatives for Instagram, Facebook, and Display Ads within 1–5 minutes!",
+      "related_modules": [
+        "Generative Creative Studio"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "creative generation",
+        "campaign creation",
+        "AI content",
+        "how to generate"
+      ],
+      "non_functional_requirements": [
+        "PER-2"
+      ]
+    },
+    {
+      "id": "FAQ022",
+      "category": "Creative Studio",
+      "question": "Can I edit the AI-generated creatives?",
+      "answer": "Absolutely! Every creative preview card has an 'Edit with AI' link that opens an AI-powered editing interface. You can modify text, adjust designs, change colors, or completely regenerate sections. The AI learns from your edits to better match your preferences in future campaigns. You're always in control!",
+      "related_modules": [
+        "Generative Creative Studio"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "editing",
+        "customization",
+        "modify creatives",
+        "AI editing"
+      ]
+    },
+    {
+      "id": "FAQ023",
+      "category": "Creative Studio",
+      "question": "How do I ensure creatives match my brand identity?",
+      "answer": "Great question! Before generating content, head to the Brand Alignment Settings page. Upload your brand logo, define your color palette (primary and secondary colors), and describe your brand's tone of voice. The system will show you an 'AI Adaptation Preview' and a 'Brand Adherence' score so you can see how well the output matches your guidelines. Once saved, all future creatives will automatically align with your brand!",
+      "related_modules": [
+        "Generative Creative Studio"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "brand alignment",
+        "brand identity",
+        "customization",
+        "brand settings"
+      ]
+    },
+    {
+      "id": "FAQ024",
+      "category": "Creative Studio",
+      "question": "Does the Creative Studio incorporate current trends?",
+      "answer": "Yes! That's one of its superpowers. The Creative Studio automatically incorporates trend context from Instagram data and web-scraped events. So if there's a local festival, holiday, or viral trend happening, your creatives will reference it naturally. This keeps your content relevant and engaging without you having to manually track trends!",
+      "related_modules": [
+        "Generative Creative Studio",
+        "Trend Arbitrage Detector"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "trends",
+        "trend integration",
+        "current events",
+        "relevance"
+      ],
+      "module_features": [
+        "FE4"
+      ]
+    },
+    {
+      "id": "FAQ025",
+      "category": "Creative Studio",
+      "question": "How long does it take to generate creatives?",
+      "answer": "The Generative Creative Studio produces a batch of 5–10 unique creatives (including Instagram Stories, Google Maps snippets, etc.) within 1–5 minutes, depending on system load and complexity. That's incredibly fast compared to hiring a designer or agency! You'll have professional-quality content ready to launch before you finish your coffee.",
+      "related_modules": [
+        "Generative Creative Studio"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "generation time",
+        "speed",
+        "performance",
+        "timing"
+      ],
+      "non_functional_requirements": [
+        "PER-2"
+      ]
+    },
+    {
+      "id": "FAQ026",
+      "category": "Trend Arbitrage",
+      "question": "What is Trend Arbitrage?",
+      "answer": "Trend Arbitrage is RAAMP's early-warning system for viral trends! It continuously monitors Instagram and web-scraped event data to identify trending topics in real-time. When it spots something hot – like a viral dance challenge or local event – it alerts you and enables you to launch a timely campaign with local flair in under 90 minutes. This gives you a huge early-mover advantage before your competitors catch on!",
+      "related_modules": [
+        "Trend Arbitrage Detector"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "trend arbitrage",
+        "viral trends",
+        "trend detection",
+        "early mover"
+      ],
+      "module_features": [
+        "FE-1",
+        "FE-2"
+      ]
+    },
+    {
+      "id": "FAQ027",
+      "category": "Trend Arbitrage",
+      "question": "How quickly can I launch a campaign after a trend is detected?",
+      "answer": "Super fast! The Trend Arbitrage System allows you to launch campaigns with a local touch in under 90 minutes after trend detection. The system will notify you about the trend, pre-generate campaign ideas that match your brand tone and audience preferences, and ask for your confirmation. Once you approve, the campaign goes live, giving you a real-time adaptation advantage!",
+      "related_modules": [
+        "Trend Arbitrage Detector"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "campaign launch",
+        "speed",
+        "timing",
+        "fast deployment"
+      ],
+      "module_features": [
+        "FE-2",
+        "FE-4"
+      ]
+    },
+    {
+      "id": "FAQ028",
+      "category": "Trend Arbitrage",
+      "question": "Will RAAMP launch trend campaigns automatically without my approval?",
+      "answer": "Nope! We respect that you're the boss. The Trend Arbitrage Detector notifies you about detected trends and shows you the proposed campaign, but it always asks for your confirmation or permission before launching. You can review the trend details, see the campaign preview, and decide whether to proceed. You're always in control!",
+      "related_modules": [
+        "Trend Arbitrage Detector"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "approval",
+        "control",
+        "automatic launch",
+        "confirmation"
+      ],
+      "module_features": [
+        "FE-4"
+      ]
+    },
+    {
+      "id": "FAQ029",
+      "category": "Trend Arbitrage",
+      "question": "How do I view all detected trends?",
+      "answer": "Head over to the Trend Detector Dashboard! You'll see featured trends at the top (the highest priority ones) and a real-time 'Live Trend Feed' below showing all identified market trends. Each trend card displays a title, icon, impact score, and virality metric. Click on any trend card to dive into detailed analytics and see if it's right for your campaign!",
+      "related_modules": [
+        "Trend Arbitrage Detector"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "trend viewing",
+        "dashboard",
+        "trend feed",
+        "trend list"
+      ]
+    },
+    {
+      "id": "FAQ030",
+      "category": "Trend Arbitrage",
+      "question": "What makes a trend 'high impact' vs 'low impact'?",
+      "answer": "Impact scores measure how much a trend could affect your business. A 'high impact' trend means it's highly relevant to your industry, has strong engagement in your geographic area, and aligns with your target demographics. For example, a food festival in your neighborhood would be high impact for a restaurant. A 'low impact' trend might be popular but less relevant to your specific business or location.",
+      "related_modules": [
+        "Trend Arbitrage Detector"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "impact score",
+        "trend scoring",
+        "relevance",
+        "trend metrics"
+      ]
+    },
+    {
+      "id": "FAQ031",
+      "category": "A/B Testing",
+      "question": "What is A/B testing and why is it important?",
+      "answer": "A/B testing means running multiple versions of your ads simultaneously to see which performs best. Think of it as a science experiment for your marketing! Instead of guessing what works, you test different headlines, images, call-to-actions, or placements with real audiences. RAAMP's A/B Auto-Optimization Layer makes this completely automatic – it tests 10–50 variants, identifies winners, and scales them for you!",
+      "related_modules": [
+        "A/B Auto-Optimization Layer"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "A/B testing",
+        "testing",
+        "optimization",
+        "experimentation"
+      ]
+    },
+    {
+      "id": "FAQ032",
+      "category": "A/B Testing",
+      "question": "How does RAAMP's A/B testing work?",
+      "answer": "RAAMP's A/B Auto-Optimization Layer is fully autonomous! It automatically tests 10–50 creatives, placements, and captions simultaneously. Within the first 24 hours (given adequate engagement data), it identifies early winning combinations using performance metrics. Then it automatically scales the best-performing campaigns to maximize reach and impact – no manual intervention needed. It's like having a data scientist working 24/7 on your campaigns!",
+      "related_modules": [
+        "A/B Auto-Optimization Layer"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "A/B testing process",
+        "automation",
+        "optimization",
+        "how it works"
+      ],
+      "module_features": [
+        "FE-1",
+        "FE-2",
+        "FE-3"
+      ],
+      "non_functional_requirements": [
+        "PER-3"
+      ]
+    },
+    {
+      "id": "FAQ033",
+      "category": "A/B Testing",
+      "question": "How do I view my A/B test results?",
+      "answer": "Check out the A/B Testing Dashboard! You'll see a performance chart visualizing how different campaign variants stack up over time, with a clear legend identifying each variant and the winning one. Click 'View All Experiments' to see detailed results for all current and past tests. For even deeper insights, the Live Experiment Dashboard shows each test's status ('Running', 'Paused', 'Completed') and real-time metrics like Conversion Rate and CTR!",
+      "related_modules": [
+        "A/B Auto-Optimization Layer"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "results",
+        "dashboard",
+        "viewing tests",
+        "performance"
+      ]
+    },
+    {
+      "id": "FAQ034",
+      "category": "A/B Testing",
+      "question": "What does 'winning variant' mean?",
+      "answer": "The 'winning variant' is the version of your ad that performed best based on your campaign goals – typically the one with the highest conversion rate, click-through rate, or ROAS. Once RAAMP identifies a winner, it automatically allocates more budget to that variant and scales it to reach more people. The system uses evolutionary learning, meaning it gets smarter with each test!",
+      "related_modules": [
+        "A/B Auto-Optimization Layer"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "winning variant",
+        "winner",
+        "best performer",
+        "results"
+      ]
+    },
+    {
+      "id": "FAQ035",
+      "category": "A/B Testing",
+      "question": "Can I see why one variant won over another?",
+      "answer": "Absolutely! The Variant Performance Analytics page shows you a comparative trend chart and, best of all, an AI-generated causal impact summary. This explains in plain English why the winning variant succeeded – for example, 'creative optimization,' 'call-to-action clarity,' or 'audience alignment.' It's like getting a personalized marketing consultation for every test!",
+      "related_modules": [
+        "A/B Auto-Optimization Layer"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "analysis",
+        "why winner",
+        "insights",
+        "causal analysis"
+      ]
+    },
+    {
+      "id": "FAQ036",
+      "category": "A/B Testing",
+      "question": "How does budget reallocation work?",
+      "answer": "The Budget Reallocation Visualizer shows you exactly how RAAMP dynamically shifts your spending! You'll see an area chart with three lines: Initial Allocation (your starting budget plan), Reallocated to Winner (budget moved to top performers), and Actual Spend (what you actually spent). As winning variants emerge, RAAMP automatically moves budget away from underperformers and doubles down on winners – maximizing your ROI without you lifting a finger!",
+      "related_modules": [
+        "A/B Auto-Optimization Layer"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "budget",
+        "reallocation",
+        "spend optimization",
+        "budget management"
+      ]
+    },
+    {
+      "id": "FAQ037",
+      "category": "Performance Attribution",
+      "question": "What is Performance Attribution?",
+      "answer": "Performance Attribution is RAAMP's smartest feature for understanding WHY your campaigns work or don't work. Instead of just showing you metrics like 'you got 100 clicks,' it analyzes contextual factors – timing, audience behavior, local events, holidays, major trends – and tells you exactly what drove your results. It's like having a marketing detective explain your campaign's success in plain English!",
+      "related_modules": [
+        "Performance Attribution Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "attribution",
+        "performance analysis",
+        "why",
+        "insights"
+      ],
+      "module_features": [
+        "FE-3",
+        "FE-4"
+      ]
+    },
+    {
+      "id": "FAQ038",
+      "category": "Performance Attribution",
+      "question": "How do I analyze a completed campaign?",
+      "answer": "Navigate to the Performance Attribution section and you'll see cards for all your completed campaigns. Select the campaign you want to analyze and click 'Analyze Drivers'. The system automatically identifies your campaign's primary goal (like ROAS or Engagement) and gathers all relevant data from the campaign runtime, including internal factors (ad creatives, audience segments, offers) and external context (local events, holidays, trends). Then it generates a detailed performance drivers report showing what influenced your results!",
+      "related_modules": [
+        "Performance Attribution Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "campaign analysis",
+        "completed campaigns",
+        "analyze",
+        "how to"
+      ],
+      "module_features": [
+        "FE-1",
+        "FE-2"
+      ]
+    },
+    {
+      "id": "FAQ039",
+      "category": "Performance Attribution",
+      "question": "What is a 'performance driver'?",
+      "answer": "A performance driver is any factor that significantly impacted your campaign results – either positively or negatively. For example, you might learn that 'Tuesday Morning Ads -8% ROAS' (meaning ads on Tuesday mornings underperformed) or 'Weekend Promotions +15% Conversions' (weekend campaigns crushed it!). RAAMP uses machine learning to quantify each factor's specific contribution to your outcomes.",
+      "related_modules": [
+        "Performance Attribution Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "performance drivers",
+        "factors",
+        "influences",
+        "what affects performance"
+      ],
+      "module_features": [
+        "FE-3",
+        "FE-4"
+      ]
+    },
+    {
+      "id": "FAQ040",
+      "category": "Performance Attribution",
+      "question": "How does RAAMP explain campaign performance?",
+      "answer": "RAAMP uses advanced machine learning (specifically SHAP or LIME techniques) to identify relationships between campaign factors and outcomes. But here's the magic – it translates complex data into clear, human-readable insights! Instead of saying 'correlation coefficient: 0.73', it says things like 'Sales increased due to college reopening' or 'Rainy weather boosted delivery orders by 22%'. No jargon, just actionable insights!",
+      "related_modules": [
+        "Performance Attribution Engine"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "explainability",
+        "AI explanation",
+        "clear insights",
+        "how it works"
+      ],
+      "non_functional_requirements": [
+        "USE-4"
+      ]
+    },
+    {
+      "id": "FAQ041",
+      "category": "Performance Attribution",
+      "question": "What are Strategic Recommendations?",
+      "answer": "Strategic Recommendations are AI-generated action items based on your attribution analysis. After identifying what worked and what didn't, the system provides specific suggestions like 'Reallocate budget toward weekend campaigns' or 'Avoid Tuesday morning time slots'. These recommendations are data-driven and tailored to YOUR business, helping you make smarter decisions for future campaigns!",
+      "related_modules": [
+        "Performance Attribution Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "recommendations",
+        "suggestions",
+        "action items",
+        "strategy"
+      ],
+      "module_features": [
+        "FE-5"
+      ]
+    },
+    {
+      "id": "FAQ042",
+      "category": "Performance Attribution",
+      "question": "Can I see historical attribution insights?",
+      "answer": "Yes! Click 'View Complete Insights Log' to access a comprehensive log of all generated insights and their corresponding data. The system permanently logs all attribution insights, enabling long-term tracking of recurring performance patterns. This helps you develop evidence-based marketing strategies over time and spot trends like 'our Monday promotions always outperform'!",
+      "related_modules": [
+        "Performance Attribution Engine"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "history",
+        "insights log",
+        "past analysis",
+        "historical data"
+      ],
+      "module_features": [
+        "FE-6"
+      ]
+    },
+    {
+      "id": "FAQ043",
+      "category": "Dashboard & Analytics",
+      "question": "What is ROAS and why does it matter?",
+      "answer": "ROAS stands for Return on Ad Spend – it's THE most important metric for measuring campaign success! It tells you how much revenue you earned for every dollar you spent on ads. For example, a ROAS of 5.0 means you made $5 for every $1 spent. RAAMP continuously optimizes your campaigns to maximize ROAS, helping you get the most bang for your buck!",
+      "related_modules": [
+        "Performance & Strategy Dashboard"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "ROAS",
+        "return on ad spend",
+        "metrics",
+        "ROI"
+      ]
+    },
+    {
+      "id": "FAQ044",
+      "category": "Dashboard & Analytics",
+      "question": "How do I access my Performance Dashboard?",
+      "answer": "Your Performance Dashboard is your mission control! From the main navigation, click on 'Dashboard' or 'Performance' to access it. You'll see key metrics like ROAS, Conversion Rate, Ad Spend, CTR, and Impressions at a glance. Plus, interactive visualizations like lead heatmaps and demographic data. From this page, you can reach any key insight in three clicks or fewer!",
+      "related_modules": [
+        "Performance & Strategy Dashboard"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "dashboard",
+        "access dashboard",
+        "viewing performance",
+        "analytics"
+      ],
+      "non_functional_requirements": [
+        "USE-2"
+      ]
+    },
+    {
+      "id": "FAQ045",
+      "category": "Dashboard & Analytics",
+      "question": "What metrics can I track?",
+      "answer": "RAAMP tracks all the metrics that matter! Key Performance Indicators include: ROAS (Return on Ad Spend), Conversion Rate, Total Ad Spend, Click-Through Rate (CTR), Impressions, Lead Scores, Demographic Breakdowns, Geographic Performance, Campaign Health Status, Budget Utilization, and Projected ROI. Each metric includes trend indicators showing changes over time (typically the last 30 days).",
+      "related_modules": [
+        "Performance & Strategy Dashboard"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "metrics",
+        "KPIs",
+        "tracking",
+        "measurements"
+      ]
+    },
+    {
+      "id": "FAQ046",
+      "category": "Dashboard & Analytics",
+      "question": "How often does the dashboard update?",
+      "answer": "Visual data on the Performance & Strategy Dashboard updates in near real-time! Lead heatmaps, ROAS graphs, and other visualizations typically refresh within 30 seconds after new data becomes available. This means you're always looking at fresh, actionable insights – no stale data here!",
+      "related_modules": [
+        "Performance & Strategy Dashboard"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "refresh rate",
+        "real-time",
+        "updates",
+        "data freshness"
+      ],
+      "non_functional_requirements": [
+        "PER-1"
+      ],
+      "module_features": [
+        "FE-2"
+      ]
+    },
+    {
+      "id": "FAQ047",
+      "category": "Dashboard & Analytics",
+      "question": "What are lead heatmaps?",
+      "answer": "Lead heatmaps are visual maps that show you WHERE your best potential customers are located! Areas with high lead scores (remember, those 0–100 ratings) appear as 'hot' zones on the map, while low-interest areas appear 'cool'. You can toggle between different demographic views (Age Group, Income Level, Engagement) to see which neighborhoods match your target audience. Click 'Explore Geo-Intent' to dive deeper!",
+      "related_modules": [
+        "Performance & Strategy Dashboard",
+        "Intelligent Geo-Intent Marketing Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "heatmaps",
+        "lead heatmaps",
+        "geographic data",
+        "visualization"
+      ],
+      "module_features": [
+        "FE-1"
+      ]
+    },
+    {
+      "id": "FAQ048",
+      "category": "Dashboard & Analytics",
+      "question": "Can I set up custom alerts?",
+      "answer": "Yes! The Performance Dashboard allows you to set custom alert preferences. You can choose to receive notifications via email or push notifications when important events happen – like when your ROAS drops below a threshold, a campaign reaches its budget limit, or a new viral trend is detected. Stay in the loop without constantly checking the dashboard!",
+      "related_modules": [
+        "Performance & Strategy Dashboard"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "alerts",
+        "notifications",
+        "custom alerts",
+        "monitoring"
+      ],
+      "module_features": [
+        "FE-4"
+      ]
+    },
+    {
+      "id": "FAQ049",
+      "category": "Dashboard & Analytics",
+      "question": "Can I access the dashboard offline?",
+      "answer": "Yes, to some extent! RAAMP caches essential campaign metrics like ROAS, lead scores, and basic performance data for offline access. If you're in an area with unstable connectivity, you can still view your most recent data. Cached data typically loads within 10 seconds. However, real-time features like live trend detection require an internet connection.",
+      "related_modules": [
+        "Performance & Strategy Dashboard"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "offline",
+        "offline access",
+        "caching",
+        "no internet"
+      ],
+      "non_functional_requirements": [
+        "REL-4"
+      ],
+      "module_features": [
+        "FE-5"
+      ]
+    },
+    {
+      "id": "FAQ050",
+      "category": "Billing & Payments",
+      "question": "What payment methods does RAAMP accept?",
+      "answer": "RAAMP accepts major credit cards (Visa, Mastercard, American Express) and PayPal. You can manage multiple payment methods in your Billing & Payment Settings. Your primary payment method is used for automatic transactions, but you can easily switch between saved methods or add new ones anytime!",
+      "related_modules": [
+        "Billing & Payments"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "payment methods",
+        "credit card",
+        "PayPal",
+        "payments"
+      ]
+    },
+    {
+      "id": "FAQ051",
+      "category": "Billing & Payments",
+      "question": "How do I add funds to my account?",
+      "answer": "Head to Billing & Payment Settings and click 'Add Funds / Set Budget'. You'll see your current budget overview showing available funds vs. total budget (e.g., '$7,500 of $20,000 Budget'). Choose a predefined amount ($100, $500, $1,000) or enter a custom amount. Adjust using the slider if you like, then click 'Process Payment' with the amount displayed. Funds are added instantly using your default payment method!",
+      "related_modules": [
+        "Billing & Payments"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "add funds",
+        "funding",
+        "deposit",
+        "balance"
+      ]
+    },
+    {
+      "id": "FAQ052",
+      "category": "Billing & Payments",
+      "question": "How do I change my primary payment method?",
+      "answer": "In Billing & Payment Settings, you'll see your current primary payment method (e.g., 'Visa ending in 1234'). Click the 'Manage' link next to it. You can edit details, set a different saved method as primary, or add a completely new payment method using the form at the bottom. All payment information is securely processed and encrypted!",
+      "related_modules": [
+        "Billing & Payments"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "payment method",
+        "change payment",
+        "primary card",
+        "update card"
+      ]
+    },
+    {
+      "id": "FAQ053",
+      "category": "Billing & Payments",
+      "question": "Can I remove a saved payment method?",
+      "answer": "Absolutely! In the 'Other Payment Options' section of your Billing Settings, you'll see all alternative payment methods (like PayPal accounts or additional cards). Each one has a 'Disconnect' link. Click it, confirm your decision, and that payment method will be removed from your account. Note: you can't remove your primary payment method without setting a new one first!",
+      "related_modules": [
+        "Billing & Payments"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "remove payment",
+        "delete card",
+        "disconnect",
+        "payment removal"
+      ]
+    },
+    {
+      "id": "FAQ054",
+      "category": "Billing & Payments",
+      "question": "How do I view my transaction history?",
+      "answer": "Click 'View Transaction History' in your Billing Settings. You'll see a detailed table with columns for Date, Description, Amount, and Invoice. Each transaction is listed – charges appear as negative amounts, fund additions as positive. You can sort by any column (click the header) to organize chronologically, by amount, or by type. Click the download icon in the Invoice column to get a PDF receipt!",
+      "related_modules": [
+        "Billing & Payments"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "transaction history",
+        "billing history",
+        "receipts",
+        "invoices"
+      ]
+    },
+    {
+      "id": "FAQ055",
+      "category": "Billing & Payments",
+      "question": "How does campaign budgeting work?",
+      "answer": "When you add funds, you're setting your total budget pool. RAAMP automatically manages budget allocation across your campaigns using smart optimization. The Budget Utilization Bar shows how much you've spent vs. your total budget (e.g., '$70,000 / $100,000'). As campaigns run, the A/B Auto-Optimization Layer dynamically reallocates budget to winning variants, maximizing your ROI. You stay in control and can always add more funds or adjust limits!",
+      "related_modules": [
+        "Billing & Payments",
+        "A/B Auto-Optimization Layer"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "budgeting",
+        "budget management",
+        "spend limits",
+        "campaign budget"
+      ]
+    },
+    {
+      "id": "FAQ056",
+      "category": "Billing & Payments",
+      "question": "Is my payment information secure?",
+      "answer": "Absolutely! All payment information is securely processed and validated using industry-standard encryption. RAAMP performs client-side validation (like Luhn checks for card numbers) and all data transmitted between your browser and our servers is encrypted via HTTPS (TLS 1.2+). We never store complete card numbers in plain text – only partial details for your reference (like 'ending in 1234'). Your financial data is protected!",
+      "related_modules": [
+        "Billing & Payments"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "security",
+        "payment security",
+        "encryption",
+        "data protection"
+      ],
+      "non_functional_requirements": [
+        "SEC-5"
+      ]
+    },
+    {
+      "id": "FAQ057",
+      "category": "Technical Issues",
+      "question": "Why isn't my Instagram integration working?",
+      "answer": "First, check if your Instagram account is still connected in the Onboarding & Integrations page. If it shows 'Disconnected', you'll need to reauthorize RAAMP using OAuth. Also ensure you're using a business or creator Instagram account (personal accounts have limited API access). If problems persist, check the Troubleshooting & Diagnostics section in RAAMP Assistant – it can run automated health checks on your integrations!",
+      "related_modules": [
+        "User Onboarding and Authentication",
+        "RAAMP Assistant"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "Instagram issues",
+        "integration problems",
+        "connection error",
+        "OAuth"
+      ]
+    },
+    {
+      "id": "FAQ058",
+      "category": "Technical Issues",
+      "question": "Why isn't my ad showing?",
+      "answer": "There could be several reasons! First, check your campaign status in the Live Experiment Dashboard – is it 'Running' or 'Paused'? Also verify you have sufficient budget in your account (check Budget Utilization). Make sure your targeting zone includes areas with active audiences. Finally, check if your Instagram/Facebook/Google Maps integration is still connected. If you're still stuck, ask the RAAMP Assistant – it can diagnose issues and suggest specific fixes!",
+      "related_modules": [
+        "A/B Auto-Optimization Layer",
+        "Billing & Payments",
+        "RAAMP Assistant"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "ad not showing",
+        "campaign not running",
+        "delivery issues",
+        "troubleshooting"
+      ]
+    },
+    {
+      "id": "FAQ059",
+      "category": "Technical Issues",
+      "question": "What should I do if I experience system downtime?",
+      "answer": "RAAMP targets approximately 98% operational availability during business hours (9 AM – 9 PM local time). If you experience downtime, first check if it's a local internet connectivity issue. RAAMP's offline caching should still let you view recent data. If the system is truly down, rest assured all your critical campaign data (historical metrics, A/B test results, generated creatives) is safely preserved. When services resume, everything picks up from the most recent stable state. Check your email for any system status updates!",
+      "related_modules": [
+        "Performance & Strategy Dashboard"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "downtime",
+        "system offline",
+        "outage",
+        "reliability"
+      ],
+      "non_functional_requirements": [
+        "REL-1",
+        "REL-3",
+        "REL-4"
+      ]
+    },
+    {
+      "id": "FAQ060",
+      "category": "Technical Issues",
+      "question": "What happens if Google Maps or Instagram API goes down?",
+      "answer": "Great question! RAAMP gracefully handles external API failures. If Google Maps or Instagram becomes temporarily unavailable, you'll be notified of limited functionality for that specific feature. The system automatically retries the connection with exponential backoff, and data collection resumes once the service is restored (typically within a few minutes, depending on the provider). Your campaigns continue running – you just might miss some real-time data during the outage.",
+      "related_modules": [
+        "Intelligent Geo-Intent Marketing Engine",
+        "Generative Creative Studio"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "API failure",
+        "external services",
+        "integration down",
+        "service issues"
+      ],
+      "non_functional_requirements": [
+        "REL-2"
+      ]
+    },
+    {
+      "id": "FAQ061",
+      "category": "Technical Issues",
+      "question": "Why is the dashboard loading slowly?",
+      "answer": "Dashboard visualizations typically load within 30 seconds under normal conditions. Slow loading could be due to high system load during peak hours (in which case RAAMP automatically scales services), your internet connection speed, or browser cache issues. Try refreshing the page. If the problem persists, clear your browser cache or try a different browser. The Troubleshooting & Diagnostics tool in RAAMP Assistant can also run performance checks!",
+      "related_modules": [
+        "Performance & Strategy Dashboard",
+        "RAAMP Assistant"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "slow loading",
+        "performance issues",
+        "dashboard slow",
+        "loading time"
+      ],
+      "non_functional_requirements": [
+        "PER-1",
+        "REL-4"
+      ]
+    },
+    {
+      "id": "FAQ062",
+      "category": "Technical Issues",
+      "question": "My session keeps expiring. Why?",
+      "answer": "For your security, RAAMP automatically expires sessions after 30 minutes of inactivity. This prevents unauthorized access if you step away from your device. If you're actively working and experiencing unexpected logouts, check if you have multiple RAAMP tabs open or if your internet connection is unstable (which can interrupt the session). You can manage logged-in devices from your Security Settings and revoke access to any suspicious sessions!",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "session expired",
+        "logout",
+        "session timeout",
+        "authentication issues"
+      ],
+      "non_functional_requirements": [
+        "SEC-3"
+      ]
+    },
+    {
+      "id": "FAQ063",
+      "category": "RAAMP Assistant",
+      "question": "What is the RAAMP Assistant?",
+      "answer": "The RAAMP Assistant is your personal marketing AI helper! It's an interactive chatbot that provides contextual, step-by-step guidance based on where you are in the platform. Ask it anything – from 'How do I set up a geo-intent ad?' to 'Why is my ROAS low?' It provides analytical, data-driven responses based on YOUR campaign data, and it even includes troubleshooting diagnostics to help fix issues automatically!",
+      "related_modules": [
+        "RAAMP Assistant"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "RAAMP Assistant",
+        "chatbot",
+        "help",
+        "AI assistant"
+      ],
+      "module_features": [
+        "FE-1",
+        "FE-2",
+        "FE-3"
+      ]
+    },
+    {
+      "id": "FAQ064",
+      "category": "RAAMP Assistant",
+      "question": "How do I use the RAAMP Assistant?",
+      "answer": "Super simple! Click on 'RAAMP Assistant' in the main navigation. You'll see an interactive chat window where you can type questions. Just ask in plain English – 'How do I increase my conversion rate?' or 'What's wrong with Campaign X?' The AI will analyze your data and provide personalized insights within about 3 seconds. You'll also see contextual guidance tips relevant to your current conversation in an expandable accordion below!",
+      "related_modules": [
+        "RAAMP Assistant"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "using assistant",
+        "how to use",
+        "chatbot usage",
+        "asking questions"
+      ],
+      "non_functional_requirements": [
+        "USE-3"
+      ]
+    },
+    {
+      "id": "FAQ065",
+      "category": "RAAMP Assistant",
+      "question": "What types of questions can I ask the RAAMP Assistant?",
+      "answer": "Ask it anything related to your RAAMP experience! Common question types include: How-to questions ('How do I create a campaign?'), Troubleshooting ('Why isn't my ad showing?'), Performance analysis ('Why did my ROAS drop?'), Strategic advice ('Should I target this neighborhood?'), Feature explanations ('What is lead scoring?'), and Account help ('How do I add funds?'). The Assistant learns from your campaign data to give personalized, actionable answers!",
+      "related_modules": [
+        "RAAMP Assistant"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "question types",
+        "what to ask",
+        "assistant capabilities",
+        "help topics"
+      ]
+    },
+    {
+      "id": "FAQ066",
+      "category": "RAAMP Assistant",
+      "question": "Does the RAAMP Assistant use my actual campaign data?",
+      "answer": "Yes! That's what makes it so powerful. The RAAMP Assistant leverages insights from the Performance Attribution Engine and accesses your historical campaign data to provide intelligent, data-driven responses. So when you ask 'Why did Campaign X succeed?', it's analyzing YOUR specific results, not generic advice. It's like having a marketing consultant who knows your business inside and out!",
+      "related_modules": [
+        "RAAMP Assistant",
+        "Performance Attribution Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "data access",
+        "personalization",
+        "campaign data",
+        "how it works"
+      ],
+      "module_features": [
+        "FE-3"
+      ]
+    },
+    {
+      "id": "FAQ067",
+      "category": "RAAMP Assistant",
+      "question": "What are the diagnostic health checks?",
+      "answer": "The Troubleshooting & Diagnostics section in RAAMP Assistant displays automated health checks for your account and campaigns. Each check shows a status badge (Passed, Warning, Failed) and an action button (Run Check, Review, Fix Issue). Common checks include: Instagram API connection status, Budget sufficiency, Campaign delivery status, Targeting zone validity, and Creative approval status. Click 'Run Check' or 'Fix Issue' to diagnose and resolve problems automatically!",
+      "related_modules": [
+        "RAAMP Assistant"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "diagnostics",
+        "health checks",
+        "automated troubleshooting",
+        "system checks"
+      ]
+    },
+    {
+      "id": "FAQ068",
+      "category": "RAAMP Assistant",
+      "question": "Is the RAAMP Assistant available 24/7?",
+      "answer": "Yes! The RAAMP Assistant is always available whenever you're logged into the platform. Unlike human support that has office hours, your AI assistant is ready to help anytime, anywhere. Whether it's 3 PM or 3 AM, just open the chat and ask your question. It responds within about 3 seconds under normal system load!",
+      "related_modules": [
+        "RAAMP Assistant"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "availability",
+        "24/7",
+        "always available",
+        "support hours"
+      ],
+      "non_functional_requirements": [
+        "USE-3"
+      ]
+    },
+    {
+      "id": "FAQ069",
+      "category": "Advanced Features",
+      "question": "Can RAAMP work with my existing marketing tools?",
+      "answer": "RAAMP is designed as a comprehensive, all-in-one solution, but it does integrate with key external platforms! Currently, it connects with Instagram, Facebook, Google Maps, WhatsApp (via Twilio), and email marketing services. These integrations allow RAAMP to collect data, deliver ads, and execute campaigns across multiple channels. The platform also uses n8n for workflow automation, allowing potential integration with other marketing tools through low-code workflows!",
+      "related_modules": [
+        "User Onboarding and Authentication",
+        "Generative Creative Studio"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "integrations",
+        "third-party tools",
+        "compatibility",
+        "existing tools"
+      ],
+      "external_interfaces": [
+        "SI-1",
+        "SI-2",
+        "SI-6",
+        "SI-7"
+      ]
+    },
+    {
+      "id": "FAQ070",
+      "category": "Advanced Features",
+      "question": "How does RAAMP ensure data privacy and GDPR compliance?",
+      "answer": "RAAMP takes data privacy seriously! Collection, storage, and processing of business data complies with relevant privacy standards like GDPR and equivalent local laws. All user credentials are hashed (never stored in plain text), OAuth tokens are used for third-party integrations (so we never see your passwords), and all data transmission uses HTTPS encryption (TLS 1.2+). You maintain control over your data, and you can manage connected devices and revoke access anytime from Security Settings!",
+      "related_modules": [
+        "User Onboarding and Authentication"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "privacy",
+        "GDPR",
+        "data protection",
+        "compliance",
+        "security"
+      ],
+      "non_functional_requirements": [
+        "SEC-1",
+        "SEC-2",
+        "SEC-4",
+        "SEC-5"
+      ]
+    },
+    {
+      "id": "FAQ071",
+      "category": "Advanced Features",
+      "question": "Can I deploy RAAMP on my own infrastructure?",
+      "answer": "Yes! RAAMP is containerized with Docker, making it highly portable. The complete application can be deployed to any major cloud platform (AWS, Google Cloud, Azure) that supports Docker containers, without code modification. This gives enterprises the flexibility to run RAAMP on their own infrastructure for enhanced control and compliance. However, most users prefer our managed cloud hosting for simplicity!",
+      "related_modules": [
+        "System Architecture"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "deployment",
+        "infrastructure",
+        "Docker",
+        "self-hosting",
+        "enterprise"
+      ],
+      "non_functional_requirements": [
+        "PORT-1"
+      ]
+    },
+    {
+      "id": "FAQ072",
+      "category": "Advanced Features",
+      "question": "How does RAAMP handle scaling during high traffic?",
+      "answer": "RAAMP is built for scale! When system load increases during peak hours, the backend (containerized with Docker and deployed on AWS/Google Cloud) automatically scales services to handle increased load. MongoDB's NoSQL architecture also scales efficiently. This auto-scaling ensures consistent performance even when you're running dozens of campaigns simultaneously or when many users are active. You shouldn't notice any slowdown!",
+      "related_modules": [
+        "System Architecture"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "scaling",
+        "performance",
+        "high traffic",
+        "auto-scaling",
+        "infrastructure"
+      ]
+    },
+    {
+      "id": "FAQ073",
+      "category": "Advanced Features",
+      "question": "What AI models power RAAMP?",
+      "answer": "RAAMP uses cutting-edge AI! The tech stack includes: TensorFlow for performance attribution models and neural networks, Stable Diffusion for generative creative design, BERT (via Hugging Face) for sentiment analysis and natural language processing, Lang Chain for LLM-based applications (Creative Studio and Assistant), and custom machine learning models using SHAP/LIME for explainable AI. All models are optimized for speed and accuracy to deliver results in real-time!",
+      "related_modules": [
+        "All AI-powered modules"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "AI models",
+        "machine learning",
+        "technology stack",
+        "AI tech"
+      ]
+    },
+    {
+      "id": "FAQ074",
+      "category": "Advanced Features",
+      "question": "How often are AI models retrained or updated?",
+      "answer": "Great question! RAAMP's AI models employ evolutionary learning, meaning they continuously improve from campaign data. The A/B Auto-Optimization Layer learns from every test, the Performance Attribution Engine builds a growing database of performance patterns, and the Generative Creative Studio refines its output based on your brand preferences. Critical security patches for AI frameworks are integrated within 48 hours. The system gets smarter every day!",
+      "related_modules": [
+        "A/B Auto-Optimization Layer",
+        "Performance Attribution Engine",
+        "Generative Creative Studio"
+      ],
+      "user_level": "Advanced",
+      "keywords": [
+        "model training",
+        "updates",
+        "continuous learning",
+        "AI improvement"
+      ],
+      "module_features": [
+        "FE-4"
+      ],
+      "non_functional_requirements": [
+        "MAINT-3"
+      ]
+    },
+    {
+      "id": "FAQ075",
+      "category": "Business Impact",
+      "question": "How much can RAAMP reduce my marketing costs?",
+      "answer": "Based on our objectives, RAAMP can help you reduce client acquisition costs by around 40%, with some businesses seeing up to 70% savings in overall campaign costs through marketing automation! By eliminating wasted ad spend on poorly targeted campaigns, automating repetitive tasks, and continuously optimizing performance, you'll get way more value from every marketing dollar. Plus, you'll save 20–30 hours per month that you'd normally spend on manual campaign management!",
+      "related_modules": [
+        "All"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "cost savings",
+        "ROI",
+        "marketing costs",
+        "efficiency"
+      ],
+      "business_objectives": [
+        "BO-1",
+        "BO-3"
+      ]
+    },
+    {
+      "id": "FAQ076",
+      "category": "Business Impact",
+      "question": "How much can RAAMP increase my leads?",
+      "answer": "RAAMP is designed to boost qualified leads significantly! Through multi-channel automation and intelligent targeting, businesses typically see an average increase of 31% in qualified leads, with potential for up to 50% growth in optimized campaigns. By combining geo-intent targeting, trend arbitrage, and A/B optimization, you're reaching the right people at the right time with the right message – which means more customers walking through your door!",
+      "related_modules": [
+        "Intelligent Geo-Intent Marketing Engine",
+        "Trend Arbitrage Detector",
+        "A/B Auto-Optimization Layer"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "lead generation",
+        "customer acquisition",
+        "business growth",
+        "more customers"
+      ],
+      "business_objectives": [
+        "BO-2",
+        "BO-4"
+      ]
+    },
+    {
+      "id": "FAQ077",
+      "category": "Business Impact",
+      "question": "How does RAAMP help me understand WHY campaigns succeed?",
+      "answer": "This is RAAMP's secret sauce! Unlike traditional tools that just show 'you got 100 clicks,' RAAMP analyzes contextual factors like timing, local events, seasonal trends, audience behavior, and competitive activity to explain WHAT drove your success. The Performance Attribution Engine delivers clear insights like 'Sales increased due to college reopening' or 'Weekend campaigns outperformed by 15%'. This helps you make data-driven decisions and repeat winning strategies!",
+      "related_modules": [
+        "Performance Attribution Engine"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "understanding campaigns",
+        "why it works",
+        "explainability",
+        "insights"
+      ],
+      "business_objectives": [
+        "BO-5"
+      ]
+    },
+    {
+      "id": "FAQ078",
+      "category": "Business Impact",
+      "question": "Can RAAMP help with upselling and cross-selling?",
+      "answer": "Absolutely! RAAMP utilizes real-time sales data to trigger precision micro-campaigns for upselling, cross-selling, and collecting customer feedback. For example, if a customer orders a burger, the system can automatically send a targeted offer for fries and a drink. These timely, personalized campaigns enhance overall marketing performance and increase average order value without any manual effort from you!",
+      "related_modules": [
+        "Trend Arbitrage Detector",
+        "Generative Creative Studio"
+      ],
+      "user_level": "Intermediate",
+      "keywords": [
+        "upselling",
+        "cross-selling",
+        "micro-campaigns",
+        "personalization"
+      ],
+      "business_objectives": [
+        "BO-6"
+      ]
+    },
+    {
+      "id": "FAQ079",
+      "category": "Business Impact",
+      "question": "Is RAAMP suitable for marketing beginners?",
+      "answer": "Yes! RAAMP is specifically designed for business owners without marketing expertise. The entire platform is intuitive – you can reach key insights in three clicks or fewer, complete onboarding in 10 minutes, and the RAAMP Assistant provides step-by-step guidance whenever you need it. You don't need to understand complex marketing jargon or technical details. RAAMP does the heavy lifting while you focus on running your business!",
+      "related_modules": [
+        "All",
+        "RAAMP Assistant"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "beginner friendly",
+        "easy to use",
+        "no expertise needed",
+        "learning curve"
+      ],
+      "non_functional_requirements": [
+        "USE-1",
+        "USE-2",
+        "USE-3",
+        "USE-4"
+      ]
+    },
+    {
+      "id": "FAQ080",
+      "category": "Business Impact",
+      "question": "How does RAAMP compare to hiring a marketing agency?",
+      "answer": "RAAMP gives you the power of a full marketing agency at a fraction of the cost! Instead of paying thousands of dollars monthly for agency fees, you get automated campaign creation, real-time optimization, trend detection, creative generation, performance analysis, and strategic recommendations – all powered by AI that works 24/7. Plus, YOU maintain control and understanding of your campaigns. It's like having an agency, data scientist, creative team, and marketing consultant all in one platform!",
+      "related_modules": [
+        "All"
+      ],
+      "user_level": "Basic",
+      "keywords": [
+        "vs agency",
+        "comparison",
+        "cost vs agency",
+        "alternative to agency"
+      ]
+    }
+  ],
+  "module_guidance": [
+    {
+      "id": "GUIDE001",
+      "module": "User Onboarding and Authentication",
+      "tip_title": "Complete Your Business Profile for Better Targeting",
+      "instruction": "Make sure to fill out all business details in your Profile & Business Setup page, including business name, type, industry, target demographics, and location pin. This information helps RAAMP create highly personalized, hyperlocal campaigns that reach YOUR ideal customers. The more accurate your profile, the better your targeting!",
+      "contextual_trigger": "User is on Profile & Business Setup page or Onboarding page",
+      "module_features": [
+        "FE-5"
+      ]
+    },
+    {
+      "id": "GUIDE002",
+      "module": "User Onboarding and Authentication",
+      "tip_title": "Connect Your Social Media Accounts",
+      "instruction": "Head to the Onboarding & Integrations page and make sure your Instagram, Facebook, and Google Maps accounts are connected (showing 'Connected' status). These integrations are essential for RAAMP to collect trend data, deliver ads, and track campaign performance. If any show 'Disconnected', click the card to reauthorize access using OAuth.",
+      "contextual_trigger": "User is on Onboarding & Integrations page",
+      "module_features": [
+        "FE-2"
+      ]
+    },
+    {
+      "id": "GUIDE003",
+      "module": "User Onboarding and Authentication",
+      "tip_title": "Enable Two-Factor Authentication for Security",
+      "instruction": "Protect your account by enabling Two-Factor Authentication (2FA) in your Security Settings. This adds an extra layer of protection beyond your password. You'll also see Password Strength Monitor and Activity Monitoring options – these help you stay on top of your account security!",
+      "contextual_trigger": "User is on Profile or Security Settings page",
+      "non_functional_requirements": [
+        "SEC-2"
+      ]
+    },
+    {
+      "id": "GUIDE004",
+      "module": "Intelligent Geo-Intent Marketing Engine",
+      "tip_title": "Set Up a Hyperlocal Geo-Intent Ad",
+      "instruction": "To set up a geo-intent ad, first navigate to the Geo-Intent module and click 'Explore Geo-Intent Features'. Use the Dynamic Targeting Zone Builder to select your location on the map and define a targeting radius (try 500m–2km to start). The system will generate heatmaps using lead scores (0–100) to show high-intent areas. Look for 'hot' zones with scores above 70 – those are your best opportunities!",
+      "contextual_trigger": "User is on Geo-Intent Welcome Screen or Dynamic Targeting Zone Builder",
+      "module_features": [
+        "FE-2",
+        "FE-4",
+        "FE-7"
+      ]
+    },
+    {
+      "id": "GUIDE005",
+      "module": "Intelligent Geo-Intent Marketing Engine",
+      "tip_title": "Use AI Smart Zone for Optimal Boundaries",
+      "instruction": "Want the system to find the perfect targeting area for you? Enable the 'AI Smart Zone' checkbox in the Dynamic Targeting Zone Builder, then click 'Apply AI Smart Zone'. The AI will analyze engagement patterns, demographics, and competitor activity to create a custom-shaped zone optimized for your business. This often outperforms manual circular zones!",
+      "contextual_trigger": "User is on Dynamic Targeting Zone Builder",
+      "module_features": [
+        "FE-1",
+        "FE-5"
+      ]
+    },
+    {
+      "id": "GUIDE006",
+      "module": "Intelligent Geo-Intent Marketing Engine",
+      "tip_title": "Pay Attention to Urgency Levels",
+      "instruction": "When reviewing your Actionable Intent Insights, look at the urgency levels (Low/Med/High) assigned to each area. 'High' urgency means there's a time-sensitive opportunity happening RIGHT NOW – prioritize campaigns to these areas first for maximum impact! 'Low' urgency areas are still valuable but represent longer-term trends.",
+      "contextual_trigger": "User is on Actionable Intent Insights page",
+      "module_features": [
+        "FE-6",
+        "FE-7"
+      ]
+    },
+    {
+      "id": "GUIDE007",
+      "module": "Generative Creative Studio",
+      "tip_title": "Describe Your Campaign Idea in Natural Language",
+      "instruction": "In the Creative Studio, don't worry about being technical! Just describe your campaign idea naturally, like you're talking to a friend: 'Promote our new pasta special for lunch crowd, targeting office workers nearby, offer 15% off'. The more details you provide about your goal, audience, and offer, the better the AI can generate a tailored campaign brief!",
+      "contextual_trigger": "User is on Creative Generation Studio page"
+    },
+    {
+      "id": "GUIDE008",
+      "module": "Generative Creative Studio",
+      "tip_title": "Ensure Brand Alignment for Creatives",
+      "instruction": "Before generating content, ensure your creative output matches your brand identity. Navigate to the Brand Alignment Settings page to upload your logo, define your primary/secondary color palette, and describe your tone of voice (e.g., 'friendly and approachable' or 'luxurious and sophisticated'). This guides the AI to produce customized creatives that feel authentically YOU!",
+      "contextual_trigger": "User is on Brand Alignment Settings or Creative Generation Studio page",
+      "module_features": [
+        "FE3"
+      ]
+    },
+    {
+      "id": "GUIDE009",
+      "module": "Generative Creative Studio",
+      "tip_title": "Use AI Suggestions to Refine Your Campaign Brief",
+      "instruction": "On the Campaign Brief Interface, each section (Goals, Target Audience, Key Messages, Call to Action) has an 'AI Suggestion' button. If you're not satisfied with the initial output or want alternatives, click these buttons to generate new options. The AI will provide fresh perspectives that might work even better for your campaign!",
+      "contextual_trigger": "User is on Campaign Brief Interface"
+    },
+    {
+      "id": "GUIDE010",
+      "module": "Generative Creative Studio",
+      "tip_title": "Preview and Edit Creatives Before Launch",
+      "instruction": "After the system generates your creatives, review them in the Multi-Channel Preview Gallery. You'll see versions for Instagram, Facebook, and Display Ads. Click 'Edit with AI' on any creative to make adjustments. Remember, the system generates 5–10 variations in 1–5 minutes, so you'll have plenty of options to choose from!",
+      "contextual_trigger": "User is on Multi-Channel Preview Gallery",
+      "non_functional_requirements": [
+        "PER-2"
+      ]
+    },
+    {
+      "id": "GUIDE011",
+      "module": "Trend Arbitrage Detector",
+      "tip_title": "Check the Live Trend Feed Regularly",
+      "instruction": "Visit the Trend Detector Dashboard frequently to see the Live Trend Feed. Featured trends at the top are highest priority – these are the hottest opportunities right now! Each trend card shows Impact and Virality scores. Look for trends with 'High' impact that align with your business (e.g., '#FoodFestival' for restaurants, '#FashionWeek' for boutiques).",
+      "contextual_trigger": "User is on Trend Detector Dashboard",
+      "module_features": [
+        "FE-1"
+      ]
+    },
+    {
+      "id": "GUIDE012",
+      "module": "Trend Arbitrage Detector",
+      "tip_title": "Act Fast When You Get Trend Notifications",
+      "instruction": "When RAAMP detects a viral trend relevant to your business, you'll receive a notification. Click it to review the trend details and proposed campaign. If it looks good, approve it quickly – you can launch a campaign with local flair in under 90 minutes! Speed is your competitive advantage here. The early bird gets the customer!",
+      "contextual_trigger": "User receives trend notification or is on Instant Campaign Launcher",
+      "module_features": [
+        "FE-2",
+        "FE-4"
+      ]
+    },
+    {
+      "id": "GUIDE013",
+      "module": "Trend Arbitrage Detector",
+      "tip_title": "Understand Impact vs. Virality",
+      "instruction": "When evaluating trends, remember: 'Impact' measures how relevant the trend is to YOUR business and location, while 'Virality' measures how widely it's spreading online. A high-impact, medium-virality trend in your neighborhood is often better than a high-virality, low-impact trend happening elsewhere. Focus on local relevance!",
+      "contextual_trigger": "User is viewing trend cards on Trend Detector Dashboard"
+    },
+    {
+      "id": "GUIDE014",
+      "module": "A/B Auto-Optimization Layer",
+      "tip_title": "Understand Campaign Scaling",
+      "instruction": "The A/B layer is fully autonomous – it will test 10–50 variants (creatives, placements, captions) and automatically identify early winning combinations within the first 24 hours. The system then scales the best-performing campaigns to maximize reach and impact without manual intervention. You can watch it work in real-time on the A/B Testing Dashboard!",
+      "contextual_trigger": "User is on A/B Testing Dashboard or Live Experiment Dashboard",
+      "module_features": [
+        "FE-1",
+        "FE-2",
+        "FE-3"
+      ],
+      "non_functional_requirements": [
+        "PER-3"
+      ]
+    },
+    {
+      "id": "GUIDE015",
+      "module": "A/B Auto-Optimization Layer",
+      "tip_title": "Let the System Run for at Least 24 Hours",
+      "instruction": "For best results, let your A/B tests run for at least 24 hours before making manual changes. The system needs adequate engagement data to identify winning combinations accurately. Patience pays off – early intervention can disrupt the optimization process. Trust the AI to do its job!",
+      "contextual_trigger": "User is viewing a newly launched experiment",
+      "non_functional_requirements": [
+        "PER-3"
+      ]
+    },
+    {
+      "id": "GUIDE016",
+      "module": "A/B Auto-Optimization Layer",
+      "tip_title": "Learn from Variant Performance Analytics",
+      "instruction": "After a test completes, check the Variant Performance Analytics page. The comparative trend chart shows how each variant performed over time, and the AI-generated causal impact summary explains WHY the winner succeeded (e.g., 'better call-to-action,' 'audience alignment'). Use these insights to inform future campaigns!",
+      "contextual_trigger": "User is on Variant Performance Analytics page"
+    },
+    {
+      "id": "GUIDE017",
+      "module": "A/B Auto-Optimization Layer",
+      "tip_title": "Monitor Budget Reallocation",
+      "instruction": "The Budget Reallocation Visualizer shows exactly how RAAMP shifts your spending from underperforming variants to winners. Watch the 'Reallocated to Winner' line grow as the system optimizes. This dynamic budget allocation is what maximizes your ROI – you're spending more on what works and less on what doesn't!",
+      "contextual_trigger": "User is on Budget Reallocation Visualizer page"
+    },
+    {
+      "id": "GUIDE018",
+      "module": "Performance Attribution Engine",
+      "tip_title": "Analyze Completed Campaigns Regularly",
+      "instruction": "Make it a habit to analyze your completed campaigns! Select a campaign from the Campaign Selection page and click 'Analyze Drivers'. The system will show you exactly what factors influenced your results – timing, audience behavior, local events, etc. These insights help you make smarter decisions for future campaigns.",
+      "contextual_trigger": "User is on Campaign Selection page for Performance Attribution",
+      "module_features": [
+        "FE-1",
+        "FE-2",
+        "FE-3"
+      ]
+    },
+    {
+      "id": "GUIDE019",
+      "module": "Performance Attribution Engine",
+      "tip_title": "Follow Strategic Recommendations",
+      "instruction": "After viewing your performance drivers, scroll down to see Strategic Recommendations. These are actionable insights like 'Reallocate budget toward weekend campaigns' or 'Target college areas during semester start'. These aren't generic tips – they're based on YOUR actual data. Implement them to continuously improve your campaigns!",
+      "contextual_trigger": "User is viewing Strategic Recommendations",
+      "module_features": [
+        "FE-5"
+      ]
+    },
+    {
+      "id": "GUIDE020",
+      "module": "Performance Attribution Engine",
+      "tip_title": "Track Recurring Patterns in the Insights Log",
+      "instruction": "Click 'View Complete Insights Log' to see all your historical attribution insights. Look for recurring patterns like 'Monday campaigns always underperform' or 'Rainy weather boosts orders by 20%'. These long-term patterns help you develop evidence-based marketing strategies and make predictions about future performance!",
+      "contextual_trigger": "User is viewing insights log",
+      "module_features": [
+        "FE-6"
+      ]
+    },
+    {
+      "id": "GUIDE021",
+      "module": "Performance & Strategy Dashboard",
+      "tip_title": "Focus on ROAS as Your North Star Metric",
+      "instruction": "While all metrics matter, ROAS (Return on Ad Spend) is your most important indicator of campaign success. Check the ROAS widget on your dashboard regularly – aim for a ROAS above 3.0 (meaning $3 revenue for every $1 spent). If it's lower, dive into your Performance Attribution analysis to understand why and adjust accordingly!",
+      "contextual_trigger": "User is on Performance Dashboard",
+      "business_objectives": [
+        "BO-1"
+      ]
+    },
+    {
+      "id": "GUIDE022",
+      "module": "Performance & Strategy Dashboard",
+      "tip_title": "Use Lead Heatmaps to Refine Targeting",
+      "instruction": "The Lead Heatmap widget is incredibly powerful! Toggle between Age Group, Income Level, and Engagement views to see which neighborhoods match your target audience. 'Hot' zones (high scores) are where you should focus your geo-targeting. Click 'Explore Geo-Intent' to immediately create a targeting zone based on what you see!",
+      "contextual_trigger": "User is viewing Lead Heatmap widget",
+      "module_features": [
+        "FE-1"
+      ]
+    },
+    {
+      "id": "GUIDE023",
+      "module": "Performance & Strategy Dashboard",
+      "tip_title": "Set Up Custom Alerts for Important Events",
+      "instruction": "Don't want to constantly monitor your dashboard? Set up custom alerts! Choose to receive notifications via email or push notifications when key events happen – like ROAS dropping below your target, campaigns reaching budget limits, or new trends detected. Stay informed without being glued to the screen!",
+      "contextual_trigger": "User is on Dashboard settings or Performance Dashboard",
+      "module_features": [
+        "FE-4"
+      ]
+    },
+    {
+      "id": "GUIDE024",
+      "module": "Performance & Strategy Dashboard",
+      "tip_title": "Watch Trend Indicators for Early Warning Signs",
+      "instruction": "Each metric widget (ROAS, Conversion Rate, CTR, etc.) shows a trend indicator with percentage change over the last 30 days. A downward arrow means performance is declining – investigate immediately! Click into the specific metric to see detailed trends and use the Performance Attribution Engine to understand what changed.",
+      "contextual_trigger": "User is on Performance Dashboard"
+    },
+    {
+      "id": "GUIDE025",
+      "module": "RAAMP Assistant",
+      "tip_title": "Ask 'Why' Questions for Deeper Insights",
+      "instruction": "The RAAMP Assistant is most powerful when you ask 'why' questions: 'Why did my ROAS drop?', 'Why is Campaign X performing better?', 'Why should I target this area?'. These questions trigger deep analysis of your data and provide personalized, actionable insights you won't get from generic FAQs!",
+      "contextual_trigger": "User opens RAAMP Assistant chat",
+      "module_features": [
+        "FE-3"
+      ]
+    },
+    {
+      "id": "GUIDE026",
+      "module": "RAAMP Assistant",
+      "tip_title": "Use Diagnostics to Quickly Fix Issues",
+      "instruction": "Having a problem? Don't waste time guessing! Scroll to the Troubleshooting & Diagnostics section in RAAMP Assistant. You'll see automated health checks with status badges. If anything shows 'Warning' or 'Failed', click the action button to run diagnostics or fix the issue automatically. It's like having IT support built right in!",
+      "contextual_trigger": "User is on RAAMP Assistant page"
+    },
+    {
+      "id": "GUIDE027",
+      "module": "RAAMP Assistant",
+      "tip_title": "Leverage Contextual Guidance",
+      "instruction": "As you chat with the RAAMP Assistant, relevant tips and advice appear in the Contextual Guidance section below. These expandable accordion items contain step-by-step instructions specific to your current conversation. It's like having a contextual help menu that adapts to what you're working on!",
+      "contextual_trigger": "User is chatting with RAAMP Assistant",
+      "module_features": [
+        "FE-1"
+      ]
+    },
+    {
+      "id": "GUIDE028",
+      "module": "Billing & Payments",
+      "tip_title": "Monitor Your Budget Utilization",
+      "instruction": "Keep an eye on the Budget Utilization Bar in your Billing Settings and on the Performance Dashboard. It shows how much of your total budget you've spent (e.g., '$70,000 / $100,000'). When you're approaching your limit, consider adding funds to avoid campaign interruptions. RAAMP will also send alerts when you hit certain thresholds!",
+      "contextual_trigger": "User is on Billing & Payment Settings or Performance Dashboard"
+    },
+    {
+      "id": "GUIDE029",
+      "module": "Billing & Payments",
+      "tip_title": "Download Invoices for Your Records",
+      "instruction": "In your Transaction History, each transaction has a downloadable invoice (PDF icon in the Invoice column). Click to download receipts for your accounting records. You can sort transactions by date, amount, or description to quickly find specific charges. Keep these for tax purposes!",
+      "contextual_trigger": "User is on Transaction History page"
+    },
+    {
+      "id": "GUIDE030",
+      "module": "General Best Practices",
+      "tip_title": "Start with Small Test Budgets",
+      "instruction": "When launching your first campaigns, start with smaller test budgets to validate your targeting and messaging. Let RAAMP's A/B Auto-Optimization run for 24-48 hours to identify winning variants. Once you see positive ROI, scale up your spending confidently. This minimizes risk while you learn what works for YOUR business!",
+      "contextual_trigger": "New user or user creating first campaign"
+    },
+    {
+      "id": "GUIDE031",
+      "module": "General Best Practices",
+      "tip_title": "Combine Multiple Modules for Maximum Impact",
+      "instruction": "RAAMP is most powerful when you use multiple modules together! For example: Use Geo-Intent to find high-intent areas, Trend Arbitrage to catch viral moments, Creative Studio to generate content, A/B Testing to optimize, and Performance Attribution to learn. This integrated approach delivers the best results!",
+      "contextual_trigger": "User has been active for 1+ week"
+    },
+    {
+      "id": "GUIDE032",
+      "module": "General Best Practices",
+      "tip_title": "Review Performance Weekly",
+      "instruction": "Set aside time each week (we recommend Monday mornings!) to review your Performance Dashboard, analyze completed campaigns with the Attribution Engine, and check for new trends. This regular review habit helps you stay proactive, spot opportunities early, and continuously improve your marketing strategy!",
+      "contextual_trigger": "User hasn't logged in for 7+ days"
+    }
+  ],
+  "troubleshooting_common_issues": [
+    {
+      "issue": "Instagram Connection Failed",
+      "symptoms": [
+        "Integration shows 'Disconnected'",
+        "Unable to collect Instagram data",
+        "OAuth authorization error"
+      ],
+      "possible_causes": [
+        "Instagram access token expired",
+        "Instagram account changed to personal (RAAMP requires business/creator accounts)",
+        "Instagram privacy settings blocking API access",
+        "Temporary Instagram API outage"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Go to Onboarding & Integrations page and click on the Instagram integration card"
+        },
+        {
+          "step": 2,
+          "action": "Click 'Reconnect' and authorize RAAMP using OAuth"
+        },
+        {
+          "step": 3,
+          "action": "Ensure your Instagram account is set to Business or Creator mode in Instagram settings"
+        },
+        {
+          "step": 4,
+          "action": "If issues persist, check RAAMP Assistant's Diagnostics section for automated fixes"
+        }
+      ],
+      "prevention": "Check your integration status monthly. RAAMP will notify you if connections need renewal.",
+      "related_faqs": [
+        "FAQ057"
+      ],
+      "severity": "High"
+    },
+    {
+      "issue": "Campaign Not Delivering",
+      "symptoms": [
+        "Zero impressions after 24 hours",
+        "Ad status shows 'Paused' or 'Pending'",
+        "No audience reached"
+      ],
+      "possible_causes": [
+        "Insufficient account balance",
+        "Targeting zone too narrow (no audience)",
+        "Creative hasn't been approved yet",
+        "Campaign accidentally paused",
+        "Integration disconnected"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Check campaign status in Live Experiment Dashboard – ensure it shows 'Running'"
+        },
+        {
+          "step": 2,
+          "action": "Verify Budget Utilization in Billing Settings – add funds if needed"
+        },
+        {
+          "step": 3,
+          "action": "Review targeting zone in Geo-Intent module – expand radius if too narrow"
+        },
+        {
+          "step": 4,
+          "action": "Confirm Instagram/Facebook/Google Maps integrations are 'Connected'"
+        },
+        {
+          "step": 5,
+          "action": "Run automated diagnostics in RAAMP Assistant"
+        }
+      ],
+      "prevention": "Set up budget alerts and regularly monitor campaign status in the first 24 hours of launch.",
+      "related_faqs": [
+        "FAQ058",
+        "FAQ051"
+      ],
+      "severity": "High"
+    },
+    {
+      "issue": "Slow Dashboard Loading",
+      "symptoms": [
+        "Dashboard takes 30+ seconds to load",
+        "Visualizations not rendering",
+        "Browser seems frozen"
+      ],
+      "possible_causes": [
+        "Slow internet connection",
+        "Browser cache issues",
+        "High system load during peak hours",
+        "Too many browser tabs open"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Check your internet connection speed"
+        },
+        {
+          "step": 2,
+          "action": "Clear your browser cache and cookies, then refresh"
+        },
+        {
+          "step": 3,
+          "action": "Close unnecessary browser tabs to free up memory"
+        },
+        {
+          "step": 4,
+          "action": "Try a different browser (Chrome, Firefox, Safari)"
+        },
+        {
+          "step": 5,
+          "action": "If during peak hours (9 AM – 9 PM), try again in 10-15 minutes – system auto-scales"
+        }
+      ],
+      "prevention": "Use modern browsers, maintain good internet connection, and close unused tabs.",
+      "related_faqs": [
+        "FAQ061"
+      ],
+      "severity": "Medium"
+    },
+    {
+      "issue": "Creatives Not Generating",
+      "symptoms": [
+        "Generation stuck at 'Processing'",
+        "'Generate Creative Brief' button does nothing",
+        "Error message after clicking generate"
+      ],
+      "possible_causes": [
+        "Campaign idea too vague or empty",
+        "AI service temporarily overloaded",
+        "Brand alignment settings incomplete",
+        "Network connectivity issue"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Ensure you've entered a detailed campaign idea (at least 20 words describing goal, audience, offer)"
+        },
+        {
+          "step": 2,
+          "action": "Complete Brand Alignment Settings (logo, colors, tone) before generating"
+        },
+        {
+          "step": 3,
+          "action": "Wait 2-3 minutes – generation takes 1-5 minutes depending on load"
+        },
+        {
+          "step": 4,
+          "action": "Refresh page and try again if error persists"
+        },
+        {
+          "step": 5,
+          "action": "Contact RAAMP Assistant for diagnostic check"
+        }
+      ],
+      "prevention": "Provide detailed campaign briefs and complete brand settings before first generation.",
+      "related_faqs": [
+        "FAQ021",
+        "FAQ023",
+        "FAQ025"
+      ],
+      "severity": "Medium"
+    },
+    {
+      "issue": "Low ROAS",
+      "symptoms": [
+        "ROAS below 2.0",
+        "Spending more than earning",
+        "Negative ROI"
+      ],
+      "possible_causes": [
+        "Poor targeting (wrong audience or location)",
+        "Weak creative or offer",
+        "Wrong timing for campaigns",
+        "Competition outbidding you",
+        "Seasonal factors"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Use Performance Attribution Engine to analyze completed campaigns – identify what's NOT working"
+        },
+        {
+          "step": 2,
+          "action": "Review Lead Heatmaps and refine targeting zones to high-intent areas only"
+        },
+        {
+          "step": 3,
+          "action": "Follow Strategic Recommendations from attribution analysis"
+        },
+        {
+          "step": 4,
+          "action": "Test new creatives with stronger offers or calls-to-action"
+        },
+        {
+          "step": 5,
+          "action": "Check if competitors are running similar campaigns – use Trend Arbitrage to find unique angles"
+        },
+        {
+          "step": 6,
+          "action": "Let A/B Auto-Optimization run for 48 hours to identify better-performing variants"
+        }
+      ],
+      "prevention": "Regularly analyze performance, test multiple approaches, and act on attribution insights.",
+      "related_faqs": [
+        "FAQ043",
+        "FAQ037",
+        "FAQ077"
+      ],
+      "severity": "High"
+    },
+    {
+      "issue": "Session Keeps Expiring",
+      "symptoms": [
+        "Logged out unexpectedly",
+        "Session timeout message",
+        "Need to re-login frequently"
+      ],
+      "possible_causes": [
+        "30-minute inactivity timeout (security feature)",
+        "Multiple tabs/devices with same account",
+        "Unstable internet connection",
+        "Browser cookie settings blocking session"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Stay active on the platform – session expires after 30 minutes of inactivity for security"
+        },
+        {
+          "step": 2,
+          "action": "Check Managed Devices in Security Settings – revoke access to any unfamiliar devices"
+        },
+        {
+          "step": 3,
+          "action": "Ensure browser allows cookies from RAAMP domain"
+        },
+        {
+          "step": 4,
+          "action": "Avoid opening RAAMP in multiple tabs simultaneously"
+        }
+      ],
+      "prevention": "Regularly interact with platform if working on campaigns. This is a security feature, not a bug!",
+      "related_faqs": [
+        "FAQ062",
+        "FAQ012"
+      ],
+      "severity": "Low"
+    },
+    {
+      "issue": "Payment Declined",
+      "symptoms": [
+        "'Payment failed' error",
+        "Unable to add funds",
+        "Transaction not processing"
+      ],
+      "possible_causes": [
+        "Insufficient card balance",
+        "Card expired",
+        "Bank blocking transaction",
+        "Incorrect card details",
+        "International transaction restrictions"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Verify card details are correct (number, expiration, CVV)"
+        },
+        {
+          "step": 2,
+          "action": "Check with your bank – they may have flagged RAAMP as unfamiliar"
+        },
+        {
+          "step": 3,
+          "action": "Try alternative payment method (different card or PayPal)"
+        },
+        {
+          "step": 4,
+          "action": "Ensure card allows international transactions if RAAMP processes in different country"
+        },
+        {
+          "step": 5,
+          "action": "Contact your bank to authorize the transaction, then retry"
+        }
+      ],
+      "prevention": "Use verified payment methods and notify your bank before making first payment to RAAMP.",
+      "related_faqs": [
+        "FAQ051",
+        "FAQ052",
+        "FAQ056"
+      ],
+      "severity": "High"
+    },
+    {
+      "issue": "Geo-Intent Heatmap Not Loading",
+      "symptoms": [
+        "Blank map",
+        "No lead scores displayed",
+        "'Loading' indicator stuck"
+      ],
+      "possible_causes": [
+        "Google Maps API issue",
+        "Insufficient location data collected yet",
+        "Network connectivity problem",
+        "Browser blocking location services"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Verify Google Maps integration is 'Connected' in Onboarding & Integrations"
+        },
+        {
+          "step": 2,
+          "action": "Allow location permissions in browser settings for RAAMP"
+        },
+        {
+          "step": 3,
+          "action": "Wait 24-48 hours after signup for system to collect initial data"
+        },
+        {
+          "step": 4,
+          "action": "Refresh page – data updates within 30 seconds of availability"
+        },
+        {
+          "step": 5,
+          "action": "Try different browser if issue persists"
+        }
+      ],
+      "prevention": "Ensure all integrations are connected and location services enabled from day one.",
+      "related_faqs": [
+        "FAQ015",
+        "FAQ018",
+        "FAQ047"
+      ],
+      "severity": "Medium"
+    },
+    {
+      "issue": "No Trends Detected",
+      "symptoms": [
+        "Empty Live Trend Feed",
+        "'No trends found' message",
+        "Trend Detector shows nothing"
+      ],
+      "possible_causes": [
+        "Very new account (needs 24-48 hours data collection)",
+        "Limited activity in your geographic area",
+        "Instagram integration disconnected",
+        "Niche industry with low online trend volume"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Check Instagram integration status – reconnect if needed"
+        },
+        {
+          "step": 2,
+          "action": "Ensure business location is correctly set in Profile & Business Setup"
+        },
+        {
+          "step": 3,
+          "action": "Wait 24-48 hours for system to collect sufficient trend data"
+        },
+        {
+          "step": 4,
+          "action": "Expand target area in Geo-Intent settings to broader radius"
+        },
+        {
+          "step": 5,
+          "action": "If in very rural area, consider targeting nearest major city"
+        }
+      ],
+      "prevention": "Set accurate business location, maintain Instagram connection, and be patient during initial data collection phase.",
+      "related_faqs": [
+        "FAQ026",
+        "FAQ029"
+      ],
+      "severity": "Low"
+    },
+    {
+      "issue": "A/B Test Not Showing Winner",
+      "symptoms": [
+        "All variants performing similarly",
+        "'No clear winner yet' message",
+        "Test running longer than expected"
+      ],
+      "possible_causes": [
+        "Insufficient traffic/engagement data",
+        "Variants too similar to each other",
+        "Need more time to gather statistically significant results",
+        "Very small audience size"
+      ],
+      "solutions": [
+        {
+          "step": 1,
+          "action": "Let test run for at least 48-72 hours for adequate data"
+        },
+        {
+          "step": 2,
+          "action": "Review Variant Performance Analytics – check if differences are marginal"
+        },
+        {
+          "step": 3,
+          "action": "If all variants similar, create more differentiated versions (different CTAs, images, offers)"
+        },
+        {
+          "step": 4,
+          "action": "Increase campaign budget to reach larger audience faster"
+        },
+        {
+          "step": 5,
+          "action": "Expand targeting zone to increase traffic volume"
+        }
+      ],
+      "prevention": "Create distinctly different variants and allow sufficient time/budget for meaningful testing.",
+      "related_faqs": [
+        "FAQ032",
+        "FAQ033",
+        "FAQ034"
+      ],
+      "severity": "Low"
+    }
+  ]
+}

@@ -87,6 +87,7 @@ from presentation.routers import instagram_router
 from presentation.routers import brand_alignment_router
 from presentation.routers import hyperlocal_setup_router
 from presentation.routers import consultation_router
+from presentation.routers import admin_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
@@ -97,6 +98,7 @@ onboarding_service = OnboardingService()
 app.include_router(auth_router.router, prefix="/api")
 app.include_router(business_domain_router.router, prefix="/api")
 app.include_router(logout_router.router, prefix="/api")
+app.include_router(admin_router.router, prefix="/api")
 app.include_router(onboarding_router.router)
 app.include_router(profile_connections_router.router)
 app.include_router(maps_router.router)

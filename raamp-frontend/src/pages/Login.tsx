@@ -277,7 +277,7 @@ const Login = () => {
                       if (status && status.is_verified) {
                         toast({
                           title: "Already Verified",
-                          description: "This email is already verified. Try signing in or contact support.",
+                          description: "This email is already verified. Please sign in instead.",
                         });
                         return;
                       }
@@ -298,11 +298,31 @@ const Login = () => {
                         navigate('/verify-email', { state: { email } });
                       } catch (resendErr: unknown) {
                         console.error('Failed to send verification code', resendErr);
-                        const errorMessage = resendErr && typeof resendErr === 'object' && 'message' in resendErr 
-                          ? String(resendErr.message) 
-                          : "Failed to send verification code. Please try again.";
+                        
+                        // Parse error to show helpful message
+                        let errorMessage = "Failed to send verification code. Please try again.";
+                        
+                        if (resendErr && typeof resendErr === 'object') {
+                          if ('response' in resendErr) {
+                            const response = (resendErr as { response?: { data?: { errors?: Record<string, string> } } }).response;
+                            const errors = response?.data?.errors;
+                            
+                            if (errors?.email?.includes('No pending verification found')) {
+                              errorMessage = "No pending verification found. Please sign up first or sign in if you're already registered.";
+                            } else if (errors?.email?.includes('already verified')) {
+                              errorMessage = "This email is already verified. Please sign in instead.";
+                            } else if (errors?.cooldown) {
+                              errorMessage = errors.cooldown;
+                            } else if ('message' in resendErr) {
+                              errorMessage = String(resendErr.message);
+                            }
+                          } else if ('message' in resendErr) {
+                            errorMessage = String(resendErr.message);
+                          }
+                        }
+                        
                         toast({
-                          title: "Error",
+                          title: "Cannot Send Verification Code",
                           description: errorMessage,
                           variant: "destructive",
                         });
@@ -318,11 +338,25 @@ const Login = () => {
                         });
                         navigate('/verify-email', { state: { email } });
                       } catch (resendErr: unknown) {
-                        const errorMessage = resendErr && typeof resendErr === 'object' && 'message' in resendErr 
-                          ? String(resendErr.message) 
-                          : "Failed to send verification code.";
+                        let errorMessage = "Failed to send verification code.";
+                        
+                        if (resendErr && typeof resendErr === 'object') {
+                          if ('response' in resendErr) {
+                            const response = (resendErr as { response?: { data?: { errors?: Record<string, string> } } }).response;
+                            const errors = response?.data?.errors;
+                            
+                            if (errors?.email?.includes('No pending verification found')) {
+                              errorMessage = "No pending verification found. Please sign up first or sign in if you're already registered.";
+                            } else if (errors?.email?.includes('already verified')) {
+                              errorMessage = "This email is already verified. Please sign in instead.";
+                            }
+                          } else if ('message' in resendErr) {
+                            errorMessage = String(resendErr.message);
+                          }
+                        }
+                        
                         toast({
-                          title: "Error",
+                          title: "Cannot Send Verification Code",
                           description: errorMessage,
                           variant: "destructive",
                         });
