@@ -23,11 +23,12 @@ async def instagram_auth_url(current_user_email: str = Depends(get_current_user_
     state = await onboarding_service.create_oauth_state(current_user_email)
     redirect_uri = f"{cfg.BACKEND_URL}/api/instagram/callback"
     scopes = [
-        'instagram_basic',
         'pages_show_list',
         'pages_read_engagement',
-        'pages_manage_metadata',
-        'pages_manage_posts',
+        'instagram_basic',  # Required for username, profile info
+        'instagram_manage_comments',
+        'instagram_manage_insights',
+        'instagram_content_publish',
     ]
     params = {
         'client_id': cfg.FACEBOOK_APP_ID,

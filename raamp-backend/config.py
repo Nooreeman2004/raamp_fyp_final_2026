@@ -6,8 +6,8 @@ from typing import Optional
 class Config:
     """Centralized application configuration"""
     
-    # MongoDB Configuration
-    MONGO_URI: str = os.getenv("MONGO_URI", "mongodb+srv://raampnexusdb:jqfMdqlgqNpvCh35@cluster0.ihlok.mongodb.net/raamp_db?retryWrites=true&w=majority&appName=Cluster0")
+    # MongoDB Configuration - supports both MONGODB_URL and MONGO_URI for compatibility
+    MONGO_URI: str = os.getenv("MONGODB_URL", os.getenv("MONGO_URI", "mongodb://localhost:27017/raamp_db"))
     
     # JWT Configuration
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production-use-openssl-rand-hex-32")

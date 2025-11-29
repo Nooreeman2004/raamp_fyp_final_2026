@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -219,9 +220,9 @@ const PersonalDetails = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background">
+    <Layout>
       {/* Breadcrumbs */}
-      <div className="container mx-auto px-4 py-4">
+      <div className="mb-6">
         <Breadcrumbs items={[
           { label: 'Home', href: '/dashboard' },
           { label: 'Profile', href: '/profile' },
@@ -229,7 +230,7 @@ const PersonalDetails = () => {
         ]} />
       </div>
 
-      <div className="flex items-center justify-center p-4">
+      <div className="flex items-center justify-center">
         <Card className="w-full max-w-3xl p-8 card-shadow bg-card/80 backdrop-blur-sm border-primary/20">
           <div className="space-y-6">
             <div className="text-center space-y-2">
@@ -504,7 +505,7 @@ const PersonalDetails = () => {
           </div>
         </Card>
       </div>
-    </div>
+    </Layout>
   );
 };
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,22 +19,8 @@ const ProfileHub = () => {
   const [bio, setBio] = useState("A dedicated digital marketing professional with over 10 years of experience, passionate about leveraging AI to optimize campaign performance and drive ROI.");
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top Navigation */}
-      <nav className="border-b border-primary/10 bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/dashboard" className="flex items-center gap-3">
-              <img src={raampIcon} alt="RAAMP" className="h-10 w-10" />
-              <span className="text-xl font-bold">RAAMP</span>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-8 max-w-4xl mx-auto">
+    <Layout>
+      <div className="space-y-8 max-w-4xl mx-auto">
           <div>
             <h1 className="text-4xl font-bold mb-2">Profile Hub</h1>
             <p className="text-muted-foreground">
@@ -237,9 +223,8 @@ const ProfileHub = () => {
               </Card>
             </Link>
           </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 };
 

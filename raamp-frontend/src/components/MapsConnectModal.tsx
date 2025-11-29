@@ -22,168 +22,14 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Place | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
-  const [pickerReady, setPickerReady] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const loaderRef = useRef<HTMLElement | null>(null);
-  const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
   useEffect(() => {
     if (!isOpen) {
       setQuery('');
       setResults([]);
       setSelected(null);
-      setPickerReady(false);
     }
-    // when modal opens, if Google key present, ensure the extended component lib is loaded
-    if (isOpen && GOOGLE_KEY) {
-      // inject script if not present
-      const scriptId = 'gmpx-extended-lib';
-      if (!document.getElementById(scriptId)) {
-        const s = document.createElement('script');
-        s.type = 'module';
-        s.src = 'https://ajax.googleapis.com/ajax/libs/@googlemaps/extended-component-library/0.6.11/index.min.js';
-        s.id = scriptId;
-        document.head.appendChild(s);
-      }
-    }
-  }, [isOpen, GOOGLE_KEY]);
-
-  // When Google key present, configure loader and wire up the place-picker change event
-  useEffect(() => {
-    if (!isOpen || !GOOGLE_KEY) return;
-
-    let mounted = true;
-    let cleanupFn: (() => void) | undefined;
-
-    const configure = async () => {
-      // wait for the extended lib to define custom elements
-      const waitFor = (name: string, timeout = 5000) => new Promise<boolean>((resolve) => {
-        const start = Date.now();
-        const tick = () => {
-          if ((window as any).customElements && (window as any).customElements.get(name)) return resolve(true);
-          if (Date.now() - start > timeout) return resolve(false);
-          setTimeout(tick, 150);
-        };
-        tick();
-      });
-
-      const ok = await waitFor('gmpx-place-picker', 8000);
-      if (!mounted) return;
-      setPickerReady(ok);
-
-      // If GMPX didn't register in time, attempt a graceful fallback by loading
-      // the Google Maps JS API with the Places library so the page can still
-      // provide a search + selection UX.
-      if (!ok) {
-        console.error('GMPX place-picker did not register within timeout. Falling back to Google Maps JS API loader.');
-        try {
-          if (!document.getElementById('google-maps-js')) {
-            (window as any).__raamp_gmaps_loaded = false;
-            (window as any).__raamp_gmaps_error = false;
-            (window as any).__raamp_init_maps = () => { (window as any).__raamp_gmaps_loaded = true; };
-            const s = document.createElement('script');
-            s.id = 'google-maps-js';
-            s.async = true;
-            s.defer = true;
-            s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places&callback=__raamp_init_maps`;
-            s.onerror = () => { (window as any).__raamp_gmaps_error = true; console.error('Failed to load Google Maps JS API fallback'); };
-            document.head.appendChild(s);
-            // wait briefly for load to complete
-            const start = Date.now();
-            while (Date.now() - start < 6000 && !(window as any).__raamp_gmaps_loaded && !(window as any).__raamp_gmaps_error) {
-              // eslint-disable-next-line no-await-in-loop
-              await new Promise((r) => setTimeout(r, 150));
-            }
-            if ((window as any).__raamp_gmaps_loaded) console.info('Google Maps JS API loaded (fallback)');
-            else console.warn('Google Maps JS API fallback did not finish loading');
-          }
-        } catch (e) {
-          console.error('Error while loading Google Maps fallback', e);
-        }
-      }
-
-      // set loader attributes (use correct attribute name expected by gmpx-api-loader)
-      if (loaderRef.current) {
-        try {
-          // Give the loader the API key and request the Places library.
-          loaderRef.current.setAttribute('api-key', GOOGLE_KEY);
-          loaderRef.current.setAttribute('libraries', 'places');
-          loaderRef.current.setAttribute('solution-channel', 'GMP_GE_placepicker_v2');
-          // Disable auto-init to allow the app to wire events explicitly.
-          loaderRef.current.setAttribute('auto-init', 'false');
-          loaderRef.current.setAttribute('autoinit', 'false');
-        } catch (e) {
-          console.error('Failed to configure gmpx-api-loader', e);
-        }
-      }
-
-      const placePicker = containerRef.current?.querySelector('gmpx-place-picker') as HTMLElement | null;
-      const markerEl = containerRef.current?.querySelector('gmp-advanced-marker') as any | null;
-
-      const onPlaceChange = () => {
-        try {
-          const picker = placePicker as any;
-          const place = picker?.value || {};
-          if (!place) return;
-
-          // extract common fields from different shapes returned by the component
-          const place_id = place.placeId || place.place_id || place.placeIdString || place.placeIdValue;
-          const name = place.displayName || place.name || place.poiName || '';
-          const formatted_address = place.formattedAddress || place.formatted_address || place.address || '';
-
-          // robust coordinate extraction
-          let lat: number | undefined = undefined;
-          let lng: number | undefined = undefined;
-          if (place.location) {
-            const loc = place.location;
-            if (typeof loc.lat === 'function' && typeof loc.lng === 'function') {
-              lat = loc.lat(); lng = loc.lng();
-            } else if (typeof loc.lat === 'number' && typeof loc.lng === 'number') {
-              lat = loc.lat; lng = loc.lng;
-            } else if (Array.isArray(loc) && loc.length >= 2) {
-              lat = Number(loc[0]); lng = Number(loc[1]);
-            }
-          }
-
-          // set marker position if available
-          try {
-            if (markerEl && place.location) {
-              markerEl.position = place.location;
-            }
-          } catch (e) {
-            // ignore
-          }
-
-          setSelected({
-            place_id: place_id || String(Math.random()).slice(2),
-            name: name || 'Selected place',
-            formatted_address,
-            lat,
-            lng,
-          });
-        } catch (e) {
-          console.error('placechange handler error', e);
-        }
-      };
-
-      if (placePicker) {
-        placePicker.addEventListener('gmpx-placechange', onPlaceChange);
-        // Return cleanup function
-        return () => {
-          placePicker.removeEventListener('gmpx-placechange', onPlaceChange);
-        };
-      }
-    };
-
-    configure().then((c) => { 
-      if (typeof c === 'function') cleanupFn = c;
-    }).catch(() => {});
-
-    return () => { 
-      mounted = false;
-      if (cleanupFn) cleanupFn(); 
-    };
-  }, [isOpen, GOOGLE_KEY]);
+  }, [isOpen]);
 
   const doSearch = async (q: string) => {
     if (!q || q.trim().length < 2) {
@@ -247,73 +93,54 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-card p-6 rounded-lg w-full max-w-2xl" ref={containerRef}>
+      <div className="bg-card p-6 rounded-lg w-full max-w-2xl">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold">Connect Google Maps</h3>
           <Button variant="ghost" onClick={onClose}>Close</Button>
         </div>
         {!selected && (
           <div>
-            {/* If Google key present AND the GMPX place picker loaded, render the client-side UI.
-                Otherwise, fall back to the backend-powered search list so users always see a search box. */}
-            {GOOGLE_KEY && pickerReady ? (
-              <div>
-                {/* gmpx loader and map/place-picker are custom elements; set loader attributes after mount */}
-                <gmpx-api-loader ref={(el) => { loaderRef.current = el as any; }}></gmpx-api-loader>
-                <div className="mb-3">
-                  <gmp-map center="40.749933,-73.98633" zoom="13" map-id="DEMO_MAP_ID">
-                    <div slot="control-block-start-inline-start" className="place-picker-container">
-                      <gmpx-place-picker placeholder="Search for your business"></gmpx-place-picker>
-                    </div>
-                    <gmp-advanced-marker></gmp-advanced-marker>
-                  </gmp-map>
-                  <style>{`
-                    gmp-map {
-                      display: block;
-                      width: 100%;
-                      min-height: 320px;
-                      border-radius: 8px;
-                      overflow: hidden;
-                    }
-                    gmpx-place-picker, gmpx-place-picker input, .place-picker-container { z-index: 9999 !important; }
-                    .place-picker-container { position: relative; }
-                    gmpx-place-picker .gmpx-search-box { z-index: 10000 !important; }
-                  `}</style>
-                </div>
-                <div className="text-sm text-muted-foreground">Use the search box on the map to pick your business. After selection, confirm below.</div>
-              </div>
-            ) : (
-              <div>
-                <div className="flex gap-2 mb-4">
-                  <input
-                    className="flex-1 input"
-                    placeholder="Search for your business (e.g. 'Corner Cafe')"
-                    value={query}
-                    onChange={(e) => {
-                      setQuery(e.target.value);
-                      doSearch(e.target.value);
-                    }}
-                  />
-                  <Button onClick={() => doSearch(query)} disabled={loading}>Search</Button>
-                </div>
+            <div className="flex gap-2 mb-4">
+              <input
+                className="flex-1 px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Search for your business (e.g. 'Corner Cafe, New York')"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (e.target.value.length >= 2) {
+                    doSearch(e.target.value);
+                  } else {
+                    setResults([]);
+                  }
+                }}
+              />
+              <Button onClick={() => doSearch(query)} disabled={loading}>Search</Button>
+            </div>
 
-                <div className="space-y-2 max-h-64 overflow-auto">
-                  {loading && <div>Searching…</div>}
-                  {!loading && results.length === 0 && <div className="text-sm text-muted-foreground">No results</div>}
-                  {results.map((r) => (
-                    <div key={r.place_id} className="p-3 bg-muted/50 rounded flex justify-between items-center">
-                      <div>
-                        <div className="font-semibold">{r.name}</div>
-                        <div className="text-sm text-muted-foreground">{r.formatted_address}</div>
-                      </div>
-                      <div>
-                        <Button size="sm" onClick={() => fetchDetails(r.place_id)}>Select</Button>
-                      </div>
-                    </div>
-                  ))}
+            <div className="space-y-2 max-h-96 overflow-auto">
+              {loading && <div className="text-center py-4 text-muted-foreground">Searching…</div>}
+              {!loading && query.length >= 2 && results.length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  No results found. Try a different search term.
                 </div>
-              </div>
-            )}
+              )}
+              {!loading && query.length < 2 && results.length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  Enter at least 2 characters to search
+                </div>
+              )}
+              {results.map((r) => (
+                <div key={r.place_id} className="p-3 bg-muted/50 rounded flex justify-between items-center hover:bg-muted transition-colors">
+                  <div className="flex-1">
+                    <div className="font-semibold">{r.name}</div>
+                    <div className="text-sm text-muted-foreground">{r.formatted_address}</div>
+                  </div>
+                  <div>
+                    <Button size="sm" onClick={() => fetchDetails(r.place_id)}>Select</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

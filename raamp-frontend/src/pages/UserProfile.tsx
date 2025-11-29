@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,15 +7,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
 import { User, Eye, EyeOff, Upload, Lock, Shield, HelpCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
-import Breadcrumbs from "@/components/Breadcrumbs";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import ConfirmationDialog from "@/components/ConfirmationDialog";
+import Layout from "@/components/Layout";
 
 const UserProfile = () => {
+  // Override breadcrumb to remove "Profile" and show just "User Profile"
+  const customBreadcrumbOverride = [
+    { label: "Home", path: "/dashboard" },
+    { label: "User Profile", path: "/profile/user" }
+  ];
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [showOtpDialog, setShowOtpDialog] = useState(false);
@@ -36,6 +38,9 @@ const UserProfile = () => {
     lastName: "",
     email: "",
     phone: "",
+    company: "",
+    bio: "",
+    role: "",
     profilePicture: "",
     username: "",
   });
@@ -53,6 +58,9 @@ const UserProfile = () => {
     firstName: userData.firstName,
     lastName: userData.lastName,
     phone: userData.phone,
+    company: userData.company,
+    bio: userData.bio,
+    role: userData.role,
   }) !== initialUserData;
 
   useUnsavedChanges({
@@ -97,7 +105,9 @@ const UserProfile = () => {
       first_name: userData.firstName,
       last_name: userData.lastName,
       phone_number: userData.phone,
-      // add other fields as needed (company, role, bio)
+      company: userData.company,
+      bio: userData.bio,
+      role: userData.role,
     };
 
     try {
@@ -110,6 +120,9 @@ const UserProfile = () => {
         lastName: updated.last_name || userData.lastName,
         email: updated.email || userData.email,
         phone: updated.phone_number || userData.phone,
+        company: updated.company || userData.company,
+        bio: updated.bio || userData.bio,
+        role: updated.role || userData.role,
         profilePicture: updated.profile_picture || userData.profilePicture,
         username: updated.username || userData.username,
       };
@@ -118,6 +131,9 @@ const UserProfile = () => {
         firstName: updatedData.firstName,
         lastName: updatedData.lastName,
         phone: updatedData.phone,
+        company: updatedData.company,
+        bio: updatedData.bio,
+        role: updatedData.role,
       }));
       try { localStorage.setItem('user', JSON.stringify(resp.user)); } catch {}
       toast({ 
@@ -231,6 +247,9 @@ const UserProfile = () => {
             lastName: (u.last_name as string) || '',
             email: u.email || '',
             phone: (u.phone_number as string) || '',
+            company: (u.company as string) || '',
+            bio: (u.bio as string) || '',
+            role: (u.role as string) || '',
             profilePicture: (u.profile_picture as string) || '',
             username: u.username || '',
           };
@@ -239,6 +258,9 @@ const UserProfile = () => {
             firstName: data.firstName,
             lastName: data.lastName,
             phone: data.phone,
+            company: data.company,
+            bio: data.bio,
+            role: data.role,
           }));
         }
       } catch (err) {
@@ -248,31 +270,8 @@ const UserProfile = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top Navigation */}
-      <nav className="border-b border-primary/10 bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/dashboard" className="flex items-center gap-3">
-              <img src={raampIcon} alt="RAAMP" className="h-10 w-10" />
-              <span className="text-xl font-bold">RAAMP</span>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Breadcrumbs */}
-      <div className="container mx-auto px-4 py-4">
-        <Breadcrumbs items={[
-          { label: 'Home', href: '/dashboard' },
-          { label: 'Profile', href: '/profile' },
-          { label: 'User Profile' },
-        ]} />
-      </div>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto space-y-6">
+    <Layout breadcrumbOverride={customBreadcrumbOverride}>
+      <div className="max-w-3xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold mb-2">User Profile</h1>
@@ -397,6 +396,44 @@ const UserProfile = () => {
                   onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
                   disabled={!isEditing}
                   className="bg-background/50"
+                  placeholder="+1 (555) 000-0000"
+                />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company</Label>
+                  <Input
+                    id="company"
+                    value={userData.company}
+                    onChange={(e) => setUserData({ ...userData, company: e.target.value })}
+                    disabled={!isEditing}
+                    className="bg-background/50"
+                    placeholder="Your company name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Input
+                    id="role"
+                    value={userData.role}
+                    onChange={(e) => setUserData({ ...userData, role: e.target.value })}
+                    disabled={!isEditing}
+                    className="bg-background/50"
+                    placeholder="Your job title"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bio">Bio</Label>
+                <Input
+                  id="bio"
+                  value={userData.bio}
+                  onChange={(e) => setUserData({ ...userData, bio: e.target.value })}
+                  disabled={!isEditing}
+                  className="bg-background/50"
+                  placeholder="Tell us about yourself"
                 />
               </div>
 
@@ -452,7 +489,6 @@ const UserProfile = () => {
             </Button>
           </Card>
         </div>
-      </main>
 
       {/* OTP Verification Dialog */}
       <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
@@ -599,7 +635,7 @@ const UserProfile = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </Layout>
   );
 };
 

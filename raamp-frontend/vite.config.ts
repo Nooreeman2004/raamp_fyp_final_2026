@@ -5,11 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  // Dev proxy to avoid CORS and cookie issues during local development.
+  // Dev server with proxy to avoid CORS and cookie issues during local development.
   // For any request starting with `/api`, the dev server will forward
   // it to the backend at http://localhost:8000 and return the response
   // to the browser as if it came from the same origin.

@@ -10,7 +10,7 @@ interface RecentPage {
 const STORAGE_KEY = "raamp_recent_pages";
 const MAX_RECENT_PAGES = 5;
 
-export function useRecentPages() {
+export function useRecentPages(): { recentPages: RecentPage[]; clearRecentPages: () => void } {
   const location = useLocation();
   const [recentPages, setRecentPages] = useState<RecentPage[]>([]);
 
@@ -81,7 +81,7 @@ export function useRecentPages() {
     });
   }, [location.pathname]);
 
-  const clearRecentPages = () => {
+  const clearRecentPages = (): void => {
     setRecentPages([]);
     try {
       localStorage.removeItem(STORAGE_KEY);

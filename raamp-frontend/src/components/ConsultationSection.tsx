@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { consultationService } from "@/services/consultationService";
 
 const ConsultationSection = () => {
   const { toast } = useToast();
@@ -32,24 +33,41 @@ const ConsultationSection = () => {
     return !Object.values(newErrors).some(error => error);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
 
-    // TODO: Integrate with backend email service
-    console.log("Form submitted:", formData);
-    
-    toast({
-      title: "Consultation Booked!",
-      description: "We'll contact you shortly to schedule your free consultation.",
-    });
+    try {
+      toast({
+        title: "Submitting...",
+        description: "Please wait while we process your request.",
+      });
 
-    // Reset form
-    setFormData({ firstName: "", lastName: "", email: "", company: "" });
-    setErrors({ firstName: false, lastName: false, email: false, company: false });
+      await consultationService.submitConsultation({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        business_email: formData.email,
+        company_name: formData.company,
+      });
+      
+      toast({
+        title: "Consultation Booked!",
+        description: "Check your email for confirmation. Our team will contact you within 24-48 hours.",
+      });
+
+      // Reset form
+      setFormData({ firstName: "", lastName: "", email: "", company: "" });
+      setErrors({ firstName: false, lastName: false, email: false, company: false });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.response?.data?.detail || "Failed to submit consultation request. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

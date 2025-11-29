@@ -1,17 +1,22 @@
+import { isRetryableError, getRetryDelay } from '@/utils/errorHandler';
+
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 // API Client
 class ApiClient {
   private baseURL: string;
+  private maxRetries: number;
 
-  constructor(baseURL: string) {
+  constructor(baseURL: string, maxRetries: number = 3) {
     this.baseURL = baseURL;
+    this.maxRetries = maxRetries;
   }
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retryAttempt: number = 0
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     // Development-only mock switch. Set VITE_USE_MOCK_API=true in .env to enable.
@@ -39,7 +44,10 @@ class ApiClient {
     };
 
     // Allow configuring timeout via Vite env var VITE_API_TIMEOUT (ms)
-    const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT) || 10000;
+    // Use longer timeout for signup/auth endpoints that send emails
+    const isAuthEndpoint = endpoint.includes('/auth/signup') || endpoint.includes('/auth/verify');
+    const defaultTimeout = isAuthEndpoint ? 30000 : 10000; // 30s for auth, 10s for others
+    const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT) || defaultTimeout;
 
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -56,11 +64,20 @@ class ApiClient {
       const data = isJson ? await response.json() : await response.text();
 
       if (!response.ok) {
-        throw {
+        const error = {
           status: response.status,
           message: isJson ? data.message : data,
           ...(isJson ? data : {}),
         };
+
+        // Retry on retryable errors
+        if (isRetryableError(error) && retryAttempt < this.maxRetries) {
+          const delay = getRetryDelay(retryAttempt);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.request<T>(endpoint, options, retryAttempt + 1);
+        }
+
+        throw error;
       }
 
       return data;
@@ -70,20 +87,45 @@ class ApiClient {
 
       // Handle aborted requests (timeout)
       if (error instanceof DOMException && error.name === 'AbortError') {
-        throw {
+        const timeoutError = {
           status: 0,
           message: `Request timed out after ${timeoutMs}ms. Please check your network or backend server.`,
           errors: { timeout: 'request aborted' },
         };
+
+        // Retry on timeout if we haven't exceeded max retries
+        if (retryAttempt < this.maxRetries) {
+          const delay = getRetryDelay(retryAttempt);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.request<T>(endpoint, options, retryAttempt + 1);
+        }
+
+        throw timeoutError;
       }
 
       // Handle network errors (failed to fetch)
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        throw {
+        const networkError = {
           status: 0,
           message: 'Unable to connect to server. Please check if the backend is running.',
           errors: { network: 'Failed to fetch' }
         };
+
+        // Retry on network errors if we haven't exceeded max retries
+        if (retryAttempt < this.maxRetries) {
+          const delay = getRetryDelay(retryAttempt);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.request<T>(endpoint, options, retryAttempt + 1);
+        }
+
+        throw networkError;
+      }
+
+      // If it's a retryable error and we haven't exceeded max retries, retry
+      if (isRetryableError(error) && retryAttempt < this.maxRetries) {
+        const delay = getRetryDelay(retryAttempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.request<T>(endpoint, options, retryAttempt + 1);
       }
 
       throw error;
@@ -94,14 +136,14 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' });
   }
 
-  async post<T>(endpoint: string, data: any): Promise<T> {
+  async post<T>(endpoint: string, data: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async put<T>(endpoint: string, data: any): Promise<T> {
+  async put<T>(endpoint: string, data: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),

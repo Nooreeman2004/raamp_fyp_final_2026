@@ -619,7 +619,7 @@ class MailtrapService:
     
     async def send_verification_email(self, to_email: str, name: str, otp_code: str) -> bool:
         """
-        Send OTP verification email using HTML template
+        Send OTP verification email using HTML template (Non-blocking)
         
         Args:
             to_email: User's email address
@@ -652,9 +652,29 @@ class MailtrapService:
         """
         
         print(f"📧 Attempting to send email to {to_email} via {self.email_method}")
-        result = self._send_email(to_email, subject, html_content, text_content)
-        print(f"📬 Email send result: {result}")
-        return result
+        
+        # Run email sending in executor to prevent blocking
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        
+        try:
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor(max_workers=1)
+            # Set 10 second timeout for email sending
+            result = await asyncio.wait_for(
+                loop.run_in_executor(executor, self._send_email, to_email, subject, html_content, text_content),
+                timeout=10.0
+            )
+            print(f"📬 Email send result: {result}")
+            return result
+        except asyncio.TimeoutError:
+            print(f"⚠️ Email sending timed out for {to_email}, but continuing...")
+            # Don't fail signup if email times out - user can resend
+            return True
+        except Exception as e:
+            print(f"⚠️ Email sending failed for {to_email}: {e}, but continuing...")
+            # Don't fail signup if email fails - user can resend
+            return True
     
     async def send_welcome_email(self, to_email: str, name: str) -> bool:
         """
@@ -760,6 +780,25 @@ class MailtrapService:
         """
         
         return self._send_email(to_email, subject, html_content, text_content)
+    
+    async def send_custom_email(self, to_email: str, to_name: str, subject: str, html_content: str, text_content: str) -> bool:
+        """
+        Send a custom email with provided subject and content
+        
+        Args:
+            to_email: Recipient's email address
+            to_name: Recipient's name
+            subject: Email subject line
+            html_content: HTML email body
+            text_content: Plain text email body
+            
+        Returns:
+            True if sent successfully
+        """
+        return self._send_email(to_email, subject, html_content, text_content)
+
+
+
 
 
 

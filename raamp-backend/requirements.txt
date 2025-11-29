@@ -4,11 +4,15 @@ uvicorn[standard]==0.27.0
 pydantic==2.9.2
 pydantic-settings==2.6.1
 python-dotenv==1.0.0
+httpx==0.28.1
+requests==2.32.3
 
 # MongoDB (Async)
 motor==3.6.0
 beanie==1.27.0
 certifi==2025.11.12
+# pymongo==4.15.3
+# dnspython==2.7.0
 
 # Firebase Admin (for Google OAuth)
 firebase-admin==7.1.0
@@ -19,3 +23,9 @@ python-multipart==0.0.6
 email-validator==2.2.0
 bcrypt==4.2.1
 cryptography==41.0.2
+slowapi==0.1.9
+python-jose[cryptography]==3.3.0
+
+
+pymongo==4.9.2
+dnspython==2.8.0

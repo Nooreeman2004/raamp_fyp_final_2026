@@ -1,34 +1,18 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { Zap, MapPin, Target, TrendingUp, Users } from "lucide-react";
+import { MapPin, Target, TrendingUp, Users } from "lucide-react";
+import Layout from "@/components/Layout";
 
 const GeoIntent = () => {
   const [radius, setRadius] = useState([5]);
   const [businessName, setBusinessName] = useState("Artisan Coffee House");
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top Navigation */}
-      <nav className="border-b border-primary/10 bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary" />
-              </div>
-              <span className="text-xl font-bold">RAAMP</span>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-8">
+    <Layout>
+      <div className="space-y-8">
           <div>
             <h1 className="text-4xl font-bold mb-2">Intelligent Geo-Intent Marketing Engine</h1>
             <p className="text-muted-foreground">
@@ -118,12 +102,11 @@ const GeoIntent = () => {
             </div>
           </div>
 
-          <Button variant="hero" size="lg" className="w-full">
-            Deploy Geo-Targeted Campaign
-          </Button>
-        </div>
-      </main>
-    </div>
+        <Button variant="hero" size="lg" className="w-full">
+          Deploy Geo-Targeted Campaign
+        </Button>
+      </div>
+    </Layout>
   );
 };
 

@@ -1,13 +1,8 @@
 import { signInWithPopup, UserCredential } from 'firebase/auth';
 import { auth, googleProvider } from '@/config/firebase';
+import type { GoogleAuthResult } from '@/types';
 
-export interface GoogleAuthResult {
-  uid: string;
-  email: string;
-  displayName: string;
-  photoURL: string | null;
-  idToken: string;
-}
+// Note: GoogleAuthResult is now centralized in @/types/auth.types.ts
 
 /**
  * Sign in with Google using Firebase popup

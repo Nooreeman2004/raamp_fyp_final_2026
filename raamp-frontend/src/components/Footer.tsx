@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 const Footer = () => {
   return (
     <footer className="border-t border-primary/10 py-12">
@@ -7,15 +9,15 @@ const Footer = () => {
             © 2025 RAAMP. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               About
-            </a>
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            </Link>
+            <Link to="/resources" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Resources
-            </a>
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            </Link>
+            <Link to="/legal" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Legal
-            </a>
+            </Link>
           </div>
         </div>
       </div>

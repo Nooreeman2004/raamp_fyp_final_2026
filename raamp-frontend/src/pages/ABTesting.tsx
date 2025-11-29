@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -68,21 +68,7 @@ const ABTesting = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-[#0f1c26] to-background">
-      {/* Top Navigation */}
-      <nav className="border-b border-primary/20 bg-card/30">
-        <div className="container mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/dashboard" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary" />
-              </div>
-              <span className="text-xl font-bold text-primary">RAAMP</span>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
+    <Layout>
       {/* Celebration Modal */}
       {showCelebration && (
         <Celebration
@@ -91,18 +77,15 @@ const ABTesting = () => {
           onComplete={() => setShowCelebration(false)}
         />
       )}
+      {/* Breadcrumbs */}
+      <div className="mb-6">
+        <Breadcrumbs items={[
+          { label: 'Home', href: '/dashboard' },
+          { label: 'A/B Testing' },
+        ]} />
+      </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-6 py-8">
-        {/* Breadcrumbs */}
-        <div className="mb-6">
-          <Breadcrumbs items={[
-            { label: 'Home', href: '/dashboard' },
-            { label: 'A/B Testing' },
-          ]} />
-        </div>
-
-        <div className="space-y-6">
+      <div className="space-y-6">
           {/* Header */}
           <div>
             <h1 className="text-4xl font-bold mb-2">A/B Auto-Optimization Layer</h1>
@@ -319,10 +302,9 @@ const ABTesting = () => {
             </Button>
           </Card>
         </div>
-      </main>
 
-      {/* Confirmation Dialog for Budget Reallocation */}
-      <ConfirmationDialog
+        {/* Confirmation Dialog for Budget Reallocation */}
+        <ConfirmationDialog
         open={showBudgetDialog}
         onOpenChange={setShowBudgetDialog}
         onConfirm={() => {
@@ -338,7 +320,7 @@ const ABTesting = () => {
         cancelText="Cancel"
         variant="default"
       />
-    </div>
+    </Layout>
   );
 };
 

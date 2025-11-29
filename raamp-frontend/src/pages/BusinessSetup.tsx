@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
 import { MapPin, Building2 } from "lucide-react";
+import Layout from "@/components/Layout";
 
 const BusinessSetup = () => {
   const navigate = useNavigate();
@@ -52,20 +52,8 @@ const BusinessSetup = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-primary/10 bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/dashboard" className="flex items-center gap-3">
-              <img src={raampIcon} alt="RAAMP" className="h-10 w-10" />
-              <span className="text-xl font-bold">RAAMP</span>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-8 max-w-4xl mx-auto">
+    <Layout>
+      <div className="space-y-8 max-w-4xl mx-auto">
           <div>
             <h1 className="text-4xl font-bold mb-2">Hyperlocal Business Setup</h1>
             <p className="text-muted-foreground">
@@ -158,8 +146,7 @@ const BusinessSetup = () => {
             </Card>
           </div>
         </div>
-      </main>
-    </div>
+    </Layout>
   );
 };
 

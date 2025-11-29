@@ -331,17 +331,6 @@ const Onboarding = () => {
               >
                 {connected.instagram ? 'Connected' : 'Connect'}
               </Button>
-              {/* show granted scopes small list when available */}
-              {fbScopes && fbScopes.length > 0 && (
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <div className="font-semibold">Granted permissions:</div>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {fbScopes.map((s) => (
-                      <span key={s} className="px-2 py-1 bg-muted/30 rounded text-[11px]">{s}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -452,23 +441,14 @@ const Onboarding = () => {
                       fetchConnections();
                     } catch (err: any) {
                       console.error('Link IG error', err);
-                      // If backend indicates missing permissions, offer to re-authorize Facebook with required scopes
+                      // If backend indicates missing permissions, show clear message
                       const isMissing = err && (err.error === 'missing_permissions' || Array.isArray(err.missing) || (err?.detail && err.detail?.missing));
                       if (isMissing) {
-                        toast({ title: 'Missing Facebook permissions, please reauthorize', variant: 'destructive' });
-                        const go = window.confirm('Missing Facebook permissions required to link Instagram. Re-authorize now?');
-                        if (go) {
-                          // re-authorize Facebook and retry linking automatically on success
-                          openAuthWindowAndPoll('/profile/onboarding/facebook/auth', 'facebook', async () => {
-                            // retry after reauth
-                            try {
-                              await linkPage(pageId);
-                            } catch (e) {
-                              // final failure
-                              toast({ title: 'Retry failed', description: String(e), variant: 'destructive' });
-                            }
-                          });
-                        }
+                        toast({ 
+                          title: 'Missing Instagram Permissions', 
+                          description: 'Please ensure Instagram Business account permissions are enabled in your Facebook Business settings, then reconnect Facebook.', 
+                          variant: 'destructive' 
+                        });
                         return;
                       }
                       // If no IG linked

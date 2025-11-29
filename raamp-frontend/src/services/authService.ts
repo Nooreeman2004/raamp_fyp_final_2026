@@ -1,92 +1,21 @@
 import { apiClient } from './api';
+import type {
+  SignupRequest,
+  SignupResponse,
+  GoogleSignupRequest,
+  VerifyEmailRequest,
+  VerifyEmailResponse,
+  ResendVerificationRequest,
+  ResendVerificationResponse,
+  SignInRequest,
+  SignInResponse,
+  UserResponse,
+  UpdateProfileRequest,
+  UpdateProfileResponse
+} from '@/types';
 
-// Types
-export interface SignupRequest {
-  username: string;
-  email: string;
-  password: string;
-  agreed_to_terms: boolean;
-}
-
-export interface SignupResponse {
-  id: string;
-  username: string;
-  email: string;
-  created_at: string;
-  message: string;
-}
-
-export interface GoogleSignupRequest {
-  id_token: string;
-  email: string;
-  display_name: string;
-  photo_url?: string | null;
-}
-
-export interface ErrorResponse {
-  success: false;
-  errors: Record<string, string | string[]>;
-  message: string;
-}
-
-export interface VerifyEmailRequest {
-  email: string;
-  code: string;
-  profile_picture?: string | null;
-}
-
-export interface VerifyEmailResponse {
-  message: string;
-}
-
-export interface ResendVerificationRequest {
-  email: string;
-}
-
-export interface ResendVerificationResponse {
-  message: string;
-}
-
-export interface SignInRequest {
-  email: string;
-  password: string;
-}
-
-export interface UserResponse {
-  id: string;
-  username: string;
-  email: string;
-  is_verified: boolean;
-  profile_completed: boolean;
-  first_name?: string | null;
-  last_name?: string | null;
-  phone_number?: string | null;
-  company?: string | null;
-  role?: string | null;
-  bio?: string | null;
-  profile_picture?: string | null;
-  created_at: string;
-}
-
-export interface SignInResponse {
-  user: UserResponse;
-  message: string;
-}
-
-export interface UpdateProfileRequest {
-  first_name?: string;
-  last_name?: string;
-  phone_number?: string;
-  company?: string;
-  role?: string;
-  bio?: string;
-  business_domain?: string;
-}
-
-export interface UpdateProfileResponse {
-  user: UserResponse;
-  message: string;
-}
+// Re-export ErrorResponse for backward compatibility
+export type { ErrorResponse } from '@/types/api.types';
 
 // Auth API Service
 export const authService = {

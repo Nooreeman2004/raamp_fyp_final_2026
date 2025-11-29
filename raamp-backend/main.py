@@ -4,11 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from presentation.routers import auth_router
 from infrastructure.database.database import connect_to_mongo, close_mongo_connection, init_db
 from application.services.firebase_service import firebase_service
 from application.services.cleanup_service import cleanup_service
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -43,6 +49,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add rate limiter state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
@@ -74,6 +84,9 @@ from presentation.routers import profile_connections_router
 from presentation.routers import maps_router
 from presentation.routers import maps_public_router
 from presentation.routers import instagram_router
+from presentation.routers import brand_alignment_router
+from presentation.routers import hyperlocal_setup_router
+from presentation.routers import consultation_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
@@ -89,6 +102,9 @@ app.include_router(profile_connections_router.router)
 app.include_router(maps_router.router)
 app.include_router(maps_public_router.router)
 app.include_router(instagram_router.router)
+app.include_router(brand_alignment_router.router)
+app.include_router(hyperlocal_setup_router.router)
+app.include_router(consultation_router.router)
 
 
 @app.get("/profile/onboarding")

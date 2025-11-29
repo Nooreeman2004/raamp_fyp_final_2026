@@ -109,15 +109,16 @@ const Signup = () => {
       // Navigate to email verification
       navigate("/verify-email", { state: { email } });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle API errors
       console.error("Signup error:", error);
+      const apiError = error as { errors?: Record<string, string | string[]>; message?: string };
       
-      if (error.errors) {
+      if (apiError.errors) {
         // Backend validation errors
         
         // Special handling for "verification already in progress" error
-        if (error.errors.email && typeof error.errors.email === 'string' && 
+        if (apiError.errors.email && typeof apiError.errors.email === 'string' && 
             error.errors.email.includes("verification")) {
           toast({
             title: "Verification in progress",
@@ -128,7 +129,7 @@ const Signup = () => {
           return;
         }
         
-        const errorMessages = Object.entries(error.errors)
+        const errorMessages = Object.entries(apiError.errors)
           .map(([field, msg]) => {
             const messages = Array.isArray(msg) ? msg.join(", ") : msg;
             return `${field}: ${messages}`;
@@ -144,7 +145,7 @@ const Signup = () => {
         // Network or other errors
         toast({
           title: "Error",
-          description: error.message || "Failed to create account. Please try again.",
+          description: apiError.message || "Failed to create account. Please try again.",
           variant: "destructive",
         });
       }
@@ -177,12 +178,13 @@ const Signup = () => {
       // Newly created Google users must complete profile before using the app
       navigate("/profile/personal-details");
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google signup error:", error);
+      const apiError = error as { errors?: Record<string, string | string[]>; message?: string; detail?: string };
       
-      if (error.errors) {
+      if (apiError.errors) {
         // Backend validation errors
-        const errorMessages = Object.entries(error.errors)
+        const errorMessages = Object.entries(apiError.errors)
           .map(([field, msg]) => {
             const messages = Array.isArray(msg) ? msg.join(", ") : msg;
             return `${field}: ${messages}`;
@@ -198,7 +200,7 @@ const Signup = () => {
         // Network or other errors
         toast({
           title: "Google Sign-in Failed",
-          description: error.message || "Failed to sign in with Google. Please try again.",
+          description: apiError.message || apiError.detail || "Failed to sign in with Google. Please try again.",
           variant: "destructive",
         });
       }

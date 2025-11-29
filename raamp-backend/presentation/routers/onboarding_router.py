@@ -267,7 +267,7 @@ async def instagram_accounts(page_id: str, current_user_email: str = Depends(get
     if not fb:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Facebook not connected")
     # Verify required permissions are granted on the stored user access token
-    required = ["instagram_basic", "business_management", "pages_read_engagement"]
+    required = ["pages_show_list", "pages_read_engagement", "instagram_basic", "instagram_manage_insights"]
     try:
         missing = await service.missing_permissions(fb.access_token, required)
     except Exception:
@@ -330,6 +330,15 @@ async def maps_search(payload: dict, current_user_email: str = Depends(get_curre
         r = await client.get(url, params=params, timeout=10.0)
         r.raise_for_status()
         data = r.json()
+    
+    # Check for API errors
+    if data.get('status') != 'OK' and data.get('status') != 'ZERO_RESULTS':
+        logging.error(f"Google Maps API error: {data.get('status')} - {data.get('error_message', 'No error message')}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Google Maps API error: {data.get('status')}"
+        )
+    
     results = []
     for item in data.get('results', []):
         loc = item.get('geometry', {}).get('location', {})

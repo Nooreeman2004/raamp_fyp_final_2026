@@ -38,11 +38,12 @@ const Login = () => {
       } else {
         navigate("/dashboard");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google sign-in error:", error);
+      const apiError = error as { message?: string; detail?: string };
       const description =
-        error?.message ||
-        error?.detail ||
+        apiError?.message ||
+        apiError?.detail ||
         "Unable to sign in with Google. Please try again or use email/password.";
       toast({
         title: "Google Sign-in Failed",
@@ -87,14 +88,15 @@ const Login = () => {
         // Existing user with completed profile - redirect to dashboard
         navigate("/dashboard");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Sign in error:", error);
+      const apiError = error as { errors?: Record<string, string | string[]>; message?: string };
       
       // Handle different error scenarios
-      if (error.errors) {
+      if (apiError.errors) {
           // Special case: Email not verified
-          if (error.errors.email && typeof error.errors.email === 'string' && 
-              error.errors.email.toLowerCase().includes("verify")) {
+          if (apiError.errors.email && typeof apiError.errors.email === 'string' && 
+              apiError.errors.email.toLowerCase().includes("verify")) {
             // Before navigating to verify, double-check verification status to avoid duplicate emails
             try {
               const status = await authService.getVerificationStatus(email);
@@ -124,7 +126,7 @@ const Login = () => {
           }
         
         // Backend validation errors
-        const errorMessages = Object.values(error.errors).flat().join(", ");
+        const errorMessages = Object.values(apiError.errors).flat().join(", ");
         toast({
           title: "Sign In Failed",
           description: errorMessages,
@@ -134,7 +136,7 @@ const Login = () => {
         // Generic error
         toast({
           title: "Sign In Failed",
-          description: error.message || "Unable to sign in. Please check your credentials.",
+          description: apiError.message || "Unable to sign in. Please check your credentials.",
           variant: "destructive",
         });
       }
@@ -279,16 +281,60 @@ const Login = () => {
                         });
                         return;
                       }
-                      // Not verified -> navigate to verification page with email prefilled
-                      navigate('/verify-email', { state: { email } });
+                      
+                      // Not verified -> send OTP first
+                      toast({
+                        title: "Sending verification code...",
+                        description: "Please wait while we send the code to your email.",
+                      });
+                      
+                      try {
+                        await authService.resendVerification({ email });
+                        toast({
+                          title: "Verification Code Sent",
+                          description: `A verification code has been sent to ${email}`,
+                        });
+                        // Navigate to verification page with email prefilled
+                        navigate('/verify-email', { state: { email } });
+                      } catch (resendErr: unknown) {
+                        console.error('Failed to send verification code', resendErr);
+                        const errorMessage = resendErr && typeof resendErr === 'object' && 'message' in resendErr 
+                          ? String(resendErr.message) 
+                          : "Failed to send verification code. Please try again.";
+                        toast({
+                          title: "Error",
+                          description: errorMessage,
+                          variant: "destructive",
+                        });
+                      }
                     } catch (err) {
                       console.error('Failed to check verification status', err);
-                      // Fallback: navigate to verification page to allow entry
-                      navigate('/verify-email', { state: { email } });
+                      // Fallback: try to send OTP anyway
+                      try {
+                        await authService.resendVerification({ email });
+                        toast({
+                          title: "Verification Code Sent",
+                          description: `A verification code has been sent to ${email}`,
+                        });
+                        navigate('/verify-email', { state: { email } });
+                      } catch (resendErr: unknown) {
+                        const errorMessage = resendErr && typeof resendErr === 'object' && 'message' in resendErr 
+                          ? String(resendErr.message) 
+                          : "Failed to send verification code.";
+                        toast({
+                          title: "Error",
+                          description: errorMessage,
+                          variant: "destructive",
+                        });
+                      }
                     }
                   } else {
-                    // No email typed — navigate to generic verify page
-                    navigate('/verify-email');
+                    // No email typed — show error
+                    toast({
+                      title: "Email Required",
+                      description: "Please enter your email address first.",
+                      variant: "destructive",
+                    });
                   }
                 }}
                 className="text-primary hover:underline font-medium"

@@ -8,7 +8,7 @@ interface UseUnsavedChangesOptions {
 export function useUnsavedChanges({ 
   hasUnsavedChanges, 
   message = "You have unsaved changes. Are you sure you want to leave?" 
-}: UseUnsavedChangesOptions) {
+}: UseUnsavedChangesOptions): null {
   // Fallback implementation: modern react-router data routers expose
   // `useBlocker`, but the app may use a plain BrowserRouter. To avoid
   // crashing the app we don't call `useBlocker` here. Instead we
