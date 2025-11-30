@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from "framer-motion";
+import Reveal from "@/components/ui/Reveal";
+import { staggerContainer, fadeInUp, fadeIn } from "@/utils/animations";
 
 export default function PrivacyPolicy() {
   useEffect(() => {
@@ -9,23 +12,35 @@ export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-card to-background">
       <div className="max-w-4xl mx-auto px-6 py-12">
+        
         {/* Header */}
         <div className="mb-8">
-          <Link 
-            to="/signup" 
-            className="text-primary hover:text-primary/80 transition-colors mb-4 inline-block"
-          >
-            ← Back to Signup
-          </Link>
-          <h1 className="text-4xl font-bold text-white mb-2">Privacy Policy</h1>
-          <p className="text-gray-400">Last Updated: November 25, 2025</p>
+          <Reveal variant="fadeIn" delay={0.1}>
+            <Link 
+              to="/signup" 
+              className="text-primary hover:text-primary/80 transition-colors mb-4 inline-block"
+            >
+              ← Back to Signup
+            </Link>
+          </Reveal>
+          <Reveal variant="fadeInUp" delay={0.2}>
+            <h1 className="text-4xl font-bold text-white mb-2">Privacy Policy</h1>
+          </Reveal>
+          <Reveal variant="fadeIn" delay={0.3}>
+            <p className="text-gray-400">Last Updated: November 25, 2025</p>
+          </Reveal>
         </div>
 
-        {/* Content */}
-        <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 space-y-8 text-gray-200">
+        {/* Content Container - Staggers the sections inside */}
+        <motion.div 
+          className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 space-y-8 text-gray-200"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+        >
           
           {/* Section 1 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">1. Introduction</h2>
             <p className="leading-relaxed">
               This Privacy Policy explains how RAAMP (Revolutionary AI-Powered Autonomous Marketing Platform) collects, 
@@ -41,10 +56,10 @@ export default function PrivacyPolicy() {
               By using RAAMP, you consent to the data practices described in this policy. If you do not agree with our 
               privacy practices, please do not use the platform.
             </p>
-          </section>
+          </motion.section>
 
           {/* Section 2 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">2. Information We Collect</h2>
             
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">2.1 User-Provided Information</h3>
@@ -117,10 +132,10 @@ export default function PrivacyPolicy() {
               <li><strong className="text-white">Log Data:</strong> IP addresses, access times, error logs, and system diagnostics</li>
               <li><strong className="text-white">Cookies & Similar Technologies:</strong> Session cookies, authentication tokens, and analytics cookies (see Cookie Policy)</li>
             </ul>
-          </section>
+          </motion.section>
 
           {/* Section 3 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">3. How We Use Your Data</h2>
             <p className="leading-relaxed">
               RAAMP uses collected data to provide, improve, and personalize our AI-powered marketing platform:
@@ -180,10 +195,10 @@ export default function PrivacyPolicy() {
                 <li>Protecting the rights, property, and safety of RAAMP and our users</li>
               </ul>
             </div>
-          </section>
+          </motion.section>
 
           {/* Section 4 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">4. Data Storage, Security & Retention</h2>
             
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">4.1 Where Your Data is Stored</h3>
@@ -226,10 +241,10 @@ export default function PrivacyPolicy() {
             <p className="leading-relaxed mt-4">
               You may request deletion of your data at any time (see Section 6: User Rights).
             </p>
-          </section>
+          </motion.section>
 
           {/* Section 5 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">5. Data Sharing & Third Parties</h2>
             
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">5.1 When We Share Your Data</h3>
@@ -257,10 +272,10 @@ export default function PrivacyPolicy() {
             <p className="text-sm text-gray-400 mt-2">
               We recommend reviewing the privacy policies of these third-party services to understand their data practices.
             </p>
-          </section>
+          </motion.section>
 
           {/* Section 6 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">6. Your Rights & Choices (GDPR & Privacy Regulations)</h2>
             
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">6.1 Data Access & Portability</h3>
@@ -318,10 +333,10 @@ export default function PrivacyPolicy() {
             <p className="text-sm text-gray-400 mt-3">
               We will respond to verified requests within 30 days (or as required by applicable law).
             </p>
-          </section>
+          </motion.section>
 
           {/* Section 7 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">7. GDPR Compliance & Data Protection</h2>
             <p className="leading-relaxed">
               RAAMP is designed with GDPR principles in mind and implements the following safeguards:
@@ -347,10 +362,10 @@ export default function PrivacyPolicy() {
               <li>We do not scrape or process sensitive personal data (e.g., health, financial, biometric)</li>
               <li>Users can report inaccurate scraped data for correction or removal</li>
             </ul>
-          </section>
+          </motion.section>
 
           {/* Section 8 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">8. Children's Privacy</h2>
             <p className="leading-relaxed">
               RAAMP is a B2B marketing platform intended for business use only. We do not knowingly collect personal 
@@ -361,10 +376,10 @@ export default function PrivacyPolicy() {
               If you believe we have inadvertently collected data from a minor, please contact us immediately at 
               privacy@raamp.ai.
             </p>
-          </section>
+          </motion.section>
 
           {/* Section 9 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">9. International Data Transfers</h2>
             <p className="leading-relaxed">
               RAAMP operates globally and may transfer data across international borders. If you are located in the 
@@ -377,10 +392,10 @@ export default function PrivacyPolicy() {
               <li>Third-party providers are required to implement appropriate safeguards</li>
               <li>You may contact us for more information about our data transfer practices</li>
             </ul>
-          </section>
+          </motion.section>
 
           {/* Section 10 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">10. Changes to This Privacy Policy</h2>
             <p className="leading-relaxed">
               We may update this Privacy Policy from time to time to reflect changes in our practices, technology, 
@@ -396,10 +411,10 @@ export default function PrivacyPolicy() {
               Your continued use of RAAMP after policy changes constitutes acceptance of the updated terms. We 
               encourage you to review this policy periodically.
             </p>
-          </section>
+          </motion.section>
 
           {/* Section 11 */}
-          <section>
+          <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">11. Contact Us</h2>
             <p className="leading-relaxed">
               If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, 
@@ -426,28 +441,27 @@ export default function PrivacyPolicy() {
             <p className="text-sm text-gray-400 mt-4">
               We aim to respond to all privacy inquiries within 30 days (or as required by applicable law).
             </p>
-          </section>
+          </motion.section>
 
           {/* Footer */}
-          <div className="border-t border-gray-700 pt-6 mt-8">
+          <motion.div variants={fadeInUp} className="border-t border-gray-700 pt-6 mt-8">
             <p className="text-sm text-gray-400">
               By using RAAMP, you acknowledge that you have read, understood, and agree to this Privacy Policy and 
               our data processing practices.
             </p>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Back to Top */}
-        <div className="mt-8 text-center">
+        <Reveal variant="fadeIn" delay={0.5} className="mt-8 text-center">
           <button 
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="text-primary hover:text-primary transition-colors"
           >
             ↑ Back to Top
           </button>
-        </div>
+        </Reveal>
       </div>
     </div>
   );
 }
-
