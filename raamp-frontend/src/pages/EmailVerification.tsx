@@ -7,6 +7,11 @@ import raampIcon from "@/assets/raamp-icon-transparent.png";
 import { toast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
 
+// Animation Imports
+import { motion } from "framer-motion";
+import Reveal from "@/components/ui/Reveal";
+import { staggerContainer, fadeInUp, hoverScale, blurInUp, zoomIn, scaleUp, fadeIn } from "@/utils/animations";
+
 const EmailVerification = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -208,126 +213,157 @@ const EmailVerification = () => {
   if (isSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-card to-background p-4">
-        <Card className="w-full max-w-md p-8 card-shadow bg-card/80 backdrop-blur-sm border-primary/20">
-          <div className="text-center space-y-6">
-            <div className="flex justify-center">
-              <div className="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center">
-                <Check className="w-10 h-10 text-success" />
+        <Reveal variant="zoomIn" duration={0.5} className="w-full max-w-md">
+          <Card className="w-full p-8 card-shadow bg-card/80 backdrop-blur-sm border-primary/20">
+            <div className="text-center space-y-6">
+              <div className="flex justify-center">
+                <Reveal variant="scaleUp" delay={0.2}>
+                  <div className="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center">
+                    <Check className="w-10 h-10 text-success" />
+                  </div>
+                </Reveal>
               </div>
+              <Reveal variant="fadeInUp" delay={0.3}>
+                <div className="space-y-2">
+                  <h1 className="text-3xl font-bold">Email Verified!</h1>
+                  <p className="text-muted-foreground">
+                    Your account has been successfully verified. Redirecting...
+                  </p>
+                </div>
+              </Reveal>
+              <Reveal variant="fadeIn" delay={0.5}>
+                <div className="w-16 h-1 bg-primary mx-auto rounded-full animate-pulse" />
+              </Reveal>
             </div>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold">Email Verified!</h1>
-              <p className="text-muted-foreground">
-                Your account has been successfully verified. Redirecting...
-              </p>
-            </div>
-            <div className="w-16 h-1 bg-primary mx-auto rounded-full animate-pulse" />
-          </div>
-        </Card>
+          </Card>
+        </Reveal>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-card to-background p-4">
-      <Card className="w-full max-w-md p-8 card-shadow bg-card/80 backdrop-blur-sm border-primary/20">
-        <div className="space-y-6">
-          <div className="text-center space-y-4">
-            <div className="flex justify-center mb-4">
-              <img src={raampIcon} alt="RAAMP" className="h-20 w-20" />
-            </div>
-            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
-              <Mail className="w-8 h-8 text-primary" />
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold">Verify Your Email</h1>
-              <p className="text-muted-foreground">
-                We've sent a 6-digit verification code to
-              </p>
-              <p className="text-foreground font-medium">{email}</p>
-            </div>
-          </div>
-
-          {/* OTP Input */}
-          <div className="space-y-4">
-            <div className="flex gap-2 justify-center" onPaste={handlePaste}>
-              {code.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  className={`w-12 h-12 text-center text-lg font-bold rounded-md border-2 bg-background/50 transition-all
-                    ${digit ? "border-primary" : "border-input"}
-                    focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-                    disabled:opacity-50 disabled:cursor-not-allowed`}
-                  disabled={isLoading || codeExpiry <= 0}
-                  autoFocus={index === 0}
-                />
-              ))}
-            </div>
-
-            {/* Code Expiry Timer */}
-            <div className="text-center text-sm">
-              {codeExpiry > 0 ? (
-                <p className="text-muted-foreground">
-                  Code expires in:{" "}
-                  <span className="font-medium text-foreground">
-                    {formatTime(codeExpiry)}
-                  </span>
-                </p>
-              ) : (
-                <p className="text-destructive font-medium">
-                  Verification code has expired
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Verify Button (shown when all digits entered) */}
-          {code.every((digit) => digit !== "") && (
-            <Button
-              onClick={() => handleVerify(code.join(""))}
-              className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
-              disabled={isLoading || codeExpiry <= 0}
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                  Verifying...
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-card to-background p-4 overflow-hidden">
+      <Reveal variant="zoomIn" duration={0.5} className="w-full max-w-md">
+        <Card className="w-full p-8 card-shadow bg-card/80 backdrop-blur-sm border-primary/20">
+          <div className="space-y-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center mb-4">
+                <Reveal variant="scaleUp" delay={0.2}>
+                  <img src={raampIcon} alt="RAAMP" className="h-20 w-20" />
+                </Reveal>
+              </div>
+              <Reveal variant="fadeIn" delay={0.3}>
+                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
+                  <Mail className="w-8 h-8 text-primary" />
                 </div>
-              ) : (
-                "Verify Email"
-              )}
-            </Button>
-          )}
+              </Reveal>
+              <Reveal variant="blurInUp" delay={0.4}>
+                <div className="space-y-2">
+                  <h1 className="text-3xl font-bold">Verify Your Email</h1>
+                  <p className="text-muted-foreground">
+                    We've sent a 6-digit verification code to
+                  </p>
+                  <p className="text-foreground font-medium">{email}</p>
+                </div>
+              </Reveal>
+            </div>
 
-          {/* Resend Code */}
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground mb-2">
-              Didn't receive the code?
-            </p>
-            {resendTimer > 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Resend available in{" "}
-                <span className="font-medium text-foreground">{resendTimer}s</span>
-              </p>
-            ) : (
-              <Button
-                variant="outline"
-                onClick={handleResend}
-                className="text-primary hover:text-primary"
+            {/* OTP Input - Staggered Appearance */}
+            <div className="space-y-4">
+              <motion.div 
+                className="flex gap-2 justify-center" 
+                onPaste={handlePaste}
+                variants={staggerContainer}
+                initial="hidden"
+                animate="visible"
               >
-                Resend Code
-              </Button>
+                {code.map((digit, index) => (
+                  <motion.input
+                    key={index}
+                    variants={scaleUp}
+                    ref={(el) => (inputRefs.current[index] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleChange(index, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(index, e)}
+                    className={`w-12 h-12 text-center text-lg font-bold rounded-md border-2 bg-background/50 transition-all
+                      ${digit ? "border-primary" : "border-input"}
+                      focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+                      disabled:opacity-50 disabled:cursor-not-allowed`}
+                    disabled={isLoading || codeExpiry <= 0}
+                    autoFocus={index === 0}
+                  />
+                ))}
+              </motion.div>
+
+              {/* Code Expiry Timer */}
+              <Reveal variant="fadeIn" delay={0.6}>
+                <div className="text-center text-sm">
+                  {codeExpiry > 0 ? (
+                    <p className="text-muted-foreground">
+                      Code expires in:{" "}
+                      <span className="font-medium text-foreground">
+                        {formatTime(codeExpiry)}
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-destructive font-medium">
+                      Verification code has expired
+                    </p>
+                  )}
+                </div>
+              </Reveal>
+            </div>
+
+            {/* Verify Button (shown when all digits entered) */}
+            {code.every((digit) => digit !== "") && (
+              <Reveal variant="fadeInUp">
+                <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                  <Button
+                    onClick={() => handleVerify(code.join(""))}
+                    className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+                    disabled={isLoading || codeExpiry <= 0}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                        Verifying...
+                      </div>
+                    ) : (
+                      "Verify Email"
+                    )}
+                  </Button>
+                </motion.div>
+              </Reveal>
             )}
+
+            {/* Resend Code */}
+            <Reveal variant="fadeIn" delay={0.7}>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Didn't receive the code?
+                </p>
+                {resendTimer > 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Resend available in{" "}
+                    <span className="font-medium text-foreground">{resendTimer}s</span>
+                  </p>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={handleResend}
+                    className="text-primary hover:text-primary"
+                  >
+                    Resend Code
+                  </Button>
+                )}
+              </div>
+            </Reveal>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </Reveal>
     </div>
   );
 };

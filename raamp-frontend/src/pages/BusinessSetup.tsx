@@ -8,6 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MapPin, Building2 } from "lucide-react";
 import Layout from "@/components/Layout";
 
+// Animation Imports
+import { motion } from "framer-motion";
+import Reveal from "@/components/ui/Reveal";
+import { staggerContainer, fadeInUp, hoverScale, blurInUp, hoverLift, zoomIn } from "@/utils/animations";
+
 const BusinessSetup = () => {
   const navigate = useNavigate();
   const [businessName, setBusinessName] = useState("Artisan Coffee House");
@@ -54,97 +59,120 @@ const BusinessSetup = () => {
   return (
     <Layout>
       <div className="space-y-8 max-w-4xl mx-auto">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Hyperlocal Business Setup</h1>
-            <p className="text-muted-foreground">
-              Define your business location and targeting parameters for hyper-local campaigns
-            </p>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-6">
-            <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-primary" />
-                Pin Your Location
-              </h2>
-              
-              <div className="aspect-square bg-muted rounded-lg mb-4 relative overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <MapPin className="w-12 h-12 text-primary mx-auto mb-2 breathing-glow" />
-                    <p className="text-sm text-muted-foreground">Interactive Map</p>
-                    <p className="text-xs text-muted-foreground mt-1">Click to set your business location</p>
-                  </div>
-                </div>
-                <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                Click on the map to set your exact business location. This will be used for geo-targeting campaigns.
+          {/* Header */}
+          <Reveal variant="blurInUp">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Hyperlocal Business Setup</h1>
+              <p className="text-muted-foreground">
+                Define your business location and targeting parameters for hyper-local campaigns
               </p>
-            </Card>
+            </div>
+          </Reveal>
 
-            <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-primary" />
-                Business Details
-              </h2>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="businessName">Business Name</Label>
-                  <Input
-                    id="businessName"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    className="bg-background/50"
-                  />
-                </div>
+          {/* Staggered Grid */}
+          <motion.div 
+            className="grid lg:grid-cols-2 gap-6"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+          >
+            {/* Map Card */}
+            <motion.div variants={fadeInUp}>
+              <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
+                <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
+                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-primary" />
+                    Pin Your Location
+                  </h2>
+                  
+                  <div className="aspect-square bg-muted rounded-lg mb-4 relative overflow-hidden group cursor-pointer">
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                      <div className="text-center">
+                        <Reveal variant="zoomIn" delay={0.4}>
+                          <MapPin className="w-12 h-12 text-primary mx-auto mb-2 breathing-glow group-hover:scale-110 transition-transform duration-300" />
+                        </Reveal>
+                        <p className="text-sm text-muted-foreground">Interactive Map</p>
+                        <p className="text-xs text-muted-foreground mt-1">Click to set your business location</p>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-primary/5 animate-pulse group-hover:bg-primary/10 transition-colors"></div>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="businessType">Business Type</Label>
-                  <Select value={businessType} onValueChange={setBusinessType}>
-                    <SelectTrigger className="bg-background/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loadingCategories ? (
-                        <SelectItem value="" disabled>
-                          Loading categories...
-                        </SelectItem>
-                      ) : categories.length > 0 ? (
-                        categories.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        // Fallback list if no categories returned / fetch failed
-                        <>
-                          <SelectItem value="Restaurant">Restaurant</SelectItem>
-                          <SelectItem value="Retail">Retail Store</SelectItem>
-                          <SelectItem value="Services">Professional Services</SelectItem>
-                          <SelectItem value="Healthcare">Healthcare</SelectItem>
-                          <SelectItem value="Fitness">Fitness & Wellness</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Click on the map to set your exact business location. This will be used for geo-targeting campaigns.
+                  </p>
+                </Card>
+              </motion.div>
+            </motion.div>
 
-                  {categoriesError && <p className="text-xs text-destructive mt-1">{categoriesError}</p>}
-                </div>
+            {/* Business Details Card */}
+            <motion.div variants={fadeInUp}>
+              <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
+                <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
+                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-primary" />
+                    Business Details
+                  </h2>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="businessName">Business Name</Label>
+                      <Input
+                        id="businessName"
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
+                        className="bg-background/50"
+                      />
+                    </div>
 
-                <Button
-                  variant="hero" 
-                  className="w-full mt-4"
-                  onClick={() => navigate("/profile/brand-settings")}
-                >
-                  Continue to Brand Alignment
-                </Button>
-              </div>
-            </Card>
-          </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="businessType">Business Type</Label>
+                      <Select value={businessType} onValueChange={setBusinessType}>
+                        <SelectTrigger className="bg-background/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {loadingCategories ? (
+                            <SelectItem value="" disabled>
+                              Loading categories...
+                            </SelectItem>
+                          ) : categories.length > 0 ? (
+                            categories.map((c) => (
+                              <SelectItem key={c} value={c}>
+                                {c}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            // Fallback list if no categories returned / fetch failed
+                            <>
+                              <SelectItem value="Restaurant">Restaurant</SelectItem>
+                              <SelectItem value="Retail">Retail Store</SelectItem>
+                              <SelectItem value="Services">Professional Services</SelectItem>
+                              <SelectItem value="Healthcare">Healthcare</SelectItem>
+                              <SelectItem value="Fitness">Fitness & Wellness</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+
+                      {categoriesError && <p className="text-xs text-destructive mt-1">{categoriesError}</p>}
+                    </div>
+
+                    <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                      <Button
+                        variant="hero" 
+                        className="w-full mt-4"
+                        onClick={() => navigate("/profile/brand-settings")}
+                      >
+                        Continue to Brand Alignment
+                      </Button>
+                    </motion.div>
+                  </div>
+                </Card>
+              </motion.div>
+            </motion.div>
+          </motion.div>
         </div>
     </Layout>
   );

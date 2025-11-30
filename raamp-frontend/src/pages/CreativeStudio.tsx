@@ -6,6 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Zap, Sparkles, Image, FileText, MessageSquare, X } from "lucide-react";
 
+// Animation Imports
+import { motion } from "framer-motion";
+import Reveal from "@/components/ui/Reveal";
+import { staggerContainer, fadeInUp, hoverScale, blurInUp, hoverLift, zoomIn } from "@/utils/animations";
+
 type Variant = {
   id: number;
   tone: string;
@@ -108,110 +113,144 @@ const CreativeStudio = () => {
   return (
     <Layout>
       <div className="space-y-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2 text-foreground">Generative Creative Studio</h1>
-            <p className="text-muted-foreground">
-              Transform ideas into high-performing campaigns with AI-powered creative generation.
-            </p>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Campaign Idea Input */}
-            <Card className="p-6 card-shadow bg-card border-border">
-              <h2 className="text-xl font-bold mb-2 flex items-center gap-2 text-foreground">
-                <Sparkles className="w-5 h-5 text-primary" />
-                Campaign Idea Input
-              </h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                Describe your campaign vision in natural language. Our AI will transform it into actionable creative assets.
+          {/* Header */}
+          <Reveal variant="blurInUp">
+            <div>
+              <h1 className="text-4xl font-bold mb-2 text-foreground">Generative Creative Studio</h1>
+              <p className="text-muted-foreground">
+                Transform ideas into high-performing campaigns with AI-powered creative generation.
               </p>
-              <Textarea
-                placeholder='E.g., "Create a summer promotion campaign for our new smoothie line targeting health-conscious millennials in urban areas. Emphasize organic ingredients and sustainability."'
-                value={campaignIdea}
-                onChange={(e) => setCampaignIdea(e.target.value)}
-                className="min-h-32 mb-4 bg-input text-foreground border-border"
-              />
-              <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate Creative Brief
-              </Button>
-            </Card>
+            </div>
+          </Reveal>
+
+          {/* Main Grid */}
+          <motion.div 
+            className="grid lg:grid-cols-2 gap-6"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+          >
+            {/* Campaign Idea Input */}
+            <motion.div variants={fadeInUp}>
+              <Card className="p-6 card-shadow bg-card border-border h-full">
+                <h2 className="text-xl font-bold mb-2 flex items-center gap-2 text-foreground">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Campaign Idea Input
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Describe your campaign vision in natural language. Our AI will transform it into actionable creative assets.
+                </p>
+                <Textarea
+                  placeholder='E.g., "Create a summer promotion campaign for our new smoothie line targeting health-conscious millennials in urban areas. Emphasize organic ingredients and sustainability."'
+                  value={campaignIdea}
+                  onChange={(e) => setCampaignIdea(e.target.value)}
+                  className="min-h-32 mb-4 bg-input text-foreground border-border"
+                />
+                <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Creative Brief
+                  </Button>
+                </motion.div>
+              </Card>
+            </motion.div>
 
             {/* AI-Generated Assets */}
-            <Card className="p-6 card-shadow bg-card border-border">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-foreground">
-                <Zap className="w-5 h-5 text-primary" />
-                AI-Generated Assets
-              </h2>
-              <div className="space-y-3">
-                <div className="p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center">
-                        <Image className="w-5 h-5 text-primary" />
+            <motion.div variants={fadeInUp}>
+              <Card className="p-6 card-shadow bg-card border-border h-full">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-foreground">
+                  <Zap className="w-5 h-5 text-primary" />
+                  AI-Generated Assets
+                </h2>
+                
+                {/* List Stagger */}
+                <motion.div 
+                  className="space-y-3"
+                  variants={staggerContainer}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <motion.div variants={fadeInUp}>
+                    <motion.div variants={hoverLift} initial="rest" whileHover="hover">
+                      <div className="p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center">
+                              <Image className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">Instagram Story</p>
+                              <p className="text-sm text-success">Ready - Caption & 3 Hashtag Variants</p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-primary hover:text-primary/80"
+                            onClick={() => openDialog("instagram")}
+                          >
+                            View Variants
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-foreground">Instagram Story</p>
-                        <p className="text-sm text-success">Ready - Caption & 3 Hashtag Variants</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-primary hover:text-primary/80"
-                      onClick={() => openDialog("instagram")}
-                    >
-                      View Variants
-                    </Button>
-                  </div>
-                </div>
+                    </motion.div>
+                  </motion.div>
 
-                <div className="p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-primary" />
+                  <motion.div variants={fadeInUp}>
+                    <motion.div variants={hoverLift} initial="rest" whileHover="hover">
+                      <div className="p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center">
+                              <FileText className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">Ad Copy Variations</p>
+                              <p className="text-sm text-success">Ready - 3 unique ad copy blocks available</p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-primary hover:text-primary/80"
+                            onClick={() => openDialog("adcopy")}
+                          >
+                            View Variants
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-foreground">Ad Copy Variations</p>
-                        <p className="text-sm text-success">Ready - 3 unique ad copy blocks available</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-primary hover:text-primary/80"
-                      onClick={() => openDialog("adcopy")}
-                    >
-                      View Variants
-                    </Button>
-                  </div>
-                </div>
+                    </motion.div>
+                  </motion.div>
 
-                <div className="p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center">
-                        <MessageSquare className="w-5 h-5 text-primary" />
+                  <motion.div variants={fadeInUp}>
+                    <motion.div variants={hoverLift} initial="rest" whileHover="hover">
+                      <div className="p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center">
+                              <MessageSquare className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">WhatsApp Campaign</p>
+                              <p className="text-sm text-success">Ready - 3 unique message flows available</p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-primary hover:text-primary/80"
+                            onClick={() => openDialog("whatsapp")}
+                          >
+                            View Variants
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-foreground">WhatsApp Campaign</p>
-                        <p className="text-sm text-success">Ready - 3 unique message flows available</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-primary hover:text-primary/80"
-                      onClick={() => openDialog("whatsapp")}
-                    >
-                      View Variants
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
+                    </motion.div>
+                  </motion.div>
+                </motion.div>
+              </Card>
+            </motion.div>
+          </motion.div>
         </div>
 
         {/* Variants Dialog */}
@@ -224,55 +263,72 @@ const CreativeStudio = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="grid md:grid-cols-3 gap-6 mt-4">
+          <motion.div 
+            className="grid md:grid-cols-3 gap-6 mt-4"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+            key={selectedAsset} // Force re-animation on asset switch
+          >
             {getVariants().map((variant) => (
-              <div key={variant.id} className="rounded-xl border-2 border-primary/30 bg-card/50 p-4 space-y-4">
-                <div>
-                  <h3 className="font-bold text-foreground mb-1">Variant {variant.id}</h3>
-                  <p className="text-sm text-primary">Tone: {variant.tone}</p>
-                </div>
-
-                {selectedAsset === "adcopy" && variant.imageColor && (
-                  <div className={`${variant.imageColor} rounded-lg aspect-video flex items-center justify-center`}>
-                    <div className="text-center font-bold text-white whitespace-pre-line">
-                      {variant.imageLabel}
+              <motion.div key={variant.id} variants={zoomIn}>
+                <motion.div 
+                  variants={hoverLift} 
+                  initial="rest" 
+                  whileHover="hover"
+                  className="rounded-xl border-2 border-primary/30 bg-card/50 p-4 space-y-4 h-full flex flex-col justify-between"
+                >
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-bold text-foreground mb-1">Variant {variant.id}</h3>
+                      <p className="text-sm text-primary">Tone: {variant.tone}</p>
                     </div>
-                  </div>
-                )}
 
-                {variant.caption && (
-                  <div>
-                    <p className="text-xs text-muted-foreground italic mb-2">Caption:</p>
-                    <div className="bg-muted/50 p-3 rounded-lg text-sm text-foreground">
-                      {variant.caption}
-                    </div>
-                  </div>
-                )}
+                    {selectedAsset === "adcopy" && variant.imageColor && (
+                      <div className={`${variant.imageColor} rounded-lg aspect-video flex items-center justify-center`}>
+                        <div className="text-center font-bold text-white whitespace-pre-line">
+                          {variant.imageLabel}
+                        </div>
+                      </div>
+                    )}
 
-                {variant.copy && (
-                  <div>
-                    <p className="text-xs text-muted-foreground italic mb-2">Generated Copy:</p>
-                    <div className="bg-muted/50 p-3 rounded-lg text-sm text-foreground">
-                      {variant.copy}
-                    </div>
-                  </div>
-                )}
+                    {variant.caption && (
+                      <div>
+                        <p className="text-xs text-muted-foreground italic mb-2">Caption:</p>
+                        <div className="bg-muted/50 p-3 rounded-lg text-sm text-foreground">
+                          {variant.caption}
+                        </div>
+                      </div>
+                    )}
 
-                {variant.hashtags && (
-                  <div>
-                    <p className="text-xs text-muted-foreground italic mb-2">Hashtags:</p>
-                    <div className="bg-muted/50 p-3 rounded-lg text-sm text-foreground">
-                      {variant.hashtags}
-                    </div>
-                  </div>
-                )}
+                    {variant.copy && (
+                      <div>
+                        <p className="text-xs text-muted-foreground italic mb-2">Generated Copy:</p>
+                        <div className="bg-muted/50 p-3 rounded-lg text-sm text-foreground">
+                          {variant.copy}
+                        </div>
+                      </div>
+                    )}
 
-                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                  Copy & Select
-                </Button>
-              </div>
+                    {variant.hashtags && (
+                      <div>
+                        <p className="text-xs text-muted-foreground italic mb-2">Hashtags:</p>
+                        <div className="bg-muted/50 p-3 rounded-lg text-sm text-foreground">
+                          {variant.hashtags}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap" className="mt-4">
+                    <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                      Copy & Select
+                    </Button>
+                  </motion.div>
+                </motion.div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           <div className="flex justify-end mt-4">
             <Button 
