@@ -84,6 +84,8 @@ class MapSaveRequest(BaseModel):
     place_id: str
     name: str
     address: str
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 class MapSaveResponse(BaseModel):

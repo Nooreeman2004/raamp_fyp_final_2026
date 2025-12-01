@@ -1,7 +1,7 @@
 """
 Brand Alignment Router - handles brand identity settings
 """
-from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, status
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
 from application.services.firebase_storage_service import FirebaseStorageService
 from infrastructure.repositories.business_repository import BusinessRepository
 from presentation.schemas.brand_alignment_schema import BrandAlignmentRequest, BrandAlignmentResponse
@@ -52,36 +52,28 @@ async def upload_brand_logo(
 
 @router.post("/save", response_model=BrandAlignmentResponse)
 async def save_brand_alignment(
-    brand_logo_url: str = Form(..., description="Firebase URL of uploaded logo"),
-    primary_color: str = Form(..., description="Primary color hex code"),
-    secondary_color: str = Form(..., description="Secondary color hex code"),
-    tagline: str = Form(..., description="Restaurant tagline"),
-    tone_of_voice: str = Form(..., description="Tone of voice"),
-    restaurant_theme: str = Form(None, description="Restaurant theme"),
+    request: BrandAlignmentRequest,
     current_user_email: str = Depends(get_current_user_email)
 ):
     """
-    Save brand alignment settings (all fields required)
+    Save brand alignment settings (ALL fields required)
     
-    Logo must be uploaded first using /upload-logo endpoint
+    Fields:
+    - brand_logo_url: Firebase Storage URL of uploaded logo (use /upload-logo first)
+    - primary_color: Hex color code (#RRGGBB)
+    - secondary_color: Hex color code (#RRGGBB)
+    - tagline: Restaurant tagline (1-100 chars)
+    - tone_of_voice: Tone description for AI content
+    - restaurant_theme: Restaurant theme/ambiance description (REQUIRED)
     """
     try:
-        # Validate using Pydantic
-        request = BrandAlignmentRequest(
-            primary_color=primary_color,
-            secondary_color=secondary_color,
-            tagline=tagline,
-            tone_of_voice=tone_of_voice,
-            restaurant_theme=restaurant_theme
-        )
-        
         # Create repository instance
         business_repo = BusinessRepository()
         
         # Save to database
         business = await business_repo.update_brand_alignment(
             user_id=current_user_email,
-            brand_logo_url=brand_logo_url,
+            brand_logo_url=request.brand_logo_url,
             primary_color=request.primary_color,
             secondary_color=request.secondary_color,
             tagline=request.tagline,

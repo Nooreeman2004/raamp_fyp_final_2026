@@ -8,11 +8,12 @@ import re
 class BrandAlignmentRequest(BaseModel):
     """Request schema for brand alignment settings - ALL FIELDS REQUIRED"""
     
+    brand_logo_url: str = Field(..., min_length=1, description="Firebase URL of uploaded brand logo")
     primary_color: str = Field(..., description="Primary brand color (hex code)")
     secondary_color: str = Field(..., description="Secondary brand color (hex code)")
     tagline: str = Field(..., min_length=1, max_length=100, description="Restaurant tagline")
     tone_of_voice: str = Field(..., min_length=1, description="Tone of voice for AI content")
-    restaurant_theme: str = Field(None, description="Restaurant theme/ambiance")
+    restaurant_theme: str = Field(..., min_length=1, description="Restaurant theme/ambiance - REQUIRED")
     
     @validator('primary_color', 'secondary_color')
     @classmethod
@@ -37,6 +38,24 @@ class BrandAlignmentRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError('Tone of voice cannot be empty')
         return v.strip()
+    
+    @validator('restaurant_theme')
+    @classmethod
+    def validate_theme(cls, v):
+        """Validate restaurant theme"""
+        if not v or not v.strip():
+            raise ValueError('Restaurant theme cannot be empty')
+        return v.strip()
+    
+    @validator('brand_logo_url')
+    @classmethod
+    def validate_logo_url(cls, v):
+        """Validate logo URL"""
+        if not v or not v.strip():
+            raise ValueError('Brand logo URL is required')
+        if not v.startswith('http'):
+            raise ValueError('Brand logo URL must be a valid URL')
+        return v.strip()
 
 
 class BrandAlignmentResponse(BaseModel):
@@ -47,7 +66,7 @@ class BrandAlignmentResponse(BaseModel):
     secondary_color: str
     tagline: str
     tone_of_voice: str
-    restaurant_theme: str | None
+    restaurant_theme: str
     updated_at: str
     
     class Config:

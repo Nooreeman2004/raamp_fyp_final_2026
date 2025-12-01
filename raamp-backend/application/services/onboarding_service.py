@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional, List
 import httpx
 import secrets
+import logging
 from datetime import datetime, timedelta
 from config import settings
 from infrastructure.repositories.facebook_repository import FacebookRepository
@@ -54,8 +55,11 @@ class OnboardingService:
             "pages_show_list",
             "pages_read_engagement",
             "pages_manage_metadata",
+            # Official Instagram Graph API permissions (Business/Creator)
             "instagram_basic",
-            "instagram_manage_insights",
+            "instagram_manage_comments",
+            "instagram_manage_messages",
+            "instagram_content_publish",
             "business_management",
         ]
         raw = getattr(settings, "FACEBOOK_OAUTH_SCOPES", None)
@@ -70,10 +74,15 @@ class OnboardingService:
         else:
             scopes = default_scopes
 
+        # Log the scopes being requested for debugging
+        logging.info(f"Building Facebook OAuth URL for {user_email} with scopes: {','.join(scopes)}")
+        logging.warning(f"If you see deprecated scope errors, update your Facebook App settings at: https://developers.facebook.com/apps/{settings.FACEBOOK_APP_ID}/app-review/permissions/")
+        
         params = {
             "client_id": settings.FACEBOOK_APP_ID,
             "redirect_uri": f"{settings.BACKEND_URL}/api/profile/onboarding/facebook/callback",
-            "scope": ",".join(scopes)
+            "scope": ",".join(scopes),
+            "auth_type": "rerequest"  # Force FB to show permission dialog even if previously granted
         }
         if state:
             params["state"] = state
@@ -129,13 +138,34 @@ class OnboardingService:
             r = await client.get(url, params=params, timeout=10.0)
             r.raise_for_status()
             data = r.json()
-            perms = [p.get("permission") for p in data.get("data", []) if p.get("status") in ("GRANTED", "granted")]
+            # Facebook returns permissions with status "granted" or "declined"
+            perms = [p.get("permission") for p in data.get("data", []) if p.get("status", "").lower() == "granted"]
             return [p.lower() for p in (perms or []) if p]
 
     async def missing_permissions(self, access_token: str, required: List[str]) -> List[str]:
+        """Check which of the required permissions are missing from the granted set.
+
+        Normalizes legacy/business-prefixed names to official Instagram Graph names
+        (e.g., instagram_business_basic -> instagram_basic) for compatibility.
+        """
+        def canonical(name: str) -> str:
+            n = (name or "").lower()
+            mapping = {
+                # Map legacy/business-prefixed names to official names
+                "instagram_business_basic": "instagram_basic",
+                "instagram_business_manage_messages": "instagram_manage_messages",
+                "instagram_business_manage_comments": "instagram_manage_comments",
+                "instagram_business_content_publish": "instagram_content_publish",
+            }
+            return mapping.get(n, n)
+
         granted = await self.fetch_permissions(access_token)
-        granted_set = set([g.lower() for g in granted])
-        missing = [r for r in required if r.lower() not in granted_set]
+        granted_set = {canonical(g) for g in (granted or [])}
+        required_canon = [canonical(r) for r in (required or [])]
+        missing = [r for r, rc in zip(required, required_canon) if rc not in granted_set]
+        logging.debug(
+            f"Permission check - Required(canon): {required_canon}, Granted(canon): {list(granted_set)}, Missing(original): {missing}"
+        )
         return missing
 
     async def store_facebook_connection(self, user_email: str, access_token: str, fb_user_id: Optional[str] = None, fb_pages: Optional[list] = None):
@@ -152,16 +182,34 @@ class OnboardingService:
     async def fetch_ig_account_for_page(self, access_token: str, page_id: str) -> Optional[Dict[str, Any]]:
         # Try several possible fields (depends on Graph API version and app privileges)
         url = f"https://graph.facebook.com/v22.0/{page_id}"
-        params = {"fields": "connected_instagram_account,connected_instagram_business_account,instagram_business_account", "access_token": access_token}
+        params = {"fields": "instagram_business_account", "access_token": access_token}
         async with httpx.AsyncClient() as client:
-            r = await client.get(url, params=params, timeout=10.0)
-            r.raise_for_status()
-            data = r.json()
-            for key in ("connected_instagram_account", "connected_instagram_business_account", "instagram_business_account"):
-                val = data.get(key)
-                if val:
-                    return val
-            return None
+            try:
+                r = await client.get(url, params=params, timeout=10.0)
+                r.raise_for_status()
+                data = r.json()
+                for key in ("connected_instagram_account", "connected_instagram_business_account", "instagram_business_account"):
+                    val = data.get(key)
+                    if val:
+                        return val
+                return None
+            except httpx.HTTPStatusError as e:
+                # Log the actual error response from Facebook
+                error_body = e.response.text
+                try:
+                    error_json = e.response.json()
+                    error_code = error_json.get('error', {}).get('code')
+                    error_msg = error_json.get('error', {}).get('message', '')
+                    logging.error(f"Facebook Graph API error for page {page_id}: Code={error_code}, Message={error_msg}")
+                    # Check if it's a permission error or invalid ID
+                    if error_code in (10, 200, 190):  # Permission/auth errors
+                        logging.warning(f"Permission issue accessing Instagram for page {page_id}")
+                    elif error_code in (803, 100):  # Invalid ID or parameter errors
+                        logging.warning(f"Invalid page ID or access token issue for page {page_id}")
+                except Exception:
+                    logging.error(f"Facebook Graph API error for page {page_id}: {error_body}")
+                # Return None instead of raising - page might not have Instagram
+                return None
 
     async def fetch_pages_with_ig(self, access_token: str) -> List[Dict[str, Any]]:
         """Return pages with an added `has_instagram` boolean and optional `instagram` details when linked."""
@@ -263,3 +311,50 @@ class OnboardingService:
             "longitude": g.longitude,
             "place_id": g.place_id,
         }
+
+    # Instagram OAuth methods (separate from Facebook)
+    def build_instagram_oauth_url(self, user_email: str, state: Optional[str] = None) -> str:
+        """Build Instagram OAuth URL using Instagram app credentials"""
+        raw = getattr(settings, "INSTAGRAM_OAUTH_SCOPES", None)
+        if raw:
+            if isinstance(raw, str):
+                scopes = [s.strip() for s in raw.split(",") if s.strip()]
+            elif isinstance(raw, (list, tuple)):
+                scopes = list(raw)
+            else:
+                scopes = ["instagram_business_basic"]
+        else:
+            scopes = ["instagram_business_basic"]
+        
+        logging.info(f"Building Instagram OAuth URL for {user_email} with scopes: {','.join(scopes)}")
+        
+        from urllib.parse import quote
+        params = {
+            "client_id": settings.INSTAGRAM_APP_ID,
+            "redirect_uri": f"{settings.BACKEND_URL}/api/profile/onboarding/instagram/callback",
+            "scope": ",".join(scopes),
+            "response_type": "code"
+        }
+        if state:
+            params["state"] = state
+        
+        qs = "&".join([f"{k}={quote(v) if isinstance(v, str) else v}" for k, v in params.items()])
+        return f"https://www.facebook.com/v22.0/dialog/oauth?{qs}"
+
+    async def exchange_instagram_code_for_token(self, code: str) -> Dict[str, Any]:
+        """Exchange Instagram OAuth code for access token"""
+        url = "https://graph.facebook.com/v22.0/oauth/access_token"
+        params = {
+            "client_id": settings.INSTAGRAM_APP_ID,
+            "redirect_uri": f"{settings.BACKEND_URL}/api/profile/onboarding/instagram/callback",
+            "client_secret": settings.INSTAGRAM_APP_SECRET,
+            "code": code,
+        }
+        async with httpx.AsyncClient() as client:
+            r = await client.get(url, params=params, timeout=10.0)
+            r.raise_for_status()
+            data = r.json()
+            access_token = data.get("access_token")
+            if not access_token:
+                raise ValueError("No access token in Instagram OAuth response")
+            return data

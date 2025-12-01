@@ -110,25 +110,61 @@ async def save_hyperlocal_setup(
         ) from e
 
 
-@router.get("/current", response_model=HyperlocalBusinessSetupResponse)
+@router.get("/current")
 async def get_current_setup(
     current_user_email: str = Depends(get_current_user_email)
 ):
-    """Get current hyperlocal business setup"""
+    """
+    Get current hyperlocal business setup.
+    
+    Returns saved hyperlocal setup if available, otherwise returns location from onboarding
+    with empty business fields. This ensures the location is always shown if available.
+    """
     business_repo = BusinessRepository()
+    google_repo = GoogleBusinessRepository()
+    
     business = await business_repo.get_by_user_id(current_user_email)
     
-    if not business or not business.business_name or not business.business_type:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Hyperlocal business setup not found"
-        )
+    # If business exists with hyperlocal data, return it
+    if business and business.business_name and business.business_type:
+        return {
+            "business_name": business.business_name,
+            "business_type": business.business_type,
+            "latitude": business.latitude or 0.0,
+            "longitude": business.longitude or 0.0,
+            "place_id": business.google_place_id,
+            "formatted_address": business.business_address,
+            "has_setup": True
+        }
     
-    return HyperlocalBusinessSetupResponse(
-        business_name=business.business_name,
-        business_type=business.business_type,
-        latitude=business.latitude or 0.0,
-        longitude=business.longitude or 0.0,
-        place_id=business.google_place_id,
-        formatted_address=business.business_address
+    # Check for location from onboarding (Google Business)
+    google_location = await google_repo.find_by_user_id(current_user_email)
+    
+    if google_location and google_location.latitude and google_location.longitude:
+        return {
+            "business_name": google_location.business_name or "",
+            "business_type": "",
+            "latitude": google_location.latitude,
+            "longitude": google_location.longitude,
+            "place_id": google_location.place_id,
+            "formatted_address": google_location.address,
+            "has_setup": False
+        }
+    
+    # Check if business has partial data (location from onboarding saved to business)
+    if business and business.latitude and business.longitude:
+        return {
+            "business_name": business.business_name or "",
+            "business_type": business.business_type or "",
+            "latitude": business.latitude,
+            "longitude": business.longitude,
+            "place_id": business.google_place_id,
+            "formatted_address": business.business_address,
+            "has_setup": False
+        }
+    
+    # No data found at all
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="No location or hyperlocal setup found. Please complete onboarding first."
     )

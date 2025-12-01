@@ -25,10 +25,10 @@ async def instagram_auth_url(current_user_email: str = Depends(get_current_user_
     scopes = [
         'pages_show_list',
         'pages_read_engagement',
-        'instagram_basic',  # Required for username, profile info
-        'instagram_manage_comments',
-        'instagram_manage_insights',
-        'instagram_content_publish',
+        'instagram_business_basic',  # Required for username, profile info
+        'instagram_business_manage_comments',
+        'instagram_business_manage_messages',
+        'instagram_business_content_publish',
     ]
     params = {
         'client_id': cfg.FACEBOOK_APP_ID,

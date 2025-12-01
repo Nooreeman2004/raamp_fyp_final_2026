@@ -67,11 +67,19 @@ const ConsultationSection = () => {
       setFormData({ firstName: "", lastName: "", email: "", company: "" });
       setErrors({ firstName: false, lastName: false, email: false, company: false });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error?.response?.data?.detail || "Failed to submit consultation request. Please try again.",
-        variant: "destructive",
-      });
+      // Check if it's a duplicate email error (409 status)
+      if (error?.status === 409 || error?.detail?.includes("already been used")) {
+        toast({
+          title: "Already Registered! ✓",
+          description: error?.detail || "This email has already been used to book a consultation. Our team will contact you soon.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error?.detail || error?.message || "Failed to submit consultation request. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 

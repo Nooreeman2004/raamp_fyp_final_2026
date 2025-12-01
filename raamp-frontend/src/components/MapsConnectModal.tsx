@@ -78,6 +78,8 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
         place_id: selected.place_id,
         name: selected.name,
         address: selected.formatted_address,
+        lat: selected.lat,
+        lng: selected.lng,
       };
       // Save via maps save endpoint in onboarding router
       await apiClient.post('/profile/onboarding/maps/save', payload);

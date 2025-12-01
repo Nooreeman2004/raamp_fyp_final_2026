@@ -22,7 +22,6 @@ class ProfileEditVerificationRepository:
             existing.code_sent_at = sent_at
             existing.resend_count += 1
             existing.daily_resend_count += 1
-            existing.updated_at = datetime.utcnow() if hasattr(existing, 'updated_at') else None
             await existing.save()
             return existing
 

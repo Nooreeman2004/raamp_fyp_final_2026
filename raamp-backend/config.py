@@ -45,16 +45,23 @@ class Config:
     
     # Environment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    
     # Facebook App (OAuth)
     FACEBOOK_APP_ID: str = os.getenv("FACEBOOK_APP_ID", "")
     FACEBOOK_APP_SECRET: str = os.getenv("FACEBOOK_APP_SECRET", "")
+    # Include Instagram Graph API scopes (official names) since Instagram connection goes through Facebook
+    FACEBOOK_OAUTH_SCOPES: str = os.getenv("FACEBOOK_OAUTH_SCOPES", "public_profile,email,pages_show_list,pages_read_engagement,pages_manage_metadata,instagram_basic,instagram_manage_comments,instagram_manage_messages,instagram_content_publish,business_management")
+    
+    # Instagram App (OAuth) - separate from Facebook
+    INSTAGRAM_APP_ID: str = os.getenv("INSTAGRAM_APP_ID", "")
+    INSTAGRAM_APP_SECRET: str = os.getenv("INSTAGRAM_APP_SECRET", "")
+    INSTAGRAM_OAUTH_SCOPES: str = os.getenv("INSTAGRAM_OAUTH_SCOPES", "instagram_basic,instagram_manage_comments,instagram_manage_messages,instagram_manage_insights")
 
     # Backend public URL used for OAuth redirect URIs
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
     # Frontend public URL used for post-OAuth redirects (SPA)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    # Facebook OAuth scopes (comma-separated string). Configure per-environment.
-    FACEBOOK_OAUTH_SCOPES: str = os.getenv("FACEBOOK_OAUTH_SCOPES", "public_profile,pages_show_list,pages_read_engagement,pages_read_user_content")
+    
     # Google Maps API Key (used for server-side Places requests if needed)
     GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
     

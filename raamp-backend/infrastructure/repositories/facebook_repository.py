@@ -22,3 +22,11 @@ class FacebookRepository:
         doc.updated_at = __import__('datetime').datetime.utcnow()
         await doc.save()
         return doc
+
+    async def delete_by_user_id(self, user_id: str) -> bool:
+        """Delete the Facebook connection document for the given user_id."""
+        doc = await self.find_by_user_id(user_id)
+        if not doc:
+            return False
+        await doc.delete()
+        return True

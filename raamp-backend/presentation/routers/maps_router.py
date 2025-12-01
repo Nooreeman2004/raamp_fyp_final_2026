@@ -43,7 +43,7 @@ async def maps_confirm(payload: MapConfirmRequest, current_user_email: str = Dep
 @router.post('/save', response_model=MapSaveResponse)
 async def maps_save(payload: MapSaveRequest, current_user_email: str = Depends(get_current_user_email)):
     try:
-        res = await save_business_location_usecase(user_email=current_user_email, place_id=payload.place_id, name=payload.name, address=payload.address)
+        res = await save_business_location_usecase(user_email=current_user_email, place_id=payload.place_id, name=payload.name, address=payload.address, latitude=payload.lat, longitude=payload.lng)
         return MapSaveResponse(**res)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

@@ -47,6 +47,20 @@ const Onboarding = () => {
   if (connected.instagram) completedSteps.push(2);
   if (connected.google) completedSteps.push(3);
 
+  // Check if Facebook is connected but missing Instagram permissions
+  // Use official Instagram Graph API scope names and canonicalize any legacy ones
+  // Minimal required for initial linking; advanced features may request more later
+  const requiredIgScopes = ['instagram_basic'];
+  const canon = (n: string) => ({
+    'instagram_business_basic': 'instagram_basic',
+    'instagram_business_manage_messages': 'instagram_manage_messages',
+    'instagram_business_manage_comments': 'instagram_manage_comments',
+    'instagram_business_content_publish': 'instagram_content_publish',
+  }[n?.toLowerCase?.()] || n?.toLowerCase?.());
+  const grantedCanon = new Set((fbScopes || []).map(s => canon(String(s))));
+  const missingIgScopes = connected.facebook ? requiredIgScopes.filter(s => !grantedCanon.has(canon(s))) : [];
+  const hasMissingIgPermissions = connected.facebook && missingIgScopes.length > 0;
+
   const fetchConnections = async () => {
       setLoadingConnections(true);
     try {
@@ -151,17 +165,50 @@ const Onboarding = () => {
       const messageHandler = (ev: MessageEvent) => {
         try {
           const data = ev.data || {};
-          if (data.provider === provider && data.success) {
-            try { w.close(); } catch {}
-            window.removeEventListener('message', messageHandler);
-            // refresh connections and notify
-            fetchConnections();
-            toast({ title: `${provider} connected` });
-            // also set local state optimistically
-            setConnected((s) => ({ ...s, [provider]: true }));
-            if (onSuccess) {
-              try { onSuccess(); } catch (e) { /* ignore */ }
+          if (data.provider === provider) {
+            if (data.success) {
+              try { w.close(); } catch {}
+              window.removeEventListener('message', messageHandler);
+              // refresh connections and notify
+              fetchConnections();
+              toast({ title: `${provider} connected`, description: 'Your account has been linked successfully.' });
+              // also set local state optimistically
+              setConnected((s) => ({ ...s, [provider]: true }));
+              if (onSuccess) {
+                try { onSuccess(); } catch (e) { /* ignore */ }
+              }
+            } else if (data.success === false) {
+              // Handle error from popup
+              window.removeEventListener('message', messageHandler);
+              const errorMsg = data.error || 'Please check the popup window for more details.';
+              toast({ 
+                title: `${provider} connection failed`, 
+                description: errorMsg,
+                variant: 'destructive' 
+              });
+              
+              // If needs reconnect, suggest reconnecting Facebook
+              if (data.needsReconnect) {
+                setTimeout(() => {
+                  toast({
+                    title: 'Action Required',
+                    description: 'Click "Connect Facebook" to grant the required permissions.',
+                    variant: 'default'
+                  });
+                }, 2000);
+              }
             }
+          } else if (data.provider === 'facebook' && data.action === 'reconnect') {
+            // Handle reconnect request from Instagram popup
+            window.removeEventListener('message', messageHandler);
+            toast({
+              title: 'Reconnection Required',
+              description: data.message || 'Please reconnect Facebook with all required permissions.',
+            });
+            // Auto-trigger Facebook connection
+            setTimeout(() => {
+              openAuthWindowAndPoll('/profile/onboarding/facebook/auth', 'facebook');
+            }, 1500);
           }
         } catch (e) {
           // ignore
@@ -243,7 +290,12 @@ const Onboarding = () => {
             </div>
 
             {/* Facebook */}
-            <div className="p-6 bg-muted/50 rounded-lg border border-primary/10 hover:border-primary/30 transition-all text-center">
+            <div className="p-6 bg-muted/50 rounded-lg border border-primary/10 hover:border-primary/30 transition-all text-center relative">
+              {hasMissingIgPermissions && (
+                <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs px-2 py-1 rounded-full font-semibold">
+                  Permissions Needed
+                </div>
+              )}
               <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Facebook className="w-8 h-8 text-primary" />
               </div>
@@ -251,13 +303,41 @@ const Onboarding = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 Sync your Facebook Ads and unlock powerful audience insights
               </p>
-              <Button
-                variant="hero"
-                className="w-full"
-                onClick={() => openAuthWindowAndPoll('/profile/onboarding/facebook/auth', 'facebook')}
-              >
-                {connected.facebook ? 'Connected' : 'Connect'}
-              </Button>
+              {hasMissingIgPermissions && (
+                <p className="text-xs text-destructive mb-3 font-medium">
+                  ⚠️ Missing Instagram permissions. Please reconnect.
+                </p>
+              )}
+              <div className="space-y-2">
+                <Button
+                  variant="hero"
+                  className="w-full"
+                  onClick={() => openAuthWindowAndPoll('/profile/onboarding/facebook/auth', 'facebook')}
+                >
+                  {connected.facebook ? (hasMissingIgPermissions ? 'Reconnect' : 'Connected') : 'Connect'}
+                </Button>
+                {connected.facebook && hasMissingIgPermissions && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={async () => {
+                      try {
+                        const response: any = await apiClient.post('/profile/onboarding/facebook/disconnect', {});
+                        if (response.success) {
+                          setConnected((s) => ({ ...s, facebook: false }));
+                          toast({ title: 'Facebook Disconnected', description: 'Now click Connect to grant all permissions.' });
+                          await fetchConnections();
+                        }
+                      } catch (error) {
+                        toast({ title: 'Error', description: 'Failed to disconnect Facebook.', variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    Disconnect & Start Fresh
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Instagram */}
@@ -272,7 +352,6 @@ const Onboarding = () => {
               <Button
                 variant="hero"
                 className="w-full"
-                disabled={connected.instagram}
                 onClick={async () => {
                   if (!connected.facebook && !useMock) {
                     toast({ title: 'Facebook required', description: 'Connect Facebook first to link Instagram.', variant: 'destructive' });
@@ -287,46 +366,12 @@ const Onboarding = () => {
                     return;
                   }
 
-                  // Pre-checks: fetch pages and ensure at least one page has a linked Instagram
-                  try {
-                    const resp: any = await apiClient.get('/profile/onboarding/instagram/pages');
-                    const pages = resp?.pages || [];
-                    if (!Array.isArray(pages) || pages.length === 0) {
-                      toast({
-                        title: 'No Facebook Pages found',
-                        description: 'We could not find any Facebook Pages on your account. Create or add a Page, then try again.',
-                        variant: 'destructive',
-                      });
-                      return;
-                    }
-
-                    const pagesWithIG = pages.filter((p: any) => p.has_instagram);
-
-                    // If any linked IG account is not Business/Creator, prompt to convert.
-                    // We still allow the user to proceed to the page picker; the backend
-                    // will enforce actual linkage and account type.
-                    const nonProfessional = pagesWithIG.find((p: any) => {
-                      const acct = p.instagram;
-                      const type = acct?.account_type || acct?.accountType || '';
-                      if (!type) return false;
-                      const t = String(type).toLowerCase();
-                      return !(t.includes('business') || t.includes('creator'));
-                    });
-                    if (nonProfessional) {
-                      const convert = window.confirm('Your Instagram must be Business or Creator to continue. Convert now?');
-                      if (!convert) return;
-                      window.open('https://help.instagram.com/1533933820244654', '_blank');
-                    }
-
-                    // Always show the pages modal so user can pick which Page to link.
-                    // The backend will validate whether the selected page actually has
-                    // an Instagram Business/Creator account linked and return clear errors.
-                    setPagesList(pages);
-                    setPagesModalOpen(true);
-                  } catch (err: any) {
-                    console.error('Pages pre-check failed', err);
-                    toast({ title: 'Unable to check pages', description: 'Please ensure Facebook is connected and try again.', variant: 'destructive' });
-                  }
+                  // Instagram is accessed through Facebook Pages with instagram_business_account
+                  openAuthWindowAndPoll('/profile/onboarding/instagram/auth', 'instagram', async () => {
+                    setConnected((s) => ({ ...s, instagram: true }));
+                    toast({ title: 'Instagram connected successfully' });
+                    await fetchConnections();
+                  });
                 }}
               >
                 {connected.instagram ? 'Connected' : 'Connect'}
@@ -444,11 +489,25 @@ const Onboarding = () => {
                       // If backend indicates missing permissions, show clear message
                       const isMissing = err && (err.error === 'missing_permissions' || Array.isArray(err.missing) || (err?.detail && err.detail?.missing));
                       if (isMissing) {
-                        toast({ 
-                          title: 'Missing Instagram Permissions', 
-                          description: 'Please ensure Instagram Business account permissions are enabled in your Facebook Business settings, then reconnect Facebook.', 
-                          variant: 'destructive' 
-                        });
+                        // Prompt user to reconnect Facebook so required IG permissions can be re-granted
+                        const doReconnect = window.confirm(
+                          'Missing Instagram permissions. Please ensure Instagram Business account permissions are enabled in your Facebook Business settings.\n\nWould you like to reconnect Facebook now to re-authorize permissions?'
+                        );
+                        if (doReconnect) {
+                          // Trigger the same Facebook auth flow used elsewhere
+                          try {
+                            openAuthWindowAndPoll('/profile/onboarding/facebook/auth', 'facebook');
+                          } catch (e) {
+                            // Fallback toast if opening fails
+                            toast({ title: 'Reconnect failed', description: 'Unable to start Facebook reconnect flow. Please try again.', variant: 'destructive' });
+                          }
+                        } else {
+                          toast({ 
+                            title: 'Missing Instagram Permissions', 
+                            description: 'Please ensure Instagram Business account permissions are enabled in your Facebook Business settings, then reconnect Facebook.', 
+                            variant: 'destructive' 
+                          });
+                        }
                         return;
                       }
                       // If no IG linked

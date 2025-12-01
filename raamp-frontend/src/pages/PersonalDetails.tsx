@@ -13,7 +13,6 @@ import { Phone, Building, Briefcase, Loader2, ArrowLeft, ArrowRight, HelpCircle 
 import { toast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
 import ProgressIndicator from "@/components/ProgressIndicator";
-import Breadcrumbs from "@/components/Breadcrumbs";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { cn } from "@/lib/utils";
 
@@ -220,15 +219,10 @@ const PersonalDetails = () => {
   };
 
   return (
-    <Layout>
-      {/* Breadcrumbs */}
-      <div className="mb-6">
-        <Breadcrumbs items={[
-          { label: 'Home', href: '/dashboard' },
-          { label: 'Profile', href: '/profile' },
-          { label: 'Personal Details' },
-        ]} />
-      </div>
+    <Layout breadcrumbItems={[
+      { label: 'Profile', href: '/profile' },
+      { label: 'Personal Details' },
+    ]}>
 
       <div className="flex items-center justify-center">
         <Card className="w-full max-w-3xl p-8 card-shadow bg-card/80 backdrop-blur-sm border-primary/20">

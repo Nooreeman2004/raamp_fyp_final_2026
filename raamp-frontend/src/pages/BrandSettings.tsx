@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,18 +6,151 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import raampIcon from "@/assets/raamp-icon-transparent.png";
-import { Palette, Upload, FileText, Type, Sparkles } from "lucide-react";
+import { Palette, Upload, FileText, Type, Sparkles, Loader2, Check, X } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { apiClient } from "@/services/api";
 
 // Animation Imports
 import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { staggerContainer, fadeInUp, hoverScale, blurInUp, hoverLift } from "@/utils/animations";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+
 const BrandSettings = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Form state
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [primaryColor, setPrimaryColor] = useState("#009999");
+  const [secondaryColor, setSecondaryColor] = useState("#005377");
   const [toneOfVoice, setToneOfVoice] = useState("Professional, innovative, empowering, slightly futuristic, friendly.");
   const [tagline, setTagline] = useState("");
   const [theme, setTheme] = useState("");
+  
+  // Loading states
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+
+  // Load existing settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings: any = await apiClient.get('/brand-alignment/settings');
+        if (settings) {
+          setLogoUrl(settings.brand_logo_url || "");
+          setLogoPreview(settings.brand_logo_url || null);
+          setPrimaryColor(settings.primary_color || "#009999");
+          setSecondaryColor(settings.secondary_color || "#005377");
+          setTagline(settings.tagline || "");
+          setToneOfVoice(settings.tone_of_voice || "Professional, innovative, empowering, slightly futuristic, friendly.");
+          setTheme(settings.restaurant_theme || "");
+        }
+      } catch (err: any) {
+        // 404 is fine - no settings saved yet
+        if (err?.status !== 404) {
+          console.error('Failed to load brand settings:', err);
+        }
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  // Handle logo file selection and upload
+  const handleLogoUpload = useCallback(async (file: File) => {
+    // Validate file type
+    const allowedTypes = ['image/svg+xml', 'image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: 'Invalid file type', description: 'Please upload SVG, PNG, or JPG', variant: 'destructive' });
+      return;
+    }
+    // Validate file size (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Maximum file size is 2MB', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('logo', file);
+
+      const response = await fetch(`${API_BASE}/brand-alignment/upload-logo`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Upload failed');
+      }
+
+      const data = await response.json();
+      setLogoUrl(data.logo_url);
+      setLogoPreview(data.logo_url);
+      toast({ title: 'Logo uploaded', description: 'Your brand logo has been uploaded successfully.' });
+    } catch (err: any) {
+      toast({ title: 'Upload failed', description: err.message || 'Failed to upload logo', variant: 'destructive' });
+    } finally {
+      setUploadingLogo(false);
+    }
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleLogoUpload(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleLogoUpload(file);
+  };
+
+  // Validate all fields before save
+  const canSave = logoUrl && primaryColor && secondaryColor && tagline.trim() && toneOfVoice.trim() && theme.trim();
+
+  // Save all settings
+  const handleSave = async () => {
+    if (!canSave) {
+      toast({ title: 'Missing fields', description: 'Please fill in all required fields including logo, tagline, tone of voice, and theme.', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await apiClient.post('/brand-alignment/save', {
+        brand_logo_url: logoUrl,
+        primary_color: primaryColor,
+        secondary_color: secondaryColor,
+        tagline: tagline.trim(),
+        tone_of_voice: toneOfVoice.trim(),
+        restaurant_theme: theme.trim(),
+      });
+      toast({ title: 'Saved', description: 'Brand alignment settings saved successfully!' });
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast({ title: 'Save failed', description: err.message || 'Failed to save settings', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetToDefaults = () => {
+    setPrimaryColor("#009999");
+    setSecondaryColor("#005377");
+    setToneOfVoice("Professional, innovative, empowering, slightly futuristic, friendly.");
+    setTagline("");
+    setTheme("");
+    // Don't reset logo
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -68,14 +201,39 @@ const BrandSettings = () => {
                     Ensure AI-generated visuals match your brand identity
                   </p>
                   
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".svg,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
                   <motion.div 
                     whileHover={{ scale: 1.02, borderColor: "rgba(var(--primary), 0.5)" }}
                     whileTap={{ scale: 0.98 }}
-                    className="border-2 border-dashed border-primary/20 rounded-lg p-8 text-center hover:border-primary/40 transition-colors cursor-pointer"
+                    className="border-2 border-dashed border-primary/20 rounded-lg p-8 text-center hover:border-primary/40 transition-colors cursor-pointer relative"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
                   >
-                    <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm font-medium mb-1">Click to upload or drag and drop</p>
-                    <p className="text-xs text-muted-foreground">SVG, PNG, JPG (max. 2MB)</p>
+                    {uploadingLogo ? (
+                      <div className="flex flex-col items-center">
+                        <Loader2 className="w-12 h-12 text-primary mx-auto mb-3 animate-spin" />
+                        <p className="text-sm font-medium">Uploading...</p>
+                      </div>
+                    ) : logoPreview ? (
+                      <div className="flex flex-col items-center">
+                        <img src={logoPreview} alt="Brand Logo" className="w-24 h-24 object-contain mb-3 rounded" />
+                        <p className="text-sm font-medium text-primary flex items-center gap-1"><Check className="w-4 h-4" /> Logo uploaded</p>
+                        <p className="text-xs text-muted-foreground mt-1">Click to replace</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-sm font-medium mb-1">Click to upload or drag and drop</p>
+                        <p className="text-xs text-muted-foreground">SVG, PNG, JPG (max. 2MB)</p>
+                      </>
+                    )}
                   </motion.div>
                 </Card>
               </motion.div>
@@ -101,14 +259,16 @@ const BrandSettings = () => {
                           <Input
                             id="primaryColor"
                             type="color"
-                            defaultValue="#009999"
+                            value={primaryColor}
+                            onChange={(e) => setPrimaryColor(e.target.value)}
                             className="w-16 h-10 p-1 bg-background/50 cursor-pointer"
                           />
                         </motion.div>
                         <Input
-                          value="#009999"
+                          value={primaryColor}
+                          onChange={(e) => setPrimaryColor(e.target.value)}
                           className="flex-1 bg-background/50"
-                          readOnly
+                          placeholder="#009999"
                         />
                       </div>
                     </div>
@@ -119,14 +279,16 @@ const BrandSettings = () => {
                           <Input
                             id="secondaryColor"
                             type="color"
-                            defaultValue="#005377"
+                            value={secondaryColor}
+                            onChange={(e) => setSecondaryColor(e.target.value)}
                             className="w-16 h-10 p-1 bg-background/50 cursor-pointer"
                           />
                         </motion.div>
                         <Input
-                          value="#005377"
+                          value={secondaryColor}
+                          onChange={(e) => setSecondaryColor(e.target.value)}
                           className="flex-1 bg-background/50"
-                          readOnly
+                          placeholder="#005377"
                         />
                       </div>
                     </div>
@@ -214,19 +376,32 @@ const BrandSettings = () => {
 
           {/* Action Buttons */}
           <Reveal variant="fadeInUp" delay={0.6}>
-            <div className="flex justify-end gap-3">
-              <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                <Button variant="outline">Reset to Defaults</Button>
-              </motion.div>
-              <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                <Button 
-                  variant="hero" 
-                  size="lg"
-                  onClick={() => navigate("/dashboard")}
-                >
-                  Complete Setup & Go to Dashboard
-                </Button>
-              </motion.div>
+            <div className="flex justify-between items-center gap-3">
+              <p className="text-sm text-muted-foreground">
+                {!canSave && <span className="text-destructive">* All fields are required including logo upload</span>}
+              </p>
+              <div className="flex gap-3">
+                <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                  <Button variant="outline" onClick={resetToDefaults}>Reset to Defaults</Button>
+                </motion.div>
+                <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                  <Button 
+                    variant="hero" 
+                    size="lg"
+                    onClick={handleSave}
+                    disabled={!canSave || saving}
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Complete Setup & Go to Dashboard'
+                    )}
+                  </Button>
+                </motion.div>
+              </div>
             </div>
           </Reveal>
         </div>
