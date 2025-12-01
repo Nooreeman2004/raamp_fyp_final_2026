@@ -19,7 +19,6 @@ import CreativeStudio from "./pages/CreativeStudio";
 import TrendArbitrage from "./pages/TrendArbitrage";
 import ABTesting from "./pages/ABTesting";
 import Performance from "./pages/Performance";
-import RAAMPAssistant from "./pages/RAAMPAssistant";
 import PersonalDetails from "./pages/PersonalDetails";
 import BusinessSetup from "./pages/BusinessSetup";
 import BrandSettings from "./pages/BrandSettings";
@@ -35,6 +34,10 @@ import About from "./pages/About";
 import Resources from "./pages/Resources";
 import Legal from "./pages/Legal";
 import NotFound from "./pages/NotFound";
+import Settings from "./pages/Settings";
+import NotificationPreferences from "./pages/NotificationPreferences";
+import AccountSecurity from "./pages/AccountSecurity";
+import Notifications from "./pages/Notifications";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -128,16 +131,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/dashboard/assistant"
-                element={
-                  <ProtectedRoute>
-                    <ProfileGuard>
-                      <RAAMPAssistant />
-                    </ProfileGuard>
-                  </ProtectedRoute>
-                }
-              />
 
               {/* Protected Routes - Profile */}
               <Route
@@ -215,6 +208,47 @@ const App = () => (
                 }
               />
 
+              {/* Protected Routes - Settings */}
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <Settings />
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <Notifications />
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/notifications"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <NotificationPreferences />
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/security"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <AccountSecurity />
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
               {/* 404 - Must be last */}
               <Route path="*" element={<NotFound />} />
             </Routes>

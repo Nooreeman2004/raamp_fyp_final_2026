@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import raampIcon from "@/assets/raamp-icon-transparent.png";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import AppDrawer from "@/components/AppDrawer";
+import RAMPFloatingWidget from "@/components/RAMPFloatingWidget";
 import { Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 import { authService } from "@/services/authService";
@@ -73,15 +74,17 @@ const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbO
 
             {/* Right: Notifications and User Profile */}
             <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="hover:bg-primary/10 transition-colors relative"
-                aria-label="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full animate-pulse" />
-              </Button>
+              <Link to="/notifications">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="hover:bg-primary/10 transition-colors relative"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-5 h-5" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full animate-pulse" />
+                </Button>
+              </Link>
               {user && (
                 <Link to="/profile/user">
                   <Button
@@ -116,6 +119,9 @@ const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbO
       <main className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {children}
       </main>
+
+      {/* Floating AI Widget - only for logged in users */}
+      {user && <RAMPFloatingWidget userName={user.first_name || user.username} />}
     </div>
   );
 };

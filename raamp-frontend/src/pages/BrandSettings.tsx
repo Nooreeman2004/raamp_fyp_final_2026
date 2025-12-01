@@ -1,21 +1,36 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
-import { Palette, Upload, FileText, Type, Sparkles, Loader2, Check, X } from "lucide-react";
+import Layout from "@/components/Layout";
+import { Palette, Upload, FileText, Type, Sparkles, Loader2, Pencil, Save, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiClient } from "@/services/api";
 
 // Animation Imports
 import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
-import { staggerContainer, fadeInUp, hoverScale, blurInUp, hoverLift } from "@/utils/animations";
+import { staggerContainer, fadeInUp, hoverScale, hoverLift } from "@/utils/animations";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+
+interface BrandSettingsResponse {
+  brand_logo_url?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  tagline?: string;
+  tone_of_voice?: string;
+  restaurant_theme?: string;
+}
+
+interface ApiError {
+  status?: number;
+  message?: string;
+  detail?: string;
+}
 
 const BrandSettings = () => {
   const navigate = useNavigate();
@@ -34,12 +49,13 @@ const BrandSettings = () => {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Load existing settings on mount
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const settings: any = await apiClient.get('/brand-alignment/settings');
+        const settings = await apiClient.get('/brand-alignment/settings') as BrandSettingsResponse;
         if (settings) {
           setLogoUrl(settings.brand_logo_url || "");
           setLogoPreview(settings.brand_logo_url || null);
@@ -49,9 +65,10 @@ const BrandSettings = () => {
           setToneOfVoice(settings.tone_of_voice || "Professional, innovative, empowering, slightly futuristic, friendly.");
           setTheme(settings.restaurant_theme || "");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         // 404 is fine - no settings saved yet
-        if (err?.status !== 404) {
+        const apiError = err as ApiError;
+        if (apiError?.status !== 404) {
           console.error('Failed to load brand settings:', err);
         }
       } finally {
@@ -96,8 +113,9 @@ const BrandSettings = () => {
       setLogoUrl(data.logo_url);
       setLogoPreview(data.logo_url);
       toast({ title: 'Logo uploaded', description: 'Your brand logo has been uploaded successfully.' });
-    } catch (err: any) {
-      toast({ title: 'Upload failed', description: err.message || 'Failed to upload logo', variant: 'destructive' });
+    } catch (err: unknown) {
+      const apiError = err as ApiError;
+      toast({ title: 'Upload failed', description: apiError.message || 'Failed to upload logo', variant: 'destructive' });
     } finally {
       setUploadingLogo(false);
     }
@@ -135,9 +153,11 @@ const BrandSettings = () => {
         restaurant_theme: theme.trim(),
       });
       toast({ title: 'Saved', description: 'Brand alignment settings saved successfully!' });
-      navigate("/dashboard");
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err.message || 'Failed to save settings', variant: 'destructive' });
+      setIsEditMode(false);
+      navigate("/settings");
+    } catch (err: unknown) {
+      const apiError = err as ApiError;
+      toast({ title: 'Save failed', description: apiError.message || 'Failed to save settings', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -153,62 +173,57 @@ const BrandSettings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-primary/10 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <Reveal variant="fadeInDown" duration={0.5} className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/dashboard" className="flex items-center gap-3">
-              <motion.img 
-                whileHover={{ rotate: 10, scale: 1.1 }}
-                src={raampIcon} 
-                alt="RAAMP" 
-                className="h-10 w-10" 
-              />
-              <span className="text-xl font-bold">RAAMP</span>
-            </Link>
-          </div>
-        </Reveal>
-      </nav>
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-8 max-w-5xl mx-auto">
-          {/* Header */}
-          <Reveal variant="blurInUp">
+    <Layout breadcrumbItems={[{ label: "Settings", href: "/settings" }, { label: "Brand Settings" }]}>
+      <div className="space-y-8 max-w-5xl mx-auto">
+        {/* Header */}
+        <Reveal variant="blurInUp">
+          <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold mb-2">Brand Alignment Settings</h1>
               <p className="text-muted-foreground">
                 Define your brand identity for AI-generated content consistency
               </p>
             </div>
-          </Reveal>
+            {!isEditMode ? (
+              <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                <Button variant="outline" onClick={() => setIsEditMode(true)}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit Settings
+                </Button>
+              </motion.div>
+            ) : null}
+          </div>
+        </Reveal>
 
-          {/* Staggered Grid */}
-          <motion.div 
-            className="grid md:grid-cols-2 gap-6"
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
-          >
-            {/* Upload Brand Logo */}
-            <motion.div variants={fadeInUp}>
-              <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
-                <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
-                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Upload className="w-5 h-5 text-primary" />
-                    Upload Brand Logo
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Ensure AI-generated visuals match your brand identity
-                  </p>
-                  
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".svg,.png,.jpg,.jpeg"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                  <motion.div 
+        {/* Staggered Grid */}
+        <motion.div 
+          className="grid md:grid-cols-2 gap-6"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* Upload Brand Logo */}
+          <motion.div variants={fadeInUp}>
+            <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
+              <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-primary" />
+                  Upload Brand Logo
+                  {isEditMode && <span className="text-destructive">*</span>}
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Ensure AI-generated visuals match your brand identity
+                </p>
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".svg,.png,.jpg,.jpeg"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  disabled={!isEditMode}
+                />
+                <motion.div 
                     whileHover={{ scale: 1.02, borderColor: "rgba(var(--primary), 0.5)" }}
                     whileTap={{ scale: 0.98 }}
                     className="border-2 border-dashed border-primary/20 rounded-lg p-8 text-center hover:border-primary/40 transition-colors cursor-pointer relative"
@@ -253,15 +268,16 @@ const BrandSettings = () => {
                   
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="primaryColor">Primary Color</Label>
+                      <Label htmlFor="primaryColor">Primary Color {isEditMode && <span className="text-destructive">*</span>}</Label>
                       <div className="flex gap-2">
-                        <motion.div whileHover={{ scale: 1.1 }}>
+                        <motion.div whileHover={{ scale: isEditMode ? 1.1 : 1 }}>
                           <Input
                             id="primaryColor"
                             type="color"
                             value={primaryColor}
                             onChange={(e) => setPrimaryColor(e.target.value)}
                             className="w-16 h-10 p-1 bg-background/50 cursor-pointer"
+                            disabled={!isEditMode}
                           />
                         </motion.div>
                         <Input
@@ -269,19 +285,21 @@ const BrandSettings = () => {
                           onChange={(e) => setPrimaryColor(e.target.value)}
                           className="flex-1 bg-background/50"
                           placeholder="#009999"
+                          disabled={!isEditMode}
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="secondaryColor">Secondary Color</Label>
+                      <Label htmlFor="secondaryColor">Secondary Color {isEditMode && <span className="text-destructive">*</span>}</Label>
                       <div className="flex gap-2">
-                        <motion.div whileHover={{ scale: 1.1 }}>
+                        <motion.div whileHover={{ scale: isEditMode ? 1.1 : 1 }}>
                           <Input
                             id="secondaryColor"
                             type="color"
                             value={secondaryColor}
                             onChange={(e) => setSecondaryColor(e.target.value)}
                             className="w-16 h-10 p-1 bg-background/50 cursor-pointer"
+                            disabled={!isEditMode}
                           />
                         </motion.div>
                         <Input
@@ -289,6 +307,7 @@ const BrandSettings = () => {
                           onChange={(e) => setSecondaryColor(e.target.value)}
                           className="flex-1 bg-background/50"
                           placeholder="#005377"
+                          disabled={!isEditMode}
                         />
                       </div>
                     </div>
@@ -304,13 +323,14 @@ const BrandSettings = () => {
                   <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <Type className="w-5 h-5 text-primary" />
                     Restaurant Tagline
+                    {isEditMode && <span className="text-destructive">*</span>}
                   </h2>
                   <p className="text-sm text-muted-foreground mb-4">
                     A memorable phrase that captures your restaurant's essence
                   </p>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="tagline">Tagline</Label>
+                    <Label htmlFor="tagline">Tagline {isEditMode && <span className="text-destructive">*</span>}</Label>
                     <Input
                       id="tagline"
                       value={tagline}
@@ -318,6 +338,7 @@ const BrandSettings = () => {
                       className="bg-background/50"
                       placeholder="e.g., Where flavor meets tradition"
                       maxLength={100}
+                      disabled={!isEditMode}
                     />
                     <p className="text-xs text-muted-foreground">{tagline.length}/100 characters</p>
                   </div>
@@ -332,6 +353,7 @@ const BrandSettings = () => {
                   <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-primary" />
                     Set Tone of Voice
+                    {isEditMode && <span className="text-destructive">*</span>}
                   </h2>
                   <p className="text-sm text-muted-foreground mb-4">
                     Guide AI to write copy that sounds like your brand
@@ -342,6 +364,7 @@ const BrandSettings = () => {
                     onChange={(e) => setToneOfVoice(e.target.value)}
                     className="min-h-32 bg-background/50"
                     placeholder="e.g., Professional, innovative, empowering, slightly futuristic, friendly."
+                    disabled={!isEditMode}
                   />
                 </Card>
               </motion.div>
@@ -354,19 +377,21 @@ const BrandSettings = () => {
                   <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-primary" />
                     Restaurant Theme
+                    {isEditMode && <span className="text-destructive">*</span>}
                   </h2>
                   <p className="text-sm text-muted-foreground mb-4">
                     Describe the ambiance, style, and atmosphere of your restaurant
                   </p>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="theme">Theme</Label>
+                    <Label htmlFor="theme">Theme {isEditMode && <span className="text-destructive">*</span>}</Label>
                     <Textarea
                       id="theme"
                       value={theme}
                       onChange={(e) => setTheme(e.target.value)}
                       className="min-h-24 bg-background/50"
                       placeholder="e.g., Modern rustic with warm lighting, cozy atmosphere, farm-to-table aesthetic"
+                      disabled={!isEditMode}
                     />
                   </div>
                 </Card>
@@ -378,35 +403,39 @@ const BrandSettings = () => {
           <Reveal variant="fadeInUp" delay={0.6}>
             <div className="flex justify-between items-center gap-3">
               <p className="text-sm text-muted-foreground">
-                {!canSave && <span className="text-destructive">* All fields are required including logo upload</span>}
+                {isEditMode && !canSave && <span className="text-destructive">* All fields are required including logo upload</span>}
               </p>
-              <div className="flex gap-3">
-                <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                  <Button variant="outline" onClick={resetToDefaults}>Reset to Defaults</Button>
-                </motion.div>
-                <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                  <Button 
-                    variant="hero" 
-                    size="lg"
-                    onClick={handleSave}
-                    disabled={!canSave || saving}
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Complete Setup & Go to Dashboard'
-                    )}
-                  </Button>
-                </motion.div>
-              </div>
+              {isEditMode && (
+                <div className="flex gap-3">
+                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                    <Button variant="outline" onClick={() => setIsEditMode(false)}>Cancel</Button>
+                  </motion.div>
+                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                    <Button 
+                      variant="hero" 
+                      size="lg"
+                      onClick={handleSave}
+                      disabled={!canSave || saving}
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                  </motion.div>
+                </div>
+              )}
             </div>
           </Reveal>
         </div>
-      </main>
-    </div>
+    </Layout>
   );
 };
 

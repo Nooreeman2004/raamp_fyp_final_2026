@@ -19,9 +19,12 @@ class FirebaseService:
             
             if os.path.exists(cred_path):
                 cred = credentials.Certificate(cred_path)
-                firebase_admin.initialize_app(cred)
+                # Initialize with storage bucket
+                firebase_admin.initialize_app(cred, {
+                    'storageBucket': 'raamp-82bbe.firebasestorage.app'
+                })
                 cls._initialized = True
-                print("✅ Firebase Admin initialized")
+                print("✅ Firebase Admin initialized with Storage bucket")
             else:
                 print(f"⚠️  Firebase service account not found at: {cred_path}")
                 print("   Google OAuth will not work until you add the service account JSON")

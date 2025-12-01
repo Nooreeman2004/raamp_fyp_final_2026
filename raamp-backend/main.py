@@ -88,6 +88,7 @@ from presentation.routers import brand_alignment_router
 from presentation.routers import hyperlocal_setup_router
 from presentation.routers import consultation_router
 from presentation.routers import admin_router
+from presentation.routers import chatbot_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
@@ -107,6 +108,7 @@ app.include_router(instagram_router.router)
 app.include_router(brand_alignment_router.router)
 app.include_router(hyperlocal_setup_router.router)
 app.include_router(consultation_router.router)
+app.include_router(chatbot_router.router, prefix="/api")
 
 
 @app.get("/profile/onboarding")

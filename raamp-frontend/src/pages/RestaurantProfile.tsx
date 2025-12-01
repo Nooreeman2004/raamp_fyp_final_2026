@@ -226,7 +226,6 @@ const RestaurantProfile = () => {
       <div className="container mx-auto px-4 py-4">
         <Breadcrumbs items={[
           { label: 'Home', href: '/dashboard' },
-          { label: 'Profile', href: '/profile' },
           { label: 'Restaurant Profile' },
         ]} />
       </div>
