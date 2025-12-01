@@ -133,6 +133,7 @@ async def init_db():
     from infrastructure.database.models.oauth_state_model import OAuthStateModel
     from infrastructure.database.models.business_model import BusinessModel
     from infrastructure.database.models.consultation_request_model import ConsultationRequestModel
+    from infrastructure.database.models.account_deletion_verification_model import AccountDeletionVerificationModel
     from infrastructure.database.seed_data import seed_business_domains
 
     await init_beanie(
@@ -150,9 +151,10 @@ async def init_db():
             OAuthStateModel,
             BusinessModel,
             ConsultationRequestModel,
+            AccountDeletionVerificationModel,
         ]
     )
-    print("✅ Beanie initialized with User, PendingVerification, ProfileEditVerification, and BusinessDomain models")
+    print("✅ Beanie initialized with User, PendingVerification, ProfileEditVerification, AccountDeletionVerification, and BusinessDomain models")
     
     # Seed business domains
     await seed_business_domains()

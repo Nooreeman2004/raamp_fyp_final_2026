@@ -13,12 +13,12 @@ class BusinessModel(Document):
     # User reference
     user_id: str = Field(..., description="Reference to the user who owns this business")
     
-    # Brand Alignment Settings - ALL REQUIRED
-    brand_logo_url: str = Field(..., description="Firebase Storage URL for uploaded brand logo")
-    primary_color: str = Field(..., description="Primary brand color (hex code)")
-    secondary_color: str = Field(..., description="Secondary brand color (hex code)")
-    tagline: str = Field(..., min_length=1, max_length=100, description="Restaurant tagline")
-    tone_of_voice: str = Field(..., description="Tone of voice for AI-generated content")
+    # Brand Alignment Settings - Optional until brand alignment step
+    brand_logo_url: Optional[str] = Field(None, description="Firebase Storage URL for uploaded brand logo")
+    primary_color: Optional[str] = Field(None, description="Primary brand color (hex code)")
+    secondary_color: Optional[str] = Field(None, description="Secondary brand color (hex code)")
+    tagline: Optional[str] = Field(None, max_length=100, description="Restaurant tagline")
+    tone_of_voice: Optional[str] = Field(None, description="Tone of voice for AI-generated content")
     restaurant_theme: Optional[str] = Field(None, description="Restaurant theme/ambiance")
     
     # Google Business Location (from onboarding)

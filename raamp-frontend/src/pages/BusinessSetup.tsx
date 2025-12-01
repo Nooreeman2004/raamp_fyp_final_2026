@@ -279,18 +279,36 @@ const BusinessSetup = () => {
                 </h2>
                 
                 <div className="aspect-square bg-muted rounded-lg mb-4 relative overflow-hidden group">
-                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <div className="text-center">
-                      <Reveal variant="zoomIn" delay={0.4}>
-                        <MapPin className="w-12 h-12 text-primary mx-auto mb-2 breathing-glow group-hover:scale-110 transition-transform duration-300" />
-                      </Reveal>
-                      <p className="text-sm text-muted-foreground">Interactive Map</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {location?.has_location ? 'Location set from onboarding' : 'Set location during onboarding'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="absolute inset-0 bg-primary/5 animate-pulse group-hover:bg-primary/10 transition-colors"></div>
+                  {location?.latitude && location?.longitude && location.latitude !== 0 && location.longitude !== 0 ? (
+                    /* Show actual map when coordinates are available */
+                    <iframe
+                      title="Business Location Map"
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyCONBvkHkY1P6CRKJ5x4UhClo4zPhxpovM&q=${location.latitude},${location.longitude}&zoom=15`}
+                      className="rounded-lg"
+                    />
+                  ) : (
+                    /* Show placeholder when no coordinates */
+                    <>
+                      <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <div className="text-center">
+                          <Reveal variant="zoomIn" delay={0.4}>
+                            <MapPin className="w-12 h-12 text-primary mx-auto mb-2 breathing-glow group-hover:scale-110 transition-transform duration-300" />
+                          </Reveal>
+                          <p className="text-sm text-muted-foreground">Interactive Map</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Set location during onboarding
+                          </p>
+                        </div>
+                      </div>
+                      <div className="absolute inset-0 bg-primary/5 animate-pulse group-hover:bg-primary/10 transition-colors"></div>
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-2 text-sm">

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { motion, AnimatePresence } from "framer-motion";
 import raampIcon from "@/assets/raamp-icon-transparent.png";
 import { 
   Menu,
@@ -11,34 +12,27 @@ import {
   MapPin, 
   Sparkles, 
   BarChart3,
-  MessageSquare,
   TrendingUp as TrendIcon,
   FlaskConical as Flask,
   User,
   Building2,
-  Settings,
+  Palette,
+  Bell,
+  Link2,
+  Shield,
   CreditCard,
   LogOut,
-  X,
   ChevronRight,
-  Home,
-  BookOpen,
-  Info,
-  Scale,
   type LucideIcon
 } from "lucide-react";
 import type { UserResponse } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
+import { staggerContainer, fadeInUp } from "@/utils/animations";
 
 interface AppDrawerProps {
   user: UserResponse | null;
-}
-
-interface NavSection {
-  title: string;
-  items: NavItem[];
 }
 
 interface NavItem {
@@ -46,7 +40,11 @@ interface NavItem {
   icon: LucideIcon;
   href: string;
   badge?: string;
-  description?: string;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
 }
 
 const AppDrawer = ({ user }: AppDrawerProps) => {
@@ -56,79 +54,32 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const dashboardItems: NavItem[] = [
-    { 
-      label: "Dashboard", 
-      icon: LayoutDashboard, 
-      href: "/dashboard",
-      description: "Overview & Analytics"
-    },
-    { 
-      label: "Geo-Intent", 
-      icon: MapPin, 
-      href: "/dashboard/geo-intent",
-      description: "Location-based targeting"
-    },
-    { 
-      label: "Creative Studio", 
-      icon: Sparkles, 
-      href: "/dashboard/creative",
-      description: "AI content generation"
-    },
-    { 
-      label: "Trend Arbitrage", 
-      icon: TrendIcon, 
-      href: "/dashboard/trends",
-      description: "Real-time trend detection"
-    },
-    { 
-      label: "A/B Testing", 
-      icon: Flask, 
-      href: "/dashboard/ab-testing",
-      description: "Campaign optimization"
-    },
-    { 
-      label: "Performance", 
-      icon: BarChart3, 
-      href: "/dashboard/performance",
-      description: "Metrics & insights"
-    },
-    { 
-      label: "RAAMP Assistant", 
-      icon: MessageSquare, 
-      href: "/dashboard/assistant",
-      badge: "AI",
-      description: "Chat-based help"
-    },
+  // MODULE STATUS & QUICK ACTIONS - Core dashboard modules
+  const moduleItems: NavItem[] = [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { label: "Geo-Intent", icon: MapPin, href: "/dashboard/geo-intent" },
+    { label: "Creative Studio", icon: Sparkles, href: "/dashboard/creative" },
+    { label: "Trend Arbitrage", icon: TrendIcon, href: "/dashboard/trends" },
+    { label: "A/B Testing", icon: Flask, href: "/dashboard/ab-testing" },
+    { label: "Performance", icon: BarChart3, href: "/dashboard/performance" },
+    { label: "Billing & Finance", icon: CreditCard, href: "/billing" },
   ];
 
-  const profileItems: NavItem[] = [
-    { label: "User Profile", icon: User, href: "/profile/user" },
-    { label: "Personal Details", icon: User, href: "/profile/personal-details" },
-    { label: "Business Setup", icon: Building2, href: "/profile/business-setup" },
-    { label: "Brand Settings", icon: Settings, href: "/profile/brand-settings" },
-    { label: "Onboarding", icon: Settings, href: "/profile/onboarding" },
+  // SETTINGS - All editable screens
+  const settingsItems: NavItem[] = [
+    { label: "Edit User Profile", icon: User, href: "/profile/user" },
+    { label: "Edit Business Details", icon: Building2, href: "/profile/business-setup" },
+    { label: "Brand Settings", icon: Palette, href: "/profile/brand-settings" },
+    { label: "Notification Preferences", icon: Bell, href: "/settings/notifications" },
+    { label: "Integrations", icon: Link2, href: "/profile/onboarding" },
+    { label: "Account & Security", icon: Shield, href: "/settings/security" },
   ];
 
-  const billingItems: NavItem[] = [
-    { label: "Billing Overview", icon: CreditCard, href: "/billing" },
-    { label: "Add Funds", icon: CreditCard, href: "/billing/add-funds" },
-    { label: "Transactions", icon: CreditCard, href: "/billing/transactions" },
-  ];
-
-  const publicItems: NavItem[] = [
-    { label: "Home", icon: Home, href: "/" },
-    { label: "About", icon: Info, href: "/about" },
-    { label: "Resources", icon: BookOpen, href: "/resources" },
-    { label: "Legal", icon: Scale, href: "/legal" },
-  ];
-
-  const navSections: NavSection[] = [
-    { title: "Dashboard", items: dashboardItems },
-    { title: "Profile", items: profileItems },
-    { title: "Billing", items: billingItems },
-    { title: "Information", items: publicItems },
-  ];
+  // Build navigation sections for logged-in users only
+  const navSections: NavSection[] = user ? [
+    { title: "Module Status & Quick Actions", items: moduleItems },
+    { title: "Settings", items: settingsItems },
+  ] : [];
 
   const handleLogout = async () => {
     try {
@@ -178,13 +129,13 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
         </SheetTrigger>
         <SheetContent 
           side="left" 
-          className="w-[300px] sm:w-[380px] p-0 flex flex-col bg-gradient-to-b from-card via-card/95 to-card/90"
+          className="w-[300px] sm:w-[340px] p-0 flex flex-col bg-gradient-to-b from-card via-card/95 to-card/90"
         >
           {/* Header */}
           <SheetHeader className="p-6 pb-4 border-b border-primary/10">
             <div className="flex items-center justify-between">
               <Link 
-                to="/" 
+                to={user ? "/dashboard" : "/"} 
                 className="flex items-center gap-3 group"
                 onClick={() => setOpen(false)}
               >
@@ -194,7 +145,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
             </div>
           </SheetHeader>
 
-          {/* User Profile Section */}
+          {/* User Profile Section - Only for logged in users */}
           {user && (
             <div className="px-6 py-4 bg-primary/5 border-b border-primary/10">
               <div className="flex items-center gap-3">
@@ -218,54 +169,91 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
 
           {/* Navigation Sections */}
           <div className="flex-1 overflow-y-auto py-4">
-            {navSections.map((section, sectionIdx) => (
-              <div key={section.title} className="mb-6">
-                <h3 className="px-6 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {section.title}
-                </h3>
-                <nav className="space-y-1 px-3">
-                  {section.items.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        onClick={() => setOpen(false)}
-                        className={`
-                          group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
-                          ${active 
-                            ? 'bg-primary/10 text-primary font-medium shadow-sm' 
-                            : 'hover:bg-primary/5 text-foreground/80 hover:text-foreground'
-                          }
-                        `}
-                      >
-                        <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm truncate">{item.label}</span>
-                            {item.badge && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-primary/20 text-primary">
-                                {item.badge}
-                              </span>
-                            )}
-                          </div>
-                          {item.description && !active && (
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">
-                              {item.description}
-                            </p>
-                          )}
-                        </div>
-                        <ChevronRight className={`w-4 h-4 transition-transform ${active ? 'text-primary' : 'text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5'}`} />
-                      </Link>
-                    );
-                  })}
-                </nav>
-                {sectionIdx < navSections.length - 1 && (
-                  <Separator className="mt-4 mx-6" />
-                )}
-              </div>
-            ))}
+            <AnimatePresence>
+              {user ? (
+                // Logged in: Show modules and settings
+                navSections.map((section, sectionIdx) => (
+                  <motion.div 
+                    key={section.title} 
+                    className="mb-6"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: sectionIdx * 0.1, duration: 0.3 }}
+                  >
+                    <h3 className="px-6 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {section.title}
+                    </h3>
+                    <motion.nav 
+                      className="space-y-0.5 px-3"
+                      variants={staggerContainer}
+                      initial="hidden"
+                      animate="visible"
+                    >
+                      {section.items.map((item, itemIdx) => {
+                        const Icon = item.icon;
+                        const active = isActive(item.href);
+                        return (
+                          <motion.div
+                            key={item.href}
+                            variants={fadeInUp}
+                            custom={itemIdx}
+                          >
+                            <Link
+                              to={item.href}
+                              onClick={() => setOpen(false)}
+                              className={`
+                                group flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200
+                                ${active 
+                                  ? 'bg-primary/10 text-primary font-medium' 
+                                  : 'hover:bg-primary/5 text-foreground/80 hover:text-foreground'
+                                }
+                              `}
+                            >
+                              <Icon className={`w-4 h-4 flex-shrink-0 transition-transform group-hover:scale-110 ${active ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} />
+                              <span className="text-sm flex-1">{item.label}</span>
+                              {item.badge && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-primary/20 text-primary">
+                                  {item.badge}
+                                </span>
+                              )}
+                              <ChevronRight className={`w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5 ${active ? 'text-primary opacity-100' : 'text-muted-foreground'}`} />
+                            </Link>
+                          </motion.div>
+                        );
+                      })}
+                    </motion.nav>
+                    {sectionIdx < navSections.length - 1 && (
+                      <Separator className="mt-4 mx-6" />
+                    )}
+                  </motion.div>
+                ))
+              ) : (
+                // Not logged in: Show login/signup options
+                <motion.div 
+                  className="px-3 space-y-2"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Link
+                    to="/login"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-primary/5 text-foreground/80 hover:text-foreground transition-all"
+                  >
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">Login</span>
+                  </Link>
+                  <Link
+                    to="/signup"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="text-sm font-medium">Sign Up</span>
+                  </Link>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Footer Actions */}
@@ -279,7 +267,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                   setShowLogoutDialog(true);
                 }}
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4" />
                 <span>Logout</span>
               </Button>
             </div>

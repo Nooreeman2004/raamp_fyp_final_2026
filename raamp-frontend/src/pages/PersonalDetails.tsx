@@ -220,7 +220,7 @@ const PersonalDetails = () => {
 
   return (
     <Layout breadcrumbItems={[
-      { label: 'Profile', href: '/profile' },
+      { label: 'Dashboard', href: '/dashboard' },
       { label: 'Personal Details' },
     ]}>
 

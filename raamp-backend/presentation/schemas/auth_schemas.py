@@ -254,3 +254,35 @@ class ResetPasswordResponse(BaseModel):
     success: bool = True
     message: str = "Password reset successfully"
 
+
+class AccountDeletionSendOtpRequest(BaseModel):
+    """Request schema for sending OTP for account deletion"""
+    email: EmailStr
+
+
+class AccountDeletionSendOtpResponse(BaseModel):
+    success: bool = True
+    message: str = "Verification code sent for account deletion confirmation"
+
+
+class AccountDeletionVerifyRequest(BaseModel):
+    """Request schema for verifying OTP and deleting account"""
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6, description="6-digit verification code")
+
+
+class AccountDeletionVerifyResponse(BaseModel):
+    success: bool = True
+    message: str = "Account deleted successfully"
+
+
+class UploadProfilePictureResponse(BaseModel):
+    success: bool = True
+    profile_picture_url: str
+    message: str = "Profile picture uploaded successfully"
+
+
+class DeleteProfilePictureResponse(BaseModel):
+    success: bool = True
+    message: str = "Profile picture deleted successfully"
+

@@ -437,6 +437,129 @@ RESET_SUCCESS_EMAIL_TEMPLATE = """
 </html>
 """
 
+# Account Deletion OTP Email Template
+ACCOUNT_DELETION_EMAIL_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Deletion Verification - RAAMP</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .content { padding: 40px 30px; }
+        .content p { margin-bottom: 15px; color: #555; }
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+            color: #92400e;
+        }
+        .otp-box {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            margin: 25px 0;
+            border: 2px dashed #ef4444;
+        }
+        .otp-code {
+            font-size: 36px;
+            font-weight: bold;
+            letter-spacing: 8px;
+            color: #dc2626;
+            font-family: 'Courier New', monospace;
+        }
+        .otp-label {
+            font-size: 14px;
+            color: #7f1d1d;
+            margin-top: 10px;
+        }
+        .danger-notice {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 15px 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+            color: #991b1b;
+        }
+        .danger-notice strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+        .footer { 
+            background: #f8f9fa;
+            text-align: center;
+            padding: 25px;
+            color: #6c757d;
+            font-size: 13px;
+            border-top: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>⚠️ Account Deletion Request</h1>
+        </div>
+        <div class="content">
+            <p>Hi <strong>{name}</strong>,</p>
+            
+            <p>We received a request to permanently delete your RAAMP account. If you made this request, please use the verification code below to confirm:</p>
+            
+            <div class="otp-box">
+                <div class="otp-code">{verificationCode}</div>
+                <div class="otp-label">Account Deletion Verification Code</div>
+            </div>
+            
+            <div class="warning-box">
+                <strong>⏱️ This code expires in 10 minutes.</strong>
+            </div>
+            
+            <div class="danger-notice">
+                <strong>⚠️ Warning: This action is irreversible!</strong>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li>All your account data will be permanently deleted</li>
+                    <li>Your business profiles and settings will be removed</li>
+                    <li>Connected integrations will be disconnected</li>
+                    <li>You will lose access to all RAAMP features</li>
+                </ul>
+            </div>
+            
+            <p style="margin-top: 25px;">If you did <strong>NOT</strong> request this deletion, please ignore this email and consider changing your password immediately for security.</p>
+        </div>
+        <div class="footer">
+            <p><strong>RAAMP</strong> - Revolutionary AI-Powered Autonomous Marketing Platform</p>
+            <p>© 2025 RAAMP. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 
 class MailtrapService:
     """
@@ -796,6 +919,70 @@ class MailtrapService:
             True if sent successfully
         """
         return self._send_email(to_email, subject, html_content, text_content)
+    
+    async def send_account_deletion_otp_email(self, to_email: str, name: str, otp_code: str) -> bool:
+        """
+        Send OTP verification email for account deletion (Non-blocking)
+        
+        Args:
+            to_email: User's email address
+            name: User's name/username
+            otp_code: 6-digit OTP code
+            
+        Returns:
+            True if sent successfully
+        """
+        print(f"🔔 send_account_deletion_otp_email called: to={to_email}, name={name}, otp={otp_code}")
+        
+        subject = "⚠️ Account Deletion Verification - RAAMP"
+        
+        # Use template with placeholder replacement
+        html_content = ACCOUNT_DELETION_EMAIL_TEMPLATE.replace("{verificationCode}", otp_code).replace("{name}", name)
+        
+        text_content = f"""
+        Hi {name},
+
+        We received a request to permanently delete your RAAMP account.
+
+        ACCOUNT DELETION VERIFICATION CODE: {otp_code}
+
+        This code expires in 10 minutes.
+
+        ⚠️ WARNING: This action is irreversible!
+        - All your account data will be permanently deleted
+        - Your business profiles and settings will be removed
+        - Connected integrations will be disconnected
+        - You will lose access to all RAAMP features
+
+        If you did NOT request this deletion, please ignore this email 
+        and consider changing your password immediately for security.
+
+        ---
+        RAAMP Team
+        """
+        
+        print(f"📧 Attempting to send account deletion OTP to {to_email} via {self.email_method}")
+        
+        # Run email sending in executor to prevent blocking
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        
+        try:
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor(max_workers=1)
+            # Set 10 second timeout for email sending
+            result = await asyncio.wait_for(
+                loop.run_in_executor(executor, self._send_email, to_email, subject, html_content, text_content),
+                timeout=10.0
+            )
+            print(f"📬 Account deletion OTP email send result: {result}")
+            return result
+        except asyncio.TimeoutError:
+            print(f"⚠️ Account deletion OTP email sending timed out for {to_email}")
+            return False
+        except Exception as e:
+            print(f"⚠️ Account deletion OTP email sending failed for {to_email}: {e}")
+            return False
 
 
 

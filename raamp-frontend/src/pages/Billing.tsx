@@ -4,12 +4,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Zap, CreditCard, DollarSign, FileText } from "lucide-react";
+import { CreditCard, DollarSign, FileText } from "lucide-react";
+import Layout from "@/components/Layout";
 
 // Animation Imports
 import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
-import { staggerContainer, fadeInUp, hoverScale, blurInUp, hoverLift } from "@/utils/animations";
+import { staggerContainer, fadeInUp, hoverScale, hoverLift } from "@/utils/animations";
 
 const Billing = () => {
   const transactions = [
@@ -23,41 +24,24 @@ const Billing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-primary/10 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <Reveal variant="fadeInDown" duration={0.5} className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <motion.div 
-                whileHover={{ rotate: 15, scale: 1.1 }}
-                className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"
-              >
-                <Zap className="w-5 h-5 text-primary" />
-              </motion.div>
-              <span className="text-xl font-bold">RAAMP</span>
-            </Link>
+    <Layout breadcrumbItems={[{ label: "Dashboard", href: "/dashboard" }, { label: "Billing & Finance" }]}>
+      <div className="space-y-8 max-w-6xl mx-auto">
+        {/* Header */}
+        <Reveal variant="blurInUp">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Billing & Payment Methods</h1>
+            <p className="text-muted-foreground">
+              Manage your payment methods, view transactions, and control your marketing budget
+            </p>
           </div>
         </Reveal>
-      </nav>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-8 max-w-6xl mx-auto">
-          {/* Header */}
-          <Reveal variant="blurInUp">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Billing & Payment Methods</h1>
-              <p className="text-muted-foreground">
-                Manage your payment methods, view transactions, and control your marketing budget
-              </p>
-            </div>
-          </Reveal>
-
-          <motion.div 
-            className="grid lg:grid-cols-2 gap-6"
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
-          >
+        <motion.div 
+          className="grid lg:grid-cols-2 gap-6"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+        >
             {/* Current Payment Method */}
             <motion.div variants={fadeInUp}>
               <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
@@ -193,8 +177,7 @@ const Billing = () => {
             </Card>
           </Reveal>
         </div>
-      </main>
-    </div>
+    </Layout>
   );
 };
 

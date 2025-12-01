@@ -228,3 +228,23 @@ class UserRepository(IUserRepository):
         await user_model.save()
         return True
 
+    async def update_profile_picture(self, email: str, picture_url: str) -> bool:
+        """Update user's profile picture URL"""
+        user_model = await UserModel.find_one(UserModel.email == email.lower())
+        if not user_model:
+            return False
+        
+        user_model.profile_picture = picture_url
+        user_model.updated_at = datetime.utcnow()
+        await user_model.save()
+        return True
+
+    async def delete_by_email(self, email: str) -> bool:
+        """Delete a user by email - permanent deletion"""
+        user_model = await UserModel.find_one(UserModel.email == email.lower())
+        if not user_model:
+            return False
+        
+        await user_model.delete()
+        return True
+

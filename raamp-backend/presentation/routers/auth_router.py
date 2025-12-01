@@ -30,6 +30,12 @@ from presentation.schemas.auth_schemas import (
     ForgotPasswordResponse,
     ResetPasswordRequest,
     ResetPasswordResponse,
+    AccountDeletionSendOtpRequest,
+    AccountDeletionSendOtpResponse,
+    AccountDeletionVerifyRequest,
+    AccountDeletionVerifyResponse,
+    UploadProfilePictureResponse,
+    DeleteProfilePictureResponse,
 )
 from application.use_cases.signup_use_case import SignupUseCase
 from application.use_cases.signin_use_case import SignInUseCase
@@ -45,6 +51,8 @@ from infrastructure.repositories.user_repository_impl import UserRepository
 from infrastructure.repositories.pending_verification_repository import PendingVerificationRepository
 from infrastructure.repositories.profile_edit_verification_repository import ProfileEditVerificationRepository
 from infrastructure.repositories.password_reset_repository import PasswordResetRepository
+from infrastructure.repositories.account_deletion_verification_repository import AccountDeletionVerificationRepository
+from application.services.firebase_storage_service import FirebaseStorageService
 from domain.entities.user import User
 import secrets
 from fastapi import Body
@@ -1020,6 +1028,264 @@ async def reset_password(request: ResetPasswordRequest = Body(...)):
     )
     
     return ResetPasswordResponse(message="Password reset successfully")
+
+
+# ==================== ACCOUNT DELETION ENDPOINTS ====================
+
+@router.post(
+    "/account-deletion/send-otp",
+    response_model=AccountDeletionSendOtpResponse,
+    status_code=status.HTTP_200_OK,
+    responses={400: {"model": ErrorResponse, "description": "Invalid request"}, 404: {"model": ErrorResponse, "description": "User not found"}}
+)
+async def send_account_deletion_otp(
+    request: AccountDeletionSendOtpRequest = Body(...),
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """
+    Send OTP for account deletion verification.
+    User must be authenticated and request deletion for their own account.
+    """
+    email = request.email.lower()
+    
+    # Verify user is deleting their own account
+    if email != current_user_email.lower():
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"success": False, "errors": {"email": "You can only delete your own account"}, "message": "Unauthorized"}
+        )
+    
+    user_repository = UserRepository()
+    deletion_repo = AccountDeletionVerificationRepository()
+    email_service = MailtrapService()
+    
+    # Verify user exists
+    user = await user_repository.find_by_email(email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    # Generate OTP (10 minute expiry for security-critical operation)
+    otp_code, expires_at = OTPGenerator.generate_otp_with_expiry(expiry_hours=0.167)  # ~10 minutes
+    
+    # Create or update deletion verification entry
+    await deletion_repo.create_or_update(
+        email=email,
+        code=otp_code,
+        expires_at=expires_at,
+        sent_at=datetime.utcnow()
+    )
+    
+    # Send deletion OTP email
+    await email_service.send_account_deletion_otp_email(
+        to_email=email,
+        name=user.username or email.split('@')[0],
+        otp_code=otp_code
+    )
+    
+    print(f"Account deletion OTP for {email}: {otp_code} (expires {expires_at})")
+    
+    return AccountDeletionSendOtpResponse(message="Verification code sent for account deletion confirmation")
+
+
+@router.post(
+    "/account-deletion/verify",
+    response_model=AccountDeletionVerifyResponse,
+    status_code=status.HTTP_200_OK,
+    responses={400: {"model": ErrorResponse, "description": "Invalid or expired OTP"}, 404: {"model": ErrorResponse, "description": "User not found"}}
+)
+async def verify_account_deletion(
+    request: AccountDeletionVerifyRequest = Body(...),
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """
+    Verify OTP and permanently delete user account.
+    This action is irreversible.
+    """
+    email = request.email.lower()
+    code = request.code
+    
+    # Verify user is deleting their own account
+    if email != current_user_email.lower():
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"success": False, "errors": {"email": "You can only delete your own account"}, "message": "Unauthorized"}
+        )
+    
+    user_repository = UserRepository()
+    deletion_repo = AccountDeletionVerificationRepository()
+    
+    # Verify user exists
+    user = await user_repository.find_by_email(email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    # Check if verification is locked
+    if await deletion_repo.is_locked(email):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"success": False, "errors": {"code": "Verification in progress, please wait"}, "message": "Please wait"}
+        )
+    
+    # Lock verification
+    await deletion_repo.set_verification_lock(email, True)
+    
+    try:
+        # Verify OTP
+        is_valid = await deletion_repo.verify_code(email, code)
+        if not is_valid:
+            await deletion_repo.set_verification_lock(email, False)
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"success": False, "errors": {"code": "Invalid or expired verification code"}, "message": "Invalid or expired code"}
+            )
+        
+        # Delete user profile picture from Firebase Storage if exists
+        if user.profile_picture and "firebasestorage.googleapis.com" in (user.profile_picture or ""):
+            try:
+                storage_service = FirebaseStorageService()
+                await storage_service.delete_profile_picture(user.profile_picture)
+            except Exception as e:
+                print(f"Warning: Failed to delete profile picture: {e}")
+        
+        # Delete user account
+        deleted = await user_repository.delete_by_email(email)
+        if not deleted:
+            await deletion_repo.set_verification_lock(email, False)
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"success": False, "errors": {"server": "Failed to delete account"}, "message": "Could not delete account"}
+            )
+        
+        # Clean up verification entry
+        await deletion_repo.delete_by_email(email)
+        
+        print(f"✅ Account deleted successfully: {email}")
+        
+        return AccountDeletionVerifyResponse(message="Account deleted successfully. We're sorry to see you go.")
+        
+    except Exception as e:
+        await deletion_repo.set_verification_lock(email, False)
+        print(f"Error during account deletion: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "errors": {"server": str(e)}, "message": "An error occurred"}
+        )
+
+
+# ==================== PROFILE PICTURE ENDPOINTS ====================
+
+from fastapi import File, UploadFile
+
+@router.post(
+    "/upload-profile-picture",
+    response_model=UploadProfilePictureResponse,
+    status_code=status.HTTP_200_OK,
+    responses={400: {"model": ErrorResponse, "description": "Invalid file"}, 500: {"model": ErrorResponse, "description": "Upload failed"}}
+)
+async def upload_profile_picture(
+    file: UploadFile = File(...),
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """
+    Upload a profile picture to Firebase Storage.
+    Supported formats: SVG, PNG, JPG, JPEG
+    Maximum size: 2MB
+    """
+    user_repository = UserRepository()
+    storage_service = FirebaseStorageService()
+    
+    # Verify user exists
+    user = await user_repository.find_by_email(current_user_email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    try:
+        # Read file content
+        file_content = await file.read()
+        
+        # Delete old profile picture if exists in Firebase
+        if user.profile_picture_url and "firebasestorage.googleapis.com" in (user.profile_picture_url or ""):
+            try:
+                await storage_service.delete_profile_picture(user.profile_picture_url)
+            except Exception as e:
+                print(f"Warning: Failed to delete old profile picture: {e}")
+        
+        # Upload new profile picture
+        picture_url = await storage_service.upload_profile_picture(
+            file_content=file_content,
+            file_name=file.filename,
+            user_id=str(user.id)
+        )
+        
+        # Update user profile with new picture URL
+        await user_repository.update_profile_picture(current_user_email, picture_url)
+        
+        return UploadProfilePictureResponse(
+            success=True,
+            profile_picture_url=picture_url,
+            message="Profile picture uploaded successfully"
+        )
+        
+    except ValueError as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"success": False, "errors": {"file": str(e)}, "message": str(e)}
+        )
+    except Exception as e:
+        print(f"Error uploading profile picture: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "errors": {"server": str(e)}, "message": "Failed to upload profile picture"}
+        )
+
+
+@router.delete(
+    "/delete-profile-picture",
+    response_model=DeleteProfilePictureResponse,
+    status_code=status.HTTP_200_OK,
+    responses={404: {"model": ErrorResponse, "description": "User or picture not found"}, 500: {"model": ErrorResponse, "description": "Delete failed"}}
+)
+async def delete_profile_picture(
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """
+    Delete the current user's profile picture from Firebase Storage.
+    Resets to default placeholder.
+    """
+    user_repository = UserRepository()
+    storage_service = FirebaseStorageService()
+    
+    # Verify user exists
+    user = await user_repository.find_by_email(current_user_email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    # Check if user has a Firebase profile picture
+    if not user.profile_picture_url or "firebasestorage.googleapis.com" not in (user.profile_picture_url or ""):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"success": False, "errors": {"picture": "No custom profile picture to delete"}, "message": "No custom picture found"}
+        )
+    
+    try:
+        # Delete from Firebase Storage
+        await storage_service.delete_profile_picture(user.profile_picture_url)
+        
+        # Reset profile picture URL to default placeholder
+        default_picture = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png"
+        await user_repository.update_profile_picture(current_user_email, default_picture)
+        
+        return DeleteProfilePictureResponse(
+            success=True,
+            message="Profile picture deleted successfully"
+        )
+        
+    except Exception as e:
+        print(f"Error deleting profile picture: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "errors": {"server": str(e)}, "message": "Failed to delete profile picture"}
+        )
 
 
 
