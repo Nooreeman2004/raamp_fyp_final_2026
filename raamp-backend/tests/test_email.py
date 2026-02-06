@@ -5,8 +5,8 @@ from email.mime.multipart import MIMEMultipart
 # Mailtrap SMTP Sandbox credentials
 SMTP_HOST = "sandbox.smtp.mailtrap.io"
 SMTP_PORT = 2525
-SMTP_USERNAME = "838325674effad"
-SMTP_PASSWORD = "6e26219353b6e8"
+SMTP_USERNAME = "41576076e86242"
+SMTP_PASSWORD = "e9e14836df233c"
 
 # Email details
 sender_email = "hello@demomailtrap.com"

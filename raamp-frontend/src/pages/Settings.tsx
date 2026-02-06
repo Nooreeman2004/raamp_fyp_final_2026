@@ -2,10 +2,10 @@ import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  User, 
-  Building2, 
-  Palette, 
+import {
+  User,
+  Building2,
+  Palette,
   ChevronRight,
   Bell,
   Link2,
@@ -17,6 +17,7 @@ import {
 import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { staggerContainer, fadeInUp, hoverScale } from "@/utils/animations";
+import { BlurText } from "@/components/ui/text-reveal";
 
 interface SettingsCardProps {
   title: string;
@@ -40,8 +41,8 @@ const SettingsCard = ({ title, description, icon, href }: SettingsCardProps) => 
               {icon}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold group-hover:text-primary transition-colors">{title}</h3>
-              <p className="text-sm text-muted-foreground truncate">{description}</p>
+              <h3 className="font-semibold group-hover:text-primary transition-colors font-bebas tracking-wide text-lg">{title}</h3>
+              <p className="text-sm text-muted-foreground truncate font-mono">{description}</p>
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
           </div>
@@ -106,8 +107,10 @@ const Settings = () => {
               <SettingsIcon className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Settings</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                <BlurText text="Settings" />
+              </h1>
+              <p className="text-muted-foreground font-mono text-sm">
                 Manage your account, connections, and preferences
               </p>
             </div>
@@ -129,15 +132,15 @@ const Settings = () => {
         {/* Quick Actions */}
         <Reveal variant="fadeInUp" delay={0.4}>
           <Card className="p-6 bg-muted/30 border-dashed">
-            <h3 className="font-semibold mb-4">Quick Actions</h3>
+            <h3 className="font-semibold mb-4 font-bebas tracking-wide">Quick Actions</h3>
             <div className="flex flex-wrap gap-3">
               <Link to="/billing">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="font-mono text-xs">
                   Billing & Payments
                 </Button>
               </Link>
               <Link to="/dashboard">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="font-mono text-xs">
                   Back to Dashboard
                 </Button>
               </Link>

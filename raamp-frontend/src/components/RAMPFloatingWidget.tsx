@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  MessageSquare, 
-  X, 
-  Send, 
+import {
+  MessageSquare,
+  X,
+  Send,
   Sparkles,
   Minimize2,
   Loader2,
@@ -40,6 +40,8 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Generate session ID on mount
   useEffect(() => {
@@ -55,10 +57,10 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
 
   // Initialize welcome message with username
   useEffect(() => {
-    const greeting = userName 
+    const greeting = userName
       ? `Hi ${userName}! I'm your RAAMP Assistant. I can help you with campaign optimization, trend analysis, creative suggestions, and more. How can I assist you today?`
       : "Hi! I'm your RAAMP Assistant. I can help you with campaign optimization, trend analysis, creative suggestions, and more. How can I assist you today?";
-    
+
     setMessages([
       {
         id: "welcome",
@@ -138,6 +140,13 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
 
+    // Stop and clear any current audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setIsPlaying(false);
+    }
+
     // Stop listening if sending
     if (isListening && recognitionRef.current) {
       recognitionRef.current.stop();
@@ -175,7 +184,7 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
       }
 
       const data = await response.json();
-      
+
       // Update session ID if returned from server
       if (data.session_id && data.session_id !== sessionId) {
         setSessionId(data.session_id);
@@ -190,9 +199,14 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // 🔊 Play audio if available
+      if (data.audio_content) {
+        playAudio(data.audio_content);
+      }
     } catch (error) {
       console.error('Chatbot error:', error);
-      
+
       // Fallback response on error
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -205,6 +219,49 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const playAudio = (base64Audio: string) => {
+    try {
+      const audioBlob = b64toBlob(base64Audio, 'audio/mpeg');
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onplay = () => setIsPlaying(true);
+      audio.onended = () => {
+        setIsPlaying(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => setIsPlaying(false);
+
+      audio.play().catch(e => console.error("Audio play failed:", e));
+    } catch (e) {
+      console.error("Audio preparation failed:", e);
+    }
+  };
+
+  // Helper to convert base64 to Blob
+  const b64toBlob = (b64Data: string, contentType = '', sliceSize = 512) => {
+    const byteCharacters = atob(b64Data);
+    const byteArrays = [];
+
+    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+      const slice = byteCharacters.slice(offset, offset + sliceSize);
+      const byteNumbers = new Array(slice.length);
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      byteArrays.push(byteArray);
+    }
+
+    return new Blob(byteArrays, { type: contentType });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -227,12 +284,12 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
     } catch (error) {
       console.error('Reset error:', error);
     }
-    
+
     // Reset local state
-    const greeting = userName 
+    const greeting = userName
       ? `Hi ${userName}! I'm your RAAMP Assistant. I can help you with campaign optimization, trend analysis, creative suggestions, and more. How can I assist you today?`
       : "Hi! I'm your RAAMP Assistant. I can help you with campaign optimization, trend analysis, creative suggestions, and more. How can I assist you today?";
-    
+
     setMessages([
       {
         id: "welcome",
@@ -357,7 +414,7 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
                       </div>
                     </motion.div>
                   ))}
-                  
+
                   {/* Typing indicator */}
                   {isTyping && (
                     <motion.div
@@ -371,6 +428,23 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
                           <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                           <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                         </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Speaking indicator */}
+                  {isPlaying && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="flex justify-start"
+                    >
+                      <div className="bg-primary/10 border border-primary/30 rounded-full px-3 py-1 flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                        </span>
+                        <span className="text-[10px] font-mono text-primary uppercase tracking-widest animate-pulse">Assistant is speaking...</span>
                       </div>
                     </motion.div>
                   )}
@@ -408,8 +482,8 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
                     variant="ghost"
                     className={cn(
                       "w-10 h-10 rounded-full transition-all",
-                      isListening 
-                        ? "bg-destructive/20 text-destructive hover:bg-destructive/30" 
+                      isListening
+                        ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
                         : "hover:bg-primary/10"
                     )}
                     title={isListening ? "Stop listening" : "Start voice input"}

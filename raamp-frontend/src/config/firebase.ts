@@ -2,15 +2,17 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
+import { getAnalytics } from 'firebase/analytics';
 
-// Your Firebase config (replace with your actual config from Firebase Console)
+// Your Firebase config
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCEwamGOxOTjst79Xr-yHhpWEXcLrJ3Jhs",
+  authDomain: "raamp-82bbe.firebaseapp.com",
+  projectId: "raamp-82bbe",
+  storageBucket: "raamp-82bbe.firebasestorage.app",
+  messagingSenderId: "234897097308",
+  appId: "1:234897097308:web:040d26581ad5ef5d5b5c99",
+  measurementId: "G-Y2GK7GQ27G"
 };
 
 // Initialize Firebase
@@ -21,6 +23,18 @@ export const auth = getAuth(app);
 
 // Initialize Firebase Storage
 export const storage = getStorage(app);
+
+// Initialize Analytics (only in browser)
+let analytics = null;
+if (typeof window !== 'undefined') {
+  try {
+    analytics = getAnalytics(app);
+  } catch (error) {
+    console.warn('Firebase Analytics not available:', error);
+  }
+}
+
+export { analytics };
 
 // Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();

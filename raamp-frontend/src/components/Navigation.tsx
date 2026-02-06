@@ -3,37 +3,37 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
+import raampIcon from "@/assets/raamp-logo-v6-transparent.png";
 import { Menu, Home, Info, BookOpen, Scale, LogIn, UserPlus } from "lucide-react";
 
 const Navigation = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { label: "How It Works", href: "/#how-it-works", icon: Home },
-    { label: "Modules", href: "/#modules", icon: Home },
-    { label: "About", href: "/about", icon: Info },
-    { label: "Resources", href: "/resources", icon: BookOpen },
-    { label: "Legal", href: "/legal", icon: Scale },
+    { label: "HOW IT WORKS", href: "/#how-it-works", icon: Home },
+    { label: "MODULES", href: "/#modules", icon: Home },
+    { label: "ABOUT", href: "/about", icon: Info },
+    { label: "RESOURCES", href: "/resources", icon: BookOpen },
+    { label: "LEGAL", href: "/legal", icon: Scale },
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-primary/10">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-white/10">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <img src={raampIcon} alt="RAAMP" className="h-10 w-10" />
-            <span className="text-xl font-bold">RAAMP</span>
+            <img src={raampIcon} alt="RAAMP" className="h-10 w-auto" />
+            <span className="text-2xl font-bold font-bebas tracking-widest text-white group-hover:text-neon-teal transition-colors">RAAMP</span>
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <Link 
+              <Link
                 key={link.href}
-                to={link.href} 
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                to={link.href}
+                className="text-sm font-bold font-mono text-white/70 hover:text-neon-teal transition-colors tracking-wide"
               >
                 {link.label}
               </Link>
@@ -43,13 +43,13 @@ const Navigation = () => {
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center gap-4">
             <Link to="/login">
-              <Button variant="ghost" size="sm">
-                Login
+              <Button variant="ghost" size="sm" className="text-white hover:text-neon-teal hover:bg-white/5 font-mono">
+                LOGIN
               </Button>
             </Link>
             <Link to="/signup">
-              <Button variant="hero" size="sm">
-                Sign Up
+              <Button variant="default" size="sm" className="bg-neon-teal text-black hover:bg-neon-teal/80 font-bold font-bebas tracking-wider">
+                SIGN UP
               </Button>
             </Link>
           </div>
@@ -57,29 +57,29 @@ const Navigation = () => {
           {/* Mobile Menu */}
           <div className="flex md:hidden items-center gap-2">
             <Link to="/login">
-              <Button variant="ghost" size="sm">
-                Login
+              <Button variant="ghost" size="sm" className="text-white font-mono">
+                LOGIN
               </Button>
             </Link>
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="hover:bg-primary/10"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-white/10 hover:text-neon-teal"
                   aria-label="Open menu"
                 >
-                  <Menu className="w-5 h-5" />
+                  <Menu className="w-6 h-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent 
-                side="right" 
-                className="w-[280px] p-0 flex flex-col bg-gradient-to-b from-card via-card/95 to-card/90"
+              <SheetContent
+                side="right"
+                className="w-[280px] p-0 flex flex-col bg-black/95 border-l border-white/10"
               >
-                <SheetHeader className="p-6 pb-4 border-b border-primary/10">
+                <SheetHeader className="p-6 pb-4 border-b border-white/10">
                   <div className="flex items-center gap-3">
-                    <img src={raampIcon} alt="RAAMP" className="h-10 w-10" />
-                    <SheetTitle className="text-xl font-bold text-primary">RAAMP</SheetTitle>
+                    <img src={raampIcon} alt="RAAMP" className="h-8 w-auto" />
+                    <SheetTitle className="text-2xl font-bold font-bebas tracking-widest text-white">RAAMP</SheetTitle>
                   </div>
                 </SheetHeader>
 
@@ -92,28 +92,28 @@ const Navigation = () => {
                           key={link.href}
                           to={link.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className="group flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-primary/5 text-foreground/80 hover:text-foreground transition-all"
+                          className="group flex items-center gap-3 px-3 py-3 rounded hover:bg-white/5 text-white/70 hover:text-neon-teal transition-all"
                         >
-                          <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
-                          <span className="text-sm">{link.label}</span>
+                          <Icon className="w-4 h-4 text-white/50 group-hover:text-neon-teal" />
+                          <span className="text-sm font-mono font-bold tracking-wide">{link.label}</span>
                         </Link>
                       );
                     })}
                   </nav>
 
-                  <Separator className="my-4 mx-6" />
+                  <Separator className="my-4 mx-6 bg-white/10" />
 
-                  <div className="px-3 space-y-2">
+                  <div className="px-3 space-y-3">
                     <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="hero" size="sm" className="w-full justify-start gap-3">
+                      <Button variant="default" size="sm" className="w-full justify-start gap-3 bg-neon-teal text-black hover:bg-neon-teal/80 font-bebas tracking-wider">
                         <UserPlus className="w-4 h-4" />
-                        Sign Up
+                        SIGN UP
                       </Button>
                     </Link>
                     <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="outline" size="sm" className="w-full justify-start gap-3">
+                      <Button variant="outline" size="sm" className="w-full justify-start gap-3 border-white/10 text-white hover:bg-white/5 font-mono">
                         <LogIn className="w-4 h-4" />
-                        Login
+                        LOGIN
                       </Button>
                     </Link>
                   </div>

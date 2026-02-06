@@ -6,9 +6,13 @@ Handles chat requests, session management, and health checks.
 """
 
 import uuid
+import re
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Header
 from datetime import datetime
+import base64
+import os
+from openai import OpenAI
 
 from presentation.schemas.chatbot_schema import (
     ChatRequest,
@@ -19,19 +23,88 @@ from presentation.schemas.chatbot_schema import (
     ConversationHistoryResponse,
     ChatMessage,
     ChatHealthResponse,
-    ChatStatsResponse
+    ChatStatsResponse,
+    DiagnosticRequest,
+    DiagnosticResponse
 )
 from application.services.rag.raamp_generation import RAAMPGenerator
 from application.services.rag.conversation_manager import (
     get_conversation_manager,
     ConversationManager
 )
+from application.services.diagnostics_service import DiagnosticsService
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 
 # Lazy initialization of generator (singleton)
 _generator: Optional[RAAMPGenerator] = None
+_diagnostics_service: Optional[DiagnosticsService] = None
 
+# Quick responses for common greetings/phrases (no AI needed)
+QUICK_RESPONSES = {
+    # Greetings
+    "greetings": {
+        "patterns": [r"^(hi|hello|hey|hola|greetings|howdy|sup|yo)[\s!?.]*$"],
+        "responses": [
+            "Hello! 👋 I'm your RAAMP Assistant. How can I help you with your marketing campaigns today?",
+            "Hi there! 👋 Ready to help with RAAMP or marketing questions. What would you like to know?",
+            "Hey! 👋 Welcome to RAAMP Assistant. What can I assist you with?"
+        ]
+    },
+    # Thank you
+    "thanks": {
+        "patterns": [r"^(thanks|thank you|thx|ty|thank u|cheers)[\s!?.]*$"],
+        "responses": [
+            "You're welcome! 😊 Let me know if you need anything else.",
+            "Happy to help! 😊 Feel free to ask if you have more questions.",
+            "Anytime! 😊 I'm here if you need more assistance."
+        ]
+    },
+    # Goodbye
+    "goodbye": {
+        "patterns": [r"^(bye|goodbye|see ya|later|cya|ttyl)[\s!?.]*$"],
+        "responses": [
+            "Goodbye! 👋 Best of luck with your campaigns!",
+            "Take care! 👋 Come back anytime you need help.",
+            "See you later! 👋 Good luck with your marketing!"
+        ]
+    },
+    # How are you
+    "howru": {
+        "patterns": [r"^(how are you|how r u|hru|how's it going|wassup|what's up)[\s!?.]*$"],
+        "responses": [
+            "I'm doing great, thanks for asking! 🌟 Ready to help with your RAAMP questions!",
+            "All systems running smoothly! 🚀 How can I assist you today?",
+            "Fantastic! 💫 What marketing challenges can I help you tackle?"
+        ]
+    },
+    # What can you do
+    "capabilities": {
+        "patterns": [r"^(what can you do|help|what do you do|your capabilities)[\s!?.]*$"],
+        "responses": [
+            "I'm your RAAMP Assistant! 🎯 I can help you with:\n• Campaign optimization tips\n• Platform features & setup\n• Marketing strategy advice\n• Troubleshooting issues\n• Understanding analytics\n\nJust ask me anything!",
+        ]
+    },
+    # What is RAAMP
+    "whatisraamp": {
+        "patterns": [r"^(what is raamp|what's raamp|whats raamp)[\s!?.]*$"],
+        "responses": [
+            "RAAMP stands for **Revolutionary AI-Powered Autonomous Marketing Platform**! 🚀\n\nIt's an intelligent marketing platform that helps SMBs automate their digital marketing using AI-driven insights, geo-intent targeting, and hyperlocal strategies.\n\nWant to know more about any specific feature?"
+        ]
+    }
+}
+
+
+def get_quick_response(message: str) -> Optional[str]:
+    """Check if message matches a quick response pattern."""
+    import random
+    message_lower = message.lower().strip()
+    
+    for category, data in QUICK_RESPONSES.items():
+        for pattern in data["patterns"]:
+            if re.match(pattern, message_lower, re.IGNORECASE):
+                return random.choice(data["responses"])
+    return None
 
 def get_generator() -> RAAMPGenerator:
     """Get or create the RAG generator instance."""
@@ -51,6 +124,12 @@ def get_manager() -> ConversationManager:
     """Get the conversation manager instance."""
     return get_conversation_manager()
 
+def get_diagnostics() -> DiagnosticsService:
+    global _diagnostics_service
+    if _diagnostics_service is None:
+        _diagnostics_service = DiagnosticsService()
+    return _diagnostics_service
+
 
 def generate_session_id() -> str:
     """Generate a unique session ID."""
@@ -60,39 +139,77 @@ def generate_session_id() -> str:
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
-    generator: RAAMPGenerator = Depends(get_generator),
     manager: ConversationManager = Depends(get_manager),
     x_user_id: Optional[str] = Header(None, alias="X-User-ID")
 ):
     """
     Send a message and receive a response from the RAAMP Assistant.
-    
-    The chatbot uses RAG (Retrieval-Augmented Generation) to provide
-    accurate answers based on the RAAMP FAQ knowledge base.
-    
-    - **message**: The user's question or message
-    - **session_id**: Optional session ID for conversation continuity
-    - **include_sources**: Whether to include source documents in response
-    
-    Returns the assistant's response with optional source documents.
     """
     try:
         # Get or create session ID
         session_id = request.session_id or generate_session_id()
-        
-        # Get conversation history for context
-        history = manager.get_history_for_llm(session_id, limit=10)
-        
+
+        # Check for quick response first (no AI needed for greetings)
+        quick_answer = get_quick_response(request.message)
+
+        # Try to fetch history, but don't fail chat if DB/session is unhappy
+        history = []
+        try:
+            history = await manager.get_history_for_llm(session_id, limit=10)
+        except Exception as history_err:
+            print(f"⚠️ Failed to load chat history for session {session_id}: {history_err}")
+
+        if quick_answer:
+            # Store messages in session (best-effort only)
+            try:
+                await manager.add_message(session_id, "user", request.message, x_user_id)
+                await manager.add_message(session_id, "assistant", quick_answer, x_user_id)
+            except Exception as store_err:
+                print(f"⚠️ Failed to store quick-response messages for session {session_id}: {store_err}")
+
+            # 🎙️ GENERATE TTS for quick response
+            audio_base64 = None
+            try:
+                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                response_tts = client.audio.speech.create(
+                    model="tts-1",
+                    voice="alloy",
+                    input=quick_answer
+                )
+                audio_base64 = base64.b64encode(response_tts.content).decode('utf-8')
+            except Exception as tts_err:
+                print(f"⚠️ TTS Error: {tts_err}")
+
+            return ChatResponse(
+                answer=quick_answer,
+                session_id=session_id,
+                sources=None,
+                timestamp=datetime.utcnow().isoformat(),
+                audio_content=audio_base64
+            )
+
+        # For complex questions, use RAG pipeline
+        generator = get_generator()
+
+        # PROMPT ENGINEERING WITH CONTEXT
+        query = request.message
+        if request.context:
+            page = request.context.get("current_page", "unknown")
+            query = f"[User Context: Current Page: {page}] {request.message}"
+
         # Generate response using RAG
         response = generator.chat(
-            query=request.message,
+            query=query,
             conversation_history=history,
             n_context=5
         )
-        
-        # Store messages in session
-        manager.add_message(session_id, "user", request.message, x_user_id)
-        manager.add_message(session_id, "assistant", response["answer"], x_user_id)
+
+        # Store messages in session (best-effort only)
+        try:
+            await manager.add_message(session_id, "user", request.message, x_user_id)
+            await manager.add_message(session_id, "assistant", response["answer"], x_user_id)
+        except Exception as store_err:
+            print(f"⚠️ Failed to store messages for session {session_id}: {store_err}")
         
         # Build response
         sources = None
@@ -107,11 +224,27 @@ async def chat(
                 for src in response["sources"]
             ]
         
+        # 🎙️ GENERATE TTS (Text-to-Speech)
+        audio_base64 = None
+        try:
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            response_tts = client.audio.speech.create(
+                model="tts-1",
+                voice="alloy", # Options: alloy, echo, fable, onyx, nova, shimmer
+                input=response["answer"][:4096] # OpenAI TTS limit
+            )
+            # Convert audio stream to base64
+            audio_base64 = base64.b64encode(response_tts.content).decode('utf-8')
+        except Exception as tts_err:
+            print(f"⚠️ TTS Error: {tts_err}")
+            # Non-critical error, just log and continue without audio
+
         return ChatResponse(
             answer=response["answer"],
             session_id=session_id,
             sources=sources,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.utcnow().isoformat(),
+            audio_content=audio_base64
         )
         
     except Exception as e:
@@ -129,16 +262,30 @@ async def reset_session(
 ):
     """
     Reset a chat session, clearing all conversation history.
-    
-    Use this when starting a new conversation topic or when
-    the user wants to start fresh.
     """
-    success = manager.clear_session(request.session_id)
+    success = await manager.clear_session(request.session_id)
     
     return SessionResetResponse(
         success=success,
         session_id=request.session_id,
         message="Session reset successfully" if success else "Session not found"
+    )
+
+@router.post("/diagnostics/run", response_model=DiagnosticResponse)
+async def run_diagnostic(
+    request: DiagnosticRequest,
+    diagnostics: DiagnosticsService = Depends(get_diagnostics),
+    x_user_id: Optional[str] = Header(None, alias="X-User-ID")
+):
+    """
+    Run a specific diagnostic check.
+    """
+    result = await diagnostics.run_check(request.check_id, x_user_id)
+    
+    return DiagnosticResponse(
+        status=result.get("status", "failed"),
+        message=result.get("message", "Check failed"),
+        details=result.get("details", "")
     )
 
 
@@ -150,11 +297,8 @@ async def get_history(
 ):
     """
     Get the conversation history for a session.
-    
-    - **session_id**: The session ID to retrieve history for
-    - **limit**: Optional limit on number of messages to return
     """
-    messages = manager.get_history(session_id, limit)
+    messages = await manager.get_history(session_id, limit)
     
     return ConversationHistoryResponse(
         session_id=session_id,
@@ -174,12 +318,6 @@ async def get_history(
 async def health_check():
     """
     Check the health of the chatbot service.
-    
-    Returns the status of the RAG pipeline including:
-    - LLM model availability
-    - Vector store status
-    - Number of documents in knowledge base
-    - Active session count
     """
     try:
         generator = get_generator()
@@ -213,9 +351,6 @@ async def get_stats(
 ):
     """
     Get statistics about the chatbot service.
-    
-    Returns metrics including active sessions, total messages,
-    and knowledge base size.
     """
     try:
         manager_stats = manager.get_stats()
@@ -244,10 +379,8 @@ async def delete_session(
 ):
     """
     Delete a chat session entirely.
-    
-    Use this for cleanup or when a user logs out.
     """
-    success = manager.delete_session(session_id)
+    success = await manager.delete_session(session_id)
     
     return {
         "success": success,

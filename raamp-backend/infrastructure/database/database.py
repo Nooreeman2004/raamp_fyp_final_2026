@@ -129,11 +129,28 @@ async def init_db():
     from infrastructure.database.models.instagram_connection_model import InstagramConnectionModel
     from infrastructure.database.models.social_media_account_model import SocialMediaAccountModel
     from infrastructure.database.models.password_reset_model import PasswordResetModel
-    from infrastructure.database.models.google_business_location_model import GoogleBusinessLocationModel
     from infrastructure.database.models.oauth_state_model import OAuthStateModel
     from infrastructure.database.models.business_model import BusinessModel
     from infrastructure.database.models.consultation_request_model import ConsultationRequestModel
+    from infrastructure.database.models.complaint_model import ComplaintModel
     from infrastructure.database.models.account_deletion_verification_model import AccountDeletionVerificationModel
+    # New settings/billing/geo-intent models
+    from infrastructure.database.models.notification_settings_model import NotificationSettingsModel
+    from infrastructure.database.models.security_settings_model import SecuritySettingsModel
+    from infrastructure.database.models.billing_profile_model import BillingProfileModel
+    from infrastructure.database.models.wallet_model import WalletModel
+    from infrastructure.database.models.geo_intent_simulation_model import GeoIntentSimulationModel
+    from infrastructure.database.models.instagram_post_model import (
+        InstagramPostModel,
+        ScheduledInstagramPostModel,
+        InstagramStoryModel
+    )
+    from infrastructure.database.models.facebook_post_model import (
+        FacebookPostModel,
+        ScheduledFacebookPostModel
+    )
+    from infrastructure.database.models.notification_model import NotificationModel
+    from application.services.job_health_monitor_service import JobExecutionLogModel
     from infrastructure.database.seed_data import seed_business_domains
 
     await init_beanie(
@@ -147,14 +164,31 @@ async def init_db():
             FacebookConnectionModel,
             InstagramConnectionModel,
             SocialMediaAccountModel,
-            GoogleBusinessLocationModel,
             OAuthStateModel,
             BusinessModel,
+            ComplaintModel,
             ConsultationRequestModel,
             AccountDeletionVerificationModel,
+            # New models
+            NotificationSettingsModel,
+            SecuritySettingsModel,
+            BillingProfileModel,
+            WalletModel,
+            GeoIntentSimulationModel,
+            # Instagram posting models
+            InstagramPostModel,
+            ScheduledInstagramPostModel,
+            InstagramStoryModel,
+            # Facebook posting models
+            FacebookPostModel,
+            ScheduledFacebookPostModel,
+            # Notification model
+            NotificationModel,
+            # Job health monitoring
+            JobExecutionLogModel,
         ]
     )
-    print("✅ Beanie initialized with User, PendingVerification, ProfileEditVerification, AccountDeletionVerification, and BusinessDomain models")
+    print("✅ Beanie initialized with all document models including Settings, Billing, GeoIntent, Instagram & Facebook Posting")
     
     # Seed business domains
     await seed_business_domains()

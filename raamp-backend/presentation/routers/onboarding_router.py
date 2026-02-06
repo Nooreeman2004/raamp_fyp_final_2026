@@ -20,8 +20,27 @@ async def post_onboarding_status(current_user_email: str = Depends(get_current_u
         # mark completed
         await service.mark_completed(current_user_email)
         # respond with completed + redirect to business setup
-        return {"completed": True, "missing": {k: False for k in status_obj.get("missing", {})}, "redirect": "/profile/business-setup"}
+        return {"completed": True, "missing": {k: False for k in status_obj.get("missing", {})}, "redirect": "/dashboard"}
     return status_obj
+
+
+@router.get("")
+async def get_onboarding_status_root(current_user_email: str = Depends(get_current_user_email)):
+    """GET handler for /api/profile/onboarding - same as /status"""
+    status_obj = await service.get_onboarding_status(current_user_email)
+    missing = status_obj.get("missing", {})
+    facebook_connected = not bool(missing.get("facebook", True))
+    instagram_connected = not bool(missing.get("instagram", True))
+    google_maps_connected = not bool(missing.get("google_maps", True))
+    ready = facebook_connected and instagram_connected and google_maps_connected
+    redirect = "/dashboard" if ready else None
+    return {
+        "facebook_connected": facebook_connected,
+        "instagram_connected": instagram_connected,
+        "google_maps_connected": google_maps_connected,
+        "ready_to_continue": ready,
+        "redirect": redirect
+    }
 
 
 @router.get("/status")
@@ -43,7 +62,7 @@ async def get_onboarding_status(current_user_email: str = Depends(get_current_us
         instagram_connected = not bool(missing.get("instagram", True))
         google_maps_connected = not bool(missing.get("google_maps", True))
         ready = facebook_connected and instagram_connected and google_maps_connected
-        redirect = "/profile/business-setup" if ready else None
+        redirect = "/dashboard" if ready else None
         return {
                 "facebook_connected": facebook_connected,
                 "instagram_connected": instagram_connected,
@@ -125,15 +144,70 @@ async def facebook_callback(request: Request, code: str = None, state: str = Non
 
 
 @router.post("/facebook/disconnect")
+@router.delete("/facebook/disconnect")
 async def facebook_disconnect(current_user_email: str = Depends(get_current_user_email)):
     """Disconnect Facebook account to allow re-authentication with updated permissions."""
     try:
-        await service.facebook_repo.delete_by_user_id(current_user_email)
-        await service.user_repo.update_connection_flags(current_user_email, facebook=False)
-        return {"success": True, "message": "Facebook disconnected. Please reconnect to grant new permissions."}
+        logging.info(f"Attempting to disconnect Facebook for user: {current_user_email}")
+        
+        # Delete from Facebook repository
+        deleted_fb = await service.facebook_repo.delete_by_user_id(current_user_email)
+        logging.info(f"Facebook account deleted: {deleted_fb}")
+        
+        # Also delete Instagram since it depends on Facebook
+        deleted_ig = await service.instagram_repo.delete_by_user_id(current_user_email)
+        logging.info(f"Instagram account deleted: {deleted_ig}")
+        
+        # Update user connection flags
+        await service.user_repo.update_connection_flags(current_user_email, facebook=False, instagram=False)
+        logging.info(f"Facebook & Instagram connection flags updated to False for {current_user_email}")
+        
+        return {"success": True, "message": "Facebook disconnected successfully. Instagram also disconnected."}
     except Exception as e:
-        logging.error(f"Failed to disconnect Facebook for {current_user_email}: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to disconnect Facebook")
+        logging.exception(f"Failed to disconnect Facebook for {current_user_email}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Failed to disconnect Facebook: {str(e)}"
+        )
+
+
+@router.post("/instagram/disconnect")
+@router.delete("/instagram/disconnect")
+async def instagram_disconnect(current_user_email: str = Depends(get_current_user_email)):
+    """Disconnect Instagram account."""
+    try:
+        logging.info(f"Attempting to disconnect Instagram for user: {current_user_email}")
+        
+        # Delete from Instagram repository
+        deleted_ig = await service.instagram_repo.delete_by_user_id(current_user_email)
+        logging.info(f"Instagram account deleted: {deleted_ig}")
+        
+        # Update user connection flags
+        await service.user_repo.update_connection_flags(current_user_email, instagram=False)
+        logging.info(f"Instagram connection flag updated to False for {current_user_email}")
+        
+        return {"success": True, "message": "Instagram disconnected successfully."}
+    except Exception as e:
+        logging.exception(f"Failed to disconnect Instagram for {current_user_email}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Failed to disconnect Instagram: {str(e)}"
+        )
+
+
+@router.post("/google/disconnect")
+async def google_disconnect(current_user_email: str = Depends(get_current_user_email)):
+    """Disconnect Google Business / Clear Location Data (via Flags only, preserves Business Setup)."""
+    try:
+        # We don't delete the BusinessModel as that is core profile data, 
+        # but we can clear the Google Business specific repo if it exists
+        # and update the flags.
+        await service.google_repo.delete_by_user_id(current_user_email)
+        await service.user_repo.update_connection_flags(current_user_email, google_maps=False)
+        return {"success": True, "message": "Google Business disconnected."}
+    except Exception as e:
+        logging.error(f"Failed to disconnect Google for {current_user_email}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to disconnect Google")
 
 
 @router.get("/success", response_class=HTMLResponse)
@@ -591,7 +665,9 @@ async def instagram_auth_popup(request: Request):
                     
                     async function checkPermissions(){
                         try{
-                            const permResp = await fetch('/api/profile/connections/facebook/granted-scopes');
+                            const permResp = await fetch('/api/profile/connections/facebook/granted-scopes', {
+                                credentials: 'include'
+                            });
                             if(permResp.ok){
                                 const permData = await permResp.json();
                                 const grantedScopes = (permData.granted_scopes || []).map(s => s.toLowerCase());
@@ -644,8 +720,65 @@ async def instagram_auth_popup(request: Request):
                             const hasPermissions = await checkPermissions();
                             if(!hasPermissions) return;
                             
-                            const r = await fetch('/api/profile/onboarding/instagram/pages');
-                            if(!r.ok) throw new Error('Failed to load pages');
+                            const r = await fetch('/api/profile/onboarding/instagram/pages', {
+                                credentials: 'include'
+                            });
+                            
+                            if(!r.ok) {
+                                const errorData = await r.json().catch(() => ({}));
+                                const detail = errorData.detail || '';
+                                
+                                // Check if Facebook is not connected
+                                if(r.status === 400 && detail.includes('Facebook not connected')) {
+                                    const container = document.getElementById('list');
+                                    container.innerHTML = `
+                                        <div class="error-box">
+                                            <strong>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                                                </svg>
+                                                Facebook Not Connected
+                                            </strong>
+                                            <p style="margin-top:8px">You need to connect Facebook first before linking Instagram.</p>
+                                            <p style="margin-top:8px;font-size:0.85rem;color:#94a3b8">Instagram Business accounts are linked through Facebook Pages.</p>
+                                            <button class="btn" onclick="window.close()" style="margin-top:16px">
+                                                Close & Connect Facebook First
+                                            </button>
+                                        </div>
+                                    `;
+                                    return;
+                                }
+                                
+                                // Check if token expired (401)
+                                if(r.status === 401 || detail.includes('expired') || detail.includes('reconnect')) {
+                                    const container = document.getElementById('list');
+                                    container.innerHTML = `
+                                        <div class="error-box">
+                                            <strong>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                                                </svg>
+                                                Facebook Token Expired
+                                            </strong>
+                                            <p style="margin-top:8px">Your Facebook connection has expired and needs to be refreshed.</p>
+                                            <p style="margin-top:8px;font-size:0.85rem;color:#94a3b8">Please reconnect Facebook to get a fresh access token.</p>
+                                            <button class="btn" onclick="reconnectFacebook()" style="margin-top:16px;width:100%">
+                                                Reconnect Facebook
+                                            </button>
+                                        </div>
+                                    `;
+                                    if(window.opener && !window.opener.closed){
+                                        window.opener.postMessage({
+                                            provider:'facebook', 
+                                            action:'reconnect',
+                                            message:'Facebook token expired. Please reconnect.'
+                                        }, '*');
+                                    }
+                                    return;
+                                }
+                                
+                                throw new Error(detail || 'Failed to load pages');
+                            }
                             const j = await r.json();
                             const pages = j.pages || [];
                             const container = document.getElementById('list');
@@ -682,7 +815,9 @@ async def instagram_auth_popup(request: Request):
                                     btn.disabled = true;
                                     btn.textContent = 'Linking...';
                                     try{
-                                        const a = await fetch(`/api/profile/onboarding/instagram/accounts?page_id=${p.id}`);
+                                        const a = await fetch(`/api/profile/onboarding/instagram/accounts?page_id=${p.id}`, {
+                                            credentials: 'include'
+                                        });
                                         if(!a.ok){
                                             let errorMsg = 'Link failed. ';
                                             try{
@@ -755,6 +890,7 @@ async def instagram_auth_popup(request: Request):
                             });
                         }catch(e){
                             const container = document.getElementById('list');
+                            const errorMsg = e.message || 'Unknown error';
                             container.innerHTML = `
                                 <div class="error-box">
                                     <strong>
@@ -763,7 +899,8 @@ async def instagram_auth_popup(request: Request):
                                         </svg>
                                         Unable to Load Pages
                                     </strong>
-                                    <p style="margin-top:8px">Please ensure you are logged in and the backend is running.</p>
+                                    <p style="margin-top:8px">${errorMsg}</p>
+                                    <p style="margin-top:8px;font-size:0.85rem;color:#94a3b8">Please ensure Facebook is connected first.</p>
                                     <button class="btn btn-secondary" onclick="location.reload()" style="margin-top:16px">
                                         Try Again
                                     </button>
@@ -787,11 +924,29 @@ async def instagram_pages(current_user_email: str = Depends(get_current_user_ema
     # return pages annotated with whether they have a linked Instagram business account
     try:
         pages = await service.fetch_pages_with_ig(fb.access_token)
-    except Exception:
+    except Exception as e:
+        error_msg = str(e)
+        logging.error(f"Error fetching pages with IG: {error_msg}")
+        # Check if this is a token-related error
+        if "400" in error_msg or "Invalid" in error_msg or "expired" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Facebook access token expired. Please reconnect Facebook."
+            )
         # fallback to raw pages if the detailed check fails
-        pages = await service.fetch_fb_pages(fb.access_token)
-        # normalize shape
-        pages = [{"id": p.get("id"), "name": p.get("name"), "has_instagram": False, "instagram": None} for p in pages]
+        try:
+            pages = await service.fetch_fb_pages(fb.access_token)
+            # normalize shape
+            pages = [{"id": p.get("id"), "name": p.get("name"), "has_instagram": False, "instagram": None} for p in pages]
+        except Exception as e2:
+            error_msg2 = str(e2)
+            logging.error(f"Error fetching raw pages: {error_msg2}")
+            if "400" in error_msg2 or "Invalid" in error_msg2 or "expired" in error_msg2.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, 
+                    detail="Facebook access token expired. Please reconnect Facebook."
+                )
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to fetch pages: {error_msg2}")
     return {"pages": pages}
 
 
@@ -854,7 +1009,16 @@ async def instagram_accounts(page_id: str, current_user_email: str = Depends(get
             username = None
             profile_picture = None
             account_type = None
-        await service.store_instagram_connection(current_user_email, ig_id, username=username, account_type=account_type, linked_fb_page_id=page_id, profile_picture_url=profile_picture)
+        await service.store_instagram_connection(
+            current_user_email, 
+            ig_id, 
+            username=username, 
+            account_type=account_type, 
+            linked_fb_page_id=page_id, 
+            profile_picture_url=profile_picture,
+            page_access_token=page_token,
+            user_access_token=fb.access_token
+        )
         return {"instagram_business_account": ig_details or ig}
     except HTTPException:
         raise

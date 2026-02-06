@@ -32,13 +32,18 @@ class ChatRequest(BaseModel):
         False, 
         description="Whether to include source documents in response"
     )
+    context: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Client context (e.g., current page, user ID) to assist the AI."
+    )
     
     class Config:
         json_schema_extra = {
             "example": {
                 "message": "What is RAAMP?",
                 "session_id": "user-123-abc",
-                "include_sources": False
+                "include_sources": False,
+                "context": {"current_page": "/dashboard/performance"}
             }
         }
 
@@ -62,6 +67,10 @@ class ChatResponse(BaseModel):
     timestamp: str = Field(
         default_factory=lambda: datetime.utcnow().isoformat(),
         description="Response timestamp"
+    )
+    audio_content: Optional[str] = Field(
+        None, 
+        description="Base64 encoded TTS audio content"
     )
     
     class Config:
@@ -118,3 +127,14 @@ class ChatStatsResponse(BaseModel):
     total_messages: int = Field(..., description="Total messages across all sessions")
     document_count: int = Field(..., description="Documents in knowledge base")
     model: str = Field(..., description="LLM model being used")
+
+class DiagnosticRequest(BaseModel):
+    """Request to run a specific diagnostic check."""
+    check_id: str = Field(..., description="ID of the check to run")
+    session_id: Optional[str] = None
+
+class DiagnosticResponse(BaseModel):
+    """Response from a diagnostic check."""
+    status: str = Field(..., description="success, warning, or failed")
+    message: str = Field(..., description="Short status message")
+    details: str = Field(..., description="Detailed explanation")

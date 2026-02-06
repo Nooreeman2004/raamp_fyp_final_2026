@@ -1,548 +1,652 @@
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
-import { Facebook, Instagram, Map, ArrowLeft, ArrowRight } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Link2, Check, ArrowRight, RefreshCw, MapPin, Search, Building2, Globe, Phone, Save, X } from "lucide-react";
+import { toast } from "sonner";
 import { apiClient } from "@/services/api";
-import MapsConnectModal from '@/components/MapsConnectModal';
-import ProgressIndicator from "@/components/ProgressIndicator";
-import Celebration from "@/components/Celebration";
-import Breadcrumbs from "@/components/Breadcrumbs";
+import { businessService } from "@/services/businessService";
+import { cn } from "@/lib/utils";
+import LocationPicker from "@/components/LocationPicker";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
+// Animation Imports
+import { motion, AnimatePresence } from "framer-motion";
+import Reveal from "@/components/ui/Reveal";
+import { staggerContainer, fadeInUp, hoverScale } from "@/utils/animations";
+import { BlurText } from "@/components/ui/text-reveal";
+
+interface OnboardingStatus {
+    facebook_connected: boolean;
+    instagram_connected: boolean;
+    google_maps_connected: boolean;
+    ready_to_continue: boolean;
+    redirect: string | null;
+}
 
 const Onboarding = () => {
-  const navigate = useNavigate();
-  const [connected, setConnected] = useState({ facebook: false, instagram: false, google: false });
-  const [loadingConnections, setLoadingConnections] = useState(false);
-  const [pagesModalOpen, setPagesModalOpen] = useState(false);
-  const [pagesList, setPagesList] = useState<any[]>([]);
-  const [fbScopes, setFbScopes] = useState<string[]>([]);
-  const [mapsModalOpen, setMapsModalOpen] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [linkHelpOpen, setLinkHelpOpen] = useState(false);
-  // Instagram will open a backend-hosted popup to list pages and link IG
+    const { refreshUser, user } = useAuth();
+    const navigate = useNavigate();
+    const [status, setStatus] = useState<OnboardingStatus>({
+        facebook_connected: false,
+        instagram_connected: false,
+        google_maps_connected: false,
+        ready_to_continue: false,
+        redirect: null
+    });
+    const [loading, setLoading] = useState(true);
+    const [connecting, setConnecting] = useState<string | null>(null);
+    const [isSavingLocation, setIsSavingLocation] = useState(false);
+    const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
+    const [platformToDisconnect, setPlatformToDisconnect] = useState<'facebook' | 'instagram' | null>(null);
+    const [disconnecting, setDisconnecting] = useState(false);
 
-  const useMock = import.meta.env.VITE_USE_MOCK_API === 'true';
+    // Location States
+    const [locationData, setLocationData] = useState({
+        address: "",
+        city: "",
+        country: "",
+        latitude: 0,
+        longitude: 0,
+        place_id: ""
+    });
+    const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
+    const [showLocationForm, setShowLocationForm] = useState(false);
 
-  // Calculate onboarding progress
-  const onboardingSteps = [
-    { id: 'profile', label: 'Profile', description: 'Personal Details' },
-    { id: 'facebook', label: 'Facebook', description: 'Connect Account' },
-    { id: 'instagram', label: 'Instagram', description: 'Connect Account' },
-    { id: 'google', label: 'Google Maps', description: 'Connect Location' },
-  ];
+    interface LocationSuggestion {
+        place_id: string;
+        name: string;
+        formatted_address: string;
+        lat: number;
+        lng: number;
+    }
 
-  const getCurrentStep = () => {
-    if (!connected.facebook && !connected.instagram && !connected.google) return 1;
-    if (connected.facebook && !connected.instagram && !connected.google) return 2;
-    if (connected.facebook && connected.instagram && !connected.google) return 3;
-    if (connected.facebook && connected.instagram && connected.google) return 4;
-    return 1;
-  };
-
-  const completedSteps = [];
-  if (connected.facebook) completedSteps.push(1);
-  if (connected.instagram) completedSteps.push(2);
-  if (connected.google) completedSteps.push(3);
-
-  // Check if Facebook is connected but missing Instagram permissions
-  // Use official Instagram Graph API scope names and canonicalize any legacy ones
-  // Minimal required for initial linking; advanced features may request more later
-  const requiredIgScopes = ['instagram_basic'];
-  const canon = (n: string) => ({
-    'instagram_business_basic': 'instagram_basic',
-    'instagram_business_manage_messages': 'instagram_manage_messages',
-    'instagram_business_manage_comments': 'instagram_manage_comments',
-    'instagram_business_content_publish': 'instagram_content_publish',
-  }[n?.toLowerCase?.()] || n?.toLowerCase?.());
-  const grantedCanon = new Set((fbScopes || []).map(s => canon(String(s))));
-  const missingIgScopes = connected.facebook ? requiredIgScopes.filter(s => !grantedCanon.has(canon(s))) : [];
-  const hasMissingIgPermissions = connected.facebook && missingIgScopes.length > 0;
-
-  const fetchConnections = async () => {
-      setLoadingConnections(true);
-    try {
-        if (useMock) {
-          // in mock mode, preserve previous state
-          return;
-        }
-
-        // Use the consolidated onboarding status endpoint
+    const fetchStatus = useCallback(async () => {
         try {
-          const s: any = await apiClient.get('/profile/onboarding/status');
-          setConnected({ facebook: !!s.facebook_connected, instagram: !!s.instagram_connected, google: !!s.google_maps_connected });
-          // fetch granted FB scopes for debugging/display
-          if (s.facebook_connected) {
-            try {
-              const g: any = await apiClient.get('/profile/connections/facebook/granted-scopes');
-              setFbScopes(g.granted_scopes || []);
-            } catch (e) {
-              setFbScopes([]);
-            }
-          } else {
-            setFbScopes([]);
-          }
-        } catch (err) {
-          // fallback to older endpoints if status endpoint unavailable
-          const [fb, ig, g] = await Promise.allSettled([
-            apiClient.get('/profile/connections/facebook'),
-            apiClient.get('/profile/connections/instagram'),
-            apiClient.get('/profile/connections/google-business'),
-          ]);
-          setConnected({
-            facebook: fb.status === 'fulfilled' && !!(fb as any).value?.connected,
-            instagram: ig.status === 'fulfilled' && !!(ig as any).value?.connected,
-            google: g.status === 'fulfilled' && !!(g as any).value?.connected,
-          });
-          // fetch granted scopes when facebook connected
-          try {
-            if (fb.status === 'fulfilled' && (fb as any).value?.connected) {
-              const g: any = await apiClient.get('/profile/connections/facebook/granted-scopes');
-              setFbScopes(g.granted_scopes || []);
-            } else {
-              setFbScopes([]);
-            }
-          } catch (e) {
-            setFbScopes([]);
-          }
+            const response = await apiClient.get<OnboardingStatus>('/profile/onboarding/status');
+            setStatus(response);
+        } catch (error) {
+            console.error("Failed to fetch onboarding status", error);
+        } finally {
+            setLoading(false);
         }
-    } catch (e) {
-      // ignore
-    } finally {
-      setLoadingConnections(false);
-    }
-  };
+    }, []);
 
-  useEffect(() => {
-    fetchConnections();
-    const id = setInterval(fetchConnections, 5000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Show celebration when all connections are complete
-  useEffect(() => {
-    if (connected.facebook && connected.instagram && connected.google && !showCelebration) {
-      setShowCelebration(true);
-    }
-  }, [connected, showCelebration]);
-
-  const openAuthWindowAndPoll = (url: string, provider: string, onSuccess?: () => Promise<void> | void) => {
-    if (provider === 'google') {
-      if (useMock) {
-        setTimeout(() => {
-          setConnected((s) => ({ ...s, google: true }));
-          toast({ title: `google connected (mock)` });
-        }, 600);
-        return;
-      }
-
-      // Open the modal-based search/confirm/connect flow
-      setMapsModalOpen(true);
-      return;
-    }
-    if (useMock) {
-      setTimeout(() => {
-        setConnected((s) => ({ ...s, [provider]: true }));
-        toast({ title: `${provider} connected (mock)` });
-      }, 600);
-      return;
-    }
-
-    try {
-      const backendBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(/\/$/, '');
-      const fullUrl = url.startsWith('/') ? `${backendBase}${url}` : `${backendBase}/${url}`;
-
-      const features = 'width=600,height=700,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes';
-      const w = window.open(fullUrl, `raamp_oauth_${provider}`, features);
-      if (!w) {
-        toast({ title: 'Popup blocked', description: 'Please allow popups for this site.', variant: 'destructive' });
-        return;
-      }
-      toast({ title: 'OAuth started', description: `Follow the ${provider} flow in the opened tab.` });
-      // Listen for popup -> opener postMessage events for faster UX
-      const messageHandler = (ev: MessageEvent) => {
+    const fetchCurrentLocation = useCallback(async () => {
         try {
-          const data = ev.data || {};
-          if (data.provider === provider) {
-            if (data.success) {
-              try { w.close(); } catch {}
-              window.removeEventListener('message', messageHandler);
-              // refresh connections and notify
-              fetchConnections();
-              toast({ title: `${provider} connected`, description: 'Your account has been linked successfully.' });
-              // also set local state optimistically
-              setConnected((s) => ({ ...s, [provider]: true }));
-              if (onSuccess) {
-                try { onSuccess(); } catch (e) { /* ignore */ }
-              }
-            } else if (data.success === false) {
-              // Handle error from popup
-              window.removeEventListener('message', messageHandler);
-              const errorMsg = data.error || 'Please check the popup window for more details.';
-              toast({ 
-                title: `${provider} connection failed`, 
-                description: errorMsg,
-                variant: 'destructive' 
-              });
-              
-              // If needs reconnect, suggest reconnecting Facebook
-              if (data.needsReconnect) {
-                setTimeout(() => {
-                  toast({
-                    title: 'Action Required',
-                    description: 'Click "Connect Facebook" to grant the required permissions.',
-                    variant: 'default'
-                  });
-                }, 2000);
-              }
+            const data = await businessService.getHyperlocalSetup();
+            if (data && data.has_setup) {
+                setLocationData({
+                    address: data.formatted_address || "",
+                    city: data.city || "",
+                    country: data.country || "",
+                    latitude: data.latitude || 0,
+                    longitude: data.longitude || 0,
+                    place_id: data.google_place_id || ""
+                });
             }
-          } else if (data.provider === 'facebook' && data.action === 'reconnect') {
-            // Handle reconnect request from Instagram popup
-            window.removeEventListener('message', messageHandler);
-            toast({
-              title: 'Reconnection Required',
-              description: data.message || 'Please reconnect Facebook with all required permissions.',
+        } catch (error: any) {
+            // 404 is expected when no location data exists yet - not an error
+            if (error?.response?.status !== 404 && error?.status !== 404) {
+                console.error("Failed to fetch location data", error);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchStatus();
+        fetchCurrentLocation();
+
+        // Listen for messages from auth popups
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data && (event.data.provider === 'facebook' || event.data.provider === 'instagram')) {
+                if (event.data.success) {
+                    toast.success("Connected!", {
+                        description: `Successfully connected to ${event.data.provider}.`,
+                    });
+                    fetchStatus(); // Refresh status
+                    refreshUser(); // Refresh global auth status
+                } else if (event.data.error) {
+                    toast.error("Connection Failed", {
+                        description: event.data.error,
+                    });
+                }
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [fetchStatus, fetchCurrentLocation, refreshUser]);
+
+    const handleConnect = async (platform: 'facebook' | 'instagram' | 'google') => {
+        setConnecting(platform);
+        if (platform === 'facebook') {
+            const width = 600;
+            const height = 700;
+            const left = window.screen.width / 2 - width / 2;
+            const top = window.screen.height / 2 - height / 2;
+
+            window.open('/api/profile/onboarding/facebook/auth', 'facebook_auth', `width=${width},height=${height},left=${left},top=${top}`);
+        } else if (platform === 'instagram') {
+            if (!status.facebook_connected) {
+                toast.error("Prerequisite Required", {
+                    description: "Please connect Facebook Ads first.",
+                });
+                return;
+            }
+            const width = 600;
+            const height = 800;
+            const left = window.screen.width / 2 - width / 2;
+            const top = window.screen.height / 2 - height / 2;
+            window.open('/api/profile/onboarding/instagram/auth', 'instagram_auth', `width=${width},height=${height},left=${left},top=${top}`);
+        } else if (platform === 'google') {
+            setShowLocationForm(!showLocationForm);
+        }
+        setConnecting(null);
+    };
+
+    const handleDisconnectClick = (platform: 'facebook' | 'instagram') => {
+        setPlatformToDisconnect(platform);
+        setDisconnectDialogOpen(true);
+    };
+
+    const handleDisconnectConfirm = async () => {
+        if (!platformToDisconnect) return;
+
+        setDisconnecting(true);
+        try {
+            const response = await apiClient.delete(`/profile/onboarding/${platformToDisconnect}/disconnect`);
+            
+            toast.success("Disconnected Successfully", {
+                description: `${platformToDisconnect === 'facebook' ? 'Facebook' : 'Instagram'} account has been disconnected.`,
             });
-            // Auto-trigger Facebook connection
-            setTimeout(() => {
-              openAuthWindowAndPoll('/profile/onboarding/facebook/auth', 'facebook');
-            }, 1500);
-          }
-        } catch (e) {
-          // ignore
+            
+            await fetchStatus();
+            await refreshUser();
+        } catch (error: any) {
+            console.error(`Disconnect ${platformToDisconnect} error:`, error);
+            const errorMessage = error?.response?.data?.detail || error?.message || `Failed to disconnect ${platformToDisconnect}`;
+            toast.error("Disconnect Failed", {
+                description: errorMessage,
+            });
+        } finally {
+            setDisconnecting(false);
+            setDisconnectDialogOpen(false);
+            setPlatformToDisconnect(null);
         }
-      };
-      window.addEventListener('message', messageHandler);
-      const start = Date.now();
-      const poll = setInterval(async () => {
+    };
+
+    const fetchSuggestions = async (query: string) => {
+        if (!query || query.length < 3) {
+            setSuggestions([]);
+            return;
+        }
         try {
-          let ok = false;
-          if (provider === 'facebook') {
-            const r: any = await apiClient.get('/profile/connections/facebook');
-            ok = !!r?.connected;
-          } else if (provider === 'instagram') {
-            const r: any = await apiClient.get('/profile/connections/instagram');
-            ok = !!r?.connected;
-          } else if (provider === 'google') {
-            const r: any = await apiClient.get('/profile/connections/google-business');
-            ok = !!r?.connected;
-          }
-          if (ok) {
-            clearInterval(poll);
-            try { w.close(); } catch {}
-            await fetchConnections();
-                toast({ title: `${provider} connected` });
-                if (onSuccess) {
-                  try { onSuccess(); } catch (e) { /* ignore */ }
-                }
-          }
-        } catch (err) {
-          // ignore
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/maps/search?query=${encodeURIComponent(query)}`);
+            if (response.ok) {
+                const data = await response.json();
+                setSuggestions(data);
+                setShowSuggestions(true);
+            }
+        } catch (error) {
+            console.error("Failed to fetch suggestions", error);
+        }
+    };
+
+    // Debounce suggestions
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (isTyping) {
+                fetchSuggestions(locationData.address);
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [locationData.address, isTyping]);
+
+    const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
+        setLocationData(prev => ({
+            ...prev,
+            address: suggestion.formatted_address || suggestion.name,
+            latitude: suggestion.lat,
+            longitude: suggestion.lng,
+            place_id: suggestion.place_id || ""
+        }));
+
+        setShowSuggestions(false);
+        setIsTyping(false);
+        toast.success("Location Selected", {
+            description: `Selected: ${suggestion.name}`,
+        });
+    };
+
+    const handleSaveLocation = async () => {
+        if (!locationData.address || locationData.latitude === 0) {
+            toast.error("Incomplete Location", {
+                description: "Please select a location and pin it on the map.",
+            });
+            return;
         }
 
-        if (Date.now() - start > 60_000) {
-          clearInterval(poll);
-        }
-      }, 2500);
-    } catch (err) {
-      toast({ title: 'Connection failed', description: String(err), variant: 'destructive' });
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl space-y-8">
-        <div className="text-center space-y-4">
-          <div className="flex justify-center mb-4">
-            <img src={raampIcon} alt="RAAMP" className="h-28 w-28" />
-          </div>
-          <h1 className="text-4xl font-bold">Secure & Seamless Onboarding</h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Dive into the future of marketing automation with RAAMP. Secure your account, connect your essential tools, and set up the platform.
-          </p>
-        </div>
-
-        <Card className="p-8 card-shadow bg-card/80 backdrop-blur-sm border-primary/20">
-          <h2 className="text-2xl font-bold mb-6 text-center">Connect Your Ecosystem</h2>
-          <p className="text-muted-foreground text-center mb-8">
-            Integrate seamlessly with your favorite platforms. Empower your RAAMP experience by connecting your vital business tools and data sources with just a few clicks.
-          </p>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Google Maps */}
-            <div className="p-6 bg-muted/50 rounded-lg border border-primary/10 hover:border-primary/30 transition-all text-center">
-              <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Map className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="font-bold mb-2">Google Maps</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Enable local business presence and geo-targeted campaigns
-              </p>
-              <Button
-                variant="hero"
-                className="w-full"
-                onClick={() => openAuthWindowAndPoll('/profile/onboarding/google-maps/connect', 'google')}
-              >
-                {connected.google ? 'Connected' : 'Connect'}
-              </Button>
-            </div>
-
-            {/* Facebook */}
-            <div className="p-6 bg-muted/50 rounded-lg border border-primary/10 hover:border-primary/30 transition-all text-center relative">
-              {hasMissingIgPermissions && (
-                <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs px-2 py-1 rounded-full font-semibold">
-                  Permissions Needed
-                </div>
-              )}
-              <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Facebook className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="font-bold mb-2">Facebook</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Sync your Facebook Ads and unlock powerful audience insights
-              </p>
-              {hasMissingIgPermissions && (
-                <p className="text-xs text-destructive mb-3 font-medium">
-                  ⚠️ Missing Instagram permissions. Please reconnect.
-                </p>
-              )}
-              <div className="space-y-2">
-                <Button
-                  variant="hero"
-                  className="w-full"
-                  onClick={() => openAuthWindowAndPoll('/profile/onboarding/facebook/auth', 'facebook')}
-                >
-                  {connected.facebook ? (hasMissingIgPermissions ? 'Reconnect' : 'Connected') : 'Connect'}
-                </Button>
-                {connected.facebook && hasMissingIgPermissions && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={async () => {
-                      try {
-                        const response: any = await apiClient.post('/profile/onboarding/facebook/disconnect', {});
-                        if (response.success) {
-                          setConnected((s) => ({ ...s, facebook: false }));
-                          toast({ title: 'Facebook Disconnected', description: 'Now click Connect to grant all permissions.' });
-                          await fetchConnections();
-                        }
-                      } catch (error) {
-                        toast({ title: 'Error', description: 'Failed to disconnect Facebook.', variant: 'destructive' });
-                      }
-                    }}
-                  >
-                    Disconnect & Start Fresh
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Instagram */}
-            <div className="p-6 bg-muted/50 rounded-lg border border-primary/10 hover:border-primary/30 transition-all text-center">
-              <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Instagram className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="font-bold mb-2">Instagram</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Create and manage Instagram campaigns with AI-powered content
-              </p>
-              <Button
-                variant="hero"
-                className="w-full"
-                onClick={async () => {
-                  if (!connected.facebook && !useMock) {
-                    toast({ title: 'Facebook required', description: 'Connect Facebook first to link Instagram.', variant: 'destructive' });
-                    return;
-                  }
-
-                  if (useMock) {
-                    setTimeout(() => {
-                      setConnected((s) => ({ ...s, instagram: true }));
-                      toast({ title: 'instagram connected (mock)' });
-                    }, 600);
-                    return;
-                  }
-
-                  // Instagram is accessed through Facebook Pages with instagram_business_account
-                  openAuthWindowAndPoll('/profile/onboarding/instagram/auth', 'instagram', async () => {
-                    setConnected((s) => ({ ...s, instagram: true }));
-                    toast({ title: 'Instagram connected successfully' });
-                    await fetchConnections();
-                  });
-                }}
-              >
-                {connected.instagram ? 'Connected' : 'Connect'}
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-8 flex justify-center">
-            <Link to="/profile/business-setup">
-              <Button
-                variant="hero"
-                size="lg"
-                disabled={!connected.facebook || !connected.instagram || !connected.google}
-                title={
-                  !connected.facebook || !connected.instagram || !connected.google
-                    ? 'Connect Google Maps, Facebook and Instagram to continue'
-                    : 'Continue to Business Setup'
+        setIsSavingLocation(true);
+        try {
+            // Try to get existing setup data, but provide defaults if it doesn't exist
+            let business_name = user?.company || "My Business"; // Use user's company name if available
+            let business_type = "General";
+            
+            try {
+                const currentSetup = await businessService.getHyperlocalSetup();
+                if (currentSetup.business_name) business_name = currentSetup.business_name;
+                if (currentSetup.business_type) business_type = currentSetup.business_type;
+            } catch (error: any) {
+                // If 404, that's fine - we'll use the defaults from above
+                if (error?.response?.status !== 404 && error?.status !== 404) {
+                    throw error; // Re-throw if it's not a 404
                 }
-              >
-                Continue to Business Setup
-              </Button>
-            </Link>
-          </div>
-        </Card>
+            }
+            
+            await businessService.saveHyperlocalSetup({
+                business_name: business_name,
+                business_type: business_type,
+                formatted_address: locationData.address,
+                latitude: locationData.latitude,
+                longitude: locationData.longitude,
+                place_id: locationData.place_id,
+                city: locationData.city,
+                country: locationData.country
+            });
 
-        <MapsConnectModal
-          isOpen={mapsModalOpen}
-          onClose={() => setMapsModalOpen(false)}
-          onConnected={(payload) => {
-            setConnected((s) => ({ ...s, google: true }));
-            toast({ title: 'Google Maps connected' });
-            fetchConnections();
-          }}
-        />
+            toast.success("Location Synced", {
+                description: "Your business coordinates have been locked.",
+            });
+            await fetchStatus();
+            await refreshUser(); // Refresh user context to update connection flags
+            setShowLocationForm(false);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Unable to save location.";
+            toast.error("Save Failed", {
+                description: errorMessage,
+            });
+            console.error("Save location error:", error);
+        } finally {
+            setIsSavingLocation(false);
+        }
+    };
 
-        {/* Help modal when no Instagram-linked Pages are found */}
-        {linkHelpOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-card p-6 rounded-lg w-full max-w-lg">
-              <h3 className="text-lg font-bold mb-2">Link a Facebook Page to Instagram</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                We couldn&apos;t find any Facebook Pages that are currently linked to an Instagram Business or Creator account.
-                To continue, link one of your Pages to Instagram in Meta, then return here and retry the connection.
-              </p>
-              {pagesList && pagesList.length > 0 && (
-                <div className="mb-4 space-y-2 max-h-40 overflow-auto">
-                  {pagesList.map((p: any) => (
-                    <div key={p.id} className="flex items-center justify-between p-2 bg-muted/40 rounded">
-                      <div>
-                        <div className="font-semibold text-sm">{p.name}</div>
-                        <div className="text-xs text-muted-foreground">Page ID: {p.id}</div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          // Open the Page in a new tab so the user can manage Instagram linking.
-                          window.open(`https://www.facebook.com/${p.id}`, '_blank');
-                        }}
-                      >
-                        Open Page
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex justify-between gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    window.open('https://help.instagram.com/1533933820244654', '_blank');
-                  }}
-                >
-                  Open Meta Help
-                </Button>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setLinkHelpOpen(false)}
-                  >
-                    Close
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setLinkHelpOpen(false);
-                      // Re-run connection checks so user can continue after linking.
-                      fetchConnections();
-                    }}
-                  >
-                    I&apos;ve linked my account
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Pages modal - simple themed modal to choose a Facebook page to link Instagram */}
-        {pagesModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-card p-6 rounded-lg w-full max-w-lg">
-              <h3 className="text-lg font-bold mb-4">Select a Facebook Page</h3>
-              <div className="space-y-3 max-h-64 overflow-auto">
-                {pagesList.map((p: any) => {
-                  const linkPage = async (pageId: string) => {
-                    try {
-                      await apiClient.get(`/profile/onboarding/instagram/accounts?page_id=${pageId}`);
-                      setPagesModalOpen(false);
-                      setConnected((s) => ({ ...s, instagram: true }));
-                      toast({ title: 'Instagram account connected successfully' });
-                      // refresh connections
-                      fetchConnections();
-                    } catch (err: any) {
-                      console.error('Link IG error', err);
-                      // If backend indicates missing permissions, show clear message
-                      const isMissing = err && (err.error === 'missing_permissions' || Array.isArray(err.missing) || (err?.detail && err.detail?.missing));
-                      if (isMissing) {
-                        // Prompt user to reconnect Facebook so required IG permissions can be re-granted
-                        const doReconnect = window.confirm(
-                          'Missing Instagram permissions. Please ensure Instagram Business account permissions are enabled in your Facebook Business settings.\n\nWould you like to reconnect Facebook now to re-authorize permissions?'
-                        );
-                        if (doReconnect) {
-                          // Trigger the same Facebook auth flow used elsewhere
-                          try {
-                            openAuthWindowAndPoll('/profile/onboarding/facebook/auth', 'facebook');
-                          } catch (e) {
-                            // Fallback toast if opening fails
-                            toast({ title: 'Reconnect failed', description: 'Unable to start Facebook reconnect flow. Please try again.', variant: 'destructive' });
-                          }
-                        } else {
-                          toast({ 
-                            title: 'Missing Instagram Permissions', 
-                            description: 'Please ensure Instagram Business account permissions are enabled in your Facebook Business settings, then reconnect Facebook.', 
-                            variant: 'destructive' 
-                          });
-                        }
-                        return;
-                      }
-                      // If no IG linked
-                      if (err && err.status === 404) {
-                        toast({ title: 'No Instagram linked to this Page.', variant: 'destructive' });
-                        return;
-                      }
-                      toast({ title: 'Link failed', description: err.message || String(err), variant: 'destructive' });
-                    }
-                  };
-
-                  return (
-                    <div key={p.id} className="flex items-center justify-between p-3 bg-muted/50 rounded">
-                      <div>
-                        <div className="font-semibold">{p.name}</div>
-                        <div className="text-sm text-muted-foreground">{p.id}</div>
-                      </div>
-                      <div>
-                        <Button size="sm" onClick={() => linkPage(p.id)}>
-                          Link
+    return (
+        <Layout breadcrumbItems={[{ label: "Profile", href: "/profile/user" }, { label: "Integrations" }]}>
+            <motion.div
+                className="space-y-6 max-w-3xl mx-auto"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                <Reveal variant="blurInUp">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Link2 className="w-7 h-7 text-primary" />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                    <BlurText text="Integrations & Onboarding" />
+                                </h1>
+                                <p className="text-muted-foreground font-mono text-sm">
+                                    Connect your social media and ad accounts
+                                </p>
+                            </div>
+                        </div>
+                        <Button variant="outline" size="icon" onClick={fetchStatus} disabled={loading} title="Refresh Status">
+                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                         </Button>
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="mt-4 flex justify-end">
-                <Button variant="ghost" onClick={() => setPagesModalOpen(false)}>Cancel</Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+                </Reveal>
+
+                <motion.div
+                    className="grid gap-4"
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                >
+                    <AnimatePresence mode="popLayout">
+                        {loading ? (
+                            Array.from({ length: 3 }).map((_, i) => (
+                                <motion.div
+                                    key={`skeleton-${i}`}
+                                    variants={fadeInUp}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                >
+                                    <div className="h-[96px] w-full bg-card/40 rounded-xl border border-white/5 animate-pulse flex items-center px-6 gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-white/5" />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-4 w-32 bg-white/5 rounded" />
+                                            <div className="h-3 w-48 bg-white/5 rounded" />
+                                        </div>
+                                        <div className="h-10 w-24 bg-white/5 rounded" />
+                                    </div>
+                                </motion.div>
+                            ))
+                        ) : (
+                            <>
+                                {/* Facebook */}
+                                <motion.div variants={fadeInUp} key="facebook">
+                                    <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10 flex items-center justify-between group">
+                                        <div className="flex items-center gap-4">
+                                            <div className={cn(
+                                                 connecting === 'facebook' ? "bg-blue-600/40 animate-pulse scale-110" : "bg-blue-600/20"
+                                            )}>
+                                                <span className="text-blue-500 font-bold text-xl">f</span>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold font-bebas tracking-wide text-lg">Facebook Ads</h3>
+                                                <p className="text-sm text-muted-foreground font-mono">Connect your ad account</p>
+                                            </div>
+                                        </div>
+                                        <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                                            {status.facebook_connected ? (
+                                                <Button
+                                                    variant="outline"
+                                                    className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 min-w-[120px]"
+                                                    onClick={() => handleDisconnectClick('facebook')}
+                                                    disabled={disconnecting}
+                                                >
+                                                    <Check className="w-4 h-4 mr-2" />
+                                                    Disconnect
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    variant="default"
+                                                    className="min-w-[100px] transition-all duration-300"
+                                                    onClick={() => handleConnect('facebook')}
+                                                    disabled={loading || connecting === 'facebook'}
+                                                >
+                                                    {connecting === 'facebook' ? (
+                                                        <span className="flex items-center gap-2">
+                                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                                            Connecting
+                                                        </span>
+                                                    ) : (
+                                                        "Connect"
+                                                    )}
+                                                </Button>
+                                            )}
+                                        </motion.div>
+                                    </Card>
+                                </motion.div>
+
+                                {/* Instagram */}
+                                <motion.div variants={fadeInUp} key="instagram">
+                                    <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10 flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className={cn(
+                                                "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500",
+                                                connecting === 'instagram' ? "bg-pink-600/40 animate-pulse scale-110" : "bg-pink-600/20"
+                                            )}>
+                                                <span className="text-pink-500 font-bold text-xl">Ig</span>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold font-bebas tracking-wide text-lg">Instagram</h3>
+                                                <div className="flex flex-col">
+                                                    <p className="text-sm text-muted-foreground font-mono">Connect for organic insights</p>
+                                                    {!status.facebook_connected && (
+                                                        <span className="text-[10px] text-amber-500/80 uppercase mt-1 font-mono">Requires Facebook Ads Connection First</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                                            {status.instagram_connected ? (
+                                                <Button
+                                                    variant="outline"
+                                                    className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 min-w-[120px]"
+                                                    onClick={() => handleDisconnectClick('instagram')}
+                                                    disabled={disconnecting}
+                                                >
+                                                    <Check className="w-4 h-4 mr-2" />
+                                                    Disconnect
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    variant="default"
+                                                    className="min-w-[100px] transition-all duration-300"
+                                                    onClick={() => handleConnect('instagram')}
+                                                    disabled={loading || !status.facebook_connected || connecting === 'instagram'}
+                                                >
+                                                    {connecting === 'instagram' ? (
+                                                        <span className="flex items-center gap-2">
+                                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                                            Connecting
+                                                        </span>
+                                                    ) : (
+                                                        "Connect"
+                                                    )}
+                                                </Button>
+                                            )}
+                                        </motion.div>
+                                    </Card>
+                                </motion.div>
+
+                                {/* Google */}
+                                <motion.div variants={fadeInUp} key="google">
+                                    <Card className={cn(
+                                        "p-6 bg-card/70 backdrop-blur-sm border-primary/10 transition-all duration-500 overflow-hidden",
+                                        showLocationForm ? "ring-1 ring-primary/30" : ""
+                                    )}>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-red-600/20 flex items-center justify-center">
+                                                    <span className="text-red-500 font-bold text-xl">G</span>
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold font-bebas tracking-wide text-lg">Google Business</h3>
+                                                    <p className="text-sm text-muted-foreground font-mono">Connect for search intent</p>
+                                                </div>
+                                            </div>
+                                            <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                                                <Button
+                                                    variant={status.google_maps_connected ? "outline" : "default"}
+                                                    className={cn(
+                                                        "min-w-[100px]",
+                                                        status.google_maps_connected ? "border-emerald-500 text-emerald-500" : ""
+                                                    )}
+                                                    onClick={() => !status.google_maps_connected && setShowLocationForm(!showLocationForm)}
+                                                    disabled={loading || status.google_maps_connected}
+                                                >
+                                                    {status.google_maps_connected ? (
+                                                        <>
+                                                            <Check className="w-4 h-4 mr-2" />
+                                                            Connected
+                                                        </>
+                                                    ) : showLocationForm ? "Cancel" : "Configure"}
+                                                </Button>
+                                            </motion.div>
+                                        </div>
+
+                                        <AnimatePresence>
+                                            {showLocationForm && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: "auto", opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ duration: 0.3 }}
+                                                    className="mt-6 pt-6 border-t border-primary/20 space-y-4 relative"
+                                                >
+                                                    <div className="space-y-2 relative">
+                                                        <Label className="font-mono text-xs">Search Location</Label>
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                                                            <Input
+                                                                className="pl-9 bg-background/50 font-mono ring-1 ring-primary/10 focus:ring-primary/30 transition-all"
+                                                                placeholder="Search for your business..."
+                                                                value={locationData.address}
+                                                                onChange={(e) => {
+                                                                    setLocationData(prev => ({ ...prev, address: e.target.value }));
+                                                                    setIsTyping(true);
+                                                                    if (!e.target.value) setShowSuggestions(false);
+                                                                }}
+                                                                onFocus={() => {
+                                                                    if (suggestions.length > 0) setShowSuggestions(true);
+                                                                }}
+                                                            />
+                                                        </div>
+
+                                                        {showSuggestions && suggestions.length > 0 && (
+                                                            <div className="absolute z-50 w-full mt-1 bg-card/95 border border-primary/30 rounded-md shadow-[0_0_20px_rgba(0,224,208,0.2)] overflow-hidden backdrop-blur-xl">
+                                                                {suggestions.map((s, i) => (
+                                                                    <button
+                                                                        key={i}
+                                                                        type="button"
+                                                                        className="w-full text-left px-4 py-2 hover:bg-primary/10 transition-colors text-sm border-b border-primary/10 last:border-0"
+                                                                        onClick={() => handleSuggestionSelect(s)}
+                                                                    >
+                                                                        <div className="font-medium text-white">{s.name}</div>
+                                                                        <div className="text-xs text-muted-foreground truncate">{s.formatted_address}</div>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="space-y-2">
+                                                            <Label className="font-mono text-xs">City</Label>
+                                                            <Input
+                                                                className="bg-background/50 font-mono"
+                                                                placeholder="City"
+                                                                value={locationData.city}
+                                                                onChange={(e) => setLocationData(prev => ({ ...prev, city: e.target.value }))}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label className="font-mono text-xs">Country</Label>
+                                                            <Input
+                                                                className="bg-background/50 font-mono"
+                                                                placeholder="Country"
+                                                                value={locationData.country}
+                                                                onChange={(e) => setLocationData(prev => ({ ...prev, country: e.target.value }))}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label className="font-mono text-xs">Pin Precise Location</Label>
+                                                        <LocationPicker
+                                                            initialLat={locationData.latitude}
+                                                            initialLng={locationData.longitude}
+                                                            onLocationSelect={(lat, lng) => {
+                                                                setLocationData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="flex justify-end pt-2">
+                                                        <Button
+                                                            onClick={handleSaveLocation}
+                                                            disabled={isSavingLocation || !locationData.address || locationData.latitude === 0}
+                                                            className="font-bebas tracking-wide"
+                                                        >
+                                                            {isSavingLocation ? (
+                                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                            ) : (
+                                                                <Save className="w-4 h-4 mr-2" />
+                                                            )}
+                                                            Save Location
+                                                        </Button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </Card>
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+
+                <Reveal variant="fadeInUp" delay={0.4}>
+                    <div className="flex justify-end">
+                        <Button
+                            variant="default"
+                            className="gap-2 font-bebas text-xl bg-primary text-black hover:bg-primary/90 px-8 py-6 h-auto tracking-wider"
+                            disabled={!status.facebook_connected || !status.instagram_connected || !status.google_maps_connected}
+                            onClick={async () => {
+                                try {
+                                    // Mark onboarding as completed
+                                    await apiClient.post('/profile/onboarding', {});
+                                    
+                                    // Refresh the user context to get updated onboarding_status
+                                    await refreshUser();
+                                    
+                                    // Small delay to ensure state propagates
+                                    await new Promise(resolve => setTimeout(resolve, 300));
+                                    
+                                    // Navigate to dashboard using React Router
+                                    navigate('/dashboard', { replace: true });
+                                } catch (error) {
+                                    console.error("Failed to complete onboarding", error);
+                                    toast.error("Launch Failed", {
+                                        description: "Failed to complete onboarding",
+                                    });
+                                }
+                            }}
+                        >
+                            Launch Dashboard <ArrowRight className="w-6 h-6 ml-2" />
+                        </Button>
+                    </div>
+                </Reveal>
+
+                {/* Disconnect Confirmation Dialog */}
+                <AlertDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>
+                                Disconnect {platformToDisconnect === 'facebook' ? 'Facebook' : 'Instagram'}?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Are you sure you want to disconnect your {platformToDisconnect === 'facebook' ? 'Facebook' : 'Instagram'} account? 
+                                {platformToDisconnect === 'facebook' && ' This will also disconnect Instagram if connected.'}
+                                {' '}You will need to reconnect to use posting features again.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={disconnecting}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleDisconnectConfirm();
+                                }}
+                                disabled={disconnecting}
+                                className="bg-destructive hover:bg-destructive/90"
+                            >
+                                {disconnecting ? (
+                                    <span className="flex items-center gap-2">
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        Disconnecting...
+                                    </span>
+                                ) : (
+                                    'Disconnect'
+                                )}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </motion.div>
+        </Layout>
+    );
 };
 
 export default Onboarding;

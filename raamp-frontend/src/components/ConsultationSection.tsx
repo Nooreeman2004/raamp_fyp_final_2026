@@ -4,16 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast as sonner } from "sonner";
 import { consultationService } from "@/services/consultationService";
 
 // Animation Imports
 import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { staggerContainer, fadeInUp, hoverScale, zoomIn, fadeIn } from "@/utils/animations";
+import { BlurText } from "@/components/ui/text-reveal";
 
 const ConsultationSection = () => {
-  const { toast } = useToast();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -40,14 +40,13 @@ const ConsultationSection = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     try {
-      toast({
-        title: "Submitting...",
+      sonner.info("Submitting...", {
         description: "Please wait while we process your request.",
       });
 
@@ -57,9 +56,8 @@ const ConsultationSection = () => {
         business_email: formData.email,
         company_name: formData.company,
       });
-      
-      toast({
-        title: "Consultation Booked!",
+
+      sonner.success("Consultation Booked!", {
         description: "Check your email for confirmation. Our team will contact you within 24-48 hours.",
       });
 
@@ -69,15 +67,12 @@ const ConsultationSection = () => {
     } catch (error: any) {
       // Check if it's a duplicate email error (409 status)
       if (error?.status === 409 || error?.detail?.includes("already been used")) {
-        toast({
-          title: "Already Registered! ✓",
-          description: error?.detail || "This email has already been used to book a consultation. Our team will contact you soon.",
+        sonner.success("Already Registered! ✓", {
+          description: error?.detail || "This email has already been used to book a consultation.",
         });
       } else {
-        toast({
-          title: "Error",
-          description: error?.detail || error?.message || "Failed to submit consultation request. Please try again.",
-          variant: "destructive",
+        sonner.error("Error", {
+          description: error?.detail || error?.message || "Failed to submit consultation request.",
         });
       }
     }
@@ -86,7 +81,7 @@ const ConsultationSection = () => {
   return (
     <section id="consultation" className="relative py-24 overflow-hidden">
       {/* Background gradient - Fades in */}
-      <motion.div 
+      <motion.div
         variants={fadeIn}
         initial="hidden"
         whileInView="visible"
@@ -94,33 +89,33 @@ const ConsultationSection = () => {
         transition={{ duration: 1.5 }}
         className="absolute inset-0 bg-gradient-to-br from-background via-card to-background"
       >
-        <div className="absolute inset-0 opacity-20" 
-             style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, hsl(var(--glow-primary) / 0.15), transparent 70%)' }} 
+        <div className="absolute inset-0 opacity-20"
+          style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, hsl(var(--glow-primary) / 0.15), transparent 70%)' }}
         />
       </motion.div>
 
       <div className="container relative z-10 mx-auto px-4">
         <div className="max-w-4xl mx-auto">
-          
+
           {/* Main Card Entrance: Zoom In */}
           <Reveal variant="zoomIn" duration={0.6}>
             <Card className="p-8 md:p-12 card-shadow bg-card/80 backdrop-blur-sm border-primary/20">
               <div className="text-center mb-8">
                 <Reveal variant="blurInUp" delay={0.2}>
-                  <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                    Book Your Free Consultation
+                  <h2 className="text-4xl md:text-5xl font-bold mb-4 font-bebas tracking-wide">
+                    <BlurText text="Book Your Free Consultation" />
                   </h2>
                 </Reveal>
                 <Reveal variant="fadeIn" delay={0.3}>
-                  <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-mono">
                     Ready to revolutionize your marketing? Get in touch with our team and discover how RAAMP can transform your business.
                   </p>
                 </Reveal>
               </div>
 
               {/* Form with Staggered Inputs */}
-              <motion.form 
-                onSubmit={handleSubmit} 
+              <motion.form
+                onSubmit={handleSubmit}
                 className="space-y-6"
                 variants={staggerContainer}
                 initial="hidden"
@@ -130,7 +125,7 @@ const ConsultationSection = () => {
                 {/* Row 1: Names */}
                 <motion.div variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-foreground">First Name*</Label>
+                    <Label htmlFor="firstName" className="text-foreground font-mono text-sm">First Name*</Label>
                     <Input
                       id="firstName"
                       placeholder="First Name*"
@@ -139,15 +134,15 @@ const ConsultationSection = () => {
                         setFormData({ ...formData, firstName: e.target.value });
                         setErrors({ ...errors, firstName: false });
                       }}
-                      className={`bg-background/50 ${errors.firstName ? 'border-destructive' : ''}`}
+                      className={`bg-background/50 font-mono ${errors.firstName ? 'border-destructive' : ''}`}
                     />
                     {errors.firstName && (
-                      <p className="text-destructive text-sm">Please complete this required field.</p>
+                      <p className="text-destructive text-sm font-mono">Please complete this required field.</p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-foreground">Last Name*</Label>
+                    <Label htmlFor="lastName" className="text-foreground font-mono text-sm">Last Name*</Label>
                     <Input
                       id="lastName"
                       placeholder="Last Name*"
@@ -156,17 +151,17 @@ const ConsultationSection = () => {
                         setFormData({ ...formData, lastName: e.target.value });
                         setErrors({ ...errors, lastName: false });
                       }}
-                      className={`bg-background/50 ${errors.lastName ? 'border-destructive' : ''}`}
+                      className={`bg-background/50 font-mono ${errors.lastName ? 'border-destructive' : ''}`}
                     />
                     {errors.lastName && (
-                      <p className="text-destructive text-sm">Please complete this required field.</p>
+                      <p className="text-destructive text-sm font-mono">Please complete this required field.</p>
                     )}
                   </div>
                 </motion.div>
 
                 {/* Row 2: Email */}
                 <motion.div variants={fadeInUp} className="space-y-2">
-                  <Label htmlFor="email" className="text-foreground">Business Email*</Label>
+                  <Label htmlFor="email" className="text-foreground font-mono text-sm">Business Email*</Label>
                   <Input
                     id="email"
                     type="email"
@@ -176,16 +171,16 @@ const ConsultationSection = () => {
                       setFormData({ ...formData, email: e.target.value });
                       setErrors({ ...errors, email: false });
                     }}
-                    className={`bg-background/50 ${errors.email ? 'border-destructive' : ''}`}
+                    className={`bg-background/50 font-mono ${errors.email ? 'border-destructive' : ''}`}
                   />
                   {errors.email && (
-                    <p className="text-destructive text-sm">Please complete this required field.</p>
+                    <p className="text-destructive text-sm font-mono">Please complete this required field.</p>
                   )}
                 </motion.div>
 
                 {/* Row 3: Company */}
                 <motion.div variants={fadeInUp} className="space-y-2">
-                  <Label htmlFor="company" className="text-foreground">Company Name*</Label>
+                  <Label htmlFor="company" className="text-foreground font-mono text-sm">Company Name*</Label>
                   <Input
                     id="company"
                     placeholder="Company Name*"
@@ -194,17 +189,17 @@ const ConsultationSection = () => {
                       setFormData({ ...formData, company: e.target.value });
                       setErrors({ ...errors, company: false });
                     }}
-                    className={`bg-background/50 ${errors.company ? 'border-destructive' : ''}`}
+                    className={`bg-background/50 font-mono ${errors.company ? 'border-destructive' : ''}`}
                   />
                   {errors.company && (
-                    <p className="text-destructive text-sm">Please complete this required field.</p>
+                    <p className="text-destructive text-sm font-mono">Please complete this required field.</p>
                   )}
                 </motion.div>
 
                 {/* Row 4: Submit Button */}
                 <motion.div variants={fadeInUp} className="flex justify-center pt-4">
                   <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                    <Button type="submit" variant="heroCta" size="lg" className="min-w-[200px]">
+                    <Button type="submit" variant="heroCta" size="lg" className="min-w-[200px] font-bebas tracking-wider">
                       Submit
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
@@ -217,11 +212,11 @@ const ConsultationSection = () => {
       </div>
 
       {/* Decorative bottom line - Expands horizontally */}
-      <motion.div 
+      <motion.div
         initial={{ scaleX: 0 }}
         whileInView={{ scaleX: 1 }}
         transition={{ duration: 0.8, ease: "circOut" }}
-        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent origin-center" 
+        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent origin-center"
       />
     </section>
   );

@@ -12,12 +12,12 @@ export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-card to-background">
       <div className="max-w-4xl mx-auto px-6 py-12">
-        
+
         {/* Header */}
         <div className="mb-8">
           <Reveal variant="fadeIn" delay={0.1}>
-            <Link 
-              to="/signup" 
+            <Link
+              to="/signup"
               className="text-primary hover:text-primary/80 transition-colors mb-4 inline-block"
             >
               ← Back to Signup
@@ -32,28 +32,28 @@ export default function PrivacyPolicy() {
         </div>
 
         {/* Content Container - Staggers the sections inside */}
-        <motion.div 
+        <motion.div
           className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 space-y-8 text-gray-200"
           variants={staggerContainer}
           initial="hidden"
           animate="visible"
         >
-          
+
           {/* Section 1 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">1. Introduction</h2>
             <p className="leading-relaxed">
-              This Privacy Policy explains how RAAMP (Revolutionary AI-Powered Autonomous Marketing Platform) collects, 
-              uses, processes, stores, and protects your personal information and business data. We are committed to 
+              This Privacy Policy explains how RAAMP (Revolutionary AI-Powered Autonomous Marketing Platform) collects,
+              uses, processes, stores, and protects your personal information and business data. We are committed to
               transparency and protecting your privacy while delivering powerful AI-driven marketing automation.
             </p>
             <p className="leading-relaxed mt-4">
-              RAAMP processes various types of data, including business information, customer insights, geolocation data, 
-              and third-party integrations. This policy applies to all users of the RAAMP platform, including business 
+              RAAMP processes various types of data, including business information, customer insights, geolocation data,
+              and third-party integrations. This policy applies to all users of the RAAMP platform, including business
               owners, marketing professionals, and team members.
             </p>
             <p className="leading-relaxed mt-4">
-              By using RAAMP, you consent to the data practices described in this policy. If you do not agree with our 
+              By using RAAMP, you consent to the data practices described in this policy. If you do not agree with our
               privacy practices, please do not use the platform.
             </p>
           </motion.section>
@@ -61,7 +61,7 @@ export default function PrivacyPolicy() {
           {/* Section 2 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">2. Information We Collect</h2>
-            
+
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">2.1 User-Provided Information</h3>
             <p className="leading-relaxed">
               When you create an account and use RAAMP, you directly provide us with the following information:
@@ -79,7 +79,7 @@ export default function PrivacyPolicy() {
             <p className="leading-relaxed">
               RAAMP collects data through authorized third-party integrations and automated systems:
             </p>
-            
+
             <div className="mt-4">
               <h4 className="font-semibold text-white mb-2">Third-Party API Data (via OAuth Authorization)</h4>
               <ul className="list-disc list-inside ml-4 space-y-2">
@@ -200,7 +200,7 @@ export default function PrivacyPolicy() {
           {/* Section 4 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">4. Data Storage, Security & Retention</h2>
-            
+
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">4.1 Where Your Data is Stored</h3>
             <p className="leading-relaxed">
               RAAMP data is stored securely on enterprise-grade cloud infrastructure:
@@ -246,7 +246,7 @@ export default function PrivacyPolicy() {
           {/* Section 5 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">5. Data Sharing & Third Parties</h2>
-            
+
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">5.1 When We Share Your Data</h3>
             <p className="leading-relaxed">
               RAAMP does not sell your personal or business data to third parties. We only share data in the following limited circumstances:
@@ -277,7 +277,7 @@ export default function PrivacyPolicy() {
           {/* Section 6 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">6. Your Rights & Choices (GDPR & Privacy Regulations)</h2>
-            
+
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">6.1 Data Access & Portability</h3>
             <p className="leading-relaxed">
               You have the right to:
@@ -368,12 +368,12 @@ export default function PrivacyPolicy() {
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">8. Children's Privacy</h2>
             <p className="leading-relaxed">
-              RAAMP is a B2B marketing platform intended for business use only. We do not knowingly collect personal 
-              information from individuals under the age of 18. If we become aware that we have collected data from a 
+              RAAMP is a B2B marketing platform intended for business use only. We do not knowingly collect personal
+              information from individuals under the age of 18. If we become aware that we have collected data from a
               minor without parental consent, we will take steps to delete that information promptly.
             </p>
             <p className="leading-relaxed mt-4">
-              If you believe we have inadvertently collected data from a minor, please contact us immediately at 
+              If you believe we have inadvertently collected data from a minor, please contact us immediately at
               privacy@raamp.ai.
             </p>
           </motion.section>
@@ -382,8 +382,8 @@ export default function PrivacyPolicy() {
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">9. International Data Transfers</h2>
             <p className="leading-relaxed">
-              RAAMP operates globally and may transfer data across international borders. If you are located in the 
-              European Economic Area (EEA), United Kingdom, or other regions with data transfer restrictions, please 
+              RAAMP operates globally and may transfer data across international borders. If you are located in the
+              European Economic Area (EEA), United Kingdom, or other regions with data transfer restrictions, please
               be aware that:
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
@@ -398,7 +398,7 @@ export default function PrivacyPolicy() {
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">10. Changes to This Privacy Policy</h2>
             <p className="leading-relaxed">
-              We may update this Privacy Policy from time to time to reflect changes in our practices, technology, 
+              We may update this Privacy Policy from time to time to reflect changes in our practices, technology,
               legal requirements, or other factors. When we make material changes, we will:
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
@@ -408,7 +408,7 @@ export default function PrivacyPolicy() {
               <li>Give you an opportunity to review the updated policy</li>
             </ul>
             <p className="leading-relaxed mt-4">
-              Your continued use of RAAMP after policy changes constitutes acceptance of the updated terms. We 
+              Your continued use of RAAMP after policy changes constitutes acceptance of the updated terms. We
               encourage you to review this policy periodically.
             </p>
           </motion.section>
@@ -417,7 +417,7 @@ export default function PrivacyPolicy() {
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">11. Contact Us</h2>
             <p className="leading-relaxed">
-              If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, 
+              If you have questions, concerns, or requests regarding this Privacy Policy or our data practices,
               please contact us:
             </p>
             <div className="mt-4 p-6 bg-white/5 rounded-lg space-y-3">
@@ -446,7 +446,7 @@ export default function PrivacyPolicy() {
           {/* Footer */}
           <motion.div variants={fadeInUp} className="border-t border-gray-700 pt-6 mt-8">
             <p className="text-sm text-gray-400">
-              By using RAAMP, you acknowledge that you have read, understood, and agree to this Privacy Policy and 
+              By using RAAMP, you acknowledge that you have read, understood, and agree to this Privacy Policy and
               our data processing practices.
             </p>
           </motion.div>
@@ -454,7 +454,7 @@ export default function PrivacyPolicy() {
 
         {/* Back to Top */}
         <Reveal variant="fadeIn" delay={0.5} className="mt-8 text-center">
-          <button 
+          <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="text-primary hover:text-primary transition-colors"
           >

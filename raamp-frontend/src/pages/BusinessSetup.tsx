@@ -1,472 +1,320 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Building2, Loader2, CheckCircle2 } from "lucide-react";
-import Layout from "@/components/Layout";
-import { toast } from "@/hooks/use-toast";
-import { apiClient } from "@/services/api";
+import { Textarea } from "@/components/ui/textarea";
+import { Building2, Save, Globe, Phone, Briefcase } from "lucide-react";
+import { toast as sonner } from "sonner";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
+import { businessService } from "@/services/businessService";
+import { useAuth } from "@/hooks/useAuth";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 // Animation Imports
 import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { hoverScale } from "@/utils/animations";
-
-interface LocationData {
-  has_location?: boolean;
-  business_name?: string;
-  formatted_address?: string;
-  latitude?: number;
-  longitude?: number;
-  place_id?: string;
-}
-
-interface BusinessDomain {
-  business: string;
-  [key: string]: unknown;
-}
-
-interface DomainsResponse {
-  domains: BusinessDomain[];
-}
-
-interface HyperlocalSetupResponse {
-  business_name?: string;
-  business_type?: string;
-  latitude?: number;
-  longitude?: number;
-  place_id?: string;
-  formatted_address?: string;
-  has_setup?: boolean;
-}
-
-interface ApiError {
-  status?: number;
-  detail?: string;
-  message?: string;
-}
-
-const RequiredLabel = ({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) => (
-  <Label htmlFor={htmlFor} className="flex items-center gap-1">
-    {children}
-    <span className="text-destructive">*</span>
-  </Label>
-);
+import { BlurText } from "@/components/ui/text-reveal";
 
 const BusinessSetup = () => {
-  const navigate = useNavigate();
-  const [businessName, setBusinessName] = useState("");
-  const [businessType, setBusinessType] = useState<string>("");
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+    const { refreshUser } = useAuth();
+    const [isLoading, setIsLoading] = useState(false);
+    const [isFetching, setIsFetching] = useState(true);
 
-  const [categories, setCategories] = useState<string[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(false);
-  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+    // Use form persistence
+    const { values: formData, handleChange, setValues, clearPersistence } = useFormPersistence("business_setup_form", {
+        businessName: "",
+        website: "",
+        phone: "",
+        description: "",
+        businessType: "",
+    });
 
-  const [location, setLocation] = useState<LocationData>({});
+    const [touched, setTouched] = useState({
+        businessName: false,
+        businessType: false,
+        phone: false,
+    });
 
-  // Validation: all required fields must be filled
-  // Required: businessName, businessType, and location (lat/lng OR place_id/address)
-  const canSave = useMemo(() => {
-    const hasName = !!businessName.trim();
-    const hasType = !!businessType && businessType !== "__loading__";
-    // Location can be valid with coordinates OR with place_id/address (for existing data)
-    const hasLocation = !!(
-      (location?.latitude && location?.longitude) || 
-      location?.place_id || 
-      location?.formatted_address
-    );
-    return hasName && hasType && hasLocation;
-  }, [businessName, businessType, location]);
-
-  useEffect(() => {
-    let mounted = true;
-    const fetchInitial = async () => {
-      setLoading(true);
-      setLoadingCategories(true);
-      setCategoriesError(null);
-      
-      try {
-        // 1) Load categories from backend business domains first
-        let labels: string[] = [];
-        try {
-          const domainsResp = await apiClient.get('/business-domains') as DomainsResponse;
-          if (!mounted) return;
-          const domains = Array.isArray(domainsResp?.domains) ? domainsResp.domains : [];
-          labels = domains.map((d: BusinessDomain) => String(d.business));
-          setCategories(labels);
-        } catch (err) {
-          console.error('Failed to load categories:', err);
-          if (mounted) setCategoriesError('Could not load categories — using defaults');
-        }
-
-        // 2) Try to load current setup (includes location from onboarding if no setup done yet)
-        try {
-          const current = await apiClient.get('/hyperlocal-setup/current') as HyperlocalSetupResponse;
-          if (!mounted) return;
-          
-          // Set location data
-          if (current?.latitude && current?.longitude) {
-            setLocation({
-              has_location: true,
-              latitude: current.latitude,
-              longitude: current.longitude,
-              place_id: current.place_id,
-              formatted_address: current.formatted_address,
-              business_name: current.business_name
-            });
-          }
-          
-          // Set business name if available
-          if (current?.business_name) {
-            setBusinessName(current.business_name);
-          }
-          
-          // Set business type if available
-          if (current?.business_type) {
-            const match = labels.find((lbl: string) => 
-              lbl.toLowerCase() === String(current.business_type).toLowerCase()
-            );
-            setBusinessType(match || current.business_type);
-          } else if (labels.length > 0) {
-            // Default to first category if none selected
-            setBusinessType(labels[0]);
-          }
-        } catch (err: unknown) {
-          const apiError = err as ApiError;
-          // If /current returns 404, try to load just the location from onboarding
-          if (apiError?.status === 404) {
+    useEffect(() => {
+        const fetchCurrentSetup = async () => {
             try {
-              const loc = await apiClient.get('/hyperlocal-setup/location') as LocationData;
-              if (!mounted) return;
-              if (loc?.has_location) {
-                setLocation(loc);
-                if (loc?.business_name) {
-                  setBusinessName(loc.business_name);
+                const data = await businessService.getHyperlocalSetup();
+                if (data && data.has_setup) {
+                    setValues({
+                        businessName: data.business_name || "",
+                        website: data.website || "",
+                        phone: data.phone || "",
+                        description: data.description || "",
+                        businessType: data.business_type || "",
+                    });
                 }
-              }
-            } catch (_) {
-              // No location saved at all
+            } catch (error) {
+                console.error("Failed to fetch current setup:", error);
+            } finally {
+                setIsFetching(false);
             }
-          }
-          
-          // Set default business type if not set
-          if (labels.length > 0) {
-            setBusinessType(labels[0]);
-          }
-        }
-      } catch (err: unknown) {
-        console.error('Error loading initial data:', err);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-          setLoadingCategories(false);
-        }
-      }
+        };
+        fetchCurrentSetup();
+    }, []);
+
+    const setValue = (key: keyof typeof formData, value: string | number) => {
+        setValues(prev => ({ ...prev, [key]: value }));
     };
 
-    fetchInitial();
-
-    return () => {
-      mounted = false;
+    const validateField = (field: string, value: any): string => {
+        switch (field) {
+            case 'businessName':
+                return !value || value.trim().length < 1 ? 'Business Name required' : '';
+            case 'businessType':
+                return !value ? 'Selection required' : '';
+            case 'phone':
+                return !value || value.trim().length < 1 ? 'Contact required' : '';
+            default:
+                return '';
+        }
     };
-  }, []);
 
-  const handleSave = async () => {
-    if (!canSave) {
-      toast({ 
-        title: 'Missing required fields', 
-        description: 'Please fill in all required fields.', 
-        variant: 'destructive' 
-      });
-      return;
-    }
+    const getFieldError = (field: string): string => {
+        if (!touched[field as keyof typeof touched]) return '';
+        const value = (formData as any)[field];
+        return validateField(field, value);
+    };
 
-    setSaving(true);
-    try {
-      const payload = {
-        business_name: businessName.trim(),
-        business_type: businessType,
-        latitude: location?.latitude || 0,
-        longitude: location?.longitude || 0,
-        place_id: location?.place_id || null,
-        formatted_address: location?.formatted_address || null,
-      };
-      
-      await apiClient.post('/hyperlocal-setup/save', payload);
-      toast({ title: 'Saved', description: 'Business setup saved successfully.' });
-      navigate("/profile/brand-settings");
-    } catch (err: unknown) {
-      const apiError = err as ApiError;
-      console.error('Save error:', err);
-      toast({ 
-        title: 'Save failed', 
-        description: apiError?.detail || apiError?.message || 'Failed to save business setup', 
-        variant: 'destructive' 
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+    const isFormValid = () => {
+        return (
+            formData.businessName.trim().length > 0 &&
+            formData.businessType.trim().length > 0 &&
+            formData.phone.trim().length > 0
+        );
+    };
 
-  if (loading) {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        setTouched({
+            businessName: true,
+            businessType: true,
+            phone: true,
+        });
+
+        if (!isFormValid()) {
+            sonner.error("Incomplete Setup", {
+                description: "Please verify all required fields marked with *",
+            });
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const response = await businessService.saveHyperlocalSetup({
+                business_name: formData.businessName,
+                business_type: formData.businessType,
+                website: formData.website,
+                phone: formData.phone,
+                description: formData.description,
+            });
+
+            if (response) {
+                clearPersistence();
+                await refreshUser();
+                sonner.success("Business Details Saved", {
+                    description: "Your business profile has been updated.",
+                });
+
+                setTimeout(() => navigate("/profile/brand-settings"), 1000);
+            }
+        } catch (error: any) {
+            sonner.error("Save Failed", {
+                description: error.message || "Unable to save business details.",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center space-y-4">
-            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading business setup...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  return (
-    <Layout>
-      <motion.div 
-        className="space-y-8 max-w-4xl mx-auto"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* Header with Location Display */}
-        <Reveal variant="blurInUp">
-          <div className="space-y-4">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Hyperlocal Business Setup</h1>
-              <p className="text-muted-foreground">
-                Define your business location and targeting parameters for hyper-local campaigns
-              </p>
-            </div>
-            
-            {/* Location Display below title */}
-            {location?.formatted_address && (
-              <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-primary">Location from Onboarding</p>
-                  <p className="text-sm text-muted-foreground truncate">{location.formatted_address}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </Reveal>
-
-        {/* Grid */}
-        <motion.div 
-          className="grid lg:grid-cols-2 gap-6"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          {/* Map Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-          >
-            <div className="h-full">
-              <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-primary" />
-                  Pin Your Location
-                  <span className="text-destructive">*</span>
-                </h2>
-                
-                <div className="aspect-square bg-muted rounded-lg mb-4 relative overflow-hidden group">
-                  {location?.latitude && location?.longitude && location.latitude !== 0 && location.longitude !== 0 ? (
-                    /* Show actual map when coordinates are available */
-                    <iframe
-                      title="Business Location Map"
-                      width="100%"
-                      height="100%"
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      allowFullScreen
-                      referrerPolicy="no-referrer-when-downgrade"
-                      src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyCONBvkHkY1P6CRKJ5x4UhClo4zPhxpovM&q=${location.latitude},${location.longitude}&zoom=15`}
-                      className="rounded-lg"
-                    />
-                  ) : (
-                    /* Show placeholder when no coordinates */
-                    <>
-                      <div className="absolute inset-0 flex items-center justify-center z-10">
-                        <div className="text-center">
-                          <Reveal variant="zoomIn" delay={0.4}>
-                            <MapPin className="w-12 h-12 text-primary mx-auto mb-2 breathing-glow group-hover:scale-110 transition-transform duration-300" />
-                          </Reveal>
-                          <p className="text-sm text-muted-foreground">Interactive Map</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Set location during onboarding
-                          </p>
+        <Layout breadcrumbItems={[{ label: "Profile", href: "/profile/user" }, { label: "Business Setup" }]}>
+            <motion.div
+                className="space-y-6 max-w-3xl mx-auto"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                <Reveal variant="blurInUp">
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Building2 className="w-7 h-7 text-primary" />
                         </div>
-                      </div>
-                      <div className="absolute inset-0 bg-primary/5 animate-pulse group-hover:bg-primary/10 transition-colors"></div>
-                    </>
-                  )}
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  {location?.formatted_address ? (
-                    <>
-                      <div className="flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="font-medium text-foreground">Saved Address:</p>
-                          <p className="text-muted-foreground">{location.formatted_address}</p>
+                            <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                <BlurText text="Business Setup" />
+                            </h1>
+                            <p className="text-muted-foreground font-mono text-sm">
+                                Manage your business location and contact details
+                            </p>
                         </div>
-                      </div>
-                      {location?.latitude && location?.longitude && location.latitude !== 0 && location.longitude !== 0 && (
-                        <p className="text-xs text-muted-foreground ml-6">
-                          Coordinates: {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
-                        </p>
-                      )}
-                    </>
-                  ) : location?.place_id ? (
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-foreground">Location Set</p>
-                        <p className="text-muted-foreground text-xs">Place ID: {location.place_id}</p>
-                      </div>
                     </div>
-                  ) : location?.latitude && location?.longitude && location.latitude !== 0 && location.longitude !== 0 ? (
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-foreground">Location Set</p>
-                        <p className="text-muted-foreground">
-                          Coordinates: {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-2 p-3 bg-destructive/10 rounded-lg">
-                      <MapPin className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-destructive">No location saved</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Please go back to onboarding and set your business location using Google Maps.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </div>
-          </motion.div>
+                </Reveal>
 
-          {/* Business Details Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
-            <div className="h-full">
-              <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-primary" />
-                  Business Details
-                </h2>
-                
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <RequiredLabel htmlFor="businessName">Business Name</RequiredLabel>
-                    <Input
-                      id="businessName"
-                      value={businessName}
-                      onChange={(e) => setBusinessName(e.target.value)}
-                      className="bg-background/50"
-                      placeholder="Enter your business name"
-                    />
-                    {!businessName.trim() && (
-                      <p className="text-xs text-destructive">Business name is required</p>
-                    )}
-                  </div>
+                <Reveal variant="fadeInUp" delay={0.1}>
+                    <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10">
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="grid gap-6 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="businessName" className="font-mono text-xs">
+                                        Business Name <span className="text-red-500">*</span>
+                                    </Label>
+                                    <div className="relative">
+                                        <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            id="businessName"
+                                            name="businessName"
+                                            value={formData.businessName}
+                                            onChange={handleChange}
+                                            onBlur={() => setTouched(prev => ({ ...prev, businessName: true }))}
+                                            className={cn(
+                                                "pl-9 bg-background/50 font-mono",
+                                                touched.businessName && !formData.businessName && "border-destructive"
+                                            )}
+                                            placeholder="Enter business name"
+                                        />
+                                    </div>
+                                    {getFieldError('businessName') && (
+                                        <p className="text-[10px] text-destructive font-mono uppercase tracking-tighter mt-1">{getFieldError('businessName')}</p>
+                                    )}
+                                </div>
 
-                  <div className="space-y-2">
-                    <RequiredLabel htmlFor="businessType">Business Type</RequiredLabel>
-                    <Select value={businessType} onValueChange={(val) => setBusinessType(val)}>
-                      <SelectTrigger className="bg-background/50">
-                        <SelectValue placeholder="Select business type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {loadingCategories ? (
-                          <SelectItem value="__loading__" disabled>
-                            Loading categories...
-                          </SelectItem>
-                        ) : categories.length > 0 ? (
-                          categories.map((c) => (
-                            <SelectItem key={c} value={c}>
-                              {c}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <>
-                            <SelectItem value="Restaurant">Restaurant</SelectItem>
-                            <SelectItem value="Retail">Retail Store</SelectItem>
-                            <SelectItem value="Services">Professional Services</SelectItem>
-                            <SelectItem value="Healthcare">Healthcare</SelectItem>
-                            <SelectItem value="Fitness">Fitness & Wellness</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {categoriesError && <p className="text-xs text-destructive mt-1">{categoriesError}</p>}
-                    {!businessType && (
-                      <p className="text-xs text-destructive">Business type is required</p>
-                    )}
-                  </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="businessType" className="font-mono text-xs">
+                                        Industry <span className="text-red-500">*</span>
+                                    </Label>
+                                    <div className="relative">
+                                        <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                                        <Select
+                                            value={formData.businessType}
+                                            onValueChange={(val) => {
+                                                setValue('businessType', val);
+                                                setTouched(prev => ({ ...prev, businessType: true }));
+                                            }}
+                                        >
+                                            <SelectTrigger className={cn(
+                                                "pl-9 bg-background/50 font-mono w-full",
+                                                touched.businessType && !formData.businessType && "border-destructive"
+                                            )}>
+                                                <SelectValue placeholder="Select industry" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Retail">Retail</SelectItem>
+                                                <SelectItem value="Hospitality">Hospitality</SelectItem>
+                                                <SelectItem value="Services">Services</SelectItem>
+                                                <SelectItem value="Fashion">Fashion</SelectItem>
+                                                <SelectItem value="Restaurant">Restaurant</SelectItem>
+                                                <SelectItem value="Technology">Technology</SelectItem>
+                                                <SelectItem value="Health">Health & Wellness</SelectItem>
+                                                <SelectItem value="Other">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    {getFieldError('businessType') && (
+                                        <p className="text-[10px] text-destructive font-mono uppercase tracking-tighter mt-1">{getFieldError('businessType')}</p>
+                                    )}
+                                </div>
 
-                  {/* Validation Summary */}
-                  {!canSave && (
-                    <div className="p-3 bg-muted/50 rounded-lg text-sm">
-                      <p className="font-medium text-muted-foreground mb-2">Required fields:</p>
-                      <ul className="space-y-1 text-xs text-muted-foreground">
-                        <li className={`flex items-center gap-2 ${businessName.trim() ? 'text-green-500' : 'text-destructive'}`}>
-                          {businessName.trim() ? '✓' : '•'} Business Name
-                        </li>
-                        <li className={`flex items-center gap-2 ${businessType && businessType !== '__loading__' ? 'text-green-500' : 'text-destructive'}`}>
-                          {businessType && businessType !== '__loading__' ? '✓' : '•'} Business Type
-                        </li>
-                        <li className={`flex items-center gap-2 ${(location?.latitude && location?.longitude) || location?.place_id || location?.formatted_address ? 'text-green-500' : 'text-destructive'}`}>
-                          {(location?.latitude && location?.longitude) || location?.place_id || location?.formatted_address ? '✓' : '•'} Location (set during onboarding)
-                        </li>
-                      </ul>
-                    </div>
-                  )}
+                                <div className="space-y-2">
+                                    <Label htmlFor="website" className="font-mono text-xs">Website</Label>
+                                    <div className="relative">
+                                        <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            id="website"
+                                            name="website"
+                                            value={formData.website}
+                                            onChange={handleChange}
+                                            className="pl-9 bg-background/50 font-mono"
+                                            placeholder="https://..."
+                                        />
+                                    </div>
+                                </div>
 
-                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                    <Button
-                      variant="hero" 
-                      className="w-full mt-4"
-                      disabled={!canSave || saving}
-                      onClick={handleSave}
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        'Continue to Brand Alignment'
-                      )}
-                    </Button>
-                  </motion.div>
-                </div>
-              </Card>
-            </div>
-          </motion.div>
-        </motion.div>
-      </motion.div>
-    </Layout>
-  );
+                                <div className="space-y-2">
+                                    <Label htmlFor="phone" className="font-mono text-xs">
+                                        Phone Number <span className="text-red-500">*</span>
+                                    </Label>
+                                    <div className="relative">
+                                        <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            id="phone"
+                                            name="phone"
+                                            value={formData.phone}
+                                            onChange={handleChange}
+                                            onBlur={() => setTouched(prev => ({ ...prev, phone: true }))}
+                                            className={cn(
+                                                "pl-9 bg-background/50 font-mono",
+                                                touched.phone && !formData.phone && "border-destructive"
+                                            )}
+                                            placeholder="+1 (555) ..."
+                                        />
+                                    </div>
+                                    {getFieldError('phone') && (
+                                        <p className="text-[10px] text-destructive font-mono uppercase tracking-tighter mt-1">{getFieldError('phone')}</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="description" className="font-mono text-xs">Business Description</Label>
+                                    <Textarea
+                                        id="description"
+                                        name="description"
+                                        value={formData.description}
+                                        onChange={handleChange}
+                                        className="bg-background/50 min-h-[100px] font-mono"
+                                        placeholder="Tell us about your business..."
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end pt-4">
+                                <motion.div variants={hoverScale} initial="rest" whileHover={isFormValid() ? "hover" : "rest"} whileTap={isFormValid() ? "tap" : "rest"}>
+                                    <Button
+                                        type="submit"
+                                        disabled={isLoading || !isFormValid()}
+                                        className={cn(
+                                            "font-bebas tracking-wide text-lg min-w-[150px]",
+                                            !isFormValid() && "opacity-50 cursor-not-allowed grayscale"
+                                        )}
+                                    >
+                                        {isLoading ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                                                Saving...
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <Save className="w-4 h-4 mr-2" />
+                                                Save & Continue
+                                            </>
+                                        )}
+                                    </Button>
+                                </motion.div>
+                            </div>
+                        </form>
+                    </Card>
+                </Reveal>
+            </motion.div>
+        </Layout>
+    );
 };
 
 export default BusinessSetup;

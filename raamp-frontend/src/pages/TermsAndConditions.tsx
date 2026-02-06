@@ -12,12 +12,12 @@ export default function TermsAndConditions() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-card to-background">
       <div className="max-w-4xl mx-auto px-6 py-12">
-        
+
         {/* Header */}
         <div className="mb-8">
           <Reveal variant="fadeIn" delay={0.1}>
-            <Link 
-              to="/signup" 
+            <Link
+              to="/signup"
               className="text-primary hover:text-primary transition-colors mb-4 inline-block"
             >
               ← Back to Signup
@@ -32,24 +32,24 @@ export default function TermsAndConditions() {
         </div>
 
         {/* Content Container - Staggers the sections inside */}
-        <motion.div 
+        <motion.div
           className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 space-y-8 text-gray-200"
           variants={staggerContainer}
           initial="hidden"
           animate="visible"
         >
-          
+
           {/* Section 1 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">1. Acceptance of Terms</h2>
             <p className="leading-relaxed">
-              By creating an account, accessing, or using RAAMP (Revolutionary AI-Powered Autonomous Marketing Platform), 
-              you agree to be bound by these Terms & Conditions and our Privacy Policy. If you are using RAAMP on behalf 
-              of a business or other legal entity, you represent and warrant that you have the authority to bind that 
+              By creating an account, accessing, or using RAAMP (Revolutionary AI-Powered Autonomous Marketing Platform),
+              you agree to be bound by these Terms & Conditions and our Privacy Policy. If you are using RAAMP on behalf
+              of a business or other legal entity, you represent and warrant that you have the authority to bind that
               entity to these terms. In such cases, "you" and "your" refer to that entity.
             </p>
             <p className="leading-relaxed mt-4">
-              If you do not agree to these terms, you must not access or use RAAMP. We reserve the right to update these 
+              If you do not agree to these terms, you must not access or use RAAMP. We reserve the right to update these
               terms at any time, and your continued use of the platform constitutes acceptance of any modifications.
             </p>
           </motion.section>
@@ -57,10 +57,10 @@ export default function TermsAndConditions() {
           {/* Section 2 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">2. Service Scope & Limitations</h2>
-            
+
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">2.1 AI-Driven Automation</h3>
             <p className="leading-relaxed">
-              RAAMP uses advanced artificial intelligence, Bayesian analytics, machine learning models (including TensorFlow), 
+              RAAMP uses advanced artificial intelligence, Bayesian analytics, machine learning models (including TensorFlow),
               and generative intelligence (including Stable Diffusion and BERT) to:
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
@@ -71,11 +71,11 @@ export default function TermsAndConditions() {
               <li>Deliver hyperlocal targeting through geolocation analysis</li>
             </ul>
             <p className="leading-relaxed mt-4">
-              <strong className="text-white">Important Disclaimer:</strong> All AI-generated outputs, predictions, and 
-              recommendations are automated and data-driven. RAAMP does not guarantee specific financial outcomes, 
-              performance metrics, or results including but not limited to: Return on Ad Spend (ROAS), lead volume, 
-              conversion rates, revenue growth, or campaign success. Users acknowledge that marketing outcomes depend 
-              on multiple factors beyond RAAMP's control, including market conditions, competition, product quality, 
+              <strong className="text-white">Important Disclaimer:</strong> All AI-generated outputs, predictions, and
+              recommendations are automated and data-driven. RAAMP does not guarantee specific financial outcomes,
+              performance metrics, or results including but not limited to: Return on Ad Spend (ROAS), lead volume,
+              conversion rates, revenue growth, or campaign success. Users acknowledge that marketing outcomes depend
+              on multiple factors beyond RAAMP's control, including market conditions, competition, product quality,
               and user implementation.
             </p>
 
@@ -89,7 +89,7 @@ export default function TermsAndConditions() {
               <li>Other marketing platform APIs and data sources</li>
             </ul>
             <p className="leading-relaxed mt-4">
-              By using RAAMP, you agree to comply with the terms of service, usage policies, and guidelines of these 
+              By using RAAMP, you agree to comply with the terms of service, usage policies, and guidelines of these
               third-party platforms. RAAMP is not responsible for:
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
@@ -104,7 +104,7 @@ export default function TermsAndConditions() {
           {/* Section 3 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">3. User Responsibilities</h2>
-            
+
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">3.1 Content Ownership & Compliance</h3>
             <p className="leading-relaxed">
               Users are solely responsible for all content created, uploaded, or generated through RAAMP, including:
@@ -117,7 +117,7 @@ export default function TermsAndConditions() {
               <li>Brand assets (logos, colors, tone guidelines)</li>
             </ul>
             <p className="leading-relaxed mt-4">
-              You represent and warrant that you have all necessary rights, licenses, consents, and permissions for any 
+              You represent and warrant that you have all necessary rights, licenses, consents, and permissions for any
               content you provide to RAAMP. You are responsible for ensuring your content and campaigns comply with:
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
@@ -149,7 +149,7 @@ export default function TermsAndConditions() {
           {/* Section 4 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">4. Intellectual Property Rights</h2>
-            
+
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">4.1 RAAMP Intellectual Property</h3>
             <p className="leading-relaxed">
               All aspects of the RAAMP platform are proprietary and protected by intellectual property laws. This includes:
@@ -167,13 +167,13 @@ export default function TermsAndConditions() {
               <li>RAAMP brand, logos, trademarks, and trade names</li>
             </ul>
             <p className="leading-relaxed mt-4">
-              Users are granted a limited, non-exclusive, non-transferable license to access and use RAAMP solely for 
+              Users are granted a limited, non-exclusive, non-transferable license to access and use RAAMP solely for
               their marketing purposes. This license does not grant any ownership rights to RAAMP's technology or intellectual property.
             </p>
 
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">4.2 User Data License</h3>
             <p className="leading-relaxed">
-              By using RAAMP, you grant RAAMP a non-exclusive, worldwide, royalty-free, perpetual license to use, process, 
+              By using RAAMP, you grant RAAMP a non-exclusive, worldwide, royalty-free, perpetual license to use, process,
               analyze, and store your data for the following purposes:
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
@@ -184,9 +184,9 @@ export default function TermsAndConditions() {
               <li>Developing new features and capabilities</li>
             </ul>
             <p className="leading-relaxed mt-4">
-              This license includes campaign data, performance metrics, tone descriptions, brand preferences, creative inputs, 
-              and engagement analytics. All data used for AI training is anonymized and aggregated to protect user privacy. 
-              RAAMP will not share your identifiable business data with third parties without your consent, except as required 
+              This license includes campaign data, performance metrics, tone descriptions, brand preferences, creative inputs,
+              and engagement analytics. All data used for AI training is anonymized and aggregated to protect user privacy.
+              RAAMP will not share your identifiable business data with third parties without your consent, except as required
               by law or specified in our Privacy Policy.
             </p>
           </motion.section>
@@ -194,10 +194,10 @@ export default function TermsAndConditions() {
           {/* Section 5 */}
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">5. Financial Terms & Billing</h2>
-            
+
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">5.1 Account Funding & Payment</h3>
             <p className="leading-relaxed">
-              Users must maintain sufficient funds in their RAAMP account to support active campaigns and platform services. 
+              Users must maintain sufficient funds in their RAAMP account to support active campaigns and platform services.
               You are responsible for:
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
@@ -209,7 +209,7 @@ export default function TermsAndConditions() {
 
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">5.2 A/B Auto-Optimization & Budget Allocation</h3>
             <p className="leading-relaxed">
-              RAAMP's A/B Auto-Optimization Layer uses AI to automatically test campaign variations and reallocate budgets 
+              RAAMP's A/B Auto-Optimization Layer uses AI to automatically test campaign variations and reallocate budgets
               based on performance. By enabling this feature, you authorize RAAMP to:
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
@@ -219,8 +219,8 @@ export default function TermsAndConditions() {
               <li>Make real-time optimization decisions within your specified budget limits</li>
             </ul>
             <p className="leading-relaxed mt-4">
-              All financial transactions, fees, refund policies, and billing terms are governed by RAAMP's Billing & Payments 
-              Policy, which is incorporated into these Terms by reference. Subscription fees are non-refundable except as 
+              All financial transactions, fees, refund policies, and billing terms are governed by RAAMP's Billing & Payments
+              Policy, which is incorporated into these Terms by reference. Subscription fees are non-refundable except as
               explicitly stated in the Billing Policy.
             </p>
           </motion.section>
@@ -229,12 +229,12 @@ export default function TermsAndConditions() {
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">6. Limitation of Liability</h2>
             <p className="leading-relaxed">
-              TO THE MAXIMUM EXTENT PERMITTED BY LAW, RAAMP SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, 
-              CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOST PROFITS, LOST REVENUE, LOST DATA, 
+              TO THE MAXIMUM EXTENT PERMITTED BY LAW, RAAMP SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
+              CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOST PROFITS, LOST REVENUE, LOST DATA,
               OR BUSINESS INTERRUPTION, ARISING FROM YOUR USE OF OR INABILITY TO USE THE PLATFORM.
             </p>
             <p className="leading-relaxed mt-4">
-              RAAMP's total liability for any claims arising from these terms or your use of the platform shall not exceed 
+              RAAMP's total liability for any claims arising from these terms or your use of the platform shall not exceed
               the amount you paid to RAAMP in the three (3) months preceding the claim.
             </p>
           </motion.section>
@@ -243,7 +243,7 @@ export default function TermsAndConditions() {
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">7. Termination</h2>
             <p className="leading-relaxed">
-              RAAMP reserves the right to suspend or terminate your account at any time for violations of these Terms, 
+              RAAMP reserves the right to suspend or terminate your account at any time for violations of these Terms,
               fraudulent activity, or any other reason at our sole discretion. Upon termination:
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
@@ -253,7 +253,7 @@ export default function TermsAndConditions() {
               <li>RAAMP may retain your data as required by law or our data retention policies</li>
             </ul>
             <p className="leading-relaxed mt-4">
-              You may terminate your account at any time through your account settings or by contacting support. 
+              You may terminate your account at any time through your account settings or by contacting support.
               Termination does not relieve you of obligations incurred prior to termination.
             </p>
           </motion.section>
@@ -262,8 +262,8 @@ export default function TermsAndConditions() {
           <motion.section variants={fadeInUp}>
             <h2 className="text-2xl font-bold text-white mb-4">8. Governing Law & Dispute Resolution</h2>
             <p className="leading-relaxed">
-              These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict 
-              of law principles. Any disputes arising from these Terms or your use of RAAMP shall be resolved through binding 
+              These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict
+              of law principles. Any disputes arising from these Terms or your use of RAAMP shall be resolved through binding
               arbitration, except where prohibited by law.
             </p>
           </motion.section>
@@ -291,7 +291,7 @@ export default function TermsAndConditions() {
 
         {/* Back to Top */}
         <Reveal variant="fadeIn" delay={0.5} className="mt-8 text-center">
-          <button 
+          <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="text-primary hover:text-primary transition-colors"
           >

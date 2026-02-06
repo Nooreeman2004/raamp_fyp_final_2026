@@ -3,13 +3,13 @@ Hyperlocal Business Setup Router - handles location and business details for geo
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from infrastructure.repositories.business_repository import BusinessRepository
-from infrastructure.repositories.google_business_repository import GoogleBusinessRepository
+from infrastructure.database.models.user_model import UserModel
 from presentation.schemas.hyperlocal_setup_schema import (
     HyperlocalBusinessSetupRequest,
     HyperlocalBusinessSetupResponse,
     HyperlocalBusinessLocationResponse
 )
-from presentation.routers.auth_router import get_current_user_email
+from presentation.routers.auth_router import get_current_user_id
 
 
 router = APIRouter(prefix="/api/hyperlocal-setup", tags=["Hyperlocal Setup"])
@@ -17,17 +17,17 @@ router = APIRouter(prefix="/api/hyperlocal-setup", tags=["Hyperlocal Setup"])
 
 @router.get("/location", response_model=HyperlocalBusinessLocationResponse)
 async def get_saved_location(
-    current_user_email: str = Depends(get_current_user_email)
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Get the user's saved location from previous onboarding step
     
-    Returns location data from Google Business connection or BusinessModel
+    Returns location data from BusinessModel (Single Source of Truth)
     """
     try:
-        # First check BusinessModel for any saved hyperlocal data
+        # BusinessModel is now the single source of truth for location data
         business_repo = BusinessRepository()
-        business = await business_repo.get_by_user_id(current_user_email)
+        business = await business_repo.get_by_user_id(current_user_id)
         
         if business and business.latitude and business.longitude:
             return HyperlocalBusinessLocationResponse(
@@ -37,20 +37,6 @@ async def get_saved_location(
                 latitude=business.latitude,
                 longitude=business.longitude,
                 place_id=business.google_place_id
-            )
-        
-        # Fallback to Google Business Location from onboarding
-        google_repo = GoogleBusinessRepository()
-        google_location = await google_repo.find_by_user_id(current_user_email)
-        
-        if google_location and google_location.latitude and google_location.longitude:
-            return HyperlocalBusinessLocationResponse(
-                has_location=True,
-                business_name=google_location.business_name,
-                formatted_address=google_location.address,
-                latitude=google_location.latitude,
-                longitude=google_location.longitude,
-                place_id=google_location.place_id
             )
         
         # No location found
@@ -69,7 +55,7 @@ async def get_saved_location(
 @router.post("/save", response_model=HyperlocalBusinessSetupResponse)
 async def save_hyperlocal_setup(
     setup: HyperlocalBusinessSetupRequest,
-    current_user_email: str = Depends(get_current_user_email)
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Save hyperlocal business setup (all fields required)
@@ -82,14 +68,33 @@ async def save_hyperlocal_setup(
         
         # Save to database
         business = await business_repo.update_hyperlocal_setup(
-            user_id=current_user_email,
+            user_id=current_user_id,
             business_name=setup.business_name,
             business_type=setup.business_type,
             latitude=setup.latitude,
             longitude=setup.longitude,
             place_id=setup.place_id,
-            formatted_address=setup.formatted_address
+            formatted_address=setup.formatted_address,
+            website=setup.website,
+            phone_number=setup.phone,
+            description=setup.description,
+            city=setup.city,
+            country=setup.country
         )
+        
+        # Update google_maps_connected flag if coordinates are valid
+        if setup.latitude and setup.longitude:
+            from infrastructure.repositories.user_repository_impl import UserRepository
+            import logging
+            user_repo = UserRepository()
+            # Get user by id to find email
+            user = await UserModel.find_one(UserModel.id == current_user_id)
+            if user:
+                logging.info(f"Updating google_maps_connected flag for user {user.email}")
+                result = await user_repo.update_connection_flags(user.email, google_maps=True)
+                logging.info(f"Flag update result: {result}, user.google_maps_connected should now be True")
+            else:
+                logging.warning(f"User not found for ID: {current_user_id}")
         
         return HyperlocalBusinessSetupResponse(
             business_name=business.business_name,
@@ -97,7 +102,12 @@ async def save_hyperlocal_setup(
             latitude=business.latitude,
             longitude=business.longitude,
             place_id=business.google_place_id,
-            formatted_address=business.business_address
+            formatted_address=business.business_address,
+            website=business.website,
+            phone=business.phone_number,
+            description=business.description,
+            city=business.city,
+            country=business.country
         )
     
     except ValueError as e:
@@ -112,20 +122,18 @@ async def save_hyperlocal_setup(
 
 @router.get("/current")
 async def get_current_setup(
-    current_user_email: str = Depends(get_current_user_email)
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Get current hyperlocal business setup.
     
-    Returns saved hyperlocal setup if available, otherwise returns location from onboarding
-    with empty business fields. This ensures the location is always shown if available.
+    Returns saved hyperlocal setup from BusinessModel (Single Source of Truth).
     """
     business_repo = BusinessRepository()
-    google_repo = GoogleBusinessRepository()
     
-    business = await business_repo.get_by_user_id(current_user_email)
+    business = await business_repo.get_by_user_id(current_user_id)
     
-    # If business exists with hyperlocal data, return it
+    # If business exists with hyperlocal data (business_type set), return full setup
     if business and business.business_name and business.business_type:
         return {
             "business_name": business.business_name,
@@ -134,24 +142,15 @@ async def get_current_setup(
             "longitude": business.longitude or 0.0,
             "place_id": business.google_place_id,
             "formatted_address": business.business_address,
+            "city": business.city,
+            "country": business.country,
+            "website": business.website,
+            "phone": business.phone_number,
+            "description": business.description,
             "has_setup": True
         }
     
-    # Check for location from onboarding (Google Business)
-    google_location = await google_repo.find_by_user_id(current_user_email)
-    
-    if google_location and google_location.latitude and google_location.longitude:
-        return {
-            "business_name": google_location.business_name or "",
-            "business_type": "",
-            "latitude": google_location.latitude,
-            "longitude": google_location.longitude,
-            "place_id": google_location.place_id,
-            "formatted_address": google_location.address,
-            "has_setup": False
-        }
-    
-    # Check if business has partial data (location from onboarding saved to business)
+    # Business has location data but not full hyperlocal setup
     if business and business.latitude and business.longitude:
         return {
             "business_name": business.business_name or "",
@@ -160,6 +159,11 @@ async def get_current_setup(
             "longitude": business.longitude,
             "place_id": business.google_place_id,
             "formatted_address": business.business_address,
+            "city": business.city,
+            "country": business.country,
+            "website": business.website,
+            "phone": business.phone_number,
+            "description": business.description,
             "has_setup": False
         }
     

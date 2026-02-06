@@ -78,6 +78,15 @@ class SignInRequest(BaseModel):
         return v.lower()
 
 
+
+class OnboardingStatus(BaseModel):
+    """Status of onboarding steps"""
+    profile_completed: bool = False
+    business_setup_completed: bool = False
+    brand_setup_completed: bool = False
+    connections_completed: bool = False
+
+
 class UserResponse(BaseModel):
     """Response schema for authenticated user"""
     id: str
@@ -98,9 +107,13 @@ class UserResponse(BaseModel):
     last_login: Optional[datetime] = None
     created_at: datetime
     
+    # New field for strict onboarding tracking
+    onboarding_status: Optional[OnboardingStatus] = None
+    
     model_config = {
         "from_attributes": True
     }
+
 
 
 class SignInResponse(BaseModel):

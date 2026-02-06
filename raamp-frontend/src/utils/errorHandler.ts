@@ -26,7 +26,7 @@ export const getErrorMessage = (error: unknown): string => {
       case 400:
         return apiError.message || "Invalid request. Please check your input and try again.";
       case 401:
-        return "You are not authenticated. Please sign in again.";
+        return "You are not authenticated. Please login again.";
       case 403:
         return "You don't have permission to perform this action.";
       case 404:

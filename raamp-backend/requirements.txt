@@ -26,6 +26,9 @@ cryptography==41.0.2
 slowapi==0.1.9
 python-jose[cryptography]==3.3.0
 
+# Scheduler
+APScheduler==3.10.4
+
 
 pymongo==4.9.2
 dnspython==2.8.0
@@ -33,14 +36,14 @@ dnspython==2.8.0
 # RAG Pipeline (RAAMP Assistant) - LangChain Stack
 langchain==0.3.10
 langchain-openai==0.2.12
-langchain-chroma==0.1.4
 langchain-community==0.3.10
-chromadb==0.4.22
-openai==1.12.0
-tiktoken==0.5.2
+pinecone>=3.0.0
+openai>=1.55.3
+tiktoken>=0.7
 tenacity==8.2.3
 
 # Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
-httpx==0.28.1
+
+axios

@@ -10,10 +10,15 @@ class HyperlocalBusinessSetupRequest(BaseModel):
     
     business_name: str = Field(..., min_length=1, description="Business name (required)")
     business_type: str = Field(..., min_length=1, description="Business type/category (required)")
-    latitude: float = Field(..., description="Business location latitude (required)")
-    longitude: float = Field(..., description="Business location longitude (required)")
+    latitude: float = Field(0.0, description="Business location latitude")
+    longitude: float = Field(0.0, description="Business location longitude")
     place_id: Optional[str] = Field(None, description="Google Place ID")
     formatted_address: Optional[str] = Field(None, description="Formatted address from Google")
+    website: Optional[str] = Field(None, description="Business website")
+    phone: Optional[str] = Field(None, description="Business phone")
+    description: Optional[str] = Field(None, description="Business description")
+    city: Optional[str] = Field(None, description="Business city")
+    country: Optional[str] = Field(None, description="Business country")
     
     @validator('business_name')
     @classmethod
@@ -70,3 +75,8 @@ class HyperlocalBusinessSetupResponse(BaseModel):
     longitude: float
     place_id: Optional[str] = None
     formatted_address: Optional[str] = None
+    website: Optional[str] = None
+    phone: Optional[str] = None
+    description: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None

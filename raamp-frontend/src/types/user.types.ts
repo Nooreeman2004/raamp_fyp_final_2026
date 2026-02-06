@@ -2,6 +2,13 @@
  * User-related type definitions
  */
 
+export interface OnboardingStatus {
+  profile_completed: boolean;
+  business_setup_completed: boolean;
+  brand_setup_completed: boolean;
+  connections_completed: boolean;
+}
+
 export interface UserResponse {
   id: string;
   username: string;
@@ -17,6 +24,7 @@ export interface UserResponse {
   profile_picture?: string | null;
   business_domain?: string | null;
   created_at: string;
+  onboarding_status?: OnboardingStatus | null;
 }
 
 export interface UpdateProfileRequest {

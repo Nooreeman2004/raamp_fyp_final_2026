@@ -4,6 +4,7 @@ from pydantic import BaseModel, EmailStr
 from infrastructure.repositories.user_repository_impl import UserRepository
 from infrastructure.repositories.pending_verification_repository import PendingVerificationRepository
 from infrastructure.database.models.user_model import UserModel
+from application.services.instagram_graph_api_service import InstagramGraphAPIClient
 from datetime import datetime
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -110,3 +111,24 @@ async def fix_user_verification(email: EmailStr):
         fixed=fixed,
         message=message
     )
+
+
+@router.post("/instagram/force-refresh/{email}")
+async def force_refresh_instagram_token(email: EmailStr):
+    """
+    Forcefully refresh Instagram token for a specific user, 
+    bypassing the 24h throttling.
+    """
+    user_repo = UserRepository()
+    user = await user_repo.find_by_email(email.lower())
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    ig_client = InstagramGraphAPIClient()
+    success = await ig_client.refresh_user_token(str(user.id))
+    
+    if success:
+        return {"status": "success", "message": f"Token refreshed for {email}"}
+    else:
+        return {"status": "failed", "message": f"Token refresh failed for {email}. Check logs."}

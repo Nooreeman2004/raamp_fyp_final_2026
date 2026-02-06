@@ -8,6 +8,7 @@ from infrastructure.repositories.facebook_repository import FacebookRepository
 from infrastructure.repositories.instagram_repository import InstagramRepository
 from infrastructure.repositories.google_business_repository import GoogleBusinessRepository
 from infrastructure.repositories.oauth_state_repository import OAuthStateRepository
+from application.services.encryption_service import EncryptionService
 from infrastructure.repositories.user_repository_impl import UserRepository
 
 
@@ -18,16 +19,44 @@ class OnboardingService:
         self.google_repo = GoogleBusinessRepository()
         self.oauth_repo = OAuthStateRepository()
         self.user_repo = UserRepository()
+        self.encryption_service = EncryptionService()
 
     async def get_onboarding_status(self, user_email: str) -> Dict[str, Any]:
         fb = await self.facebook_repo.find_by_user_id(user_email)
         ig = await self.instagram_repo.find_by_user_id(user_email)
-        gmap = await self.google_repo.find_by_user_id(user_email)
+        
+        # Check BusinessRepository for Google Maps / Business Setup status (Single Source of Truth)
+        from infrastructure.repositories.business_repository import BusinessRepository
+        business_repo = BusinessRepository()
+        
+        # Resolve user_id from email since BusinessRepository uses user_id
+        user = await self.user_repo.find_by_email(user_email)
+        business = None
+        if user:
+            business = await business_repo.get_by_user_id(str(user.id))
+        
+        # Updated logic: Consider connected if we have valid coordinates, 
+        # even if place_id is missing (e.g. manual pin drop)
+        google_connected = False
+        if business and business.latitude is not None and business.longitude is not None:
+             # Ensure they are not default 0s if that's how they are initialized, though 0.0 is valid coordinate.
+             # Assuming (0,0) is likely invalid/default for this app context if that's the issue, 
+             # but strictly 'is not None' is safer for general float checks.
+             # We also check if they are not 0.0 just in case defaults are 0.
+             if business.latitude != 0.0 or business.longitude != 0.0:
+                google_connected = True
+        
+        logging.info(f"Onboarding Status Check [{user_email}]: Business Found={bool(business)}, GoogleConnected={google_connected}, Lat={getattr(business, 'latitude', 'N/A')}, Lon={getattr(business, 'longitude', 'N/A')}")
+        
+        # Sync flags if needed
+        if google_connected and user and not getattr(user, 'google_maps_connected', False):
+             logging.info(f"Syncing google_maps_connected flag for {user_email}")
+             await self.user_repo.update_connection_flags(user.email, google_maps=True)
 
         missing = {
             "facebook": fb is None,
             "instagram": ig is None or not getattr(ig, 'ig_business_id', None),
-            "google_maps": gmap is None or not getattr(gmap, 'place_id', None)
+            "google_maps": not google_connected
         }
 
         completed = not any(missing.values())
@@ -55,6 +84,7 @@ class OnboardingService:
             "pages_show_list",
             "pages_read_engagement",
             "pages_manage_metadata",
+            "pages_manage_posts",  # Required for posting content to Facebook Pages
             # Official Instagram Graph API permissions (Business/Creator)
             "instagram_basic",
             "instagram_manage_comments",
@@ -177,6 +207,22 @@ class OnboardingService:
         doc = await self.facebook_repo.create_or_update(user_email, access_token, fb_user_id=fb_user_id, fb_pages=fb_pages, granted_scopes=granted)
         # mark user profile flag
         await self.user_repo.update_connection_flags(user_email, facebook=True)
+        
+        # Trigger Notification
+        try:
+             from application.services.notification_service import NotificationService
+             from infrastructure.database.models.notification_model import NotificationType
+             notif_service = NotificationService()
+             await notif_service.create_and_send(
+                 user_id=user_email,
+                 type=NotificationType.SYSTEM,
+                 title="Facebook Connected",
+                 message="Your Facebook Ads account has been successfully connected.",
+                 metadata={"channel": "facebook", "pages_count": len(fb_pages) if fb_pages else 0}
+             )
+        except Exception as e:
+            logging.error(f"Failed to send notification: {e}")
+
         return doc
 
     async def fetch_ig_account_for_page(self, access_token: str, page_id: str) -> Optional[Dict[str, Any]]:
@@ -246,12 +292,26 @@ class OnboardingService:
             r.raise_for_status()
             return r.json()
 
-    async def store_instagram_connection(self, user_email: str, ig_business_id: str, username: Optional[str] = None, account_type: Optional[str] = None, linked_fb_page_id: Optional[str] = None, profile_picture_url: Optional[str] = None):
+    async def store_instagram_connection(self, user_email: str, ig_business_id: str, username: Optional[str] = None, account_type: Optional[str] = None, linked_fb_page_id: Optional[str] = None, profile_picture_url: Optional[str] = None, page_access_token: Optional[str] = None, user_access_token: Optional[str] = None):
+        # encrypt tokens if provided
+        enc_page_token = self.encryption_service.encrypt(page_access_token) if page_access_token else None
+        enc_user_token = self.encryption_service.encrypt(user_access_token) if user_access_token else None
+        
         # set profile_picture_url if available
         doc = await self.instagram_repo.find_by_user_id(user_email)
         if not doc:
-            return await self.instagram_repo.create_or_update(user_email, ig_business_id=ig_business_id, username=username, account_type=account_type, linked_fb_page_id=linked_fb_page_id)
-        # update fields including profile_picture_url
+            return await self.instagram_repo.create_or_update(
+                user_email, 
+                ig_business_id=ig_business_id, 
+                username=username, 
+                account_type=account_type, 
+                linked_fb_page_id=linked_fb_page_id,
+                page_access_token=enc_page_token,
+                user_access_token=enc_user_token,
+                profile_picture_url=profile_picture_url
+            )
+        
+        # update fields including profile_picture_url and tokens
         if ig_business_id:
             doc.ig_business_id = ig_business_id
         if username:
@@ -262,17 +322,63 @@ class OnboardingService:
             doc.linked_fb_page_id = linked_fb_page_id
         if profile_picture_url:
             doc.profile_picture_url = profile_picture_url
+        if enc_page_token:
+            doc.page_access_token = enc_page_token
+        if enc_user_token:
+            doc.user_access_token = enc_user_token
+            
+        doc.token_valid = True
         doc.updated_at = __import__('datetime').datetime.utcnow()
         await doc.save()
         # mark user profile flag
         await self.user_repo.update_connection_flags(user_email, instagram=True)
+        
+        # Trigger Notification
+        try:
+             from application.services.notification_service import NotificationService
+             from infrastructure.database.models.notification_model import NotificationType
+             notif_service = NotificationService()
+             await notif_service.create_and_send(
+                 user_id=user_email,
+                 type=NotificationType.SYSTEM,
+                 title="Instagram Connected",
+                 message=f"Instagram account '{username or 'unknown'}' linked successfully.",
+                 metadata={"channel": "instagram", "username": username}
+             )
+        except Exception as e:
+            logging.error(f"Failed to send notification: {e}")
+            
         return doc
 
     async def store_google_business(self, user_email: str, business_name: str, address: str, latitude: float, longitude: float, place_id: str):
         doc = await self.google_repo.create_or_update(user_email, business_name=business_name, address=address, latitude=latitude, longitude=longitude, place_id=place_id)
         # mark user profile flag
         await self.user_repo.update_connection_flags(user_email, google_maps=True)
+        
+        # Trigger Notification
+        try:
+             from application.services.notification_service import NotificationService
+             from infrastructure.database.models.notification_model import NotificationType
+             notif_service = NotificationService()
+             await notif_service.create_and_send(
+                 user_id=user_email,
+                 type=NotificationType.SYSTEM,
+                 title="Google Business Connected",
+                 message=f"Location '{business_name}' has been linked.",
+                 metadata={"channel": "google", "business_name": business_name}
+             )
+        except Exception as e:
+            logging.error(f"Failed to send notification: {e}")
+            
         return doc
+        
+    async def sync_business_setup_to_flags(self, user_email: str):
+        """Ensure user flags match Business Setup status"""
+        from infrastructure.repositories.business_repository import BusinessRepository
+        business_repo = BusinessRepository()
+        business = await business_repo.get_by_user_id(user_email)
+        if business and business.google_place_id:
+            await self.user_repo.update_connection_flags(user_email, google_maps=True)
 
     # Retrieval helpers
     async def get_facebook_connection(self, user_email: str) -> Optional[dict]:
@@ -306,10 +412,10 @@ class OnboardingService:
         return {
             "user_id": g.user_id,
             "business_name": g.business_name,
-            "address": g.address,
+            "address": g.business_address,
             "latitude": g.latitude,
             "longitude": g.longitude,
-            "place_id": g.place_id,
+            "place_id": g.google_place_id,
         }
 
     # Instagram OAuth methods (separate from Facebook)

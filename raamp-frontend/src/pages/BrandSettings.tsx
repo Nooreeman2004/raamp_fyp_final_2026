@@ -1,442 +1,571 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import Layout from "@/components/Layout";
-import { Palette, Upload, FileText, Type, Sparkles, Loader2, Pencil, Save, Check } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { apiClient } from "@/services/api";
+import { Card } from "@/components/ui/card";
+import {
+    Palette,
+    Save,
+    Upload,
+    Trash2,
+    Plus,
+    Sparkles,
+    RefreshCcw,
+    Check,
+    X,
+    ImageIcon
+} from "lucide-react";
+import { toast as sonner } from "sonner";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
+import { businessService } from "@/services/businessService";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 // Animation Imports
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
-import { staggerContainer, fadeInUp, hoverScale, hoverLift } from "@/utils/animations";
+import { BlurText } from "@/components/ui/text-reveal";
+import { InputSpotlight } from "@/components/ui/input-spotlight";
+import { MagneticButton } from "@/components/ui/magnetic-button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const PALETTE_TEMPLATES = [
+    { name: "Neon Cyan", colors: ["#00E0D0", "#00A396", "#09151E", "#FFFFFF"], source: "template" },
+    { name: "Deep Aurora", colors: ["#7928CA", "#FF0080", "#000000", "#FFFFFF"], source: "template" },
+    { name: "Eco Leaf", colors: ["#059669", "#10B981", "#064E3B", "#FFFFFF"], source: "template" },
+    { name: "Solar Orange", colors: ["#F59E0B", "#D97706", "#78350F", "#FFFFFF"], source: "template" },
+    { name: "Midnight Steel", colors: ["#111827", "#374151", "#9CA3AF", "#FFFFFF"], source: "template" },
+];
 
-interface BrandSettingsResponse {
-  brand_logo_url?: string;
-  primary_color?: string;
-  secondary_color?: string;
-  tagline?: string;
-  tone_of_voice?: string;
-  restaurant_theme?: string;
-}
-
-interface ApiError {
-  status?: number;
-  message?: string;
-  detail?: string;
-}
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const BrandSettings = () => {
-  const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Form state
-  const [logoUrl, setLogoUrl] = useState("");
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [primaryColor, setPrimaryColor] = useState("#009999");
-  const [secondaryColor, setSecondaryColor] = useState("#005377");
-  const [toneOfVoice, setToneOfVoice] = useState("Professional, innovative, empowering, slightly futuristic, friendly.");
-  const [tagline, setTagline] = useState("");
-  const [theme, setTheme] = useState("");
-  
-  // Loading states
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [loadingSettings, setLoadingSettings] = useState(true);
-  const [isEditMode, setIsEditMode] = useState(false);
+    const navigate = useNavigate();
+    const [isLoading, setIsLoading] = useState(false);
+    const [isFetching, setIsFetching] = useState(true);
+    const [isExtracting, setIsExtracting] = useState(false);
+    const { refreshUser } = useAuth();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const logoRef = useRef<HTMLImageElement>(null);
 
-  // Load existing settings on mount
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settings = await apiClient.get('/brand-alignment/settings') as BrandSettingsResponse;
-        if (settings) {
-          setLogoUrl(settings.brand_logo_url || "");
-          setLogoPreview(settings.brand_logo_url || null);
-          setPrimaryColor(settings.primary_color || "#009999");
-          setSecondaryColor(settings.secondary_color || "#005377");
-          setTagline(settings.tagline || "");
-          setToneOfVoice(settings.tone_of_voice || "Professional, innovative, empowering, slightly futuristic, friendly.");
-          setTheme(settings.restaurant_theme || "");
+    // Use form persistence
+    const { values: formData, handleChange, clearPersistence, setValues } = useFormPersistence("brand_settings_form", {
+        brandName: "",
+        tagline: "",
+        primaryColor: "#00E0D0",
+        secondaryColor: "#09151E",
+        toneOfVoice: "",
+        restaurant_theme: "",
+        brandLogoUrl: "",
+        brand_colors: ["#00E0D0", "#09151E"],
+        palette_source: "custom"
+    });
+
+    const [touched, setTouched] = useState({
+        brandName: false,
+        restaurant_theme: false,
+        toneOfVoice: false
+    });
+
+    useEffect(() => {
+        const fetchBrandSettings = async () => {
+            try {
+                const data = await businessService.getBrandAlignment();
+                if (data) {
+                    setValues({
+                        brandName: "",
+                        tagline: data.tagline || "",
+                        primaryColor: data.primary_color || "#00E0D0",
+                        secondaryColor: data.secondary_color || "#09151E",
+                        toneOfVoice: data.tone_of_voice || "",
+                        restaurant_theme: data.restaurant_theme || "",
+                        brandLogoUrl: data.brand_logo_url || "",
+                        brand_colors: data.brand_colors && data.brand_colors.length > 0 ? data.brand_colors : ["#00E0D0", "#09151E"],
+                        palette_source: data.palette_source || "custom"
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to fetch brand settings:", error);
+            } finally {
+                setIsFetching(false);
+            }
+        };
+        fetchBrandSettings();
+    }, []);
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setIsLoading(true);
+            try {
+                const result = await businessService.uploadLogo(file);
+                if (result.success) {
+                    setValues({ ...formData, brandLogoUrl: result.logo_url });
+                    sonner.success("Logo Uploaded & Preview Ready");
+                }
+            } catch (error) {
+                console.error("Logo upload failed", error);
+                sonner.error("Upload Failed");
+            } finally {
+                setIsLoading(false);
+            }
         }
-      } catch (err: unknown) {
-        // 404 is fine - no settings saved yet
-        const apiError = err as ApiError;
-        if (apiError?.status !== 404) {
-          console.error('Failed to load brand settings:', err);
-        }
-      } finally {
-        setLoadingSettings(false);
-      }
     };
-    loadSettings();
-  }, []);
 
-  // Handle logo file selection and upload
-  const handleLogoUpload = useCallback(async (file: File) => {
-    // Validate file type
-    const allowedTypes = ['image/svg+xml', 'image/png', 'image/jpeg', 'image/jpg'];
-    if (!allowedTypes.includes(file.type)) {
-      toast({ title: 'Invalid file type', description: 'Please upload SVG, PNG, or JPG', variant: 'destructive' });
-      return;
-    }
-    // Validate file size (2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: 'File too large', description: 'Maximum file size is 2MB', variant: 'destructive' });
-      return;
-    }
+    const extractColorsFromLogo = async () => {
+        if (!formData.brandLogoUrl) {
+            sonner.error("Missing Logo", { description: "Upload a logo first to extract colors." });
+            return;
+        }
 
-    setUploadingLogo(true);
-    try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('logo', file);
+        setIsExtracting(true);
+        try {
+            // Simplified color extraction using Canvas
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            // Prefix with API_BASE_URL if it's a relative path starting with /api
+            const fullUrl = formData.brandLogoUrl.startsWith("/api")
+                ? `${API_BASE_URL}${formData.brandLogoUrl}`
+                : formData.brandLogoUrl;
 
-      const response = await fetch(`${API_BASE}/brand-alignment/upload-logo`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
+            img.src = fullUrl;
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.detail || 'Upload failed');
-      }
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+            });
 
-      const data = await response.json();
-      setLogoUrl(data.logo_url);
-      setLogoPreview(data.logo_url);
-      toast({ title: 'Logo uploaded', description: 'Your brand logo has been uploaded successfully.' });
-    } catch (err: unknown) {
-      const apiError = err as ApiError;
-      toast({ title: 'Upload failed', description: apiError.message || 'Failed to upload logo', variant: 'destructive' });
-    } finally {
-      setUploadingLogo(false);
-    }
-  }, []);
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Could not get canvas context");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleLogoUpload(file);
-  };
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleLogoUpload(file);
-  };
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            const colorMap: { [key: string]: number } = {};
 
-  // Validate all fields before save
-  const canSave = logoUrl && primaryColor && secondaryColor && tagline.trim() && toneOfVoice.trim() && theme.trim();
+            // Sample pixels (every 10th to be faster)
+            for (let i = 0; i < imageData.length; i += 40) {
+                const r = imageData[i];
+                const g = imageData[i + 1];
+                const b = imageData[i + 2];
+                const a = imageData[i + 3];
 
-  // Save all settings
-  const handleSave = async () => {
-    if (!canSave) {
-      toast({ title: 'Missing fields', description: 'Please fill in all required fields including logo, tagline, tone of voice, and theme.', variant: 'destructive' });
-      return;
-    }
+                // Skip transparent or too dark/light pixels
+                if (a < 128) continue;
 
-    setSaving(true);
-    try {
-      await apiClient.post('/brand-alignment/save', {
-        brand_logo_url: logoUrl,
-        primary_color: primaryColor,
-        secondary_color: secondaryColor,
-        tagline: tagline.trim(),
-        tone_of_voice: toneOfVoice.trim(),
-        restaurant_theme: theme.trim(),
-      });
-      toast({ title: 'Saved', description: 'Brand alignment settings saved successfully!' });
-      setIsEditMode(false);
-      navigate("/settings");
-    } catch (err: unknown) {
-      const apiError = err as ApiError;
-      toast({ title: 'Save failed', description: apiError.message || 'Failed to save settings', variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  };
+                const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
+                colorMap[hex] = (colorMap[hex] || 0) + 1;
+            }
 
-  const resetToDefaults = () => {
-    setPrimaryColor("#009999");
-    setSecondaryColor("#005377");
-    setToneOfVoice("Professional, innovative, empowering, slightly futuristic, friendly.");
-    setTagline("");
-    setTheme("");
-    // Don't reset logo
-  };
+            // Sort by frequency and take top 4
+            const sortedColors = Object.entries(colorMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4)
+                .map(entry => entry[0]);
 
-  return (
-    <Layout breadcrumbItems={[{ label: "Settings", href: "/settings" }, { label: "Brand Settings" }]}>
-      <div className="space-y-8 max-w-5xl mx-auto">
-        {/* Header */}
-        <Reveal variant="blurInUp">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Brand Alignment Settings</h1>
-              <p className="text-muted-foreground">
-                Define your brand identity for AI-generated content consistency
-              </p>
-            </div>
-            {!isEditMode ? (
-              <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                <Button variant="outline" onClick={() => setIsEditMode(true)}>
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Edit Settings
-                </Button>
-              </motion.div>
-            ) : null}
-          </div>
-        </Reveal>
+            if (sortedColors.length > 0) {
+                setValues({
+                    ...formData,
+                    brand_colors: sortedColors,
+                    primaryColor: sortedColors[0],
+                    secondaryColor: sortedColors[1] || formData.secondaryColor,
+                    palette_source: "logo"
+                });
+                sonner.success("Colors Extracted", { description: "Primary and secondary colors updated based on your logo." });
+            }
+        } catch (error) {
+            console.error("Extraction failed", error);
+            sonner.error("Extraction Error", { description: "Failed to read logo data. Ensure the server permits CORS if it's an external URL." });
+        } finally {
+            setIsExtracting(false);
+        }
+    };
 
-        {/* Staggered Grid */}
-        <motion.div 
-          className="grid md:grid-cols-2 gap-6"
-          variants={staggerContainer}
-          initial="hidden"
-          animate="visible"
-        >
-          {/* Upload Brand Logo */}
-          <motion.div variants={fadeInUp}>
-            <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
-              <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-primary" />
-                  Upload Brand Logo
-                  {isEditMode && <span className="text-destructive">*</span>}
-                </h2>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Ensure AI-generated visuals match your brand identity
-                </p>
-                
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".svg,.png,.jpg,.jpeg"
-                  className="hidden"
-                  onChange={handleFileChange}
-                  disabled={!isEditMode}
-                />
-                <motion.div 
-                    whileHover={{ scale: 1.02, borderColor: "rgba(var(--primary), 0.5)" }}
-                    whileTap={{ scale: 0.98 }}
-                    className="border-2 border-dashed border-primary/20 rounded-lg p-8 text-center hover:border-primary/40 transition-colors cursor-pointer relative"
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={handleDrop}
-                  >
-                    {uploadingLogo ? (
-                      <div className="flex flex-col items-center">
-                        <Loader2 className="w-12 h-12 text-primary mx-auto mb-3 animate-spin" />
-                        <p className="text-sm font-medium">Uploading...</p>
-                      </div>
-                    ) : logoPreview ? (
-                      <div className="flex flex-col items-center">
-                        <img src={logoPreview} alt="Brand Logo" className="w-24 h-24 object-contain mb-3 rounded" />
-                        <p className="text-sm font-medium text-primary flex items-center gap-1"><Check className="w-4 h-4" /> Logo uploaded</p>
-                        <p className="text-xs text-muted-foreground mt-1">Click to replace</p>
-                      </div>
-                    ) : (
-                      <>
-                        <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                        <p className="text-sm font-medium mb-1">Click to upload or drag and drop</p>
-                        <p className="text-xs text-muted-foreground">SVG, PNG, JPG (max. 2MB)</p>
-                      </>
-                    )}
-                  </motion.div>
-                </Card>
-              </motion.div>
-            </motion.div>
+    const applyTemplate = (template: typeof PALETTE_TEMPLATES[0]) => {
+        setValues({
+            ...formData,
+            brand_colors: [...template.colors],
+            primaryColor: template.colors[0],
+            secondaryColor: template.colors[1],
+            palette_source: "template"
+        });
+        sonner.success(`Applied ${template.name}`);
+    };
 
-            {/* Define Color Palette */}
-            <motion.div variants={fadeInUp}>
-              <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
-                <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
-                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Palette className="w-5 h-5 text-primary" />
-                    Define Color Palette
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Specify primary and secondary colors for consistency
-                  </p>
-                  
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="primaryColor">Primary Color {isEditMode && <span className="text-destructive">*</span>}</Label>
-                      <div className="flex gap-2">
-                        <motion.div whileHover={{ scale: isEditMode ? 1.1 : 1 }}>
-                          <Input
-                            id="primaryColor"
-                            type="color"
-                            value={primaryColor}
-                            onChange={(e) => setPrimaryColor(e.target.value)}
-                            className="w-16 h-10 p-1 bg-background/50 cursor-pointer"
-                            disabled={!isEditMode}
-                          />
-                        </motion.div>
-                        <Input
-                          value={primaryColor}
-                          onChange={(e) => setPrimaryColor(e.target.value)}
-                          className="flex-1 bg-background/50"
-                          placeholder="#009999"
-                          disabled={!isEditMode}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="secondaryColor">Secondary Color {isEditMode && <span className="text-destructive">*</span>}</Label>
-                      <div className="flex gap-2">
-                        <motion.div whileHover={{ scale: isEditMode ? 1.1 : 1 }}>
-                          <Input
-                            id="secondaryColor"
-                            type="color"
-                            value={secondaryColor}
-                            onChange={(e) => setSecondaryColor(e.target.value)}
-                            className="w-16 h-10 p-1 bg-background/50 cursor-pointer"
-                            disabled={!isEditMode}
-                          />
-                        </motion.div>
-                        <Input
-                          value={secondaryColor}
-                          onChange={(e) => setSecondaryColor(e.target.value)}
-                          className="flex-1 bg-background/50"
-                          placeholder="#005377"
-                          disabled={!isEditMode}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            </motion.div>
+    const addColor = () => {
+        if (formData.brand_colors.length >= 6) {
+            sonner.warning("Max Colors Reached", { description: "You can keep up to 6 colors in your palette." });
+            return;
+        }
+        setValues({ ...formData, brand_colors: [...formData.brand_colors, "#CCCCCC"] });
+    };
 
-            {/* Restaurant Tagline */}
-            <motion.div variants={fadeInUp}>
-              <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
-                <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
-                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Type className="w-5 h-5 text-primary" />
-                    Restaurant Tagline
-                    {isEditMode && <span className="text-destructive">*</span>}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    A memorable phrase that captures your restaurant's essence
-                  </p>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="tagline">Tagline {isEditMode && <span className="text-destructive">*</span>}</Label>
-                    <Input
-                      id="tagline"
-                      value={tagline}
-                      onChange={(e) => setTagline(e.target.value)}
-                      className="bg-background/50"
-                      placeholder="e.g., Where flavor meets tradition"
-                      maxLength={100}
-                      disabled={!isEditMode}
-                    />
-                    <p className="text-xs text-muted-foreground">{tagline.length}/100 characters</p>
-                  </div>
-                </Card>
-              </motion.div>
-            </motion.div>
+    const updateColor = (index: number, value: string) => {
+        const newColors = [...formData.brand_colors];
+        newColors[index] = value;
+        setValues({ ...formData, brand_colors: newColors });
+    };
 
-            {/* Set Tone of Voice */}
-            <motion.div variants={fadeInUp}>
-              <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
-                <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
-                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-primary" />
-                    Set Tone of Voice
-                    {isEditMode && <span className="text-destructive">*</span>}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Guide AI to write copy that sounds like your brand
-                  </p>
-                  
-                  <Textarea
-                    value={toneOfVoice}
-                    onChange={(e) => setToneOfVoice(e.target.value)}
-                    className="min-h-32 bg-background/50"
-                    placeholder="e.g., Professional, innovative, empowering, slightly futuristic, friendly."
-                    disabled={!isEditMode}
-                  />
-                </Card>
-              </motion.div>
-            </motion.div>
+    const removeColor = (index: number) => {
+        if (formData.brand_colors.length <= 1) return;
+        const newColors = formData.brand_colors.filter((_, i) => i !== index);
+        setValues({ ...formData, brand_colors: newColors });
+    };
 
-            {/* Restaurant Theme */}
-            <motion.div variants={fadeInUp} className="md:col-span-2">
-              <motion.div variants={hoverLift} initial="rest" whileHover="hover" className="h-full">
-                <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10 h-full">
-                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    Restaurant Theme
-                    {isEditMode && <span className="text-destructive">*</span>}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Describe the ambiance, style, and atmosphere of your restaurant
-                  </p>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="theme">Theme {isEditMode && <span className="text-destructive">*</span>}</Label>
-                    <Textarea
-                      id="theme"
-                      value={theme}
-                      onChange={(e) => setTheme(e.target.value)}
-                      className="min-h-24 bg-background/50"
-                      placeholder="e.g., Modern rustic with warm lighting, cozy atmosphere, farm-to-table aesthetic"
-                      disabled={!isEditMode}
-                    />
-                  </div>
-                </Card>
-              </motion.div>
-            </motion.div>
-          </motion.div>
+    const isFormValid = () => {
+        return (
+            formData.restaurant_theme?.trim().length > 0 &&
+            formData.toneOfVoice?.trim().length > 0 &&
+            formData.brandLogoUrl
+        );
+    };
 
-          {/* Action Buttons */}
-          <Reveal variant="fadeInUp" delay={0.6}>
-            <div className="flex justify-between items-center gap-3">
-              <p className="text-sm text-muted-foreground">
-                {isEditMode && !canSave && <span className="text-destructive">* All fields are required including logo upload</span>}
-              </p>
-              {isEditMode && (
-                <div className="flex gap-3">
-                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                    <Button variant="outline" onClick={() => setIsEditMode(false)}>Cancel</Button>
-                  </motion.div>
-                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                    <Button 
-                      variant="hero" 
-                      size="lg"
-                      onClick={handleSave}
-                      disabled={!canSave || saving}
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4 mr-2" />
-                          Save Changes
-                        </>
-                      )}
-                    </Button>
-                  </motion.div>
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        setTouched({
+            brandName: true,
+            restaurant_theme: true,
+            toneOfVoice: true
+        });
+
+        if (!isFormValid()) {
+            sonner.error("Incomplete Setup", {
+                description: "Logo, Theme, and Tone of Voice parameters are required.",
+            });
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            await businessService.saveBrandAlignment({
+                brand_logo_url: formData.brandLogoUrl,
+                primary_color: formData.brand_colors[0] || formData.primaryColor,
+                secondary_color: formData.brand_colors[1] || formData.secondaryColor,
+                tagline: formData.tagline,
+                tone_of_voice: formData.toneOfVoice,
+                restaurant_theme: formData.restaurant_theme,
+                brand_colors: formData.brand_colors,
+                palette_source: formData.palette_source
+            });
+
+            clearPersistence();
+            await refreshUser();
+
+            sonner.success("Brand DNA Locked In", {
+                description: "Your autonomous marketing identity is ready and synchronized.",
+            });
+
+            setTimeout(() => navigate("/dashboard"), 1000);
+        } catch (error) {
+            console.error("Failed to save brand settings", error);
+            sonner.error("Sync Failed");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (isFetching) {
+        return (
+            <Layout>
+                <div className="h-[60vh] flex items-center justify-center">
+                    <RefreshCcw className="w-8 h-8 animate-spin text-primary" />
                 </div>
-              )}
-            </div>
-          </Reveal>
-        </div>
-    </Layout>
-  );
+            </Layout>
+        );
+    }
+
+    return (
+        <Layout breadcrumbItems={[{ label: "Profile", href: "/profile/user" }, { label: "Brand Settings" }]}>
+            <motion.div
+                className="space-y-6 max-w-5xl mx-auto pb-20"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                <Reveal variant="blurInUp">
+                    <div className="flex items-center gap-4 mb-8">
+                        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                            <Palette className="w-7 h-7 text-primary" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                <BlurText text="Brand Identity Matrix" />
+                            </h1>
+                            <p className="text-muted-foreground font-mono text-xs uppercase tracking-widest">
+                                Configure the DNA of your autonomous marketing agent.
+                            </p>
+                        </div>
+                    </div>
+                </Reveal>
+
+                <div className="grid gap-6 lg:grid-cols-3">
+                    {/* Left Column: Assets & Colors */}
+                    <div className="lg:col-span-2 space-y-6">
+                        {/* Logo Management */}
+                        <Card className="p-6 bg-card/70 backdrop-blur-sm border-white/5 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                                <ImageIcon size={80} />
+                            </div>
+
+                            <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em] mb-4 block">
+                                Visual DNA (Logo) <span className="text-red-500">*</span>
+                            </Label>
+
+                            <div className="flex flex-col md:flex-row gap-6 items-center">
+                                <div className="relative w-full md:w-56 h-40 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center p-4 overflow-hidden group-hover:border-primary/30 transition-all duration-500">
+                                    {formData.brandLogoUrl ? (
+                                        <img
+                                            src={formData.brandLogoUrl.startsWith("/api") ? `${API_BASE_URL}${formData.brandLogoUrl}` : formData.brandLogoUrl}
+                                            alt="Logo Preview"
+                                            className="max-w-full max-h-full object-contain z-10 drop-shadow-2xl"
+                                            ref={logoRef}
+                                        />
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                            <Upload size={24} className="animate-pulse" />
+                                            <p className="text-[10px] uppercase font-mono">No Asset Detected</p>
+                                        </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+
+                                <div className="flex-1 space-y-4 w-full">
+                                    <div className="flex flex-wrap gap-2">
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={handleLogoUpload}
+                                        />
+                                        <Button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            variant="outline"
+                                            className="font-mono text-[11px] uppercase tracking-tighter h-9 gap-2 border-white/10 hover:border-primary/50"
+                                        >
+                                            <Upload size={14} />
+                                            {formData.brandLogoUrl ? "Change Logo" : "Upload Logo"}
+                                        </Button>
+
+                                        {formData.brandLogoUrl && (
+                                            <Button
+                                                onClick={extractColorsFromLogo}
+                                                disabled={isExtracting}
+                                                variant="secondary"
+                                                className="font-mono text-[11px] uppercase tracking-tighter h-9 gap-2 bg-primary/10 text-primary hover:bg-primary/20 border-none"
+                                            >
+                                                {isExtracting ? <RefreshCcw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                                Extract Colors
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground leading-relaxed font-mono">
+                                        * Transparent PNG or vector SVG recommended for best AI generation results.
+                                    </p>
+                                </div>
+                            </div>
+                        </Card>
+
+                        {/* Color Management */}
+                        <Card className="p-6 bg-card/70 backdrop-blur-sm border-white/5">
+                            <div className="flex items-center justify-between mb-6">
+                                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em]">Color Frequency Matrix</Label>
+                                <div className="flex items-center gap-2">
+                                    <span className={cn(
+                                        "text-[9px] font-mono px-2 py-0.5 rounded-full uppercase tracking-tighter",
+                                        formData.palette_source === "logo" ? "bg-primary/20 text-primary border border-primary/20" :
+                                            formData.palette_source === "template" ? "bg-blue-500/20 text-blue-400 border border-blue-500/20" :
+                                                "bg-neutral-800 text-neutral-400"
+                                    )}>
+                                        Source: {formData.palette_source}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-8">
+                                {/* Current Palette */}
+                                <div className="flex flex-wrap gap-4">
+                                    <AnimatePresence mode="popLayout">
+                                        {formData.brand_colors.map((color, index) => (
+                                            <motion.div
+                                                key={`color-${index}`}
+                                                layout
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.8 }}
+                                                className="group relative"
+                                            >
+                                                <div
+                                                    className="w-16 h-16 rounded-2xl border border-white/5 shadow-xl cursor-crosshair relative overflow-hidden ring-offset-2 ring-primary/20 transition-all hover:ring-2"
+                                                    style={{ backgroundColor: color }}
+                                                >
+                                                    <Input
+                                                        type="color"
+                                                        value={color}
+                                                        onChange={(e) => updateColor(index, e.target.value)}
+                                                        className="absolute inset-0 opacity-0 cursor-pointer h-full w-full"
+                                                    />
+                                                </div>
+                                                <div className="mt-2 text-center">
+                                                    <span className="text-[9px] font-mono uppercase text-muted-foreground tracking-tighter block mb-1">
+                                                        {index === 0 ? "PRIMARY" : index === 1 ? "SECONDARY" : "ACCENT"}
+                                                    </span>
+                                                    <Input
+                                                        value={color}
+                                                        onChange={(e) => updateColor(index, e.target.value)}
+                                                        className="h-6 w-16 text-[9px] font-mono text-center bg-black/40 border-white/5 p-0"
+                                                    />
+                                                </div>
+                                                {index > 1 && (
+                                                    <button
+                                                        onClick={() => removeColor(index)}
+                                                        className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg"
+                                                    >
+                                                        <X size={10} />
+                                                    </button>
+                                                )}
+                                            </motion.div>
+                                        ))}
+
+                                        {formData.brand_colors.length < 6 && (
+                                            <motion.button
+                                                layout
+                                                onClick={addColor}
+                                                className="w-16 h-16 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary group"
+                                            >
+                                                <Plus size={16} />
+                                                <span className="text-[8px] font-mono uppercase tracking-tighter">Add</span>
+                                            </motion.button>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                {/* Templates */}
+                                <div className="pt-4 border-t border-white/5">
+                                    <Label className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-[0.2em] mb-4 block">Engineered Presets</Label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                                        {PALETTE_TEMPLATES.map((tmpl) => (
+                                            <button
+                                                key={tmpl.name}
+                                                onClick={() => applyTemplate(tmpl)}
+                                                className="group p-2 rounded-xl bg-black/20 border border-white/5 hover:border-white/10 transition-all text-left"
+                                            >
+                                                <div className="flex h-3 w-full rounded-sm overflow-hidden mb-2">
+                                                    {tmpl.colors.map((c, i) => (
+                                                        <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+                                                    ))}
+                                                </div>
+                                                <span className="text-[8px] font-mono text-muted-foreground uppercase truncate block group-hover:text-white transition-colors">{tmpl.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+
+                    {/* Right Column: AI Parameters */}
+                    <div className="space-y-6">
+                        <Card className="p-6 bg-card/70 backdrop-blur-sm border-white/5 h-full">
+                            <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em] mb-6 block">Semantic Parameters</Label>
+
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-mono text-muted-foreground uppercase">Tagline</Label>
+                                    <InputSpotlight
+                                        name="tagline"
+                                        value={formData.tagline}
+                                        onChange={handleChange}
+                                        placeholder="Enter the catchphrase"
+                                        className="bg-black/40 h-10 text-xs font-mono"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-mono text-muted-foreground uppercase">
+                                        Restaurant Theme <span className="text-red-500">*</span>
+                                    </Label>
+                                    <InputSpotlight
+                                        name="restaurant_theme"
+                                        value={formData.restaurant_theme}
+                                        onChange={handleChange}
+                                        onBlur={() => setTouched(prev => ({ ...prev, restaurant_theme: true }))}
+                                        placeholder="e.g. Minimalist Tokyo Street"
+                                        className={cn(
+                                            "bg-black/40 h-10 text-xs font-mono",
+                                            touched.restaurant_theme && !formData.restaurant_theme && "border-destructive/50"
+                                        )}
+                                    />
+                                    {touched.restaurant_theme && !formData.restaurant_theme && (
+                                        <p className="text-[9px] text-destructive font-mono uppercase tracking-tighter mt-1">Input Required</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-mono text-muted-foreground uppercase">
+                                        Tone of Voice <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Textarea
+                                        name="toneOfVoice"
+                                        value={formData.toneOfVoice}
+                                        onChange={handleChange}
+                                        onBlur={() => setTouched(prev => ({ ...prev, toneOfVoice: true }))}
+                                        className={cn(
+                                            "w-full h-40 bg-black/40 border-white/10 resize-none font-mono text-[11px] p-4 focus:border-primary/50 transition-colors scrollbar-none",
+                                            touched.toneOfVoice && !formData.toneOfVoice && "border-destructive/50"
+                                        )}
+                                        placeholder="How should your AI speak? Friendly, Elite, Sarcastic, Professional..."
+                                    />
+                                    {touched.toneOfVoice && !formData.toneOfVoice && (
+                                        <p className="text-[9px] text-destructive font-mono uppercase tracking-tighter mt-1">Semantics Required</p>
+                                    )}
+                                </div>
+
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="pt-4">
+                                                <MagneticButton
+                                                    type="submit"
+                                                    disabled={isLoading || !isFormValid()}
+                                                    className={cn(
+                                                        "w-full bg-primary text-black font-bold h-12 rounded-xl shadow-[0_0_30px_rgba(0,224,208,0.2)]",
+                                                        (!isFormValid() || isLoading) && "opacity-20 grayscale-0"
+                                                    )}
+                                                >
+                                                    {isLoading ? (
+                                                        <RefreshCcw className="w-5 h-5 animate-spin" />
+                                                    ) : (
+                                                        <div className="flex items-center justify-center gap-2 font-bebas tracking-widest text-lg">
+                                                            <Check size={20} strokeWidth={3} />
+                                                            Commit Matrix
+                                                        </div>
+                                                    )}
+                                                </MagneticButton>
+                                            </div>
+                                        </TooltipTrigger>
+                                        {!isFormValid() && (
+                                            <TooltipContent className="bg-destructive text-destructive-foreground border-none font-mono text-[10px]">
+                                                IDENTIFY CORE PARAMETERS TO CONTINUE
+                                            </TooltipContent>
+                                        )}
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </form>
+                        </Card>
+                    </div>
+                </div>
+            </motion.div>
+        </Layout>
+    );
 };
 
 export default BrandSettings;

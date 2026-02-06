@@ -27,6 +27,11 @@ class User:
     business_domain: Optional[str] = None  # ObjectId reference to BusinessDomain
     profile_completed: bool = False
     
+    # Connection flags
+    facebook_connected: bool = False
+    instagram_connected: bool = False
+    google_maps_connected: bool = False
+    
     # Auto-generated fields
     profile_picture: Optional[str] = None  # URL or path to profile picture
     is_admin: bool = False

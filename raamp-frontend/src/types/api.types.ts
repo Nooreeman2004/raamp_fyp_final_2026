@@ -22,3 +22,27 @@ export interface SuccessResponse<T = unknown> {
 }
 
 export type ApiResponse<T = unknown> = SuccessResponse<T> | ErrorResponse;
+
+export interface NotificationSettingsRequest {
+  email_alerts: boolean;
+  push_notifications: boolean;
+  sms_alerts: boolean;
+  marketing_alerts: boolean;
+  campaign_alerts: boolean;
+  performance_alerts: boolean;
+  trend_alerts: boolean;
+  billing_alerts: boolean;
+}
+
+export interface NotificationSettingsResponse {
+  success: boolean;
+  email_alerts: boolean;
+  sms_alerts: boolean;
+  push_notifications: boolean;
+  marketing_alerts: boolean;
+  campaign_alerts?: boolean;
+  performance_alerts?: boolean;
+  trend_alerts?: boolean;
+  billing_alerts?: boolean;
+  updated_at: string;
+}

@@ -80,15 +80,14 @@ async def maps_connect(payload: MapConnectRequest, current_user_email: str = Dep
     if not payload.place_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="place_id is required")
 
-    # Persist into google business repository
+    # Persist into google business repository (now uses BusinessModel)
     g_repo = GoogleBusinessRepository()
     # Use current_user_email as user_id for now (business_id optional)
     user_id = current_user_email
     doc = await g_repo.create_or_update(user_id, business_name=payload.name, address=payload.formatted_address, latitude=payload.lat, longitude=payload.lng, place_id=payload.place_id)
 
-    # Update user record with place details and connection flag
+    # Update user connection flag (Google place details now stored in BusinessModel)
     user_repo = UserRepository()
-    await user_repo.update_google_place_details(current_user_email, place_id=payload.place_id, name=payload.name, address=payload.formatted_address, latitude=payload.lat, longitude=payload.lng)
     await user_repo.update_connection_flags(current_user_email, google_maps=True)
 
-    return MapConnectResponse(message="Google Maps place connected", place_id=doc.place_id, name=doc.business_name, formatted_address=doc.address)
+    return MapConnectResponse(message="Google Maps place connected", place_id=doc.google_place_id, name=doc.business_name, formatted_address=doc.business_address)

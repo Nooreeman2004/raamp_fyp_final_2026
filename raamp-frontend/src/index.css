@@ -1,81 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 200 50% 12%;
-    --foreground: 0 0% 98%;
+    /* Deep Teal Theme - Based on Reference */
+    --background: 210 40% 4%;
+    /* #020B14 - Very dark slate/teal */
+    --foreground: 210 20% 98%;
+    /* White/Off-white */
 
-    --card: 200 45% 15%;
-    --card-foreground: 0 0% 98%;
+    --card: 208 30% 8%;
+    /* #09151E - Slightly lighter dark teal */
+    --card-foreground: 210 20% 98%;
 
-    --popover: 200 45% 15%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 208 30% 8%;
+    --popover-foreground: 210 20% 98%;
 
-    --primary: 180 100% 30%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 176 100% 44%;
+    /* #00E0D0 - Neon Teal Accent */
+    --primary-foreground: 210 40% 4%;
+    /* Dark text on teal */
 
-    --secondary: 200 40% 20%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 210 20% 15%;
+    /* Muted dark blue */
+    --secondary-foreground: 210 20% 98%;
 
-    --muted: 200 30% 18%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 210 20% 15%;
+    --muted-foreground: 210 15% 60%;
+    /* Slate grey text */
 
-    --accent: 180 100% 30%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 176 100% 44%;
+    --accent-foreground: 210 40% 4%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
 
-    --border: 200 30% 25%;
-    --input: 200 30% 22%;
-    --ring: 180 100% 30%;
+    --border: 210 20% 12%;
+    /* Subtle border */
+    --input: 210 20% 12%;
+    --ring: 176 100% 44%;
 
     --radius: 0.75rem;
-    
-    --glow-primary: 180 100% 40%;
-    --glow-secondary: 180 100% 25%;
-    
-    --gradient-radial: radial-gradient(circle at center, hsl(var(--glow-primary) / 0.15), transparent 70%);
-    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(200 45% 20%) 100%);
-    
-    --shadow-glow: 0 0 40px hsl(var(--glow-primary) / 0.3);
-    --shadow-card: 0 10px 30px -10px hsl(200 50% 8% / 0.5);
-    
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-    --warning: 45 93% 47%;
-    --warning-foreground: 0 0% 100%;
-    
-    --gradient-primary: linear-gradient(135deg, hsl(270 100% 40%), hsl(320 100% 50%));
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 200 50% 12%;
-    --foreground: 0 0% 98%;
   }
 }
 
@@ -85,58 +53,78 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
-  }
-
-  html {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Smooth scrolling for the whole page */
     scroll-behavior: smooth;
   }
 }
 
-@layer utilities {
-  .glow-effect {
-    box-shadow: var(--shadow-glow);
-  }
-  
-  .card-shadow {
-    box-shadow: var(--shadow-card);
-  }
-  
-  .breathing-glow {
-    animation: breathe 3s ease-in-out infinite;
-  }
-  
-  @keyframes breathe {
-    0%, 100% {
-      box-shadow: 0 0 20px hsl(var(--glow-primary) / 0.3);
-    }
-    50% {
-      box-shadow: 0 0 40px hsl(var(--glow-primary) / 0.5);
-    }
-  }
-  
-  .pulse-glow {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-  
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
-  }
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-/* Map marker / popup visibility helpers */
-.marker-label, .popup-text {
-  color: black !important;
-  background-color: rgba(255,255,255,0.92) !important;
-  padding: 2px 6px;
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
   border-radius: 4px;
 }
 
-.map-preview-container iframe {
-  background: white;
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+/* Lightweight Noise Overlay - Improved Performance */
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  /* Using a static noise image is significantly faster for the GPU than SVG feTurbulence */
+  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  background-size: 200px 200px;
+  mix-blend-mode: overlay;
+}
+
+@layer utilities {
+  .animate-meteor-effect {
+    animation: meteor 5s linear infinite;
+  }
+
+  .animate-aurora {
+    animation: aurora 60s linear infinite;
+  }
+}
+
+@keyframes meteor {
+  0% {
+    transform: rotate(215deg) translateX(0);
+    opacity: 1;
+  }
+
+  70% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: rotate(215deg) translateX(-500px);
+    opacity: 0;
+  }
+}
+
+@keyframes aurora {
+  from {
+    background-position: 50% 50%, 50% 50%;
+  }
+
+  to {
+    background-position: 350% 50%, 350% 50%;
+  }
 }

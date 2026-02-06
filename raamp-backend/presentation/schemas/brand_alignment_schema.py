@@ -14,6 +14,8 @@ class BrandAlignmentRequest(BaseModel):
     tagline: str = Field(..., min_length=1, max_length=100, description="Restaurant tagline")
     tone_of_voice: str = Field(..., min_length=1, description="Tone of voice for AI content")
     restaurant_theme: str = Field(..., min_length=1, description="Restaurant theme/ambiance - REQUIRED")
+    brand_colors: list[str] = Field(default_factory=list, description="List of brand hex colors")
+    palette_source: str = Field(default="custom", description="Source of the palette (template, logo, or manual)")
     
     @validator('primary_color', 'secondary_color')
     @classmethod
@@ -53,8 +55,6 @@ class BrandAlignmentRequest(BaseModel):
         """Validate logo URL"""
         if not v or not v.strip():
             raise ValueError('Brand logo URL is required')
-        if not v.startswith('http'):
-            raise ValueError('Brand logo URL must be a valid URL')
         return v.strip()
 
 
@@ -67,6 +67,8 @@ class BrandAlignmentResponse(BaseModel):
     tagline: str
     tone_of_voice: str
     restaurant_theme: str
+    brand_colors: list[str] = []
+    palette_source: str = "custom"
     updated_at: str
     
     class Config:

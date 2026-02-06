@@ -1,9 +1,11 @@
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Check, Trash2, TrendingUp, DollarSign, AlertTriangle, Sparkles, CheckCheck } from "lucide-react";
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Bell, Check, Trash2, TrendingUp, DollarSign, AlertTriangle, Sparkles, CheckCheck, Search } from "lucide-react";
+import { useState, useMemo } from "react";
+import { toast as sonner } from "sonner";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 // Animation Imports
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,51 +22,23 @@ interface Notification {
 }
 
 const Notifications = () => {
-  const { toast } = useToast();
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "trend",
-      title: "New Trend Detected",
-      message: "\"Winter comfort food\" is trending in your area. Consider creating content around this topic.",
-      time: "2 minutes ago",
-      read: false,
-    },
-    {
-      id: "2",
-      type: "campaign",
-      title: "Campaign Performance Update",
-      message: "Your \"Holiday Special\" campaign has reached 10,000 impressions. ROAS is up 15%.",
-      time: "1 hour ago",
-      read: false,
-    },
-    {
-      id: "3",
-      type: "billing",
-      title: "Payment Successful",
-      message: "Your monthly subscription of $499 has been processed successfully.",
-      time: "3 hours ago",
-      read: true,
-    },
-    {
-      id: "4",
-      type: "alert",
-      title: "Low Budget Warning",
-      message: "Your ad budget for this week is 80% consumed. Consider adding more funds.",
-      time: "Yesterday",
-      read: true,
-    },
-    {
-      id: "5",
-      type: "campaign",
-      title: "A/B Test Complete",
-      message: "Your \"Menu Highlight\" A/B test has completed. Variant B performed 23% better.",
-      time: "2 days ago",
-      read: true,
-    },
-  ]);
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, loading } = useNotifications();
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const getIcon = (type: Notification["type"]) => {
+  // Filter notifications based on search query
+  const filteredNotifications = useMemo(() => {
+    if (!searchQuery.trim()) return notifications;
+    
+    const query = searchQuery.toLowerCase();
+    return notifications.filter(
+      (notification) =>
+        notification.title.toLowerCase().includes(query) ||
+        notification.message.toLowerCase().includes(query) ||
+        notification.type.toLowerCase().includes(query)
+    );
+  }, [notifications, searchQuery]);
+
+  const getIcon = (type: string) => {
     switch (type) {
       case "trend":
         return <TrendingUp className="w-5 h-5" />;
@@ -74,10 +48,14 @@ const Notifications = () => {
         return <AlertTriangle className="w-5 h-5" />;
       case "campaign":
         return <Sparkles className="w-5 h-5" />;
+      case "system":
+        return <CheckCheck className="w-5 h-5" />;
+      default:
+        return <Bell className="w-5 h-5" />;
     }
   };
 
-  const getTypeColor = (type: Notification["type"]) => {
+  const getTypeColor = (type: string) => {
     switch (type) {
       case "trend":
         return "text-blue-500 bg-blue-500/10";
@@ -87,40 +65,17 @@ const Notifications = () => {
         return "text-amber-500 bg-amber-500/10";
       case "campaign":
         return "text-purple-500 bg-purple-500/10";
+      case "system":
+        return "text-gray-500 bg-gray-500/10";
+      default:
+        return "text-primary bg-primary/10";
     }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    toast({
-      title: "All Marked as Read",
-      description: "All notifications have been marked as read.",
-    });
-  };
-
-  const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    toast({
-      title: "Notification Deleted",
-      description: "The notification has been removed.",
-    });
-  };
-
   const clearAll = () => {
-    setNotifications([]);
-    toast({
-      title: "All Cleared",
-      description: "All notifications have been cleared.",
-    });
+    // Optional: implement bulk delete in backend if needed
+    sonner.info("Clearing all logic not implemented (bulk delete)");
   };
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <Layout breadcrumbItems={[{ label: "Dashboard", href: "/dashboard" }, { label: "Notifications" }]}>
@@ -152,35 +107,49 @@ const Notifications = () => {
             </div>
             <div className="flex gap-2">
               {unreadCount > 0 && (
-                <Button variant="outline" size="sm" onClick={markAllAsRead}>
+                <Button variant="outline" size="sm" onClick={() => markAllAsRead()}>
                   <CheckCheck className="w-4 h-4 mr-2" />
                   Mark All Read
                 </Button>
               )}
-              {notifications.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Clear All
-                </Button>
-              )}
+              {/* Clear All is tricky with pagination, skipping for now unless specifically requested */}
             </div>
+          </div>
+        </Reveal>
+
+        {/* Search Bar */}
+        <Reveal variant="fadeInUp">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search notifications by title, message, or type..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-white/5 border-white/10"
+            />
           </div>
         </Reveal>
 
         <div className="space-y-3">
           <AnimatePresence>
-            {notifications.length === 0 ? (
+            {loading && filteredNotifications.length === 0 ? (
+              <div className="text-center py-10">Loading notifications...</div>
+            ) : filteredNotifications.length === 0 ? (
               <Reveal variant="fadeInUp">
                 <Card className="p-12 bg-card/70 backdrop-blur-sm border-primary/10 text-center">
                   <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Notifications</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    {searchQuery ? "No Matching Notifications" : "No Notifications"}
+                  </h3>
                   <p className="text-muted-foreground">
-                    You're all caught up! New notifications will appear here.
+                    {searchQuery
+                      ? "No notifications match your search criteria."
+                      : "You're all caught up! New notifications will appear here."}
                   </p>
                 </Card>
               </Reveal>
             ) : (
-              notifications.map((notification, index) => (
+              filteredNotifications.map((notification, index) => (
                 <motion.div
                   key={notification.id}
                   variants={fadeInUp}
@@ -190,9 +159,8 @@ const Notifications = () => {
                   transition={{ delay: index * 0.05 }}
                 >
                   <Card
-                    className={`p-4 bg-card/70 backdrop-blur-sm border-primary/10 transition-all ${
-                      !notification.read ? "border-l-4 border-l-primary" : ""
-                    }`}
+                    className={`p-4 bg-card/70 backdrop-blur-sm border-primary/10 transition-all ${!notification.read ? "border-l-4 border-l-primary" : ""
+                      }`}
                   >
                     <div className="flex items-start gap-4">
                       <div
@@ -212,7 +180,7 @@ const Notifications = () => {
                               {notification.message}
                             </p>
                             <p className="text-xs text-muted-foreground mt-2">
-                              {notification.time}
+                              {new Date(notification.created_at).toLocaleString()}
                             </p>
                           </div>
                           <div className="flex gap-1 flex-shrink-0">

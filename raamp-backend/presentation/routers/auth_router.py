@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Response, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta
+import logging
 
 from presentation.schemas.auth_schemas import (
     SignupRequest,
@@ -36,6 +37,7 @@ from presentation.schemas.auth_schemas import (
     AccountDeletionVerifyResponse,
     UploadProfilePictureResponse,
     DeleteProfilePictureResponse,
+    OnboardingStatus,
 )
 from application.use_cases.signup_use_case import SignupUseCase
 from application.use_cases.signin_use_case import SignInUseCase
@@ -44,6 +46,7 @@ from application.use_cases.resend_verification_use_case import ResendVerificatio
 from application.services.password_service import PasswordHasher, PasswordVerifier
 from application.services.jwt_service import JWTService
 from application.services.mailtrap_service import MailtrapService
+from application.services.onboarding_service import OnboardingService
 from application.utils.otp_utils import OTPGenerator
 from config import OTP_EXPIRY_HOURS, OTP_RESEND_COOLDOWN_SECONDS, OTP_MAX_RESENDS_PER_HOUR, OTP_MAX_RESENDS_PER_DAY
 from application.services.firebase_service import firebase_service
@@ -52,6 +55,7 @@ from infrastructure.repositories.pending_verification_repository import PendingV
 from infrastructure.repositories.profile_edit_verification_repository import ProfileEditVerificationRepository
 from infrastructure.repositories.password_reset_repository import PasswordResetRepository
 from infrastructure.repositories.account_deletion_verification_repository import AccountDeletionVerificationRepository
+from infrastructure.repositories.business_repository import BusinessRepository
 from application.services.firebase_storage_service import FirebaseStorageService
 from domain.entities.user import User
 import secrets
@@ -60,6 +64,7 @@ from datetime import timedelta
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+logger = logging.getLogger(__name__)
 
 
 def get_signup_use_case() -> SignupUseCase:
@@ -311,6 +316,26 @@ async def signin(
         max_age=60 * 60 * 24 * 7,  # 7 days
     )
     
+    # Fetch business data for onboarding status
+    business_repo = BusinessRepository()
+    business = await business_repo.get_by_user_id(str(user.id))
+    
+    business_completed = bool(business and business.business_name)
+    brand_completed = bool(business and business.brand_logo_url)
+
+    # Use shared onboarding service so connection logic matches
+    # the /auth/profile endpoint and integrations/onboarding screen.
+    onboarding_service = OnboardingService()
+    status_obj = await onboarding_service.get_onboarding_status(user.email)
+    connections_completed = bool(status_obj.get("completed", False))
+    
+    onboarding_status = OnboardingStatus(
+        profile_completed=user.profile_completed,
+        business_setup_completed=business_completed,
+        brand_setup_completed=brand_completed,
+        connections_completed=connections_completed
+    )
+    
     # Return user data with all profile fields including auto-generated ones
     user_response = UserResponse(
         id=user.id,
@@ -329,7 +354,8 @@ async def signin(
         is_admin=user.is_admin,
         subscription=user.subscription,
         last_login=user.last_login,
-        created_at=user.created_at
+        created_at=user.created_at,
+        onboarding_status=onboarding_status
     )
     
     return SignInResponse(
@@ -416,6 +442,26 @@ async def signin_with_google(request: GoogleSignupRequest, response: Response):
         max_age=60 * 60 * 24 * 7,  # 7 days
     )
     
+    # Fetch business data for onboarding status
+    business_repo = BusinessRepository()
+    business = await business_repo.get_by_user_id(str(user.id))
+    
+    business_completed = bool(business and business.business_name)
+    brand_completed = bool(business and business.brand_logo_url)
+
+    # Use shared onboarding service so connection logic matches
+    # the /auth/profile endpoint and integrations/onboarding screen.
+    onboarding_service = OnboardingService()
+    status_obj = await onboarding_service.get_onboarding_status(user.email)
+    connections_completed = bool(status_obj.get("completed", False))
+    
+    onboarding_status = OnboardingStatus(
+        profile_completed=user.profile_completed,
+        business_setup_completed=business_completed,
+        brand_setup_completed=brand_completed,
+        connections_completed=connections_completed
+    )
+    
     # Return user data with all profile fields
     user_response = UserResponse(
         id=user.id,
@@ -434,7 +480,8 @@ async def signin_with_google(request: GoogleSignupRequest, response: Response):
         is_admin=user.is_admin,
         subscription=user.subscription,
         last_login=user.last_login,
-        created_at=user.created_at
+        created_at=user.created_at,
+        onboarding_status=onboarding_status
     )
     
     return SignInResponse(
@@ -544,7 +591,7 @@ async def resend_verification(
 async def get_current_user_email(request: Request) -> str:
     """
     JWT Authentication Dependency
-    Extracts and validates JWT token from cookies.
+    Extracts and validates JWT token from cookies or Authorization header.
     
     Args:
         request: FastAPI Request object
@@ -555,9 +602,27 @@ async def get_current_user_email(request: Request) -> str:
     Raises:
         HTTPException: 401 if token is missing or invalid
     """
-    token = request.cookies.get("access_token")
+    # First try to get token from Authorization header
+    token = None
+    auth_header = request.headers.get("Authorization")
+    
+    # Debug logging
+    logger.debug(f"Auth check - Path: {request.url.path}")
+    logger.debug(f"Auth check - Has Authorization header: {bool(auth_header)}")
+    logger.debug(f"Auth check - Has cookie: {bool(request.cookies.get('access_token'))}")
+    
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
+        logger.debug(f"Auth check - Token extracted from header (length: {len(token) if token else 0})")
+    
+    # If not in header, try cookies
+    if not token:
+        token = request.cookies.get("access_token")
+        if token:
+            logger.debug(f"Auth check - Token extracted from cookie (length: {len(token)})")
     
     if not token:
+        logger.warning(f"Auth check - No token found for {request.url.path}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated. Please log in."
@@ -575,6 +640,31 @@ async def get_current_user_email(request: Request) -> str:
     return payload["email"]
 
 
+async def get_current_user_id(request: Request) -> str:
+    """Resolve the authenticated user's internal id (string).
+
+    This depends on the cookie JWT and returns the user's id as stored in the DB
+    (stringified ObjectId). Raises 401 if not authenticated or 404 if user missing.
+    """
+    from fastapi import HTTPException
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    jwt_service = JWTService()
+    payload = jwt_service.verify_token(token)
+    if not payload or "email" not in payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+
+    email = payload["email"]
+    user_repository = UserRepository()
+    user = await user_repository.find_by_email(email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return user.id
+
+
 @router.get(
     "/profile",
     response_model=UserResponse,
@@ -587,6 +677,32 @@ async def get_profile(current_user_email: str = Depends(get_current_user_email))
     user = await user_repository.find_by_email(current_user_email)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Fetch business data for onboarding status
+    business_repo = BusinessRepository()
+    business = await business_repo.get_by_user_id(str(user.id))
+    
+    import logging
+    logging.info(f"[GET PROFILE] User: {user.email}, FB:{user.facebook_connected}, IG:{user.instagram_connected}, GM:{user.google_maps_connected}")
+    logging.info(f"[GET PROFILE] Business: {bool(business)}, Lat:{getattr(business, 'latitude', 'N/A')}, Lon:{getattr(business, 'longitude', 'N/A')}")
+    
+    business_completed = bool(business and business.business_name)
+    brand_completed = bool(business and business.brand_logo_url)
+
+    # Use the shared OnboardingService so connection logic matches
+    # the integrations/onboarding screen and avoids duplicated rules.
+    onboarding_service = OnboardingService()
+    status_obj = await onboarding_service.get_onboarding_status(user.email)
+    connections_completed = bool(status_obj.get("completed", False))
+    
+    logging.info(f"[GET PROFILE] Onboarding Status - Profile:{user.profile_completed}, Business:{business_completed}, Brand:{brand_completed}, Connections:{connections_completed}")
+    
+    onboarding_status = OnboardingStatus(
+        profile_completed=user.profile_completed,
+        business_setup_completed=business_completed,
+        brand_setup_completed=brand_completed,
+        connections_completed=connections_completed
+    )
 
     user_response = UserResponse(
         id=str(user.id),
@@ -605,7 +721,8 @@ async def get_profile(current_user_email: str = Depends(get_current_user_email))
         is_admin=user.is_admin,
         subscription=user.subscription,
         last_login=user.last_login,
-        created_at=user.created_at
+        created_at=user.created_at,
+        onboarding_status=onboarding_status
     )
 
     return user_response
@@ -754,6 +871,25 @@ async def update_profile(
             detail="User not found"
         )
     
+    # Fetch business data for onboarding status
+    business_repo = BusinessRepository()
+    business = await business_repo.get_by_user_id(str(updated_user.id))
+    
+    business_completed = bool(business and business.business_name)
+    brand_completed = bool(business and business.brand_logo_url)
+    connections_completed = bool(
+        getattr(updated_user, 'facebook_connected', False) and 
+        getattr(updated_user, 'instagram_connected', False) and 
+        getattr(updated_user, 'google_maps_connected', False)
+    )
+    
+    onboarding_status = OnboardingStatus(
+        profile_completed=updated_user.profile_completed,
+        business_setup_completed=business_completed,
+        brand_setup_completed=brand_completed,
+        connections_completed=connections_completed
+    )
+
     user_response = UserResponse(
         id=str(updated_user.id),
         username=updated_user.username,
@@ -771,7 +907,8 @@ async def update_profile(
         is_admin=updated_user.is_admin,
         subscription=updated_user.subscription,
         last_login=updated_user.last_login,
-        created_at=updated_user.created_at
+        created_at=updated_user.created_at,
+        onboarding_status=onboarding_status
     )
     
     return UpdateProfileResponse(

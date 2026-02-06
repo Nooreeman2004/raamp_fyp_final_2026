@@ -5,6 +5,10 @@ from infrastructure.database.models.facebook_connection_model import FacebookCon
 class FacebookRepository:
     async def find_by_user_id(self, user_id: str) -> Optional[FacebookConnectionModel]:
         return await FacebookConnectionModel.find_one(FacebookConnectionModel.user_id == user_id)
+    
+    async def get_connection_by_user_id(self, user_id: str) -> Optional[FacebookConnectionModel]:
+        """Alias for find_by_user_id for compatibility with use cases"""
+        return await self.find_by_user_id(user_id)
 
     async def create_or_update(self, user_id: str, access_token: str, fb_user_id: Optional[str] = None, fb_pages: Optional[list] = None, granted_scopes: Optional[list] = None) -> FacebookConnectionModel:
         doc = await self.find_by_user_id(user_id)

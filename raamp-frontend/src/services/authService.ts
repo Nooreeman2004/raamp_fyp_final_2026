@@ -7,11 +7,13 @@ import type {
   VerifyEmailResponse,
   ResendVerificationRequest,
   ResendVerificationResponse,
-  SignInRequest,
-  SignInResponse,
+  LoginRequest,
+  LoginResponse,
   UserResponse,
   UpdateProfileRequest,
-  UpdateProfileResponse
+  UpdateProfileResponse,
+  NotificationSettingsRequest,
+  NotificationSettingsResponse
 } from '@/types';
 
 // Re-export ErrorResponse for backward compatibility
@@ -36,8 +38,8 @@ export const authService = {
   /**
    * Sign in with Google OAuth
    */
-  signinWithGoogle: async (data: GoogleSignupRequest): Promise<SignInResponse> => {
-    return apiClient.post<SignInResponse>('/auth/signin/google', data);
+  signinWithGoogle: async (data: GoogleSignupRequest): Promise<LoginResponse> => {
+    return apiClient.post<LoginResponse>('/auth/signin/google', data);
   },
 
   /**
@@ -64,8 +66,8 @@ export const authService = {
   /**
    * Sign in with email and password
    */
-  signin: async (data: SignInRequest): Promise<SignInResponse> => {
-    return apiClient.post<SignInResponse>('/auth/signin', data);
+  signin: async (data: LoginRequest): Promise<LoginResponse> => {
+    return apiClient.post<LoginResponse>('/auth/signin', data);
   },
 
   /**
@@ -110,5 +112,19 @@ export const authService = {
    */
   logout: async (): Promise<{ message: string }> => {
     return apiClient.post<{ message: string }>("/auth/logout", {});
+  },
+
+  /**
+   * Get notification settings
+   */
+  getNotificationSettings: async (): Promise<NotificationSettingsResponse> => {
+    return apiClient.get<NotificationSettingsResponse>('/api/settings/notifications');
+  },
+
+  /**
+   * Update notification settings
+   */
+  updateNotificationSettings: async (data: NotificationSettingsRequest): Promise<NotificationSettingsResponse> => {
+    return apiClient.post<NotificationSettingsResponse>('/api/settings/notifications', data);
   },
 };

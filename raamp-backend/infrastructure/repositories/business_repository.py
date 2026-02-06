@@ -2,6 +2,7 @@
 Business Repository - handles database operations for businesses
 """
 from infrastructure.database.models.business_model import BusinessModel
+from infrastructure.database.models.user_model import UserModel
 from typing import Optional
 from datetime import datetime
 
@@ -27,7 +28,9 @@ class BusinessRepository:
         secondary_color: str,
         tagline: str,
         tone_of_voice: str,
-        restaurant_theme: Optional[str] = None
+        restaurant_theme: Optional[str] = None,
+        brand_colors: list[str] = [],
+        palette_source: str = "custom"
     ) -> BusinessModel:
         """Update or create brand alignment settings"""
         business = await self.get_by_user_id(user_id)
@@ -40,6 +43,8 @@ class BusinessRepository:
             business.tagline = tagline
             business.tone_of_voice = tone_of_voice
             business.restaurant_theme = restaurant_theme
+            business.brand_colors = brand_colors
+            business.palette_source = palette_source
             business.updated_at = datetime.utcnow()
             await business.save()
         else:
@@ -51,7 +56,9 @@ class BusinessRepository:
                 "secondary_color": secondary_color,
                 "tagline": tagline,
                 "tone_of_voice": tone_of_voice,
-                "restaurant_theme": restaurant_theme
+                "restaurant_theme": restaurant_theme,
+                "brand_colors": brand_colors,
+                "palette_source": palette_source
             })
         
         return business
@@ -64,7 +71,12 @@ class BusinessRepository:
         latitude: float,
         longitude: float,
         place_id: Optional[str] = None,
-        formatted_address: Optional[str] = None
+        formatted_address: Optional[str] = None,
+        website: Optional[str] = None,
+        phone_number: Optional[str] = None,
+        description: Optional[str] = None,
+        city: Optional[str] = None,
+        country: Optional[str] = None
     ) -> BusinessModel:
         """Update or create hyperlocal business setup"""
         business = await self.get_by_user_id(user_id)
@@ -77,6 +89,11 @@ class BusinessRepository:
             business.longitude = longitude
             business.google_place_id = place_id
             business.business_address = formatted_address
+            business.website = website
+            business.phone_number = phone_number
+            business.description = description
+            business.city = city
+            business.country = country
             business.updated_at = datetime.utcnow()
             await business.save()
         else:
@@ -88,7 +105,18 @@ class BusinessRepository:
                 "latitude": latitude,
                 "longitude": longitude,
                 "google_place_id": place_id,
-                "business_address": formatted_address
+                "business_address": formatted_address,
+                "website": website,
+                "phone_number": phone_number,
+                "description": description,
+                "city": city,
+                "country": country
             })
+            
+        # Sync with UserModel connection flag
+        user = await UserModel.get(user_id)
+        if user:
+            user.google_maps_connected = True
+            await user.save()
         
         return business

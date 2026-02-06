@@ -12,14 +12,14 @@ async def save_business_location_usecase(user_email: str, place_id: str, name: s
     g_repo = GoogleBusinessRepository()
     user_repo = UserRepository()
 
-    # Persist the google business location with coordinates
+    # Persist the google business location with coordinates to BusinessModel
     doc = await g_repo.create_or_update(user_email, business_name=name, address=address, place_id=place_id, latitude=latitude, longitude=longitude)
     # update user flags
     await user_repo.update_connection_flags(user_email, google_maps=True)
 
     return {
         'message': 'Google Maps business connected',
-        'place_id': doc.place_id,
+        'place_id': doc.google_place_id,
         'name': doc.business_name,
-        'address': doc.address,
+        'address': doc.business_address,
     }

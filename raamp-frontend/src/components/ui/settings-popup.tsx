@@ -9,7 +9,7 @@ export function SettingsPopup({ onLogout }: { onLogout: () => void }) {
         onClick={onLogout}
         tabIndex={0}
       >
-        Logout
+        Sign Out
       </button>
     </div>
   );

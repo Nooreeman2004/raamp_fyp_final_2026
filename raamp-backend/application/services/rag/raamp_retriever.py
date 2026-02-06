@@ -3,16 +3,18 @@ RAAMP Retriever Module (LangChain Enhanced)
 ============================================
 Semantic search and retrieval component using LangChain's retriever abstraction.
 Provides efficient document retrieval from the ChromaDB vector store.
+Includes intelligent query preprocessing with fuzzy matching and marketing context.
 """
 
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from dotenv import load_dotenv
-
-from langchain_openai import OpenAIEmbeddings
-from langchain_chroma import Chroma
 from langchain_core.documents import Document
+
+from .raamp_vector_store import PineconeVectorStore
+from .raamp_embeddings import RAAMPEmbeddingGenerator
+from .query_preprocessor import QueryPreprocessor, ProcessedQuery
 
 # Load environment variables
 load_dotenv()
@@ -32,60 +34,42 @@ class RetrievedDocument:
 
 class RAAMPRetriever:
     """
-    LangChain-based retriever for the RAAMP FAQ knowledge base.
+    Retriever for the RAAMP FAQ knowledge base using Pinecone.
     Provides semantic search with configurable similarity thresholds.
+    Includes intelligent query preprocessing for better results.
     """
     
     def __init__(self, 
-                 collection_name: str = "raamp_faq_collection",
-                 persist_directory: str = None):
+                 use_preprocessing: bool = True):
         """
         Initialize the retriever.
         
         Args:
-            collection_name: Name of the ChromaDB collection
-            persist_directory: Path to ChromaDB storage
+            use_preprocessing: Whether to use query preprocessing
         """
-        self.collection_name = collection_name
-        self.persist_directory = persist_directory or os.getenv(
-            "VECTOR_STORE_PATH", 
-            "data/vector_store_data"
-        )
+        self.use_preprocessing = use_preprocessing
         
         # Configuration
         self.n_results = int(os.getenv("DEFAULT_N_RESULTS", "5"))
         self.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))
         
-        # Initialize OpenAI embeddings
-        self.embeddings = OpenAIEmbeddings(
-            model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
-            openai_api_key=os.getenv("OPENAI_API_KEY")
-        )
+        # Initialize query preprocessor
+        self.preprocessor = QueryPreprocessor() if use_preprocessing else None
         
-        # Initialize Chroma vector store
-        self.vector_store = Chroma(
-            collection_name=self.collection_name,
-            embedding_function=self.embeddings,
-            persist_directory=self.persist_directory
-        )
+        # Initialize Embedding Generator
+        self.embedding_generator = RAAMPEmbeddingGenerator()
         
-        # Create LangChain retriever
-        self.retriever = self.vector_store.as_retriever(
-            search_type="similarity_score_threshold",
-            search_kwargs={
-                "k": self.n_results,
-                "score_threshold": self.similarity_threshold
-            }
-        )
+        # Initialize Pinecone vector store
+        self.vector_store = PineconeVectorStore()
         
-        print("✅ RAAMP Retriever initialized with LangChain")
-        print(f"   Collection: {self.collection_name}")
+        print("✅ RAAMP Retriever initialized with Pinecone")
         print(f"   Top K: {self.n_results}, Threshold: {self.similarity_threshold}")
     
     def retrieve(self, 
                  query: str, 
                  n_results: int = None,
-                 filter_category: str = None) -> List[RetrievedDocument]:
+                 filter_category: str = None,
+                 skip_preprocessing: bool = False) -> List[RetrievedDocument]:
         """
         Retrieve relevant documents for a query.
         
@@ -93,30 +77,53 @@ class RAAMPRetriever:
             query: User's question
             n_results: Number of results to return (overrides default)
             filter_category: Optional category filter
+            skip_preprocessing: Skip query preprocessing
             
         Returns:
             List of RetrievedDocument objects
         """
         k = n_results or self.n_results
         
-        # Use similarity search with scores for relevance information
-        results = self.vector_store.similarity_search_with_relevance_scores(
-            query=query,
-            k=k,
-            filter={"category": filter_category} if filter_category else None
+        # Preprocess query for better matching
+        search_query = query
+        processed: Optional[ProcessedQuery] = None
+        
+        if self.use_preprocessing and not skip_preprocessing:
+            processed = self.preprocessor.preprocess(query)
+            search_query = processed.expanded
+        
+        # Generate embedding
+        query_embedding = self.embedding_generator.generate_embedding(search_query)
+        
+        # Build filter
+        filter_dict = {}
+        if filter_category:
+            filter_dict["category"] = filter_category
+            
+        # Search Pinecone
+        results = self.vector_store.search(
+            query_embedding=query_embedding,
+            n_results=k,
+            filter_dict=filter_dict if filter_dict else None
         )
         
         retrieved_docs = []
-        for doc, score in results:
+        for match in results.get("matches", []):
+            score = match.get("score", 0)
             if score >= self.similarity_threshold:
+                metadata = match.get("metadata", {})
                 retrieved_docs.append(RetrievedDocument(
-                    id=doc.metadata.get("id", "unknown"),
-                    content=doc.page_content,
-                    question=doc.metadata.get("question", ""),
-                    answer=doc.metadata.get("answer", ""),
-                    category=doc.metadata.get("category", "General"),
+                    id=match.get("id", "unknown"),
+                    content=metadata.get("text", ""),
+                    question=metadata.get("question", ""),
+                    answer=metadata.get("answer", ""),
+                    category=metadata.get("category", "General"),
                     relevance_score=round(score, 4),
-                    metadata=doc.metadata
+                    metadata={
+                        **metadata,
+                        "query_processed": processed.cleaned if processed else query,
+                        "query_intent": processed.intent if processed else "unknown"
+                    }
                 ))
         
         return retrieved_docs
@@ -124,7 +131,6 @@ class RAAMPRetriever:
     def retrieve_documents(self, query: str, n_results: int = None) -> List[Document]:
         """
         Retrieve LangChain Document objects directly.
-        Useful for integration with LangChain chains.
         
         Args:
             query: User's question
@@ -133,8 +139,11 @@ class RAAMPRetriever:
         Returns:
             List of LangChain Document objects
         """
-        k = n_results or self.n_results
-        return self.vector_store.similarity_search(query, k=k)
+        docs = self.retrieve(query, n_results)
+        return [
+            Document(page_content=d.content, metadata=d.metadata)
+            for d in docs
+        ]
     
     def retrieve_with_context(self, 
                                query: str, 
@@ -189,7 +198,7 @@ class RAAMPRetriever:
     def health_check(self) -> Dict[str, Any]:
         """Check the health of the retriever."""
         try:
-            stats = self.get_collection_stats()
+            stats = self.vector_store.get_index_stats()
             # Test query
             test_docs = self.retrieve("test", n_results=1)
             

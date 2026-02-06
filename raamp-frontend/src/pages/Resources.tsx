@@ -8,6 +8,7 @@ import { BookOpen, HelpCircle, Lightbulb } from "lucide-react";
 import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { staggerContainer, fadeInUp, hoverLift } from "@/utils/animations";
+import { BlurText } from "@/components/ui/text-reveal";
 
 const Resources = () => {
   const faqs = [
@@ -28,7 +29,7 @@ const Resources = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-card to-background overflow-x-hidden">
       <Navigation />
-      
+
       {/* Breadcrumbs - Simple Fade */}
       <Reveal variant="fadeIn" delay={0.1} className="container mx-auto px-4 pt-20">
         <Breadcrumbs items={[
@@ -36,11 +37,11 @@ const Resources = () => {
           { label: 'Resources' },
         ]} />
       </Reveal>
-      
+
       {/* Header Section */}
       <section className="pt-8 pb-12 px-4">
         <div className="container mx-auto max-w-5xl text-center">
-          
+
           {/* Icon Zoom */}
           <div className="flex justify-center mb-6">
             <Reveal variant="zoomIn" delay={0.1}>
@@ -52,13 +53,13 @@ const Resources = () => {
 
           {/* Title Blur In */}
           <Reveal variant="blurInUp" delay={0.2}>
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              RAAMP Knowledge Base
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent font-bebas tracking-wide">
+              <BlurText text="RAAMP Knowledge Base" />
             </h1>
           </Reveal>
 
           <Reveal variant="fadeInUp" delay={0.3}>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-lg text-muted-foreground font-mono">
               Everything you need to get started and make the most of RAAMP
             </p>
           </Reveal>
@@ -72,23 +73,23 @@ const Resources = () => {
             <Card className="p-8 md:p-10 bg-card/50 backdrop-blur-sm border-primary/10">
               <div className="flex items-center gap-3 mb-6">
                 <Lightbulb className="w-6 h-6 text-primary" />
-                <h2 className="text-3xl font-bold">Getting Started</h2>
+                <h2 className="text-3xl font-bold font-bebas tracking-wide">Getting Started</h2>
               </div>
-              
+
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-primary">How RAAMP Works</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    RAAMP integrates real-time data from Google Maps, Instagram, and web events to identify 
-                    high-demand areas. Our Intelligent Geo-Intent Marketing Engine helps you target the right 
+                  <h3 className="text-xl font-bold mb-3 text-primary font-bebas tracking-wide">How RAAMP Works</h3>
+                  <p className="text-muted-foreground leading-relaxed font-mono">
+                    RAAMP integrates real-time data from Google Maps, Instagram, and web events to identify
+                    high-demand areas. Our Intelligent Geo-Intent Marketing Engine helps you target the right
                     audience at the right time.
                   </p>
                 </div>
 
                 <div className="border-t border-primary/10 pt-6">
-                  <h3 className="text-xl font-bold mb-3 text-primary">Setting Up</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Simply register with your email and business details. Once logged in, connect your Instagram 
+                  <h3 className="text-xl font-bold mb-3 text-primary font-bebas tracking-wide">Setting Up</h3>
+                  <p className="text-muted-foreground leading-relaxed font-mono">
+                    Simply register with your email and business details. Once logged in, connect your Instagram
                     handle via our secure OAuth integration to start generating hyper-personalized campaigns.
                   </p>
                 </div>
@@ -104,12 +105,12 @@ const Resources = () => {
           <Reveal variant="fadeInLeft">
             <div className="flex items-center gap-3 mb-8">
               <HelpCircle className="w-6 h-6 text-primary" />
-              <h2 className="text-3xl font-bold">Frequently Asked Questions</h2>
+              <h2 className="text-3xl font-bold font-bebas tracking-wide">Frequently Asked Questions</h2>
             </div>
           </Reveal>
 
           {/* Staggered Grid for FAQ Cards */}
-          <motion.div 
+          <motion.div
             variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
@@ -117,16 +118,16 @@ const Resources = () => {
             className="space-y-4"
           >
             {faqs.map((faq, index) => (
-              <motion.div 
-                key={index} 
+              <motion.div
+                key={index}
                 variants={fadeInUp} // Controlled by staggerContainer parent
               >
                 <motion.div variants={hoverLift} initial="rest" whileHover="hover">
                   <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/10 hover:border-primary/30 transition-all cursor-default">
-                    <h3 className="text-lg font-bold mb-3 text-foreground">
+                    <h3 className="text-lg font-bold mb-3 text-foreground font-bebas tracking-wide">
                       Q: {faq.question}
                     </h3>
-                    <p className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-primary/30">
+                    <p className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-primary/30 font-mono">
                       A: {faq.answer}
                     </p>
                   </Card>

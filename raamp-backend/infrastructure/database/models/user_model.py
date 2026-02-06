@@ -29,12 +29,7 @@ class UserModel(Document):
     facebook_connected: bool = False
     instagram_connected: bool = False
     google_maps_connected: bool = False
-    # Google Maps place details (optional)
-    google_place_id: Optional[str] = None
-    google_place_name: Optional[str] = None
-    google_place_address: Optional[str] = None
-    google_lat: Optional[float] = None
-    google_lng: Optional[float] = None
+    # Note: Google Maps place details are now stored in BusinessModel (Single Source of Truth)
     
     # Auto-generated fields
     profile_picture: str = Field(default="https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png")

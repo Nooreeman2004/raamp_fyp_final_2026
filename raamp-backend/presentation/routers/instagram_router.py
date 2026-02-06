@@ -3,8 +3,10 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from presentation.routers.auth_router import get_current_user_email
 from application.services.encryption_service import EncryptionService
 from infrastructure.repositories.social_media_repository import SocialMediaRepository
+from infrastructure.repositories.instagram_repository import InstagramRepository
 from infrastructure.repositories.oauth_state_repository import OAuthStateRepository
 from application.services.onboarding_service import OnboardingService
+from infrastructure.repositories.user_repository_impl import UserRepository
 from config import settings as cfg
 import httpx
 from datetime import datetime, timedelta
@@ -12,7 +14,9 @@ import logging
 
 router = APIRouter(prefix="/api/instagram", tags=["instagram"])
 repo = SocialMediaRepository()
+ig_repo = InstagramRepository()
 oauth_repo = OAuthStateRepository()
+user_repo = UserRepository()
 onboarding_service = OnboardingService()
 
 
@@ -149,29 +153,62 @@ async def instagram_callback(request: Request, code: str = None, state: str = No
     encrypted_long = enc.encrypt(long_token)
     encrypted_page_token = enc.encrypt(chosen.get('page_access_token'))
 
-    await repo.create_or_update(
+    # Fetch Instagram profile details for username/profile picture
+    ig_business_id = chosen.get('ig_business_id')
+    username = None
+    profile_picture_url = None
+    account_type = None
+    try:
+        page_token = chosen.get('page_access_token')
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f'https://graph.facebook.com/v22.0/{ig_business_id}',
+                params={'fields': 'username,profile_picture_url,account_type', 'access_token': page_token},
+                timeout=10.0
+            )
+            r.raise_for_status()
+            ig_details = r.json()
+            username = ig_details.get('username')
+            profile_picture_url = ig_details.get('profile_picture_url')
+            account_type = ig_details.get('account_type')
+    except Exception as e:
+        logging.warning(f'Could not fetch Instagram profile details: {e}')
+
+    # Save to InstagramConnectionModel
+    logging.info(f"Saving Instagram connection for {current_user_email}. Page Token Length: {len(encrypted_page_token) if encrypted_page_token else 'None'}, User Token Length: {len(encrypted_long) if encrypted_long else 'None'}")
+    await ig_repo.create_or_update(
         current_user_email,
-        fb_long_lived_token=encrypted_long,
-        page_id=chosen.get('page_id'),
-        page_name=chosen.get('page_name'),
-        page_access_token=encrypted_page_token,
-        ig_business_id=chosen.get('ig_business_id'),
+        ig_business_id=ig_business_id,
+        page_access_token=encrypted_page_token,  # Store encrypted page token
+        user_access_token=encrypted_long,         # Store encrypted user token
+        username=username,
+        account_type=account_type,
+        linked_fb_page_id=chosen.get('page_id'),
+        profile_picture_url=profile_picture_url,
         expires_at=expires_at
     )
+    
+    # Update User model connection flag
+    await user_repo.update_connection_flags(current_user_email, instagram=True)
+    logging.info(f'Instagram connected successfully for {current_user_email} - IG Business ID: {ig_business_id}, Username: {username}')
 
     # respond with success shape expected by frontend
-    return JSONResponse({'success': True, 'message': 'Instagram connected successfully', 'pageName': chosen.get('page_name'), 'igBusinessId': chosen.get('ig_business_id')})
+    return JSONResponse({'success': True, 'message': 'Instagram connected successfully', 'pageName': chosen.get('page_name'), 'igBusinessId': ig_business_id})
 
 
 @router.get('/status')
 async def instagram_status(current_user_email: str = Depends(get_current_user_email)):
-    doc = await repo.find_by_user_id(current_user_email)
-    if not doc or not getattr(doc, 'ig_business_id', None):
+    doc = await ig_repo.find_by_user_id(current_user_email)
+    if not doc or not doc.ig_business_id:
         return {'connected': False}
-    return {'connected': True, 'pageName': doc.page_name, 'igBusinessId': doc.ig_business_id}
+    return {'connected': True, 'username': doc.username, 'igBusinessId': doc.ig_business_id}
 
 
 @router.post('/disconnect')
 async def instagram_disconnect(current_user_email: str = Depends(get_current_user_email)):
-    ok = await repo.delete_by_user_id(current_user_email)
+    ok = await ig_repo.delete_by_user_id(current_user_email)
+    # Update User model flag
+    if ok:
+        await user_repo.update_connection_flags(current_user_email, instagram=False)
+        logging.info(f'Instagram disconnected for {current_user_email}')
     return {'success': ok}

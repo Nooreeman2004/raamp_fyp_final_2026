@@ -10,6 +10,7 @@ Components:
 - raamp_vector_store: ChromaDB vector storage
 - raamp_retriever: LangChain-based semantic search and retrieval
 - raamp_generation: LangChain-based LLM response generation
+- query_preprocessor: Intelligent query preprocessing with fuzzy matching
 - conversation_manager: Multi-user session management
 - raamp_pipeline: Full pipeline execution
 
@@ -22,13 +23,13 @@ Usage:
 """
 
 from .raamp_chunking import FAQChunker, FAQChunk
-from .raamp_vector_store import ChromaVectorStore
+from .raamp_vector_store import PineconeVectorStore
 from .raamp_embeddings import RAAMPEmbeddingGenerator, generate_query_embedding
 from .raamp_retriever import RAAMPRetriever, RetrievedDocument
 from .raamp_generation import RAAMPGenerator, RAMPAssistant, RAGResponse
+from .query_preprocessor import QueryPreprocessor, ProcessedQuery, preprocess_query
 from .conversation_manager import (
     ConversationManager, 
-    ConversationSession,
     get_conversation_manager
 )
 
@@ -37,7 +38,7 @@ __all__ = [
     "FAQChunker",
     "FAQChunk",
     # Vector Store
-    "ChromaVectorStore",
+    "PineconeVectorStore",
     # Embeddings
     "RAAMPEmbeddingGenerator",
     "generate_query_embedding",
@@ -48,8 +49,11 @@ __all__ = [
     "RAAMPGenerator",
     "RAMPAssistant",
     "RAGResponse",
+    # Query Preprocessing
+    "QueryPreprocessor",
+    "ProcessedQuery",
+    "preprocess_query",
     # Conversation Management
     "ConversationManager",
-    "ConversationSession",
     "get_conversation_manager",
 ]

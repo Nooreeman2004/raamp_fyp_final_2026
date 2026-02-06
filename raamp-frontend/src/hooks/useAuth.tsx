@@ -2,7 +2,11 @@ import { useState, useEffect, createContext, useContext, ReactNode } from "react
 import { authService } from "@/services/authService";
 import type { UserResponse, AuthContextType } from "@/types";
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface ExtendedAuthContextType extends AuthContextType {
+  login: (user: UserResponse, remember: boolean) => void;
+}
+
+const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -22,37 +26,57 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const loadUser = async () => {
     try {
-      // Check localStorage first
-      const stored = localStorage.getItem("user");
+      // Check storage (Local first, then Session)
+      const stored = localStorage.getItem("user") || sessionStorage.getItem("user");
+
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
           setUser(parsed);
         } catch {
           localStorage.removeItem("user");
+          sessionStorage.removeItem("user");
         }
       }
 
-      // Verify with backend
+      // Verify with backend if we have a token (usually handled by cookies/interceptor)
+      // But we call getProfile to ensure user data is fresh
       const profile = await authService.getProfile();
       if (profile) {
         setUser(profile);
-        try {
+        // Update the storage that was already in use
+        if (localStorage.getItem("user")) {
           localStorage.setItem("user", JSON.stringify(profile));
-        } catch {}
+        } else if (sessionStorage.getItem("user")) {
+          sessionStorage.setItem("user", JSON.stringify(profile));
+        }
       } else {
+        // If backend says no user, clear everything
         setUser(null);
         localStorage.removeItem("user");
+        sessionStorage.removeItem("user");
       }
     } catch (error: unknown) {
       const apiError = error as { status?: number };
       if (apiError?.status === 401 || apiError?.status === 403) {
         setUser(null);
         localStorage.removeItem("user");
+        sessionStorage.removeItem("user");
       }
-      // For other errors, keep existing user from localStorage if available
+      // For other errors, keep existing user from storage if available
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const login = (userData: UserResponse, remember: boolean) => {
+    setUser(userData);
+    if (remember) {
+      localStorage.setItem("user", JSON.stringify(userData));
+      sessionStorage.removeItem("user");
+    } else {
+      sessionStorage.setItem("user", JSON.stringify(userData));
+      localStorage.removeItem("user");
     }
   };
 
@@ -68,6 +92,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } finally {
       setUser(null);
       localStorage.removeItem("user");
+      sessionStorage.removeItem("user");
     }
   };
 
@@ -75,12 +100,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     loadUser();
   }, []);
 
-  const value: AuthContextType = {
+  const value: ExtendedAuthContextType = {
     user,
     isLoading,
     isAuthenticated: !!user,
     refreshUser,
     logout,
+    login,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

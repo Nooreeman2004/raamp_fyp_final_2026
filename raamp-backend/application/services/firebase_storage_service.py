@@ -1,71 +1,110 @@
 """
 Firebase Storage Service - handles file uploads to Firebase Storage
 """
-from firebase_admin import storage
 import uuid
+import os
+import base64
+from pathlib import Path
 
 # Default profile picture URL
 DEFAULT_PROFILE_PICTURE = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png"
 
 
 class FirebaseStorageService:
-    """Service for uploading files to Firebase Storage"""
+    """Service for uploading files to Firebase Storage with local fallback"""
     
     def __init__(self):
+        self._local_storage_path = Path("uploaded_files")
+        # Create local storage directory
+        self._local_storage_path.mkdir(exist_ok=True)
         self._bucket = None
-    
+        self._initialized = False
+
+    def _ensure_initialized(self):
+        """Lazy initialization of Firebase Storage"""
+        if self._initialized:
+            return
+            
+        try:
+            from firebase_admin import storage, _apps
+            if not _apps:
+                # Still not initialized by main.py, don't fail here but keep it as not initialized
+                return
+            
+            self._bucket = storage.bucket()
+            self._initialized = True
+            print(f"✅ Firebase Storage connected successfully")
+        except Exception as e:
+            print(f"⚠️  Firebase Storage initialization failed: {e}")
+            self._initialized = True # Mark as initialized to stop retrying even on failure
+
     @property
     def bucket(self):
-        """Lazy-load bucket to avoid initialization issues"""
-        if self._bucket is None:
-            self._bucket = storage.bucket()
+        """Get Firebase bucket with lazy loading"""
+        self._ensure_initialized()
         return self._bucket
+    
+    def _save_locally(self, file_content: bytes, file_path: str) -> str:
+        """Save file to local storage and return a localhost URL"""
+        full_path = self._local_storage_path / file_path
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Save file
+        with open(full_path, 'wb') as f:
+            f.write(file_content)
+        
+        print(f"✓ Saved file locally: {full_path}")
+        
+        # Return local file URL (works with backend static file serving)
+        # Static files are mounted at /api/static in main.py
+        from config import settings
+        return f"{settings.BACKEND_URL}/api/static/{file_path}"
     
     async def upload_logo(self, file_content: bytes, file_name: str, user_id: str) -> str:
         """
-        Upload brand logo to Firebase Storage
+        Upload brand logo to Firebase Storage (with local fallback/copy)
         
-        Args:
-            file_content: Binary content of the file
-            file_name: Original filename
-            user_id: User ID for organizing files
-            
         Returns:
-            Public URL of uploaded file
+            Public URL or Data URL of uploaded file
         """
         # Generate unique filename
         file_extension = file_name.split('.')[-1].lower()
         unique_filename = f"brand_logos/{user_id}/{uuid.uuid4()}.{file_extension}"
         
         # Validate file type
-        allowed_extensions = ['svg', 'png', 'jpg', 'jpeg']
+        allowed_extensions = ['svg', 'png', 'jpg', 'jpeg', 'webp']
         if file_extension not in allowed_extensions:
             raise ValueError(f"Invalid file type. Allowed: {', '.join(allowed_extensions)}")
         
-        # Validate file size (max 2MB)
-        max_size = 2 * 1024 * 1024  # 2MB
+        # Validate file size (max 5MB)
+        max_size = 5 * 1024 * 1024 
         if len(file_content) > max_size:
-            raise ValueError("File size exceeds 2MB limit")
+            raise ValueError("File size exceeds 5MB limit")
         
-        # Upload to Firebase Storage
-        blob = self.bucket.blob(unique_filename)
+        # 1. Save Locally (as backup/dev fallback)
+        local_result = self._save_locally(file_content, unique_filename)
         
-        # Set content type
-        content_types = {
-            'svg': 'image/svg+xml',
-            'png': 'image/png',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg'
-        }
-        blob.content_type = content_types.get(file_extension, 'application/octet-stream')
+        # 2. Upload to Firebase Storage if available
+        if self.bucket:
+            try:
+                blob = self.bucket.blob(unique_filename)
+                content_types = {
+                    'svg': 'image/svg+xml',
+                    'png': 'image/png',
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'webp': 'image/webp'
+                }
+                content_type = content_types.get(file_extension, 'application/octet-stream')
+                blob.content_type = content_type
+                blob.upload_from_string(file_content, content_type=content_type)
+                blob.make_public()
+                print(f"✓ Logo uploaded to Firebase: {blob.public_url}")
+                return blob.public_url
+            except Exception as e:
+                print(f"⚠️  Firebase upload failed, using local: {e}")
         
-        # Upload
-        blob.upload_from_string(file_content)
-        
-        # Make public
-        blob.make_public()
-        
-        return blob.public_url
+        return local_result
     
     async def upload_profile_picture(self, file_content: bytes, file_name: str, user_id: str) -> str:
         """
@@ -93,25 +132,34 @@ class FirebaseStorageService:
         if len(file_content) > max_size:
             raise ValueError("File size exceeds 5MB limit")
         
-        # Upload to Firebase Storage
-        blob = self.bucket.blob(unique_filename)
+        # Upload to Firebase Storage if available
+        bucket = self.bucket
+        if bucket:
+            try:
+                blob = bucket.blob(unique_filename)
+                
+                # Set content type
+                content_types = {
+                    'png': 'image/png',
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'webp': 'image/webp'
+                }
+                content_type = content_types.get(file_extension, 'application/octet-stream')
+                blob.content_type = content_type
+                
+                # Upload with explicit content_type
+                blob.upload_from_string(file_content, content_type=content_type)
+                
+                # Make public
+                blob.make_public()
+                
+                return blob.public_url
+            except Exception as e:
+                print(f"⚠️  Firebase profile picture upload failed: {e}")
         
-        # Set content type
-        content_types = {
-            'png': 'image/png',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'webp': 'image/webp'
-        }
-        blob.content_type = content_types.get(file_extension, 'application/octet-stream')
-        
-        # Upload
-        blob.upload_from_string(file_content)
-        
-        # Make public
-        blob.make_public()
-        
-        return blob.public_url
+        # Fallback to local storage (or default)
+        return self._save_locally(file_content, unique_filename) or DEFAULT_PROFILE_PICTURE
     
     async def delete_profile_picture(self, picture_url: str):
         """Delete profile picture from Firebase Storage"""
@@ -121,22 +169,125 @@ class FirebaseStorageService:
         if "storage.googleapis.com" not in picture_url:
             return  # External URL, don't try to delete
             
+        bucket = self.bucket
+        if not bucket:
+            return
+            
         try:
             # Extract blob name from URL
-            blob_name = picture_url.split(f"{self.bucket.name}/")[-1].split("?")[0]
-            blob = self.bucket.blob(blob_name)
+            bucket_name = bucket.name
+            blob_name = picture_url.split(f"{bucket_name}/")[-1].split("?")[0]
+            blob = bucket.blob(blob_name)
             blob.delete()
-        except (ValueError, KeyError, IndexError) as e:
+        except (ValueError, KeyError, IndexError, Exception) as e:
             print(f"Error deleting profile picture: {e}")
             # Don't raise error, just log it
     
     async def delete_logo(self, logo_url: str):
         """Delete logo from Firebase Storage"""
+        bucket = self.bucket
+        if not bucket:
+            return
+
         try:
             # Extract blob name from URL
-            blob_name = logo_url.split(f"{self.bucket.name}/")[-1].split("?")[0]
-            blob = self.bucket.blob(blob_name)
+            bucket_name = bucket.name
+            blob_name = logo_url.split(f"{bucket_name}/")[-1].split("?")[0]
+            blob = bucket.blob(blob_name)
             blob.delete()
-        except (ValueError, KeyError, IndexError) as e:
+        except (ValueError, KeyError, IndexError, Exception) as e:
             print(f"Error deleting logo: {e}")
             # Don't raise error, just log it
+
+    async def upload_complaint_attachment(self, file_content: bytes, file_name: str, user_id: str, complaint_id: str) -> str:
+        """
+        Upload complaint attachment to Firebase Storage
+        
+        Args:
+            file_content: Binary content of the file
+            file_name: Original filename
+            user_id: User ID for organizing files
+            complaint_id: Complaint ID for organizing files
+            
+        Returns:
+            Public URL of uploaded file
+        """
+        # Generate unique filename
+        file_extension = file_name.split('.')[-1].lower()
+        unique_filename = f"complaint_attachments/{user_id}/{complaint_id}/{uuid.uuid4()}.{file_extension}"
+        
+        # Validate file type
+        allowed_extensions = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf', 'doc', 'docx', 'txt']
+        if file_extension not in allowed_extensions:
+            raise ValueError(f"Invalid file type. Allowed: {', '.join(allowed_extensions)}")
+        
+        # Validate file size (max 10MB for attachments)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if len(file_content) > max_size:
+            raise ValueError("File size exceeds 10MB limit")
+        
+        # 1. Save locally first (optional, but good for tracking)
+        # For now, we'll just try Firebase
+        bucket = self.bucket
+        if not bucket:
+             # If no Firebase, save locally and return a local path or data URL
+             return self._save_locally(file_content, unique_filename)
+
+        try:
+            # Upload to Firebase Storage
+            blob = bucket.blob(unique_filename)
+            
+            # Set content type
+            content_types = {
+                'png': 'image/png',
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'webp': 'image/webp',
+                'gif': 'image/gif',
+                'pdf': 'application/pdf',
+                'doc': 'application/msword',
+                'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'txt': 'text/plain'
+            }
+            content_type = content_types.get(file_extension, 'application/octet-stream')
+            blob.content_type = content_type
+            
+            # Upload with explicit content_type
+            blob.upload_from_string(file_content, content_type=content_type)
+            
+            # Make public
+            blob.make_public()
+            
+            return blob.public_url
+        except Exception as e:
+            print(f"⚠️  Firebase attachment upload failed: {e}")
+            return self._save_locally(file_content, unique_filename)
+
+    def upload_file_from_bytes(self, file_content: bytes, file_path: str, content_type: str = "application/octet-stream") -> str:
+        """
+        Upload file from bytes to Firebase Storage
+        
+        Args:
+            file_content: Binary content of the file
+            file_path: Path in Firebase bucket (e.g., "assets/user@email.com/file.jpg")
+            content_type: MIME type of the file
+            
+        Returns:
+            Public URL of uploaded file
+        """
+        bucket = self.bucket
+        if not bucket:
+            # Fallback to local storage if Firebase not available
+            return self._save_locally(file_content, file_path)
+        
+        try:
+            blob = bucket.blob(file_path)
+            blob.content_type = content_type
+            blob.upload_from_string(file_content, content_type=content_type)
+            blob.make_public()
+            
+            print(f"✓ File uploaded to Firebase: {blob.public_url}")
+            return blob.public_url
+        except Exception as e:
+            print(f"⚠️  Firebase upload failed, using local: {e}")
+            return self._save_locally(file_content, file_path)

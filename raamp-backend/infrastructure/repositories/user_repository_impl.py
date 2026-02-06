@@ -30,6 +30,9 @@ class UserRepository(IUserRepository):
             bio=model.bio,
             business_domain=model.business_domain,
             profile_completed=model.profile_completed,
+            facebook_connected=getattr(model, 'facebook_connected', False),
+            instagram_connected=getattr(model, 'instagram_connected', False),
+            google_maps_connected=getattr(model, 'google_maps_connected', False),
             profile_picture=model.profile_picture,
             is_admin=model.is_admin,
             subscription=model.subscription,
@@ -47,6 +50,15 @@ class UserRepository(IUserRepository):
         """Find user by username"""
         user_model = await UserModel.find_one(UserModel.username == username)
         return self._to_entity(user_model) if user_model else None
+
+    async def find_by_id(self, user_id: str) -> Optional[User]:
+        """Find user by MongoDB id string"""
+        try:
+            from bson import ObjectId
+            user_model = await UserModel.get(ObjectId(user_id))
+            return self._to_entity(user_model) if user_model else None
+        except Exception:
+            return None
     
     async def exists_by_email(self, email: str) -> bool:
         """Check if email already exists"""
@@ -158,24 +170,8 @@ class UserRepository(IUserRepository):
         await user_model.save()
         return True
 
-    async def update_google_place_details(self, email: str, place_id: str = None, name: str = None, address: str = None, latitude: float = None, longitude: float = None) -> bool:
-        """Update user's stored Google Maps place details"""
-        user_model = await UserModel.find_one(UserModel.email == email.lower())
-        if not user_model:
-            return False
-        if place_id is not None:
-            user_model.google_place_id = place_id
-        if name is not None:
-            user_model.google_place_name = name
-        if address is not None:
-            user_model.google_place_address = address
-        if latitude is not None:
-            user_model.google_lat = latitude
-        if longitude is not None:
-            user_model.google_lng = longitude
-        user_model.updated_at = datetime.utcnow()
-        await user_model.save()
-        return True
+    # Note: update_google_place_details removed - Google place data is now stored in BusinessModel
+    # Use GoogleBusinessRepository.create_or_update() or BusinessRepository methods instead
 
     async def update_profile_completed(self, email: str, completed: bool = True) -> bool:
         user_model = await UserModel.find_one(UserModel.email == email.lower())

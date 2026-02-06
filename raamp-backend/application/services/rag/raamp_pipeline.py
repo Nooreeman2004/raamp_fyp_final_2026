@@ -68,76 +68,42 @@ def step_1_chunking() -> Dict[str, Any]:
 
 
 def step_2_ingest_to_vectorstore() -> Dict[str, Any]:
-    """Step 2: Ingest chunks into ChromaDB using LangChain."""
-    print_step(2, 2, "Ingesting to Vector Store (LangChain)")
+    """Step 2: Ingest chunks into Pinecone using RAAMPEmbeddingGenerator."""
+    print_step(2, 2, "Ingesting to Vector Store (Pinecone)")
     
-    from langchain_openai import OpenAIEmbeddings
-    from langchain_chroma import Chroma
-    from langchain_core.documents import Document
+    from application.services.rag.raamp_embeddings import RAAMPEmbeddingGenerator
     
     start_time = time.time()
     
-    # Load chunks from embeddings_data directory (where chunker saves them)
-    chunks_path = os.path.join(
-        os.path.dirname(__file__),
-        "..", "..", "..", "data", "embeddings_data", "raamp_chunks.json"
-    )
-    chunks_path = os.path.normpath(chunks_path)
+    # Initialize generator (handles embedding generation + Pinecone upsert)
+    generator = RAAMPEmbeddingGenerator()
     
-    with open(chunks_path, "r", encoding="utf-8") as f:
-        chunks_data = json.load(f)
+    # Load chunks (uses default path logic in generator)
+    print("   📄 Loading chunks...")
+    chunks = generator.load_chunks()
+    print(f"   📄 Loaded {len(chunks)} chunks")
     
-    chunks = chunks_data.get("chunks", [])
-    print(f"   📄 Loaded {len(chunks)} chunks from {chunks_path}")
+    # Process and Generate Embeddings
+    print("   🔄 Generating embeddings...")
+    embedded_chunks = generator.process_chunks(chunks)
     
-    # Initialize embeddings
-    embeddings = OpenAIEmbeddings(
-        model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
-        openai_api_key=os.getenv("OPENAI_API_KEY")
-    )
+    # Save local backup
+    print("   💾 Saving local backup...")
+    generator.save_embeddings(embedded_chunks)
     
-    # Prepare documents for LangChain
-    documents = []
-    for chunk in chunks:
-        doc = Document(
-            page_content=f"Q: {chunk['question']}\nA: {chunk['answer']}",
-            metadata={
-                "id": chunk["id"],
-                "question": chunk["question"],
-                "answer": chunk["answer"],
-                "category": chunk.get("category", "General"),
-                "keywords": ", ".join(chunk.get("keywords", [])),
-                "user_level": chunk.get("user_level", "Basic")
-            }
-        )
-        documents.append(doc)
-    
-    print(f"   📝 Prepared {len(documents)} documents for ingestion")
-    
-    # Get persist directory
-    persist_dir = os.getenv("VECTOR_STORE_PATH", "data/vector_store_data")
-    
-    # Create ChromaDB with LangChain
-    vector_store = Chroma.from_documents(
-        documents=documents,
-        embedding=embeddings,
-        collection_name="raamp_faq_collection",
-        persist_directory=persist_dir
-    )
-    
-    # Get collection stats
-    collection_count = vector_store._collection.count()
+    # Upsert to Pinecone
+    print(f"   🌲 Upserting to Pinecone index '{generator.pinecone_index_name}'...")
+    generator.upsert_to_pinecone(embedded_chunks)
     
     elapsed = time.time() - start_time
     
-    print(f"   ✅ Ingested {collection_count} documents to ChromaDB")
-    print(f"   📁 Persist directory: {persist_dir}")
+    print(f"   ✅ Ingested {len(embedded_chunks)} documents to Pinecone")
     print(f"   ⏱️  Time: {elapsed:.2f}s")
     
     return {
         "status": "success",
-        "documents_ingested": collection_count,
-        "persist_directory": persist_dir,
+        "documents_ingested": len(embedded_chunks),
+        "target_index": generator.pinecone_index_name,
         "elapsed_time": elapsed
     }
 

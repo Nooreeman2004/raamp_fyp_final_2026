@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Optional, List
 from infrastructure.database.models.social_media_account_model import SocialMediaAccountModel
+from infrastructure.database.models.user_model import UserModel
 
 
 class SocialMediaRepository:
@@ -42,3 +43,17 @@ class SocialMediaRepository:
             return False
         await doc.delete()
         return True
+    
+    async def get_admin_users(self) -> List[UserModel]:
+        """Get all admin users for system notifications"""
+        # For now, return users with admin role or specific email domain
+        # Adjust this based on your actual admin identification logic
+        admin_users = await UserModel.find(
+            UserModel.role == "admin"
+        ).to_list()
+        
+        # If no admin role exists, you can filter by email or other criteria
+        if not admin_users:
+            admin_users = await UserModel.find().limit(1).to_list()  # Fallback to first user
+        
+        return admin_users

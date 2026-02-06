@@ -14,12 +14,15 @@ class Config:
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     JWT_EXPIRATION_DAYS: int = int(os.getenv("JWT_EXPIRATION_DAYS", "7"))
     
+    # Encryption Configuration (for encrypting sensitive data like OAuth tokens)
+    ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
+    
     # Mailtrap Email Configuration
     # SMTP Sandbox for Testing (emails go to Mailtrap inbox, not real recipients)
     MAILTRAP_SMTP_HOST: str = "sandbox.smtp.mailtrap.io"
     MAILTRAP_SMTP_PORT: int = int(os.getenv("MAILTRAP_SMTP_PORT", "2525"))
-    MAILTRAP_SMTP_USERNAME: str = os.getenv("MAILTRAP_SMTP_USERNAME", "7d75862a2e985a")
-    MAILTRAP_SMTP_PASSWORD: str = os.getenv("MAILTRAP_SMTP_PASSWORD", "9a3b0f07864cb2")
+    MAILTRAP_SMTP_USERNAME: str = os.getenv("MAILTRAP_SMTP_USERNAME", "daaad2fab206e4")
+    MAILTRAP_SMTP_PASSWORD: str = os.getenv("MAILTRAP_SMTP_PASSWORD", "08f05079b826ec")
     
     # Fallback API configuration (not used with SMTP)
     MAILTRAP_API_TOKEN: str = os.getenv("MAILTRAP_API_TOKEN", "78049356a1e16f8ffe78c57832a34eed")
@@ -64,6 +67,11 @@ class Config:
     
     # Google Maps API Key (used for server-side Places requests if needed)
     GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
+    
+    # Cloudinary Configuration
+    CLOUDINARY_CLOUD_NAME: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+    CLOUDINARY_API_KEY: str = os.getenv("CLOUDINARY_API_KEY", "")
+    CLOUDINARY_API_SECRET: str = os.getenv("CLOUDINARY_API_SECRET", "")
     
     @classmethod
     def is_production(cls) -> bool:

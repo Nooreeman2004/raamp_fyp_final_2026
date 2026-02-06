@@ -44,12 +44,12 @@ export interface ResendVerificationResponse {
   message: string;
 }
 
-export interface SignInRequest {
+export interface LoginRequest {
   email: string;
   password: string;
 }
 
-export interface SignInResponse {
+export interface LoginResponse {
   user: UserResponse;
   message: string;
 }

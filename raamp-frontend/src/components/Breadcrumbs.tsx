@@ -38,17 +38,20 @@ const routeLabels: Record<string, string> = {
 
 export default function Breadcrumbs({ items, className }: BreadcrumbsProps) {
   const location = useLocation();
-  
+
+  // Routes that should not be clickable links
+  const nonClickableRoutes = new Set(['profile', 'settings', 'billing']);
+
   // Auto-generate breadcrumbs from path if not provided
   const breadcrumbs: BreadcrumbItem[] = items || (() => {
     const paths = location.pathname.split('/').filter(Boolean);
     const generated: BreadcrumbItem[] = [];
-    
+
     // Always start with Home/Dashboard
     if (paths.length === 0 || paths[0] !== 'dashboard') {
       generated.push({ label: 'Home', href: '/dashboard' });
     }
-    
+
     let currentPath = '';
     paths.forEach((path, index) => {
       currentPath += `/${path}`;
@@ -57,13 +60,19 @@ export default function Breadcrumbs({ items, className }: BreadcrumbsProps) {
         .split('-')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
-      
+
+      // Determine if this specific crumb should be clickable
+      // Last item is never clickable (current page)
+      // Items in nonClickableRoutes are not clickable
+      const isLast = index === paths.length - 1;
+      const isNonClickable = nonClickableRoutes.has(path);
+
       generated.push({
         label,
-        href: index === paths.length - 1 ? undefined : currentPath,
+        href: isLast || isNonClickable ? undefined : currentPath,
       });
     });
-    
+
     return generated;
   })();
 
@@ -79,7 +88,7 @@ export default function Breadcrumbs({ items, className }: BreadcrumbsProps) {
             {index > 0 && (
               <ChevronRight className="w-4 h-4 text-muted-foreground mx-2 flex-shrink-0" />
             )}
-            {item.href && index < breadcrumbs.length - 1 ? (
+            {item.href ? (
               <Link
                 to={item.href}
                 className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5 hover:underline"
@@ -90,9 +99,9 @@ export default function Breadcrumbs({ items, className }: BreadcrumbsProps) {
             ) : (
               <span className={cn(
                 "flex items-center gap-1.5",
-                index === breadcrumbs.length - 1 
-                  ? "text-foreground font-semibold" 
-                  : "text-muted-foreground"
+                index === breadcrumbs.length - 1
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground opacity-70"
               )}>
                 {index === 0 && <Home className="w-4 h-4" />}
                 <span>{item.label}</span>
@@ -104,4 +113,3 @@ export default function Breadcrumbs({ items, className }: BreadcrumbsProps) {
     </nav>
   );
 }
-
