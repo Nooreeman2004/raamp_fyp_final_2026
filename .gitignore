@@ -17,10 +17,9 @@ Thumbs.db
 *.sublime-workspace
 
 # Environment variables
-.env
-.env.local
-.env.*.local
-*.env
+**/*.env
+**/*.env.local
+**/*.env.*.local
 
 # Logs
 *.log
@@ -43,4 +42,22 @@ build/
 
 # Dependencies
 node_modules/
+.venv/
+venv/
+env/
+
+# Python artifacts
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Firebase service account (sensitive)
+firebase-service-account.json
+**/*-service-account.json
+*.json.key
+
+# Agentic / AI
+.gemini/
+.agent/
+brain/
 
