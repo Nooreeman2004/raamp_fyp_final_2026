@@ -127,7 +127,8 @@ class InstagramSchedulerService:
         # We'll process sequentially to be safe, but this could be optimized
         for post in posts:
             try:
-                post_id = str(post.id) if hasattr(post, 'id') else str(post.created_at.timestamp())
+                # Get post_id with fallback for legacy posts without ID
+                post_id = str(post.id) if (hasattr(post, 'id') and post.id) else str(post.created_at.timestamp())
                 user_id = post.user_id
                 scheduled_time = post.scheduled_time
                 

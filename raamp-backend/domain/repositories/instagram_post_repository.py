@@ -125,6 +125,11 @@ class IStoryPostRepository(ABC):
     async def get_by_user(self, user_id: str, limit: int = 50) -> List[StoryPost]:
         """Get stories by user"""
         pass
+    
+    @abstractmethod
+    async def check_recent_duplicate(self, user_id: str, media_url: str, minutes: int = 5) -> Optional[StoryPost]:
+        """Check if a story with the same media_url was created recently"""
+        pass
 
     @abstractmethod
     async def update_status(

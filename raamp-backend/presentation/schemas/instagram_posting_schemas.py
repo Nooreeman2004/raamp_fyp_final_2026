@@ -149,6 +149,7 @@ class ScheduledPostItem(BaseModel):
     scheduled_time: str
     status: str
     created_at: str
+    platform: Optional[str] = "instagram"
 
 
 class CancelScheduledPostRequest(BaseModel):

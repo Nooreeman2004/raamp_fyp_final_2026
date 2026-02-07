@@ -31,6 +31,7 @@ export interface ScheduledPostItem {
     scheduled_time: string;
     status: string;
     created_at: string;
+    platform?: string; // "instagram" or "facebook"
 }
 
 export interface ScheduledPostListResponse {

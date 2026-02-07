@@ -9,6 +9,8 @@
 - MongoDB (for database)
 - Firebase account (for authentication)
 
+> **📌 Python Virtual Environment:** See [VENV_SETUP.md](./VENV_SETUP.md) for detailed Python environment configuration and troubleshooting.
+
 ## Installation & Setup
 
 ### Backend Setup

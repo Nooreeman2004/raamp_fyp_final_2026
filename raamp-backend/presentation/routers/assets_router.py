@@ -7,13 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from pydantic import BaseModel
 from typing import List, Optional
 import logging
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from presentation.routers.auth_router import get_current_user_email
 from application.services.cloudinary_service import CloudinaryService
+from application.utils.file_manager import FileManager
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -65,38 +65,42 @@ class UploadResponse(BaseModel):
 @router.post("/upload", response_model=UploadResponse)
 async def upload_media(
     file: UploadFile = File(...),
+    upload_type: str = Query("content", regex="^(content|logo|profile)$"),
     current_user_email: str = Depends(get_current_user_email)
 ):
     """
-    Upload media file (image/video) to Firebase Storage and local storage.
+    Upload media file to user-specific organized storage.
     
     Saves to:
-    - Firebase Storage: assets/{user_email}/{timestamp}_{filename}
-    - Local Storage: uploaded_files/assets/{timestamp}_{filename}
+    - Local: uploaded_files/{sanitized_email}/{upload_type}/{timestamp}_{filename}
+    - Cloudinary: users/{sanitized_email}/{upload_type}/{filename}
     
-    Returns public URL and local path for the uploaded file.
+    Args:
+        file: The file to upload
+        upload_type: Type of upload - 'content' (posts), 'logo' (brand), or 'profile'
+        
+    Returns public URL and metadata for the uploaded file.
     """
-    logger.info(f"📤 Upload request from user: {current_user_email}, file: {file.filename}, content_type: {file.content_type}")
+    logger.info(f"📤 Upload request from user: {current_user_email}, file: {file.filename}, type: {upload_type}, content_type: {file.content_type}")
     
     try:
-        # Validate file type
-        allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "video/mp4", "video/quicktime"]
-        if file.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported file type: {file.content_type}. Allowed: {', '.join(allowed_types)}"
-            )
+        # Map upload_type to subfolder
+        subfolder_map = {
+            'content': 'content',
+            'logo': 'logos',
+            'profile': 'profiles'
+        }
+        subfolder = subfolder_map[upload_type]
         
-        # Validate file size (10MB limit)
-        max_size = 10 * 1024 * 1024  # 10MB
+        # Read file content
         file_content = await file.read()
         file_size = len(file_content)
         
-        if file_size > max_size:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File too large. Maximum size: 10MB. Your file: {file_size / (1024*1024):.2f}MB"
-            )
+        # Validate file type for specific subfolder
+        FileManager.validate_file_type(file.content_type, subfolder)
+        
+        # Validate file size for specific subfolder
+        FileManager.validate_file_size(file_size, subfolder)
         
         # Reset file pointer
         await file.seek(0)
@@ -107,9 +111,12 @@ async def upload_media(
         unique_id = str(uuid.uuid4())[:8]
         new_filename = f"{timestamp}_{unique_id}{file_ext}"
         
-        # Save to local storage
-        local_dir = Path("uploaded_files/assets")
-        local_dir.mkdir(parents=True, exist_ok=True)
+        # Get user-specific upload path
+        local_dir = FileManager.get_user_upload_path(
+            email=current_user_email,
+            subfolder=subfolder,
+            create=True
+        )
         local_path = local_dir / new_filename
         
         with open(local_path, "wb") as f:
@@ -124,17 +131,27 @@ async def upload_media(
         
         if cloudinary_service.is_available:
             logger.info("Attempting Cloudinary upload...")
-            # Pass filename with email for URL encoding (@ → %40)
+            # Use organized user-specific Cloudinary folder
+            cloudinary_folder = FileManager.get_cloudinary_folder(current_user_email, subfolder)
+            
+            # Determine if this is for stories (needs special handling)
+            is_story_upload = (upload_type == 'content')  # Assume content uploads might be for stories
+            
             cloudinary_data = cloudinary_service.upload_file_from_bytes(
                 file_content=file_content,
-                folder=f"assets/{current_user_email}",
-                filename=new_filename,  # Will be URL-encoded by service
-                validate_aspect_ratio=True  # Enable Instagram aspect ratio validation
+                folder=cloudinary_folder,
+                filename=new_filename,
+                validate_aspect_ratio=is_story_upload,  # Validate for content posts
+                optimize_for_stories=False  # Don't force resize, let Instagram handle it
             )
             
             if cloudinary_data:
                 cloudinary_original_url = cloudinary_data["secure_url"]
                 cloudinary_url = cloudinary_original_url  # Initial default
+                
+                logger.info(f"📸 Cloudinary upload result:")
+                logger.info(f"  Original URL: {cloudinary_original_url}")
+                logger.info(f"  Public ID: {cloudinary_data.get('public_id')}")
                 
                 width = cloudinary_data.get("width")
                 height = cloudinary_data.get("height")
@@ -145,15 +162,20 @@ async def upload_media(
                     original_dims = {"w": width, "h": height, "ratio": round(ratio, 2)}
                     
                     # Adaptive Ratio Mapping (Instagram supported: 4:5, 1:1, 1.91:1)
+                    # Use integer ratios for Cloudinary: 4:5, 1:1, 191:100
                     target_ar = None
+                    cloudinary_ar = None  # Cloudinary-compatible format
                     if ratio <= 0.9:
                         target_ar = "4:5"
+                        cloudinary_ar = "4:5"
                         target_val = 0.8
                     elif 0.9 < ratio <= 1.4:
                         target_ar = "1:1"
+                        cloudinary_ar = "1:1"
                         target_val = 1.0
                     else:
                         target_ar = "1.91:1"
+                        cloudinary_ar = "191:100"  # Cloudinary needs integer ratio
                         target_val = 1.91
                     
                     # Detect if transformation is needed (if original is outside bounds or far from target)
@@ -162,10 +184,32 @@ async def upload_media(
                     # We transform if it's > 5% away from the target mapping.
                     if abs(ratio - target_val) > 0.05 or ratio < 0.79 or ratio > 1.92:
                         parts = cloudinary_original_url.split("/upload/")
+                        logger.info(f"🔍 URL Transformation Analysis:")
+                        logger.info(f"  Splitting URL: {cloudinary_original_url}")
+                        logger.info(f"  Number of parts after split: {len(parts)}")
+                        
                         if len(parts) == 2:
-                            transformation = f"c_fill,g_auto,ar_{target_ar}"
-                            cloudinary_url = f"{parts[0]}/upload/{transformation}/{parts[1]}"
-                            is_auto_cropped = True
+                            logger.info(f"  Part 0 (base): {parts[0]}")
+                            logger.info(f"  Part 1 (path): {parts[1]}")
+                            logger.info(f"  Part 1 length: {len(parts[1])}")
+                            
+                            if len(parts[1]) > 10:  # Ensure we have a valid path
+                                # Use auto:best instead of q_100 for better smart compression
+                                # Use cloudinary_ar (integer format) for Cloudinary API compatibility
+                                transformation = f"c_limit,g_center,ar_{cloudinary_ar},q_auto:best,f_auto"
+                                cloudinary_url = f"{parts[0]}/upload/{transformation}/{parts[1]}"
+                                logger.info(f"✨ Created transformed URL with ar_{cloudinary_ar}")
+                                logger.info(f"  Final URL: {cloudinary_url}")
+                                is_auto_cropped = True
+                            else:
+                                logger.error(f"❌ Part 1 too short ({len(parts[1])} chars), using original")
+                                cloudinary_url = cloudinary_original_url
+                        else:
+                            logger.error(f"❌ URL split failed - expected 2 parts, got {len(parts)}")
+                            if len(parts) > 0:
+                                for i, part in enumerate(parts):
+                                    logger.error(f"  Part {i}: {part[:100]}...")
+                            cloudinary_url = cloudinary_original_url
                             
                             # Estimate transformed dims based on standard 1080w
                             t_w = 1080
@@ -187,12 +231,20 @@ async def upload_media(
             logger.info(f"Using Cloudinary URL as primary: {public_url}")
         else:
             # Fallback to local file URL (using BACKEND_URL which could be a tunnel)
-            public_url = f"{settings.BACKEND_URL}/api/static/assets/{new_filename}"
+            # Use new user-specific folder structure
+            sanitized_email = FileManager.sanitize_email_for_folder(current_user_email)
+            public_url = f"{settings.BACKEND_URL}/api/static/{sanitized_email}/{subfolder}/{new_filename}"
             logger.info(f"Using local/tunnel fallback URL: {public_url}")
+            
+            # Critical warnings for Instagram posting
             if "localhost" in public_url or "127.0.0.1" in public_url:
-                logger.warning("⚠️ CRITICAL: Using LOCALHOST URL. This will fail on Instagram!")
+                logger.error("❌ CRITICAL: Using LOCALHOST URL. Instagram CANNOT access this! Use Cloudinary or ngrok/localtunnel.")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Media URL is not publicly accessible. Instagram requires public URLs. Please configure Cloudinary or use a tunnel service (ngrok/localtunnel)."
+                )
             elif "loca.lt" in public_url:
-                logger.warning("⚠️ WARNING: Using localtunnel URL. Interstitial pages may cause 'Only photo or video' errors.")
+                logger.warning("⚠️  WARNING: Using localtunnel URL. If Instagram fails, the interstitial page may be blocking access.")
         
         # Generate asset ID
         asset_id = str(uuid.uuid4())

@@ -216,7 +216,8 @@ async def list_scheduled_posts(
                 caption=post.caption,
                 scheduled_time=post.scheduled_time.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
                 status=post.status.value if hasattr(post.status, 'value') else post.status,
-                created_at=post.created_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+                created_at=post.created_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+                platform="instagram"
             )
             for post in scheduled_posts
         ]
@@ -244,22 +245,30 @@ async def cancel_scheduled_post(
     Can only cancel posts with status 'scheduled'.
     """
     try:
+        logger.info(f"Cancel request for post {request.post_id} from user {current_user_email}")
+        
         # Verify ownership
         scheduled_post = await get_scheduled_repo().get_by_id(request.post_id)
         if not scheduled_post:
+            logger.warning(f"Post {request.post_id} not found")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Scheduled post not found"
             )
         
+        logger.info(f"Found post - user_id: {scheduled_post.user_id}, status: {scheduled_post.status}")
+        
         if scheduled_post.user_id != current_user_email:
+            logger.warning(f"Unauthorized cancel attempt - post owner: {scheduled_post.user_id}, requester: {current_user_email}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to cancel this post"
             )
         
         # Cancel the post
+        logger.info(f"Attempting to cancel post {request.post_id}")
         success = await get_scheduled_repo().cancel(request.post_id)
+        logger.info(f"Cancel result: {success}")
         
         if success:
             return CancelScheduledPostResponse(
@@ -269,16 +278,16 @@ async def cancel_scheduled_post(
         else:
             return CancelScheduledPostResponse(
                 success=False,
-                message="Failed to cancel scheduled post"
+                message="Failed to cancel scheduled post - it may have already been processed"
             )
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Error cancelling scheduled post: {e}")
+        logger.exception(f"Error cancelling scheduled post {request.post_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to cancel scheduled post"
+            detail=f"Failed to cancel post: {str(e)}"
         )
 
 

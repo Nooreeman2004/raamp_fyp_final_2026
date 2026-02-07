@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { instagramService } from "@/services/instagramService";
+import { facebookService } from "@/services/facebookService";
 import { useMemo } from "react";
 
 interface ScheduledPostsTableProps {
@@ -51,12 +52,23 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
     const [cancellingPostId, setCancellingPostId] = useState<string | null>(null);
     const [postToCancel, setPostToCancel] = useState<ScheduledPostItem | null>(null);
 
+    // Detect platform from post data
+    const detectPlatform = (post: ScheduledPostItem): 'instagram' | 'facebook' => {
+        // Prioritize explicit platform field if available
+        if ((post as any).platform) {
+            return (post as any).platform.toLowerCase();
+        }
+        // Fallback: Check if post has page_id or page_name (Facebook-specific fields)
+        if ((post as any).page_id || (post as any).page_name) return 'facebook';
+        // Default to Instagram
+        return 'instagram';
+    };
+
     // Filter logic to match History table
     const filteredPosts = useMemo(() => {
         return posts.filter((post) => {
-            // Platform filtering (scheduled posts currently default to Instagram in model, 
-            // but unified posting will create them with platform flags)
-            const platform: string = "instagram"; // Default for scheduled for now
+            // Platform filtering
+            const platform = detectPlatform(post);
             if (platformFilter !== "all" && platform.toLowerCase() !== platformFilter.toLowerCase()) return false;
 
             // Search filtering
@@ -75,7 +87,12 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
     const handleCancelPost = async (post: ScheduledPostItem) => {
         try {
             setCancellingPostId(post.post_id);
-            const response = await instagramService.cancelScheduledPost(post.post_id);
+            
+            // Detect platform and use appropriate service
+            const platform = detectPlatform(post);
+            const response = platform === 'facebook' 
+                ? await facebookService.cancelScheduledPost(post.post_id)
+                : await instagramService.cancelScheduledPost(post.post_id);
 
             if (response.success) {
                 toast.success("Scheduled post cancelled successfully");

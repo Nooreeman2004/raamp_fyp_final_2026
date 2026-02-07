@@ -33,10 +33,13 @@ class CloudinaryService:
         """Check if Cloudinary service is configured and available"""
         return self._available
 
-    def _url_encode_filename(self, filename: str) -> str:
-        """URL-encode filename to handle special characters like @ in emails"""
-        # Replace @ with %40 and other special characters
-        return urllib.parse.quote(filename, safe='')
+    def _sanitize_filename(self, filename: str) -> str:
+        """Sanitize filename for Cloudinary - keep alphanumeric, dots, underscores, hyphens"""
+        import re
+        # Replace any non-safe characters with underscores
+        # Keep alphanumeric, dots, underscores, hyphens
+        sanitized = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+        return sanitized
 
     def _validate_aspect_ratio(self, width: int, height: int, target_ratio: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -99,7 +102,8 @@ class CloudinaryService:
         file_content: bytes, 
         folder: str = "raamp_assets",
         filename: Optional[str] = None,
-        validate_aspect_ratio: bool = True
+        validate_aspect_ratio: bool = True,
+        optimize_for_stories: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
         Upload file content to Cloudinary
@@ -109,6 +113,7 @@ class CloudinaryService:
             folder: Cloudinary folder name
             filename: Optional filename (will be URL-encoded)
             validate_aspect_ratio: Whether to validate aspect ratio for Instagram
+            optimize_for_stories: If True, optimizes for Instagram Stories (9:16, 1080x1920)
             
         Returns:
             Dict containing:
@@ -125,17 +130,33 @@ class CloudinaryService:
             return None
             
         try:
-            # Prepare upload options
+            # Prepare upload options with MAXIMUM quality preservation
             upload_options = {
                 "folder": folder,
-                "resource_type": "auto"  # Automatically detects if it's image or video
+                "resource_type": "auto",  # Automatically detects if it's image or video
+                "quality": "auto:best",  # Best quality with minimal smart compression
+                "flags": "preserve_transparency.lossy",  # Preserve transparency, allow minimal lossy
             }
             
-            # Add URL-encoded filename if provided
+            # For stories, ensure optimal dimensions (1080x1920) with maximum quality
+            if optimize_for_stories:
+                upload_options["transformation"] = [
+                    {
+                        "width": 1080, 
+                        "height": 1920, 
+                        "crop": "limit",  # Don't upscale, only downscale if needed
+                        "gravity": "center",
+                        "quality": "auto:best",
+                        "fetch_format": "auto",  # Let Cloudinary choose best format
+                        "flags": "progressive"  # Progressive rendering
+                    }
+                ]
+                logger.info("Optimizing upload for Instagram Stories (1080x1920) with max quality")
+            
+            # Don't set public_id - let Cloudinary auto-generate to avoid path duplication
+            # Just rely on the folder parameter for organization
             if filename:
-                encoded_filename = self._url_encode_filename(filename)
-                upload_options["public_id"] = f"{folder}/{encoded_filename}"
-                logger.info(f"Uploading with encoded filename: {encoded_filename}")
+                logger.info(f"📁 Uploading to folder: {folder} | Original filename: {filename}")
             
             # Upload to Cloudinary
             upload_result = cloudinary.uploader.upload(
@@ -146,12 +167,19 @@ class CloudinaryService:
             secure_url = upload_result.get("secure_url")
             width = upload_result.get("width")
             height = upload_result.get("height")
+            public_id_returned = upload_result.get("public_id")
+            resource_type = upload_result.get("resource_type")
+            format_type = upload_result.get("format")
             
             if not secure_url:
                 logger.error("Cloudinary upload succeeded but no secure_url returned")
                 return None
             
-            logger.info(f"✓ File uploaded to Cloudinary: {secure_url} ({width}x{height})")
+            logger.info(f"✓ Cloudinary upload successful!")
+            logger.info(f"  🔗 URL: {secure_url}")
+            logger.info(f"  📊 Dimensions: {width}x{height}")
+            logger.info(f"  🆔 Public ID: {public_id_returned}")
+            logger.info(f"  📦 Type: {resource_type}/{format_type}")
             
             # Prepare response
             response = {

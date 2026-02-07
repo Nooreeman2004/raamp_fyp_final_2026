@@ -20,6 +20,12 @@ from presentation.schemas.facebook_posting_schemas import FacebookPostRequest, P
 from presentation.routers.instagram_posting_router import create_instagram_post
 from presentation.routers.facebook_posting_router import post_to_facebook
 from infrastructure.repositories.facebook_repository import FacebookRepository
+from infrastructure.repositories.facebook_post_repository import (
+    FacebookPostRepository,
+    ScheduledFacebookPostRepository
+)
+from infrastructure.repositories.social_media_repository import SocialMediaRepository
+from application.services.facebook_graph_api_service import FacebookGraphAPIClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/social", tags=["Unified Posting"])
@@ -98,14 +104,25 @@ async def unified_post(
                     message=request.caption,
                     scheduled_time=datetime.fromisoformat(request.scheduled_time.replace("Z", "+00:00")) if request.scheduled_time else None
                 )
-                res = await post_to_facebook(fb_request, current_user_email)
-                results.append(PlatformResult(
-                    platform="facebook",
-                    status=res.status,
-                    post_id=res.post_id,
-                    external_id=res.facebook_post_id,
-                    error=res.error
-                ))
+                
+                # Manually create dependencies since we're calling directly
+                async with FacebookGraphAPIClient() as api_client:
+                    res = await post_to_facebook(
+                        fb_request,
+                        current_user_email,
+                        api_client,
+                        FacebookPostRepository(),
+                        ScheduledFacebookPostRepository(),
+                        FacebookRepository(),
+                        SocialMediaRepository()
+                    )
+                    results.append(PlatformResult(
+                        platform="facebook",
+                        status=res.status.lower(),  # Normalize to lowercase
+                        post_id=res.post_id,
+                        external_id=res.facebook_post_id,
+                        error=res.error
+                    ))
         except HTTPException as e:
             logger.warning(f"Handled HTTPException for {platform}: {e.detail}")
             results.append(PlatformResult(

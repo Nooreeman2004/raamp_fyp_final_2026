@@ -61,6 +61,12 @@ class Config:
     INSTAGRAM_OAUTH_SCOPES: str = os.getenv("INSTAGRAM_OAUTH_SCOPES", "instagram_basic,instagram_manage_comments,instagram_manage_messages,instagram_manage_insights")
 
     # Backend public URL used for OAuth redirect URIs
+    # IMPORTANT: Must be publicly accessible for Instagram/Facebook posting
+    # Examples:
+    #   - Production: "https://api.yourdomain.com"
+    #   - Ngrok: "https://abc123.ngrok.io"
+    #   - Localtunnel: "https://your-subdomain.loca.lt"
+    #   - DO NOT USE: "http://localhost:8000" (Instagram API cannot access local URLs!)
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
     # Frontend public URL used for post-OAuth redirects (SPA)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")

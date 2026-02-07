@@ -22,6 +22,7 @@ from application.services.instagram_graph_api_service import (
     InstagramGraphAPIClient,
     InstagramAPIError
 )
+from application.utils.url_validator import URLValidator
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,15 @@ class PostNowUseCase:
         Returns:
             Dict with status, post_id, instagram_post_id, error
         """
+        # Validate URL is publicly accessible (not localhost)
+        if "localhost" in media_url or "127.0.0.1" in media_url:
+            return {
+                "status": "failed",
+                "post_id": None,
+                "instagram_post_id": None,
+                "error": "Media URL is not publicly accessible. Instagram requires public URLs (Cloudinary, ngrok, or deployed server). Localhost URLs will not work."
+            }
+        
         # Create domain entity
         post = InstagramPost(
             user_id=user_id,
@@ -91,6 +101,26 @@ class PostNowUseCase:
         post_id = post.id  # Use MongoDB document ID
         
         try:
+            # Verify URL is accessible before posting to Instagram
+            logger.info(f"🔍 Verifying media URL accessibility for post {post_id}...")
+            is_accessible, error_msg = await URLValidator.verify_url_accessible(media_url)
+            
+            if not is_accessible:
+                logger.error(f"❌ URL verification failed: {error_msg}")
+                await self.post_repository.update_status(
+                    post_id,
+                    PostStatus.FAILED,
+                    error_message=error_msg
+                )
+                return {
+                    "status": "failed",
+                    "post_id": post_id,
+                    "instagram_post_id": None,
+                    "error": error_msg
+                }
+            
+            logger.info(f"✅ URL verified as accessible, proceeding with Instagram post...")
+            
             # Update status to processing
             await self.post_repository.update_status(post_id, PostStatus.PROCESSING)
             
@@ -305,6 +335,33 @@ class PostStoryUseCase:
         Returns:
             Dict with status, story_id, instagram_story_id, error
         """
+        # Validate URL is publicly accessible (not localhost)
+        if "localhost" in media_url or "127.0.0.1" in media_url:
+            return {
+                "status": "failed",
+                "story_id": None,
+                "instagram_story_id": None,
+                "error": "Media URL is not publicly accessible. Instagram requires public URLs (Cloudinary, ngrok, or deployed server). Localhost URLs will not work."
+            }
+        
+        # Check for recent duplicate story (within 5 minutes)
+        # Only prevents re-posting of successful stories, allows retry of failures
+        existing_story = await self.story_repository.check_recent_duplicate(
+            user_id=user_id,
+            media_url=media_url,
+            minutes=5
+        )
+        
+        if existing_story:
+            logger.warning(f"Duplicate story detected for user {user_id} - story {existing_story.id} already {existing_story.status}")
+            # Return the existing story to prevent duplicate posting
+            return {
+                "status": existing_story.status.value if hasattr(existing_story.status, 'value') else existing_story.status,
+                "story_id": existing_story.id,
+                "instagram_story_id": existing_story.instagram_story_id,
+                "error": "This story was already posted recently. Please wait a few minutes before posting the same content again."
+            }
+        
         # Create domain entity
         story = StoryPost(
             user_id=user_id,
@@ -319,6 +376,26 @@ class PostStoryUseCase:
         story_id = story.id  # Use MongoDB document ID
         
         try:
+            # Verify URL is accessible before posting to Instagram
+            logger.info(f"🔍 Verifying media URL accessibility for story {story_id}...")
+            is_accessible, error_msg = await URLValidator.verify_url_accessible(media_url)
+            
+            if not is_accessible:
+                logger.error(f"❌ URL verification failed: {error_msg}")
+                await self.story_repository.update_status(
+                    story_id,
+                    PostStatus.FAILED,
+                    error_message=error_msg
+                )
+                return {
+                    "status": "failed",
+                    "story_id": story_id,
+                    "instagram_story_id": None,
+                    "error": error_msg
+                }
+            
+            logger.info(f"✅ URL verified as accessible, proceeding with Instagram story...")
+            
             # Update status to processing - wrap in try to prevent db issues from blocking posting
             try:
                 await self.story_repository.update_status(story_id, PostStatus.PROCESSING)

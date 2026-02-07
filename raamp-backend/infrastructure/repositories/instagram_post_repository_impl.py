@@ -4,6 +4,7 @@ These adapt domain repository interfaces to Beanie/MongoDB persistence.
 """
 from typing import Optional, List
 from datetime import datetime, timezone
+from beanie.operators import In
 from domain.repositories.instagram_post_repository import (
     IInstagramPostRepository,
     IScheduledPostRepository,
@@ -112,6 +113,7 @@ class InstagramPostRepository(IInstagramPostRepository):
     def _to_entity(self, model: InstagramPostModel) -> InstagramPost:
         """Convert database model to domain entity"""
         return InstagramPost(
+            id=str(model.id),
             user_id=model.user_id,
             ig_business_id=model.ig_business_id,
             media_url=model.media_url,
@@ -150,6 +152,7 @@ class ScheduledPostRepository(IScheduledPostRepository):
         )
         await model.insert()
         scheduled_post.created_at = model.created_at
+        scheduled_post.id = str(model.id)  # Store MongoDB document ID
         return scheduled_post
 
     async def get_by_id(self, post_id: str) -> Optional[ScheduledPost]:
@@ -160,9 +163,10 @@ class ScheduledPostRepository(IScheduledPostRepository):
         return self._to_entity(model)
 
     async def get_by_user(self, user_id: str) -> List[ScheduledPost]:
-        """Get scheduled posts by user"""
+        """Get scheduled posts by user (only scheduled status)"""
         models = await ScheduledInstagramPostModel.find(
-            ScheduledInstagramPostModel.user_id == user_id
+            ScheduledInstagramPostModel.user_id == user_id,
+            ScheduledInstagramPostModel.status == "scheduled"
         ).sort(-ScheduledInstagramPostModel.scheduled_time).to_list()
         return [self._to_entity(m) for m in models]
 
@@ -224,6 +228,7 @@ class ScheduledPostRepository(IScheduledPostRepository):
     def _to_entity(self, model: ScheduledInstagramPostModel) -> ScheduledPost:
         """Convert database model to domain entity"""
         return ScheduledPost(
+            id=str(model.id),
             user_id=model.user_id,
             ig_business_id=model.ig_business_id,
             media_url=model.media_url,
@@ -276,6 +281,24 @@ class StoryPostRepository(IStoryPostRepository):
             InstagramStoryModel.user_id == user_id
         ).sort(-InstagramStoryModel.created_at).limit(limit).to_list()
         return [self._to_entity(m) for m in models]
+    
+    async def check_recent_duplicate(self, user_id: str, media_url: str, minutes: int = 5) -> Optional[StoryPost]:
+        """Check if a story with the same media_url was created recently (only successful/processing posts)"""
+        from datetime import timedelta
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        
+        # Only check for PUBLISHED or PROCESSING stories, not FAILED ones
+        # This allows users to retry failed uploads immediately
+        model = await InstagramStoryModel.find_one(
+            InstagramStoryModel.user_id == user_id,
+            InstagramStoryModel.media_url == media_url,
+            InstagramStoryModel.created_at >= cutoff_time,
+            In(InstagramStoryModel.status, [PostStatus.PUBLISHED.value, PostStatus.PROCESSING.value])
+        )
+        
+        if model:
+            return self._to_entity(model)
+        return None
 
     async def update_status(
         self,
@@ -305,6 +328,7 @@ class StoryPostRepository(IStoryPostRepository):
     def _to_entity(self, model: InstagramStoryModel) -> StoryPost:
         """Convert database model to domain entity"""
         return StoryPost(
+            id=str(model.id),
             user_id=model.user_id,
             ig_business_id=model.ig_business_id,
             media_url=model.media_url,

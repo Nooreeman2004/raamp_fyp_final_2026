@@ -4,7 +4,11 @@ Firebase Storage Service - handles file uploads to Firebase Storage
 import uuid
 import os
 import base64
+import logging
 from pathlib import Path
+from application.utils.file_manager import FileManager
+
+logger = logging.getLogger(__name__)
 
 # Default profile picture URL
 DEFAULT_PROFILE_PICTURE = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png"
@@ -60,16 +64,22 @@ class FirebaseStorageService:
         from config import settings
         return f"{settings.BACKEND_URL}/api/static/{file_path}"
     
-    async def upload_logo(self, file_content: bytes, file_name: str, user_id: str) -> str:
+    async def upload_logo(self, file_content: bytes, file_name: str, user_id: str, user_email: str = None) -> str:
         """
         Upload brand logo to Firebase Storage (with local fallback/copy)
+        
+        Args:
+            file_content: Binary file content
+            file_name: Original filename
+            user_id: User ID
+            user_email: User email for organized folder structure (optional)
         
         Returns:
             Public URL or Data URL of uploaded file
         """
         # Generate unique filename
         file_extension = file_name.split('.')[-1].lower()
-        unique_filename = f"brand_logos/{user_id}/{uuid.uuid4()}.{file_extension}"
+        unique_filename = f"{uuid.uuid4()}.{file_extension}"
         
         # Validate file type
         allowed_extensions = ['svg', 'png', 'jpg', 'jpeg', 'webp']
@@ -81,13 +91,41 @@ class FirebaseStorageService:
         if len(file_content) > max_size:
             raise ValueError("File size exceeds 5MB limit")
         
+        # Use organized folder structure if email provided
+        if user_email:
+            try:
+                user_logos_dir = FileManager.get_user_upload_path(
+                    email=user_email,
+                    subfolder='logos',
+                    create=True
+                )
+                sanitized_email = FileManager.sanitize_email_for_folder(user_email)
+                local_filename = f"{sanitized_email}/logos/{unique_filename}"
+                firebase_path = f"brand_logos/{sanitized_email}/{unique_filename}"
+                local_path = user_logos_dir / unique_filename
+            except Exception as e:
+                logger.warning(f"Failed to use organized structure: {e}, falling back to legacy")
+                local_filename = f"brand_logos/{user_id}/{unique_filename}"
+                firebase_path = local_filename
+                local_path = None
+        else:
+            # Legacy path for backward compatibility
+            local_filename = f"brand_logos/{user_id}/{unique_filename}"
+            firebase_path = local_filename
+            local_path = None
+        
         # 1. Save Locally (as backup/dev fallback)
-        local_result = self._save_locally(file_content, unique_filename)
+        if local_path:
+            with open(local_path, 'wb') as f:
+                f.write(file_content)
+            local_result = self._build_local_url(str(local_path).replace('uploaded_files/', ''))
+        else:
+            local_result = self._save_locally(file_content, local_filename)
         
         # 2. Upload to Firebase Storage if available
         if self.bucket:
             try:
-                blob = self.bucket.blob(unique_filename)
+                blob = self.bucket.blob(firebase_path)
                 content_types = {
                     'svg': 'image/svg+xml',
                     'png': 'image/png',
@@ -99,10 +137,10 @@ class FirebaseStorageService:
                 blob.content_type = content_type
                 blob.upload_from_string(file_content, content_type=content_type)
                 blob.make_public()
-                print(f"✓ Logo uploaded to Firebase: {blob.public_url}")
+                logger.info(f"✓ Logo uploaded to Firebase: {blob.public_url}")
                 return blob.public_url
             except Exception as e:
-                print(f"⚠️  Firebase upload failed, using local: {e}")
+                logger.warning(f"⚠️  Firebase upload failed, using local: {e}")
         
         return local_result
     

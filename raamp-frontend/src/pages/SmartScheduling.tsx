@@ -8,6 +8,7 @@ import { GlobalConnectionBanner } from "@/components/dashboard/GlobalConnectionB
 import { Calendar, History, Plus, RefreshCw, AlertCircle, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { instagramService } from "@/services/instagramService";
+import { facebookService } from "@/services/facebookService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ const SmartScheduling = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [platformFilter, setPlatformFilter] = useState("all");
 
-    // Fetch scheduled posts
+    // Fetch scheduled posts from both platforms
     const {
         data: scheduledPosts,
         isLoading: isLoadingScheduled,
@@ -34,7 +35,27 @@ const SmartScheduling = () => {
         refetch: refetchScheduled,
     } = useQuery({
         queryKey: ["scheduled-posts"],
-        queryFn: () => instagramService.getScheduledPosts(),
+        queryFn: async () => {
+            // Fetch from both platforms
+            const [igPosts, fbPosts] = await Promise.allSettled([
+                instagramService.getScheduledPosts(),
+                facebookService.getScheduledPosts()
+            ]);
+            
+            // Combine results with proper fallback handling
+            const igPostsData = igPosts.status === 'fulfilled' && Array.isArray(igPosts.value?.posts) 
+                ? igPosts.value.posts 
+                : [];
+            const fbPostsData = fbPosts.status === 'fulfilled' && Array.isArray(fbPosts.value?.posts) 
+                ? fbPosts.value.posts 
+                : [];
+            
+            const allPosts = [...igPostsData, ...fbPostsData];
+            return {
+                posts: allPosts,
+                total: allPosts.length
+            };
+        },
         refetchInterval: 30000,
     });
 

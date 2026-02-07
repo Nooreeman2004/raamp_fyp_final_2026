@@ -135,7 +135,7 @@ class FacebookPostResponse(BaseModel):
 
 class ScheduledPostsResponse(BaseModel):
     """Response schema for listing scheduled posts"""
-    scheduled_posts: List[dict] = Field(..., description="List of scheduled posts")
+    posts: List[dict] = Field(..., description="List of scheduled posts")
     total: int = Field(..., description="Total number of scheduled posts")
 
 

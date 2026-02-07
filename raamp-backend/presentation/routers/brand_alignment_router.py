@@ -2,13 +2,18 @@
 Brand Alignment Router - handles brand identity settings
 """
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
-import os
 import shutil
 import uuid
+from pathlib import Path
+from datetime import datetime
 # from application.services.firebase_storage_service import FirebaseStorageService
 from infrastructure.repositories.business_repository import BusinessRepository
 from presentation.schemas.brand_alignment_schema import BrandAlignmentRequest, BrandAlignmentResponse
-from presentation.routers.auth_router import get_current_user_id
+from presentation.routers.auth_router import get_current_user_id, get_current_user_email
+from application.utils.file_manager import FileManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/api/brand-alignment", tags=["Brand Alignment"])
@@ -16,32 +21,56 @@ router = APIRouter(prefix="/api/brand-alignment", tags=["Brand Alignment"])
 
 @router.post("/upload-logo")
 async def upload_brand_logo(
-    logo: UploadFile = File(..., description="Brand logo (SVG, PNG, JPG, max 2MB)"),
-    current_user_id: str = Depends(get_current_user_id)
+    logo: UploadFile = File(..., description="Brand logo (SVG, PNG, JPG, max 5MB)"),
+    current_user_id: str = Depends(get_current_user_id),
+    current_user_email: str = Depends(get_current_user_email)
 ):
     """
-    Upload brand logo to Local Storage
+    Upload brand logo to user-specific organized storage.
     
-    Returns the local path of the uploaded logo
+    Saves to: uploaded_files/{sanitized_email}/logos/{filename}
+    
+    Returns the relative URL for accessing the uploaded logo
     """
     try:
-        # Define save directory
-        SAVE_DIR = "uploaded_files/brand_logos"
-        os.makedirs(SAVE_DIR, exist_ok=True)
+        # Read file content
+        file_content = await logo.read()
+        file_size = len(file_content)
+        
+        # Validate using FileManager
+        FileManager.validate_file_type(logo.content_type, 'logos')
+        FileManager.validate_file_size(file_size, 'logos')
+        
+        # Reset file pointer
+        await logo.seek(0)
         
         # Generate unique filename
-        file_extension = os.path.splitext(logo.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = os.path.join(SAVE_DIR, unique_filename)
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        file_ext = Path(logo.filename).suffix if logo.filename else ".png"
+        unique_id = str(uuid.uuid4())[:8]
+        unique_filename = f"{timestamp}_{unique_id}{file_ext}"
+        
+        # Get user-specific logos path
+        user_logos_dir = FileManager.get_user_upload_path(
+            email=current_user_email,
+            subfolder='logos',
+            create=True
+        )
+        file_path = user_logos_dir / unique_filename
         
         # Save file locally
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(logo.file, buffer)
-            
+        
+        # Get sanitized email for URL
+        sanitized_email = FileManager.sanitize_email_for_folder(current_user_email)
+        
+        logger.info(f"✅ Logo uploaded successfully for user {current_user_email}: {file_path}")
+        
         # Return relative URL
         return {
             "success": True,
-            "logo_url": f"/api/static/brand_logos/{unique_filename}"
+            "logo_url": f"/api/static/{sanitized_email}/logos/{unique_filename}"
         }
     
     except Exception as e:

@@ -61,6 +61,7 @@ class ScheduledPost(BaseModel):
     Domain entity representing a scheduled Instagram post.
     Separates scheduling concerns from immediate posting.
     """
+    id: Optional[str] = None  # MongoDB document ID
     user_id: str
     ig_business_id: str
     media_url: str
@@ -83,6 +84,7 @@ class StoryPost(BaseModel):
     Domain entity representing an Instagram story post.
     Stories have special requirements (24h expiry, no scheduling by Meta).
     """
+    id: Optional[str] = None  # MongoDB document ID
     user_id: str
     ig_business_id: str
     media_url: str

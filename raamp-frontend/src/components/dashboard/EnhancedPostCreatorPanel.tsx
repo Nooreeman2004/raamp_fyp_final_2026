@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -84,6 +84,15 @@ const postFormSchema = z.object({
 }, {
     message: "Date and time are required for scheduling",
     path: ["scheduled_date"],
+}).refine((data) => {
+    // Facebook doesn't support stories
+    if (data.mode === PostMode.POST_STORY && (data.platform === "facebook" || data.platform === "both")) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Story mode is only available for Instagram",
+    path: ["mode"],
 });
 
 type PostFormValues = z.infer<typeof postFormSchema>;
@@ -107,6 +116,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
     const [optimizationBadge, setOptimizationBadge] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<SocialConnectionStatus | null>(null);
+    const isSubmittingRef = useRef(false); // Additional guard against race conditions
 
     const form = useForm<PostFormValues>({
         resolver: zodResolver(postFormSchema),
@@ -172,6 +182,14 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
         }
     }, [mode, platform, form]);
 
+    // Reset mode if platform is Facebook and mode is story
+    useEffect(() => {
+        if ((platform === "facebook" || platform === "both") && mode === PostMode.POST_STORY) {
+            form.setValue("mode", PostMode.POST_NOW);
+            toast.info("Story mode is only available for Instagram");
+        }
+    }, [platform, mode, form]);
+
     // Reset state when modal closes
     useEffect(() => {
         if (!open) {
@@ -186,6 +204,8 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
             setUploadStatus('idle');
             setOptimizationBadge(false);
             setErrorMessage(null);
+            setIsSubmitting(false);
+            isSubmittingRef.current = false;
             selectedFile.current = null;
         }
     }, [open, form]);
@@ -240,8 +260,8 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
     }, [form]);
 
     const onSubmit = async (values: PostFormValues) => {
-        // Double-click prevention logic
-        if (isSubmitting) {
+        // Double-click prevention with both state and ref
+        if (isSubmitting || isSubmittingRef.current) {
             toast.info("Post is in progress...", {
                 icon: <Loader2 className="w-4 h-4 animate-spin" />,
                 duration: 2000
@@ -251,6 +271,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
 
         try {
             setIsSubmitting(true);
+            isSubmittingRef.current = true;
 
             // Append optimization note if applicable
             const finalCaption = optimizationBadge
@@ -283,14 +304,28 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                 facebook_page_id: connectionStatus?.facebook_details?.page_id
             });
 
-            if (response.success) {
+            // Check for any failures
+            const failures = response.results.filter(r => r.status === "failed");
+            const successes = response.results.filter(r => r.status === "published" || r.status === "scheduled");
+            
+            if (response.success && failures.length === 0) {
+                // Full success
                 toast.success(`Success! Post ${values.mode === PostMode.SCHEDULE_POST ? "scheduled" : "published"}.`, {
                     description: response.message,
                 });
                 onOpenChange(false);
                 onSuccess?.();
+            } else if (successes.length > 0 && failures.length > 0) {
+                // Partial success
+                const errorMessages = failures.map(r => `${r.platform}: ${r.error}`);
+                toast.warning("Partial Success", {
+                    description: `Posted to ${successes.length} platform(s), but failed on: ${errorMessages.join(", ")}`,
+                });
+                onOpenChange(false);
+                onSuccess?.();
             } else {
-                const errors = response.results.filter(r => r.status === "failed").map(r => `${r.platform}: ${r.error}`);
+                // Complete failure
+                const errors = failures.map(r => `${r.platform}: ${r.error}`);
                 setUploadStatus('error');
                 setErrorMessage(errors.join(" | "));
                 toast.error("Submission failed", {
@@ -303,11 +338,13 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
             toast.error(error.message || "Failed to create post. Please try again.");
         } finally {
             setIsSubmitting(false);
+            isSubmittingRef.current = false;
         }
     };
 
     const isReadyToSubmit = !!mediaUrl && uploadStatus === 'success' &&
-        (mode !== PostMode.SCHEDULE_POST || (!!scheduledDate && !!scheduledTime && isFutureTime));
+        (mode !== PostMode.SCHEDULE_POST || (!!scheduledDate && !!scheduledTime && isFutureTime)) &&
+        !isSubmitting;
 
     const isDirty = !!mediaUrl || !!caption || mode !== PostMode.POST_NOW;
 
@@ -338,18 +375,26 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
 
     return (
         <Dialog open={open} onOpenChange={(val) => {
-            // Only allow closing via states, not via outside interaction if submitting
+            // Allow closing if not submitting
             if (!val && !isSubmitting) {
-                // If it's a close request (val is false), we check if we should block it
-                // and instead show discard confirm if dirty? 
-                // BUT the requirements say "dont do it until user discards".
-                // Let's just block the Dialog's native onOpenChange from closing it directly
-                // and rely on our Discard button.
+                onOpenChange(false);
+            } else if (val) {
+                onOpenChange(true);
             }
         }}>
             <DialogContent
-                onInteractOutside={(e) => e.preventDefault()}
-                onEscapeKeyDown={(e) => e.preventDefault()}
+                onInteractOutside={(e) => {
+                    // Only prevent if submitting
+                    if (isSubmitting) {
+                        e.preventDefault();
+                    }
+                }}
+                onEscapeKeyDown={(e) => {
+                    // Only prevent if submitting
+                    if (isSubmitting) {
+                        e.preventDefault();
+                    }
+                }}
                 className="sm:max-w-[600px] bg-[#0A0A0B]/95 border-[#00E0D0]/30 backdrop-blur-xl text-white p-0 overflow-hidden shadow-[0_0_40px_rgba(0,224,208,0.15)]"
             >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E0D0]/5 blur-[80px] -z-10" />
@@ -433,10 +478,13 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                             Schedule
                                                         </div>
                                                     </SelectItem>
-                                                    <SelectItem value={PostMode.POST_STORY}>
+                                                    <SelectItem 
+                                                        value={PostMode.POST_STORY} 
+                                                        disabled={platform === "facebook" || platform === "both"}
+                                                    >
                                                         <div className="flex items-center gap-2">
                                                             <Smartphone className="w-3.5 h-3.5 text-purple-500" />
-                                                            Story
+                                                            Story {(platform === "facebook" || platform === "both") && <span className="text-[9px] opacity-40">(IG Only)</span>}
                                                         </div>
                                                     </SelectItem>
                                                 </SelectContent>
@@ -647,19 +695,11 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                 </Button>
                                 <Button
                                     type="submit"
-                                    onClick={() => {
-                                        if (isSubmitting) {
-                                            toast.info("Post is in progress...", {
-                                                icon: <Loader2 className="w-4 h-4 animate-spin" />,
-                                                duration: 2000
-                                            });
-                                        }
-                                    }}
                                     className={cn(
                                         "flex-1 h-12 text-xs font-black uppercase tracking-widest transition-all shadow-xl",
                                         mode === PostMode.SCHEDULE_POST ? "bg-[#00E0D0] hover:bg-[#00E0D0]/90 text-black" : "bg-primary hover:bg-primary/90 text-black"
                                     )}
-                                    disabled={!isReadyToSubmit}
+                                    disabled={!isReadyToSubmit || isSubmitting}
                                 >
                                     {isSubmitting ? (
                                         <div className="flex items-center gap-2">

@@ -39,19 +39,19 @@ async def get_facebook_api_client():
         yield client
 
 
-async def get_post_repository():
+def get_post_repository():
     return FacebookPostRepository()
 
 
-async def get_scheduled_post_repository():
+def get_scheduled_post_repository():
     return ScheduledFacebookPostRepository()
 
 
-async def get_facebook_repository():
+def get_facebook_repository():
     return FacebookRepository()
 
 
-async def get_social_media_repository():
+def get_social_media_repository():
     return SocialMediaRepository()
 
 
@@ -214,13 +214,14 @@ async def get_scheduled_posts(
                 "message": post.message,
                 "scheduled_time": post.scheduled_time.isoformat() if post.scheduled_time else None,
                 "status": post.status,
-                "created_at": post.created_at.isoformat()
+                "created_at": post.created_at.isoformat(),
+                "platform": "facebook"  # Add platform field for frontend
             }
             for post in scheduled_posts
         ]
         
         return ScheduledPostsResponse(
-            scheduled_posts=posts_data,
+            posts=posts_data,
             total=len(posts_data)
         )
         
@@ -249,6 +250,17 @@ async def cancel_scheduled_post(
             )
         
         user_id = user_email  # Use email as user_id
+        
+        # Validate post_id format
+        try:
+            from beanie import PydanticObjectId
+            # This will raise an error if post_id is not a valid ObjectId
+            PydanticObjectId(request.post_id)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid post_id format. Expected MongoDB ObjectId, got: {request.post_id}"
+            )
         
         # Verify post belongs to user
         scheduled_post = await scheduled_post_repo.get_scheduled_post_by_id(request.post_id)
@@ -322,7 +334,8 @@ async def get_posting_history(
                 "facebook_post_id": post.facebook_post_id,
                 "status": post.status,
                 "error": post.error,
-                "created_at": post.created_at.isoformat()
+                "created_at": post.created_at.isoformat(),
+                "platform": "facebook"  # Add platform field for frontend
             }
             for post in posts
         ]

@@ -161,9 +161,10 @@ class ScheduledFacebookPostRepository:
         limit: int = 50,
         skip: int = 0
     ) -> List[ScheduledFacebookPostModel]:
-        """Get scheduled posts by user ID"""
+        """Get scheduled posts by user ID (only SCHEDULED status)"""
         return await ScheduledFacebookPostModel.find(
-            ScheduledFacebookPostModel.user_id == user_id
+            ScheduledFacebookPostModel.user_id == user_id,
+            ScheduledFacebookPostModel.status == "SCHEDULED"
         ).sort(ScheduledFacebookPostModel.scheduled_time).skip(skip).limit(limit).to_list()
     
     async def get_pending_scheduled_posts(
