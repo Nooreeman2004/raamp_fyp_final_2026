@@ -117,6 +117,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<SocialConnectionStatus | null>(null);
     const isSubmittingRef = useRef(false); // Additional guard against race conditions
+    const lastSubmitTimeRef = useRef<number>(0); // Timestamp-based debounce
 
     const form = useForm<PostFormValues>({
         resolver: zodResolver(postFormSchema),
@@ -260,8 +261,13 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
     }, [form]);
 
     const onSubmit = async (values: PostFormValues) => {
-        // Double-click prevention with both state and ref
+        // CRITICAL: Set flags IMMEDIATELY before any other logic to prevent race conditions
         if (isSubmitting || isSubmittingRef.current) {
+            console.warn("⚠️ Duplicate submission attempt blocked (flags)!", {
+                isSubmitting,
+                isSubmittingRef: isSubmittingRef.current,
+                timestamp: new Date().toISOString()
+            });
             toast.info("Post is in progress...", {
                 icon: <Loader2 className="w-4 h-4 animate-spin" />,
                 duration: 2000
@@ -269,10 +275,28 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
             return;
         }
 
-        try {
-            setIsSubmitting(true);
-            isSubmittingRef.current = true;
+        // Layer 2: Timestamp-based debounce (prevent submissions within 3 seconds)
+        const now = Date.now();
+        const timeSinceLastSubmit = now - lastSubmitTimeRef.current;
+        if (timeSinceLastSubmit < 3000 && lastSubmitTimeRef.current > 0) {
+            console.warn("⚠️ Duplicate submission blocked (debounce)!", {
+                timeSinceLastSubmit: `${timeSinceLastSubmit}ms`,
+                lastSubmitTime: new Date(lastSubmitTimeRef.current).toISOString(),
+                currentTime: new Date(now).toISOString()
+            });
+            toast.info("Please wait before submitting again", {
+                icon: <Loader2 className="w-4 h-4 animate-spin" />,
+                duration: 2000
+            });
+            return;
+        }
 
+        // Set BOTH flags and timestamp immediately to block any subsequent clicks
+        setIsSubmitting(true);
+        isSubmittingRef.current = true;
+        lastSubmitTimeRef.current = now;
+
+        try {
             // Append optimization note if applicable
             const finalCaption = optimizationBadge
                 ? `${values.caption || ""}\n\n(Automatic Optimization)`.trim()
@@ -288,6 +312,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                 if (date <= new Date()) {
                     toast.error("Scheduled time must be in the future");
                     setIsSubmitting(false);
+                    isSubmittingRef.current = false;
                     return;
                 }
 
@@ -307,7 +332,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
             // Check for any failures
             const failures = response.results.filter(r => r.status === "failed");
             const successes = response.results.filter(r => r.status === "published" || r.status === "scheduled");
-            
+
             if (response.success && failures.length === 0) {
                 // Full success
                 toast.success(`Success! Post ${values.mode === PostMode.SCHEDULE_POST ? "scheduled" : "published"}.`, {
@@ -411,7 +436,18 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                     </DialogHeader>
 
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <form
+                            onSubmit={(e) => {
+                                // Additional guard: prevent form submission if already submitting
+                                if (isSubmitting || isSubmittingRef.current) {
+                                    e.preventDefault();
+                                    console.warn("⚠️ Form submission blocked - already in progress");
+                                    return;
+                                }
+                                form.handleSubmit(onSubmit)(e);
+                            }}
+                            className="space-y-6"
+                        >
                             {/* Platform and Mode Row */}
                             <div className="grid grid-cols-2 gap-4">
                                 <FormField
@@ -478,8 +514,8 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                             Schedule
                                                         </div>
                                                     </SelectItem>
-                                                    <SelectItem 
-                                                        value={PostMode.POST_STORY} 
+                                                    <SelectItem
+                                                        value={PostMode.POST_STORY}
                                                         disabled={platform === "facebook" || platform === "both"}
                                                     >
                                                         <div className="flex items-center gap-2">
@@ -697,7 +733,8 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                     type="submit"
                                     className={cn(
                                         "flex-1 h-12 text-xs font-black uppercase tracking-widest transition-all shadow-xl",
-                                        mode === PostMode.SCHEDULE_POST ? "bg-[#00E0D0] hover:bg-[#00E0D0]/90 text-black" : "bg-primary hover:bg-primary/90 text-black"
+                                        mode === PostMode.SCHEDULE_POST ? "bg-[#00E0D0] hover:bg-[#00E0D0]/90 text-black" : "bg-primary hover:bg-primary/90 text-black",
+                                        isSubmitting && "pointer-events-none opacity-70"
                                     )}
                                     disabled={!isReadyToSubmit || isSubmitting}
                                 >

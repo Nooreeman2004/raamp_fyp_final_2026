@@ -41,15 +41,25 @@ const SmartScheduling = () => {
                 instagramService.getScheduledPosts(),
                 facebookService.getScheduledPosts()
             ]);
-            
+
             // Combine results with proper fallback handling
-            const igPostsData = igPosts.status === 'fulfilled' && Array.isArray(igPosts.value?.posts) 
-                ? igPosts.value.posts 
+            const igPostsData = igPosts.status === 'fulfilled' && Array.isArray(igPosts.value?.posts)
+                ? igPosts.value.posts
                 : [];
-            const fbPostsData = fbPosts.status === 'fulfilled' && Array.isArray(fbPosts.value?.posts) 
-                ? fbPosts.value.posts 
+
+            // Map Facebook scheduled posts to match ScheduledPostItem structure
+            const fbPostsData = fbPosts.status === 'fulfilled' && Array.isArray(fbPosts.value?.posts)
+                ? fbPosts.value.posts.map((post: any) => ({
+                    post_id: post.post_id,
+                    media_url: post.media_url || '',
+                    caption: post.message || '',
+                    scheduled_time: post.scheduled_time,
+                    status: post.status,
+                    created_at: post.created_at,
+                    platform: post.platform || 'facebook'
+                }))
                 : [];
-            
+
             const allPosts = [...igPostsData, ...fbPostsData];
             return {
                 posts: allPosts,
@@ -59,7 +69,7 @@ const SmartScheduling = () => {
         refetchInterval: 30000,
     });
 
-    // Fetch posting history
+    // Fetch posting history from both platforms
     const {
         data: postHistory,
         isLoading: isLoadingHistory,
@@ -67,7 +77,44 @@ const SmartScheduling = () => {
         refetch: refetchHistory,
     } = useQuery({
         queryKey: ["post-history"],
-        queryFn: () => instagramService.getCombinedHistory(100),
+        queryFn: async () => {
+            // Fetch from both platforms
+            const [igHistory, fbHistory] = await Promise.allSettled([
+                instagramService.getCombinedHistory(100),
+                facebookService.getPostHistory(100)
+            ]);
+
+            // Combine results with proper fallback handling
+            const igPostsData = igHistory.status === 'fulfilled' && Array.isArray(igHistory.value?.posts)
+                ? igHistory.value.posts
+                : [];
+
+            // Map Facebook posts to match PostHistoryItem structure
+            const fbPostsData = fbHistory.status === 'fulfilled' && Array.isArray(fbHistory.value?.posts)
+                ? fbHistory.value.posts.map((post: any) => ({
+                    post_id: post.post_id,
+                    internal_id: post.post_id,
+                    platform: post.platform || 'facebook',
+                    media_url: post.media_url || '',
+                    caption: post.message || '',
+                    status: post.status,
+                    facebook_post_id: post.facebook_post_id,
+                    created_at: post.created_at,
+                    published_at: post.published_at,
+                    error_message: post.error
+                }))
+                : [];
+
+            // Combine and sort by created_at (newest first)
+            const allPosts = [...igPostsData, ...fbPostsData].sort((a, b) => {
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            });
+
+            return {
+                posts: allPosts,
+                total: allPosts.length
+            };
+        },
         refetchInterval: 30000,
     });
 

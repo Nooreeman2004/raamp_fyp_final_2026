@@ -161,61 +161,58 @@ async def upload_media(
                     ratio = width / height
                     original_dims = {"w": width, "h": height, "ratio": round(ratio, 2)}
                     
-                    # Adaptive Ratio Mapping (Instagram supported: 4:5, 1:1, 1.91:1)
-                    # Use integer ratios for Cloudinary: 4:5, 1:1, 191:100
-                    target_ar = None
-                    cloudinary_ar = None  # Cloudinary-compatible format
-                    if ratio <= 0.9:
-                        target_ar = "4:5"
-                        cloudinary_ar = "4:5"
-                        target_val = 0.8
-                    elif 0.9 < ratio <= 1.4:
-                        target_ar = "1:1"
-                        cloudinary_ar = "1:1"
-                        target_val = 1.0
-                    else:
-                        target_ar = "1.91:1"
-                        cloudinary_ar = "191:100"  # Cloudinary needs integer ratio
-                        target_val = 1.91
+                    # CRITICAL: Validate the original Cloudinary URL structure BEFORE transformation
+                    logger.info(f"🔍 Validating original Cloudinary URL structure:")
+                    logger.info(f"  URL: {cloudinary_original_url}")
                     
-                    # Detect if transformation is needed (if original is outside bounds or far from target)
-                    # Instagram allows [0.8, 1.91]. If it's in range, we COULD skip, 
-                    # but mapping to exactly 4:5, 1:1, or 1.91:1 is more predictable.
-                    # We transform if it's > 5% away from the target mapping.
-                    if abs(ratio - target_val) > 0.05 or ratio < 0.79 or ratio > 1.92:
-                        parts = cloudinary_original_url.split("/upload/")
-                        logger.info(f"🔍 URL Transformation Analysis:")
-                        logger.info(f"  Splitting URL: {cloudinary_original_url}")
-                        logger.info(f"  Number of parts after split: {len(parts)}")
-                        
-                        if len(parts) == 2:
-                            logger.info(f"  Part 0 (base): {parts[0]}")
-                            logger.info(f"  Part 1 (path): {parts[1]}")
-                            logger.info(f"  Part 1 length: {len(parts[1])}")
+                    # Check if URL has proper structure
+                    if "/upload/" not in cloudinary_original_url:
+                        logger.error(f"❌ Cloudinary URL missing '/upload/' segment - cannot transform")
+                        cloudinary_url = cloudinary_original_url
+                    else:
+                        # Split and validate
+                        url_parts = cloudinary_original_url.split("/upload/")
+                        if len(url_parts) == 2:
+                            resource_path = url_parts[1]
+                            path_segments = resource_path.split('/')
                             
-                            if len(parts[1]) > 10:  # Ensure we have a valid path
-                                # Use auto:best instead of q_100 for better smart compression
-                                # Use cloudinary_ar (integer format) for Cloudinary API compatibility
-                                transformation = f"c_limit,g_center,ar_{cloudinary_ar},q_auto:best,f_auto"
-                                cloudinary_url = f"{parts[0]}/upload/{transformation}/{parts[1]}"
-                                logger.info(f"✨ Created transformed URL with ar_{cloudinary_ar}")
-                                logger.info(f"  Final URL: {cloudinary_url}")
-                                is_auto_cropped = True
-                            else:
-                                logger.error(f"❌ Part 1 too short ({len(parts[1])} chars), using original")
+                            logger.info(f"  Resource path: {resource_path}")
+                            logger.info(f"  Path segments: {path_segments}")
+                            logger.info(f"  Number of segments: {len(path_segments)}")
+                            
+                            # Valid Cloudinary paths should have at least:
+                            # - v{version}/{folder}/{file}.{ext} (3 segments)
+                            # - {folder}/{file}.{ext} (2 segments)
+                            # Invalid: just v{version} (1 segment)
+                            if len(path_segments) < 2:
+                                logger.error(f"❌ INVALID Cloudinary URL structure detected!")
+                                logger.error(f"  Resource path only has {len(path_segments)} segment(s): {resource_path}")
+                                logger.error(f"  Expected at minimum: folder/file.ext or v123/folder/file.ext")
+                                logger.error(f"  This URL will NOT be transformed to avoid Instagram API errors")
                                 cloudinary_url = cloudinary_original_url
+                            else:
+                                # URL structure is valid
+                                # IMPORTANT: Skip aspect ratio transformation to avoid Cloudinary HTTP 400 errors
+                                # Instagram can handle various aspect ratios (0.8 to 1.91) natively
+                                # Cloudinary transformations with ar_ parameter are causing issues
+                                
+                                logger.info(f"✅ Cloudinary URL structure is valid")
+                                logger.info(f"  Image dimensions: {width}x{height} (ratio: {ratio:.2f})")
+                                logger.info(f"  Instagram supports ratios from 0.8 (4:5) to 1.91 (1.91:1)")
+                                
+                                # Check if image is within Instagram's acceptable range
+                                if 0.8 <= ratio <= 1.91:
+                                    logger.info(f"✅ Image ratio {ratio:.2f} is within Instagram's acceptable range")
+                                    logger.info(f"  Using original Cloudinary URL without transformation")
+                                    cloudinary_url = cloudinary_original_url
+                                else:
+                                    logger.warning(f"⚠️ Image ratio {ratio:.2f} is outside Instagram's range (0.8-1.91)")
+                                    logger.warning(f"  Instagram may crop this image automatically")
+                                    logger.warning(f"  Using original URL - Instagram will handle cropping")
+                                    cloudinary_url = cloudinary_original_url
                         else:
-                            logger.error(f"❌ URL split failed - expected 2 parts, got {len(parts)}")
-                            if len(parts) > 0:
-                                for i, part in enumerate(parts):
-                                    logger.error(f"  Part {i}: {part[:100]}...")
+                            logger.error(f"❌ URL split failed - expected 2 parts, got {len(url_parts)}")
                             cloudinary_url = cloudinary_original_url
-                            
-                            # Estimate transformed dims based on standard 1080w
-                            t_w = 1080
-                            t_h = int(1080 / target_val)
-                            transformed_dims = {"w": t_w, "h": t_h, "ratio": target_val, "target": target_ar}
-                            logger.info(f"✨ Auto-cropped image to {target_ar} ratio ({original_dims['ratio']} -> {target_val})")
                 
                 logger.info(f"✓ Cloudinary upload complete. Auto-cropped: {is_auto_cropped}")
             else:

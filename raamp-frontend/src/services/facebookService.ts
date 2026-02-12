@@ -29,6 +29,7 @@ export interface ScheduledFacebookPostItem {
     scheduled_time: string;
     status: string;
     created_at: string;
+    platform?: string; // Added for frontend display
 }
 
 export interface ScheduledFacebookPostListResponse {
@@ -45,6 +46,7 @@ export interface FacebookPostHistoryItem {
     created_at: string;
     published_at?: string;
     error_message?: string;
+    platform?: string; // Added for frontend display
 }
 
 export interface FacebookPostHistoryResponse {

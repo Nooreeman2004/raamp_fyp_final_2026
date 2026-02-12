@@ -68,7 +68,9 @@ class ApiClient {
     // Allow configuring timeout via Vite env var VITE_API_TIMEOUT (ms)
     // Use longer timeout for signup/auth endpoints that send emails
     const isAuthEndpoint = endpoint.includes('/auth/signup') || endpoint.includes('/auth/verify');
-    const isSocialPosting = endpoint.includes('/instagram/posting/post') || endpoint.includes('/facebook/posting/post');
+    const isSocialPosting = endpoint.includes('/instagram/posting/post') ||
+      endpoint.includes('/facebook/posting/post') ||
+      endpoint.includes('/social/post'); // Unified social posting endpoint
 
     // Social media posting can take up to 45s-60s on the backend
     const defaultTimeout = isAuthEndpoint ? 30000 : (isSocialPosting ? 60000 : 10000);

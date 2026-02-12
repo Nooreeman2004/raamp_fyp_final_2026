@@ -300,7 +300,7 @@ async def cancel_scheduled_post(
         )
 
 
-@router.get("/history", response_model=list)
+@router.get("/history")
 async def get_posting_history(
     user_email: str = Depends(get_current_user_email),
     post_repo: FacebookPostRepository = Depends(get_post_repository),
@@ -324,7 +324,7 @@ async def get_posting_history(
             skip=skip
         )
         
-        return [
+        posts_data = [
             {
                 "post_id": str(post.id),
                 "page_id": post.page_id,
@@ -339,6 +339,11 @@ async def get_posting_history(
             }
             for post in posts
         ]
+        
+        return {
+            "posts": posts_data,
+            "total": len(posts_data)
+        }
         
     except Exception as e:
         logger.error(f"Failed to get posting history: {e}", exc_info=True)
