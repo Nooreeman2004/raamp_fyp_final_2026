@@ -1,12 +1,12 @@
 from cryptography.fernet import Fernet
 import os
+from config import Config
 
 
 class EncryptionService:
     def __init__(self, key: str = None):
-        # Accept key from env or parameter. If none provided, raise — we require a stable key.
-        env_key = os.getenv('ENCRYPTION_KEY')
-        k = key or env_key
+        # Accept key from env or parameter. Use Config fallback for development.
+        k = key or Config.ENCRYPTION_KEY
         if not k:
             raise RuntimeError("ENCRYPTION_KEY not set. Please set a 32-byte urlsafe base64 key in env 'ENCRYPTION_KEY'.")
         self.fernet = Fernet(k)

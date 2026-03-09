@@ -48,7 +48,8 @@ import {
     Zap,
     Clock,
     Smartphone,
-    Calendar as CalendarIcon
+    Calendar as CalendarIcon,
+    Folder
 } from "lucide-react";
 import { PostMode } from "@/types/instagram.types";
 import { instagramService } from "@/services/instagramService";
@@ -68,6 +69,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AssetPickerDialog } from "@/components/dashboard/AssetPickerDialog";
+import { Asset, assetService } from "@/services/assetService";
 
 const postFormSchema = z.object({
     mode: z.enum([PostMode.POST_NOW, PostMode.SCHEDULE_POST, PostMode.POST_STORY]),
@@ -116,6 +119,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
     const [optimizationBadge, setOptimizationBadge] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<SocialConnectionStatus | null>(null);
+    const [assetPickerOpen, setAssetPickerOpen] = useState(false);
     const isSubmittingRef = useRef(false); // Additional guard against race conditions
     const lastSubmitTimeRef = useRef<number>(0); // Timestamp-based debounce
 
@@ -257,6 +261,25 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
             toast.error(error.message || "Failed to upload media");
         } finally {
             setIsUploading(false);
+        }
+    }, [form]);
+
+    const handleAssetSelect = useCallback(async (asset: Asset) => {
+        try {
+            // Set the media URL from the asset
+            const mediaUrl = asset.cloudinary_url || asset.storage_url;
+            form.setValue("media_url", mediaUrl);
+            
+            // Set the preview
+            setLocalPreview(mediaUrl);
+            setUploadStatus('success');
+            
+            // Mark the asset as used
+            await assetService.markAssetUsed(asset.asset_id);
+            
+            toast.success("Asset selected from library");
+        } catch (error: any) {
+            toast.error(error.message || "Failed to select asset");
         }
     }, [form]);
 
@@ -616,6 +639,24 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                         </Badge>
                                     )}
                                 </div>
+
+                                {/* Asset Library Button */}
+                                <div className="flex items-center justify-center">
+                                    <div className="flex items-center gap-2 w-full">
+                                        <div className="flex-1 h-px bg-white/5" />
+                                        <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">OR</span>
+                                        <div className="flex-1 h-px bg-white/5" />
+                                    </div>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setAssetPickerOpen(true)}
+                                    className="w-full bg-[#141416] border-white/10 hover:bg-[#1A1A1C] hover:border-primary/30 transition-all"
+                                >
+                                    <Folder className="w-4 h-4 mr-2 text-primary" />
+                                    Select from Asset Library
+                                </Button>
                             </div>
 
                             {/* Scheduling Section */}
@@ -775,6 +816,13 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <AssetPickerDialog
+                open={assetPickerOpen}
+                onOpenChange={setAssetPickerOpen}
+                onSelectAsset={handleAssetSelect}
+                assetType="generated_image"
+            />
         </Dialog>
     );
 };

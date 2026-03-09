@@ -53,7 +53,7 @@ class NotificationRepository:
     async def create(
         self,
         user_id: str,
-        type: NotificationType,
+        notification_type: NotificationType,
         title: str,
         message: str,
         related_entity_id: Optional[str] = None,
@@ -69,7 +69,7 @@ class NotificationRepository:
         
         notification = NotificationModel(
             user_id=user_id,
-            type=type,
+            type=notification_type,
             title=title,
             message=message,
             read=False,

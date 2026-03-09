@@ -1,6 +1,7 @@
 # Application Configuration
 import os
-from typing import Optional
+import hashlib
+import base64
 
 
 class Config:
@@ -15,7 +16,20 @@ class Config:
     JWT_EXPIRATION_DAYS: int = int(os.getenv("JWT_EXPIRATION_DAYS", "7"))
     
     # Encryption Configuration (for encrypting sensitive data like OAuth tokens)
-    ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
+    # Auto-generate if not set (for development only - use proper key in production)
+    @staticmethod
+    def get_encryption_key() -> str:
+        key = os.getenv("ENCRYPTION_KEY", "")
+        if not key:
+            # Development fallback: generate a stable key from JWT secret
+            from cryptography.fernet import Fernet
+            # Create stable key from JWT_SECRET for development
+            jwt_secret = os.getenv("JWT_SECRET_KEY", "development-secret-key-32bytes")
+            key_material = hashlib.sha256(jwt_secret.encode()).digest()
+            key = base64.urlsafe_b64encode(key_material).decode()
+        return key
+    
+    ENCRYPTION_KEY: str = get_encryption_key.__func__()
     
     # Mailtrap Email Configuration
     # SMTP Sandbox for Testing (emails go to Mailtrap inbox, not real recipients)
@@ -73,6 +87,14 @@ class Config:
     
     # Google Maps API Key (used for server-side Places requests if needed)
     GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
+    
+    # OpenAI API Configuration - Can use Google's Generative Language API endpoint
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_API_BASE_URL: str = os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
+    OPENAI_GENERATION_MODEL: str = os.getenv("OPENAI_GENERATION_MODEL", "gpt-4o-mini")
+    
+    # Google Gemini API Configuration
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     
     # Cloudinary Configuration
     CLOUDINARY_CLOUD_NAME: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")

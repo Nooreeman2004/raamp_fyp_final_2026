@@ -28,7 +28,7 @@ export const ParallaxSection = ({
     const x = useTransform(smoothProgress, [0, 1], ["0%", `${speed * 100}%`]);
 
     return (
-        <div ref={ref} className={cn("relative overflow-hidden", className)}>
+        <div ref={ref} className={cn("relative", className)}>
             <motion.div
                 style={{
                     y: direction === "vertical" ? y : 0,

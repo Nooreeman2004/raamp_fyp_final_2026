@@ -11,11 +11,14 @@ from presentation.schemas.settings_schemas import (
     SecuritySettingsRequest,
     SecuritySettingsResponse,
     SecuritySettingsGetResponse,
-    ErrorResponse
+    ErrorResponse,
+    SpecialtiesUpdateRequest,
+    SpecialtiesUpdateResponse
 )
 from presentation.routers.auth_router import get_current_user_email
 from infrastructure.repositories.notification_settings_repository import NotificationSettingsRepository
 from infrastructure.repositories.security_settings_repository import SecuritySettingsRepository
+from infrastructure.database.models.business_model import BusinessModel
 
 
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
@@ -231,4 +234,133 @@ async def save_security_settings(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to save security settings"
+        ) from e
+
+
+# ============================================
+# BUSINESS SPECIALTIES ENDPOINTS
+# ============================================
+
+@router.patch(
+    "/business/specialties",
+    response_model=SpecialtiesUpdateResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}}
+)
+async def update_business_specialties(
+    request: SpecialtiesUpdateRequest,
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """
+    Update business specialties for enhanced trend detection.
+    
+    Specialties are optional keywords that help the trend detection system
+    find more relevant opportunities (e.g., "boba", "matcha", "vegan").
+    
+    Validation rules:
+    - Maximum 10 specialties
+    - Each specialty max 50 characters
+    - Automatically converted to lowercase
+    - Duplicates automatically removed
+    
+    Examples:
+    - Restaurant: ["bubble tea", "matcha", "vegan", "sushi"]
+    - Fashion: ["streetwear", "vintage", "sustainable"]
+    - Fitness: ["yoga", "crossfit", "pilates"]
+    """
+    try:
+        # Find or create business by user email
+        business = await BusinessModel.find_one({"user_id": current_user_email})
+        
+        if not business:
+            # Create a minimal business profile if it doesn't exist yet
+            # This can happen during onboarding before other steps are completed
+            business = BusinessModel(
+                user_id=current_user_email,
+                business_name="",  # Will be filled in later during onboarding
+                business_type="General",
+                specialties=[]
+            )
+            await business.save()
+        
+        # Validate and clean specialties
+        specialties = request.specialties or []
+        
+        # Validation: Maximum count
+        if len(specialties) > 10:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Maximum 10 specialties allowed"
+            )
+        
+        # Validation: Length per specialty
+        for specialty in specialties:
+            if len(specialty) > 50:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Specialty '{specialty}' exceeds 50 character limit"
+                )
+        
+        # Clean: Lowercase, deduplicate, trim
+        cleaned_specialties = list(dict.fromkeys([
+            s.strip().lower() for s in specialties if s.strip()
+        ]))
+        
+        # Update only the specialties field
+        business.specialties = cleaned_specialties
+        await business.save()
+        
+        return SpecialtiesUpdateResponse(
+            success=True,
+            message="Business specialties updated successfully",
+            specialties=cleaned_specialties
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating business specialties: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update business specialties"
+        ) from e
+
+
+@router.get(
+    "/business/specialties",
+    response_model=SpecialtiesUpdateResponse,
+    responses={404: {"model": ErrorResponse}}
+)
+async def get_business_specialties(
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """
+    Get current business specialties for the authenticated user.
+    
+    Returns empty list if no specialties configured (backward compatible).
+    """
+    try:
+        business = await BusinessModel.find_one({"user_id": current_user_email})
+        
+        if not business:
+            # Return empty list if no business profile exists yet
+            # This can happen during onboarding or for new users
+            return SpecialtiesUpdateResponse(
+                success=True,
+                message="No specialties configured yet",
+                specialties=[]
+            )
+        
+        return SpecialtiesUpdateResponse(
+            success=True,
+            message="Business specialties retrieved successfully",
+            specialties=business.specialties or []
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching business specialties: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch business specialties"
         ) from e

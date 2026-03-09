@@ -40,6 +40,9 @@ class BusinessModel(Document):
     # Hyperlocal Business Setup
     business_type: Optional[str] = Field(None, description="Business type/category for hyperlocal campaigns")
     
+    # Business Specialties - Optional for enhanced trend detection
+    specialties: list[str] = Field(default_factory=list, description="Business specialties for precise trend detection (e.g., ['bubble tea', 'matcha drinks'])")
+    
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

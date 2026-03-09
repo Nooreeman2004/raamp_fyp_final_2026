@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Response, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta
+from typing import Optional
 import logging
 
 from presentation.schemas.auth_schemas import (
@@ -60,7 +61,6 @@ from application.services.firebase_storage_service import FirebaseStorageService
 from domain.entities.user import User
 import secrets
 from fastapi import Body
-from datetime import timedelta
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -99,6 +99,43 @@ def get_resend_verification_use_case() -> ResendVerificationUseCase:
     return ResendVerificationUseCase(pending_repo, mailtrap_service)
 
 
+async def get_optional_current_user_email(request: Request) -> Optional[str]:
+    """
+    Optional JWT Authentication Dependency
+    Returns user's email if authenticated, None otherwise (no exception).
+    
+    Args:
+        request: FastAPI Request object
+        
+    Returns:
+        User's email from token payload, or None if not authenticated
+    """
+    # First try to get token from Authorization header
+    token = None
+    auth_header = request.headers.get("Authorization")
+    
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
+    
+    # If not in header, try cookies
+    if not token:
+        token = request.cookies.get("access_token")
+    
+    if not token:
+        return None
+    
+    try:
+        jwt_service = JWTService()
+        payload = jwt_service.verify_token(token)
+        
+        if not payload or "email" not in payload:
+            return None
+        
+        return payload["email"]
+    except Exception:
+        return None
+
+
 
 @router.post(
     "/signup",
@@ -106,12 +143,14 @@ def get_resend_verification_use_case() -> ResendVerificationUseCase:
     status_code=status.HTTP_200_OK,
     responses={
         400: {"model": ErrorResponse, "description": "Validation error or duplicate user"},
+        403: {"model": ErrorResponse, "description": "Already authenticated"},
         200: {"model": SignupResponse, "description": "Verification email sent"}
     }
 )
 async def signup(
     request: SignupRequest,
-    use_case: SignupUseCase = Depends(get_signup_use_case)
+    use_case: SignupUseCase = Depends(get_signup_use_case),
+    current_user: Optional[str] = Depends(get_optional_current_user_email)
 ):
     """
     Initiate signup: Generate OTP and send verification email.
@@ -129,7 +168,25 @@ async def signup(
     - Email: Valid email format
     - Password: Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special character
     - Must agree to Terms & Conditions and Privacy Policy
+    
+    Security:
+    - Rejects signup attempts from already authenticated users
     """
+    # Security: Prevent signup if user is already authenticated
+    logger.info(f"🔐 Signup attempt - Request email: {request.email}, Current authenticated user: {current_user or 'None'}")
+    
+    if current_user:
+        logger.warning(f"❌ BLOCKED: Authenticated user {current_user} attempted to signup for {request.email}")
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={
+                "success": False,
+                "message": "You are already logged in. Please log out before creating a new account."
+            }
+        )
+    
+    logger.info(f"✅ ALLOWED: No authenticated user - proceeding with signup for {request.email}")
+    
     success, errors = await use_case.execute(
         username=request.username,
         email=request.email,
@@ -360,6 +417,7 @@ async def signin(
     
     return SignInResponse(
         user=user_response,
+        token=token,
         message="Sign in successful"
     )
 
@@ -486,6 +544,7 @@ async def signin_with_google(request: GoogleSignupRequest, response: Response):
     
     return SignInResponse(
         user=user_response,
+        token=token,
         message="Signed in successfully with Google"
     )
 

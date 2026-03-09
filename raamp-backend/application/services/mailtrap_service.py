@@ -752,7 +752,12 @@ class MailtrapService:
         Returns:
             True if sent successfully
         """
-        print(f"🔔 send_verification_email called: to={to_email}, name={name}, otp={otp_code}")
+        print(f"\n{'='*80}")
+        print(f"📧 EMAIL SERVICE CALLED")
+        print(f"📮 Recipient (to_email): {to_email}")
+        print(f"👤 Username (name): {name}")
+        print(f"🔑 OTP Code: {otp_code}")
+        print(f"{'='*80}\n")
         
         subject = "Verify Your Email - RAAMP"
         

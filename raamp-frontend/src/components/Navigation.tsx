@@ -15,6 +15,7 @@ const Navigation = () => {
     { label: "ABOUT", href: "/about", icon: Info },
     { label: "RESOURCES", href: "/resources", icon: BookOpen },
     { label: "LEGAL", href: "/legal", icon: Scale },
+    { label: "CONTACT US", href: "/#consultation", icon: Info },
   ];
 
   return (

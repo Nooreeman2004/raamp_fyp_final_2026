@@ -23,6 +23,14 @@ from application.services.cleanup_service import cleanup_service
 from application.services.instagram_scheduler_service import process_scheduled_posts, InstagramSchedulerService
 from application.services.token_expiry_monitor_service import check_token_expiry
 from application.services.job_health_monitor_service import check_scheduler_health, cleanup_job_logs
+from application.services.trend_detection_service import TrendDetectionService
+
+# External service instances for scheduling
+trend_detection_service = TrendDetectionService()
+
+async def run_trend_detection():
+    """Wrapper function for scheduled trend detection"""
+    await trend_detection_service.run_detection_for_all_users()
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -97,6 +105,16 @@ async def lifespan(app: FastAPI):
     )
     logging.info("Job log cleanup configured (daily at 3 AM)")
     
+    # Start Trend Detection Engine (every 30 minutes)
+    scheduler.add_job(
+        run_trend_detection,
+        CronTrigger(minute='*/30'),  # Every 30 minutes
+        id='run_trend_detection',
+        name='Run emerging trend detection for all users',
+        replace_existing=True
+    )
+    logging.info("Trend detection engine configured (every 30 minutes)")
+    
     # Start the scheduler
     scheduler.start()
     logging.info("APScheduler started successfully")
@@ -166,6 +184,7 @@ from presentation.routers import admin_router
 from presentation.routers import chatbot_router
 from presentation.routers import content_generation_router
 from presentation.routers import complaints_router
+from presentation.routers import media_generation_router
 # New routers for settings, billing, and geo-intent
 from presentation.routers import settings_router
 from presentation.routers import billing_router
@@ -177,6 +196,10 @@ from presentation.routers import assets_router
 from presentation.routers import posting_logs_router
 from presentation.routers import variant_recommendation_router
 from presentation.routers import unified_posting_router
+# Trend Signal router for Google Trends integration
+from presentation.routers import trend_signal_router
+from presentation.routers import arbitrage_router
+from presentation.routers import watchlist_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
@@ -201,6 +224,7 @@ app.include_router(hyperlocal_setup_router.router)
 app.include_router(consultation_router.router)
 app.include_router(chatbot_router.router, prefix="/api")
 app.include_router(content_generation_router.router)
+app.include_router(media_generation_router.router)  # Reel & Video generation
 app.include_router(complaints_router.router)
 # New routers for settings, billing, and geo-intent
 app.include_router(settings_router.router)
@@ -213,10 +237,24 @@ app.include_router(assets_router.router)
 app.include_router(posting_logs_router.router)
 app.include_router(variant_recommendation_router.router)
 app.include_router(unified_posting_router.router)
+# Trend Signal router for Google Trends integration
+app.include_router(trend_signal_router.router, prefix="/api")
+app.include_router(arbitrage_router.router, prefix="/api")
+app.include_router(watchlist_router.router, prefix="/api")
 
 # Mount static files for uploaded content
 os.makedirs("uploaded_files", exist_ok=True)
 app.mount("/api/static", StaticFiles(directory="uploaded_files"), name="static")
+
+# Mount static files for AI-generated images
+os.makedirs("generated_images", exist_ok=True)
+
+# Mount static files for AI-generated videos and reels
+os.makedirs("generated_videos", exist_ok=True)
+app.mount("/api/videos", StaticFiles(directory="generated_videos"), name="videos")
+os.makedirs("generated_reels", exist_ok=True)
+app.mount("/api/reels", StaticFiles(directory="generated_reels"), name="reels")
+app.mount("/api/generated", StaticFiles(directory="generated_images"), name="generated")
 
 
 @app.get("/profile/onboarding")

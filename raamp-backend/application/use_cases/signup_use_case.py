@@ -7,6 +7,7 @@ from application.validators.password_validator import PasswordValidator
 from application.services.password_service import PasswordHasher
 from application.services.mailtrap_service import MailtrapService
 from application.utils.otp_utils import OTPGenerator
+from config import Config
 
 
 class SignupUseCase:
@@ -107,25 +108,30 @@ class SignupUseCase:
             code_sent_at=sent_at
         )
         
-        # ALWAYS print OTP to console for testing/debugging FIRST
-        print("\n" + "="*70)
-        print(f"🔑 OTP CODE FOR {email}: {otp_code}")
-        print(f"👤 Username: {username}")
-        print(f"⏰ Expires at: {expires_at}")
-        print("="*70 + "\n")
+        # Print OTP to console ONLY in development mode for testing/debugging
+        if Config.ENVIRONMENT != "production":
+            print("\n" + "="*70)
+            print(f"🔑 OTP CODE FOR {email}: {otp_code}")
+            print(f"👤 Username: {username}")
+            print(f"⏰ Expires at: {expires_at}")
+            print("="*70 + "\n")
         
         # Send verification email with OTP (with timeout protection)
-        print(f"📨 Calling email service to send OTP to {email}")
+        if Config.ENVIRONMENT != "production":
+            print(f"📨 Calling email service to send OTP to {email}")
         try:
             await self.email_service.send_verification_email(
                 to_email=email.lower(),
                 name=username,
                 otp_code=otp_code
             )
-            print(f"✅ Email sent successfully to {email}")
+            if Config.ENVIRONMENT != "production":
+                print(f"✅ Email sent successfully to {email}")
         except Exception as e:
-            # Don't fail signup if email fails - OTP is printed to console
-            print(f"⚠️ Email send failed but continuing: {e}")
+            # Don't fail signup if email fails - OTP is printed to console in dev mode
+            if Config.ENVIRONMENT != "production":
+                print(f"⚠️ Email send failed but continuing: {e}")
         
-        print(f"✅ Signup process completed for {email}")
+        if Config.ENVIRONMENT != "production":
+            print(f"✅ Signup process completed for {email}")
         return True, None

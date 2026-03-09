@@ -14,14 +14,10 @@ import {
     LogOut,
     ChevronLeft,
     ChevronRight,
-    User,
     Bell,
     Search,
-    Command,
-    Info,
-    BookOpen,
-    Scale,
-    Calendar
+    Calendar,
+    Images
 } from "lucide-react";
 import raampIcon from "@/assets/raamp-icon-transparent.png";
 import { authService } from "@/services/authService";
@@ -32,6 +28,7 @@ const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
     { icon: MapPin, label: "Geo-Intent", href: "/dashboard/geo-intent" },
     { icon: Sparkles, label: "Creative Studio", href: "/dashboard/creative" },
+    { icon: Images, label: "Asset Library", href: "/dashboard/assets" },
     { icon: Calendar, label: "Smart Scheduling", href: "/dashboard/smart-scheduling" },
     { icon: TrendingUp, label: "Trend Arbitrage", href: "/dashboard/trends" },
     { icon: FlaskConical, label: "A/B Testing", href: "/dashboard/ab-testing" },
@@ -42,12 +39,6 @@ const menuItems = [
 const bottomItems = [
     { icon: Bell, label: "Notifications", href: "/notifications" },
     { icon: Settings, label: "Settings", href: "/settings" },
-];
-
-const infoItems = [
-    { icon: Info, label: "About Us", href: "/about" },
-    { icon: BookOpen, label: "Resources", href: "/resources" },
-    { icon: Scale, label: "Legal", href: "/legal" },
 ];
 
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -198,37 +189,6 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                         )}
                     </Tooltip>
                 ))}
-
-                <Separator className="bg-white/5 my-2" />
-
-                {infoItems.map((item) => (
-                    <Tooltip key={item.href} delayDuration={0}>
-                        <TooltipTrigger asChild>
-                            <Link
-                                to={item.href}
-                                className={cn(
-                                    "flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group text-muted-foreground hover:text-white hover:bg-white/5",
-                                    location.pathname === item.href && "text-white bg-white/5"
-                                )}
-                            >
-                                <item.icon size={18} className="flex-shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
-                                <motion.span
-                                    animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
-                                    className="font-medium text-[11px] whitespace-nowrap overflow-hidden uppercase tracking-wider opacity-60 group-hover:opacity-100 transition-opacity"
-                                >
-                                    {item.label}
-                                </motion.span>
-                            </Link>
-                        </TooltipTrigger>
-                        {collapsed && (
-                            <TooltipContent side="right" className="bg-black/90 border-white/10 text-white">
-                                {item.label}
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
-                ))}
-
-                <Separator className="bg-white/5 my-2" />
 
                 <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>

@@ -25,6 +25,10 @@ class UserModel(Document):
     bio: Optional[str] = ""
     business_domain: Optional[str] = None  # ObjectId reference to BusinessDomain
     profile_completed: bool = False
+    
+    # Geographic location (LOCKED after onboarding)
+    onboarding_location: Optional[str] = Field(None, description="Geographic location set during onboarding - locked for trend analysis")
+    
     # Connection flags
     facebook_connected: bool = False
     instagram_connected: bool = False

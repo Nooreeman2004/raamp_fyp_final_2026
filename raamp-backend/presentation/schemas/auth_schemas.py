@@ -119,6 +119,7 @@ class UserResponse(BaseModel):
 class SignInResponse(BaseModel):
     """Response schema for successful sign-in"""
     user: UserResponse
+    token: str
     message: str = "Sign in successful"
 
 

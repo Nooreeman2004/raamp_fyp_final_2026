@@ -83,6 +83,11 @@ const Login = () => {
     try {
       const response = await authService.signin({ email, password });
 
+      // Store the token in localStorage
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
+
       // Update AuthContext with persistence preference
       if (response.user) {
         login(response.user, rememberMe);
@@ -151,6 +156,11 @@ const Login = () => {
         display_name: googleResult.displayName,
         photo_url: googleResult.photoURL,
       });
+
+      // Store the token in localStorage
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
 
       // Default to true (or session) for Google, but let's assume session for now unless we add a UI for it
       if (response.user) {

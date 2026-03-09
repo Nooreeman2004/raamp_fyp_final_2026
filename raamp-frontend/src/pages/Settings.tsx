@@ -10,6 +10,7 @@ import {
   Bell,
   Link2,
   Shield,
+  Target,
   Settings as SettingsIcon
 } from "lucide-react";
 
@@ -65,6 +66,12 @@ const Settings = () => {
       description: "Business location and targeting parameters",
       icon: <Building2 className="w-5 h-5 text-primary" />,
       href: "/profile/business-setup",
+    },
+    {
+      title: "Business Specialties",
+      description: "Set keywords for enhanced trend detection",
+      icon: <Target className="w-5 h-5 text-primary" />,
+      href: "/settings/business-specialties",
     },
     {
       title: "Brand Settings",

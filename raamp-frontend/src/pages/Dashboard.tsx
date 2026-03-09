@@ -14,7 +14,9 @@ import {
   BarChart3,
   Sparkles,
   PieChart,
-  ArrowRight
+  ArrowRight,
+  RefreshCw,
+  DollarSign as DollarSignIcon
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { HolographicCard } from "@/components/ui/holographic-card";
@@ -82,7 +84,7 @@ const Dashboard = () => {
       try {
         const data = await businessService.getHyperlocalSetup();
         console.log('Dashboard: Fetched hyperlocal setup:', data);
-        
+
         if (data && typeof data.latitude === "number" && typeof data.longitude === "number" && data.latitude !== 0 && data.longitude !== 0) {
           const base = { lat: data.latitude, lng: data.longitude };
           console.log('Dashboard: Setting map center to:', base);
@@ -142,17 +144,39 @@ const Dashboard = () => {
               Here's what's happening with your campaigns today.
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setLoading(true);
+                // Trigger re-fetches
+                authService.getProfile().then(setUser);
+                businessService.getHyperlocalSetup().then(data => {
+                  if (data && typeof data.latitude === "number" && typeof data.longitude === "number" && data.latitude !== 0 && data.longitude !== 0) {
+                    const base = { lat: data.latitude, lng: data.longitude };
+                    setMapCenter(base);
+                    setMapLocations([{ lat: base.lat, lng: base.lng, name: data.business_name || "Business", address: data.formatted_address }]);
+                  }
+                }).finally(() => setLoading(false));
+              }}
+              className="bg-black/40 border-white/10 hover:border-primary/50 text-white gap-2 font-mono h-11"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">REFRESH</span>
+            </Button>
+
             <MagneticButton
               onClick={() => {
                 const nextRange = timeRange === "Last 7 Days" ? "Last 30 Days" : "Last 7 Days";
                 setTimeRange(nextRange);
               }}
-              className="px-4 py-2 border border-white/10 text-white hover:bg-white/5 bg-transparent"
+              className="px-4 py-2 border border-white/10 text-white hover:bg-white/5 bg-transparent h-11 font-mono text-sm"
             >
               {timeRange}
             </MagneticButton>
-            <MagneticButton className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(0,224,208,0.3)]">
+
+            <MagneticButton className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(0,224,208,0.3)] h-11 font-bebas text-lg tracking-wide">
               <Zap className="w-4 h-4 mr-2" />
               Quick Action
             </MagneticButton>
@@ -264,13 +288,13 @@ const Dashboard = () => {
 
             {/* Lead Heatmap & Demographics (Map) */}
             <HolographicCard
-              className="col-span-4 p-0 overflow-hidden h-[400px]"
+              className="md:col-span-2 lg:col-span-4 p-0 overflow-hidden h-[400px]"
               contentClassName="h-full flex flex-col"
             >
               <div className="p-6 pb-2 z-10">
                 <h3 className="text-lg font-semibold text-white">Lead Heatmap & Demographics</h3>
               </div>
-              <div className="flex-1 relative w-full h-full min-h-0">
+              <div className="flex-1 relative w-full min-h-0 overflow-hidden rounded-b-xl border border-white/5">
                 <GoogleMap
                   center={mapCenter}
                   zoom={12}
@@ -293,7 +317,7 @@ const Dashboard = () => {
 
             {/* Causal Insights & Actions */}
             <HolographicCard
-              className="col-span-3 p-6 h-[400px]"
+              className="md:col-span-2 lg:col-span-3 p-6 h-[400px]"
               contentClassName="h-full flex flex-col"
             >
               <h3 className="text-lg font-semibold text-white mb-6">Causal Insights & Actions</h3>
@@ -349,22 +373,5 @@ const Dashboard = () => {
     </Layout>
   );
 };
-
-// Helper Icon
-const DollarSignIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <line x1="12" x2="12" y1="2" y2="22" />
-    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-  </svg>
-);
 
 export default Dashboard;

@@ -189,17 +189,27 @@ const Signup = () => {
     } catch (error: any) {
       console.error("Signup Error:", error);
 
+      // Parse and categorize the error for user-friendly messaging
+      let errorTitle = "Signup Failed";
+      let errorDescription = "Something went wrong while creating your account. Please try again.";
+
       // Handle Server-Side Validation Errors
       if (error.errors && typeof error.errors === 'object') {
         const newValidations = { ...validations };
         let hasNewErrors = false;
 
         if (error.errors.username) {
-          newValidations.username = { isValid: false, message: error.errors.username };
+          const usernameError = Array.isArray(error.errors.username) 
+            ? error.errors.username.join(', ') 
+            : error.errors.username;
+          newValidations.username = { isValid: false, message: usernameError };
           hasNewErrors = true;
         }
         if (error.errors.email) {
-          newValidations.email = { isValid: false, message: error.errors.email };
+          const emailError = Array.isArray(error.errors.email) 
+            ? error.errors.email.join(', ') 
+            : error.errors.email;
+          newValidations.email = { isValid: false, message: emailError };
           hasNewErrors = true;
         }
         if (error.errors.password) {
@@ -212,12 +222,80 @@ const Signup = () => {
 
         if (hasNewErrors) {
           setValidations(newValidations);
+          errorTitle = "Validation Error";
+          errorDescription = "Please fix the highlighted fields and try again.";
+        }
+      }
+
+      // Handle specific error cases with user-friendly messages
+      if (error.message) {
+        const errorMsg = error.message.toLowerCase();
+
+        // Email-related errors
+        if (errorMsg.includes('email') && (errorMsg.includes('exists') || errorMsg.includes('already') || errorMsg.includes('taken'))) {
+          errorTitle = "Email Already Registered";
+          errorDescription = "This email is already registered. Please login or use a different email.";
+        }
+        else if (errorMsg.includes('email') && (errorMsg.includes('invalid') || errorMsg.includes('format'))) {
+          errorTitle = "Invalid Email";
+          errorDescription = "Please enter a valid email address.";
+        }
+        // Username-related errors
+        else if (errorMsg.includes('username') && (errorMsg.includes('exists') || errorMsg.includes('taken') || errorMsg.includes('already'))) {
+          errorTitle = "Username Not Available";
+          errorDescription = "This username is already taken. Please choose another.";
+        }
+        else if (errorMsg.includes('username') && errorMsg.includes('invalid')) {
+          errorTitle = "Invalid Username";
+          errorDescription = "Username must be 7-20 characters, lowercase letters and numbers only.";
+        }
+        // Password-related errors
+        else if (errorMsg.includes('password') && (errorMsg.includes('weak') || errorMsg.includes('requirements') || errorMsg.includes('strong'))) {
+          errorTitle = "Weak Password";
+          errorDescription = "Password must contain at least 8 characters with uppercase, lowercase, number, and special character.";
+        }
+        else if (errorMsg.includes('password') && errorMsg.includes('match')) {
+          errorTitle = "Passwords Don't Match";
+          errorDescription = "The passwords you entered do not match. Please try again.";
+        }
+        // Network errors
+        else if (errorMsg.includes('network') || errorMsg.includes('connection') || errorMsg.includes('fetch')) {
+          errorTitle = "Connection Error";
+          errorDescription = "Network error. Please check your internet connection and try again.";
+        }
+        else if (errorMsg.includes('timeout') || errorMsg.includes('timed out')) {
+          errorTitle = "Request Timeout";
+          errorDescription = "The request took too long. Please check your connection and try again.";
+        }
+        // Server errors
+        else if (error.status >= 500 || errorMsg.includes('server error') || errorMsg.includes('internal error')) {
+          errorTitle = "Server Error";
+          errorDescription = "Something went wrong on our side. Please try again later.";
+        }
+        // Authentication/Authorization errors
+        else if (error.status === 401 || error.status === 403) {
+          errorTitle = "Access Denied";
+          errorDescription = "You don't have permission to perform this action.";
+        }
+        // Rate limiting
+        else if (error.status === 429 || errorMsg.includes('too many') || errorMsg.includes('rate limit')) {
+          errorTitle = "Too Many Attempts";
+          errorDescription = "Too many signup attempts. Please wait a few minutes and try again.";
+        }
+        // Generic validation errors
+        else if (errorMsg.includes('validation') || errorMsg.includes('invalid')) {
+          errorTitle = "Invalid Input";
+          errorDescription = error.message;
+        }
+        // Use the backend message if it's user-friendly
+        else if (error.message && !errorMsg.includes('error') && error.message.length < 100) {
+          errorDescription = error.message;
         }
       }
 
       toast({
-        title: "Error",
-        description: error.message || "Could not create account.",
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive",
       });
     } finally {
@@ -235,6 +313,11 @@ const Signup = () => {
         display_name: googleResult.displayName,
         photo_url: googleResult.photoURL,
       });
+
+      // Store the token in localStorage
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
 
       toast({
         title: "Login Successful",

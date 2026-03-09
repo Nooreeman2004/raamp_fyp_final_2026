@@ -45,10 +45,12 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Settings = lazy(() => import("./pages/Settings"));
 const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
 const AccountSecurity = lazy(() => import("./pages/AccountSecurity"));
+const BusinessSpecialties = lazy(() => import("./pages/BusinessSpecialties"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const LusionDemo = lazy(() => import("./pages/LusionDemo"));
 const RAAMPAssistant = lazy(() => import("./pages/RAAMPAssistant"));
 const SmartScheduling = lazy(() => import("./pages/SmartScheduling"));
+const AssetLibrary = lazy(() => import("./pages/AssetLibrary"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,8 +63,8 @@ const queryClient = new QueryClient({
 
 
 const App = () => (
-  <ErrorBoundary>
-    <BrowserRouter>
+  <BrowserRouter>
+    <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <NotificationProvider>
@@ -166,6 +168,16 @@ const App = () => (
                         <ProtectedRoute>
                           <ProfileGuard>
                             <SmartScheduling />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/assets"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <AssetLibrary />
                           </ProfileGuard>
                         </ProtectedRoute>
                       }
@@ -294,6 +306,16 @@ const App = () => (
                         </ProtectedRoute>
                       }
                     />
+                    <Route
+                      path="/settings/business-specialties"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <BusinessSpecialties />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
                     {/* 404 - Must be last */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
@@ -303,8 +325,8 @@ const App = () => (
           </NotificationProvider>
         </AuthProvider>
       </QueryClientProvider>
-    </BrowserRouter>
-  </ErrorBoundary>
+    </ErrorBoundary>
+  </BrowserRouter>
 );
 
 export default App;

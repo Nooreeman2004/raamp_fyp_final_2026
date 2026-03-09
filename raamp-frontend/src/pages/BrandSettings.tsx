@@ -16,13 +16,24 @@ import {
     RefreshCcw,
     Check,
     X,
-    ImageIcon
+    ImageIcon,
+    Shield
 } from "lucide-react";
 import { toast as sonner } from "sonner";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { businessService } from "@/services/businessService";
+import { authService } from "@/services/authService";
 import { useAuth } from "@/hooks/useAuth";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { cn } from "@/lib/utils";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 // Animation Imports
 import { motion, AnimatePresence } from "framer-motion";
@@ -47,9 +58,17 @@ const BrandSettings = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
     const [isExtracting, setIsExtracting] = useState(false);
-    const { refreshUser } = useAuth();
+    const [isEditing, setIsEditing] = useState(false);
+    const [hasExistingData, setHasExistingData] = useState(false);
+    const { refreshUser, user } = useAuth();
+    const { isFullyOnboarded } = useOnboardingStatus();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const logoRef = useRef<HTMLImageElement>(null);
+
+    // OTP Dialog State
+    const [showOtpDialog, setShowOtpDialog] = useState(false);
+    const [otp, setOtp] = useState("");
+    const [otpError, setOtpError] = useState("");
 
     // Use form persistence
     const { values: formData, handleChange, clearPersistence, setValues } = useFormPersistence("brand_settings_form", {
@@ -86,15 +105,67 @@ const BrandSettings = () => {
                         brand_colors: data.brand_colors && data.brand_colors.length > 0 ? data.brand_colors : ["#00E0D0", "#09151E"],
                         palette_source: data.palette_source || "custom"
                     });
+                    
+                    // Check if has meaningful data (theme, tone, or logo)
+                    const hasData = !!(data.restaurant_theme || data.tone_of_voice || data.brand_logo_url);
+                    setHasExistingData(hasData);
+                    
+                    // If user is fully onboarded (existing user), keep fields read-only
+                    // New users (not fully onboarded) can edit immediately during onboarding
+                    if (!isFullyOnboarded) {
+                        setIsEditing(true);
+                    }
+                } else {
+                    // No existing data, user can edit immediately (likely new user)
+                    setIsEditing(true);
                 }
             } catch (error) {
                 console.error("Failed to fetch brand settings:", error);
+                // If fetch fails, allow editing (assume new user)
+                setIsEditing(true);
             } finally {
                 setIsFetching(false);
             }
         };
         fetchBrandSettings();
-    }, []);
+    }, [isFullyOnboarded]);
+
+    const handleEdit = async () => {
+        if (isEditing || !user?.email) return;
+
+        try {
+            // Send OTP to email
+            await authService.sendProfileEditOtp({ email: user.email });
+            sonner.info("Verification Required", {
+                description: `A security code has been sent to ${user.email}`,
+            });
+            setShowOtpDialog(true);
+        } catch (err: any) {
+            const cooldownMsg = err?.errors?.cooldown || err?.errors?.message || err?.message;
+            if (cooldownMsg) {
+                sonner.error("Cooldown active", { description: cooldownMsg });
+            } else {
+                sonner.error("Error", { description: err?.message || 'Failed to send OTP' });
+            }
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        if (!user?.email) return;
+        
+        setOtpError("");
+        try {
+            await authService.verifyProfileEditOtp({ email: user.email, code: otp });
+            setShowOtpDialog(false);
+            setIsEditing(true);
+            setOtp("");
+            sonner.success("Verified", {
+                description: "You can now edit your brand settings",
+            });
+        } catch (err: any) {
+            setOtpError(err?.message || "Invalid OTP. Please try again.");
+        }
+    };
 
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -258,12 +329,20 @@ const BrandSettings = () => {
 
             clearPersistence();
             await refreshUser();
+            
+            // Disable editing after successful save
+            if (isFullyOnboarded) {
+                setIsEditing(false);
+            }
 
             sonner.success("Brand DNA Locked In", {
                 description: "Your autonomous marketing identity is ready and synchronized.",
             });
 
-            setTimeout(() => navigate("/dashboard"), 1000);
+            // Only navigate to dashboard if user is NOT fully onboarded (new user in onboarding flow)
+            if (!isFullyOnboarded) {
+                setTimeout(() => navigate("/dashboard"), 1000);
+            }
         } catch (error) {
             console.error("Failed to save brand settings", error);
             sonner.error("Sync Failed");
@@ -291,18 +370,32 @@ const BrandSettings = () => {
                 transition={{ duration: 0.5 }}
             >
                 <Reveal variant="blurInUp">
-                    <div className="flex items-center gap-4 mb-8">
-                        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                            <Palette className="w-7 h-7 text-primary" />
+                    <div className="flex items-center justify-between gap-4 mb-8">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                                <Palette className="w-7 h-7 text-primary" />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                    <BlurText text="Brand Identity Matrix" />
+                                </h1>
+                                <p className="text-muted-foreground font-mono text-xs uppercase tracking-widest">
+                                    Configure the DNA of your autonomous marketing agent.
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-3xl font-bold font-bebas tracking-wide">
-                                <BlurText text="Brand Identity Matrix" />
-                            </h1>
-                            <p className="text-muted-foreground font-mono text-xs uppercase tracking-widest">
-                                Configure the DNA of your autonomous marketing agent.
-                            </p>
-                        </div>
+                        
+                        {/* Show Edit button only for fully onboarded users with existing data */}
+                        {isFullyOnboarded && hasExistingData && !isEditing && !isFetching && (
+                            <Button
+                                variant="outline"
+                                onClick={handleEdit}
+                                className="font-mono text-xs gap-2"
+                            >
+                                <Shield className="w-4 h-4" />
+                                Unlock Edit
+                            </Button>
+                        )}
                     </div>
                 </Reveal>
 
@@ -349,7 +442,11 @@ const BrandSettings = () => {
                                         <Button
                                             onClick={() => fileInputRef.current?.click()}
                                             variant="outline"
-                                            className="font-mono text-[11px] uppercase tracking-tighter h-9 gap-2 border-white/10 hover:border-primary/50"
+                                            disabled={!isEditing}
+                                            className={cn(
+                                                "font-mono text-[11px] uppercase tracking-tighter h-9 gap-2 border-white/10 hover:border-primary/50",
+                                                !isEditing && "opacity-50 cursor-not-allowed"
+                                            )}
                                         >
                                             <Upload size={14} />
                                             {formData.brandLogoUrl ? "Change Logo" : "Upload Logo"}
@@ -358,9 +455,12 @@ const BrandSettings = () => {
                                         {formData.brandLogoUrl && (
                                             <Button
                                                 onClick={extractColorsFromLogo}
-                                                disabled={isExtracting}
+                                                disabled={isExtracting || !isEditing}
                                                 variant="secondary"
-                                                className="font-mono text-[11px] uppercase tracking-tighter h-9 gap-2 bg-primary/10 text-primary hover:bg-primary/20 border-none"
+                                                className={cn(
+                                                    "font-mono text-[11px] uppercase tracking-tighter h-9 gap-2 bg-primary/10 text-primary hover:bg-primary/20 border-none",
+                                                    !isEditing && "opacity-50 cursor-not-allowed"
+                                                )}
                                             >
                                                 {isExtracting ? <RefreshCcw size={14} className="animate-spin" /> : <Sparkles size={14} />}
                                                 Extract Colors
@@ -411,7 +511,11 @@ const BrandSettings = () => {
                                                         type="color"
                                                         value={color}
                                                         onChange={(e) => updateColor(index, e.target.value)}
-                                                        className="absolute inset-0 opacity-0 cursor-pointer h-full w-full"
+                                                        disabled={!isEditing}
+                                                        className={cn(
+                                                            "absolute inset-0 opacity-0 cursor-pointer h-full w-full",
+                                                            !isEditing && "cursor-not-allowed"
+                                                        )}
                                                     />
                                                 </div>
                                                 <div className="mt-2 text-center">
@@ -421,10 +525,14 @@ const BrandSettings = () => {
                                                     <Input
                                                         value={color}
                                                         onChange={(e) => updateColor(index, e.target.value)}
-                                                        className="h-6 w-16 text-[9px] font-mono text-center bg-black/40 border-white/5 p-0"
+                                                        readOnly={!isEditing}
+                                                        className={cn(
+                                                            "h-6 w-16 text-[9px] font-mono text-center bg-black/40 border-white/5 p-0",
+                                                            !isEditing && "cursor-not-allowed opacity-60"
+                                                        )}
                                                     />
                                                 </div>
-                                                {index > 1 && (
+                                                {index > 1 && isEditing && (
                                                     <button
                                                         onClick={() => removeColor(index)}
                                                         className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg"
@@ -435,7 +543,7 @@ const BrandSettings = () => {
                                             </motion.div>
                                         ))}
 
-                                        {formData.brand_colors.length < 6 && (
+                                        {formData.brand_colors.length < 6 && isEditing && (
                                             <motion.button
                                                 layout
                                                 onClick={addColor}
@@ -456,7 +564,11 @@ const BrandSettings = () => {
                                             <button
                                                 key={tmpl.name}
                                                 onClick={() => applyTemplate(tmpl)}
-                                                className="group p-2 rounded-xl bg-black/20 border border-white/5 hover:border-white/10 transition-all text-left"
+                                                disabled={!isEditing}
+                                                className={cn(
+                                                    "group p-2 rounded-xl bg-black/20 border border-white/5 hover:border-white/10 transition-all text-left",
+                                                    !isEditing && "opacity-50 cursor-not-allowed"
+                                                )}
                                             >
                                                 <div className="flex h-3 w-full rounded-sm overflow-hidden mb-2">
                                                     {tmpl.colors.map((c, i) => (
@@ -484,8 +596,12 @@ const BrandSettings = () => {
                                         name="tagline"
                                         value={formData.tagline}
                                         onChange={handleChange}
+                                        readOnly={!isEditing}
                                         placeholder="Enter the catchphrase"
-                                        className="bg-black/40 h-10 text-xs font-mono"
+                                        className={cn(
+                                            "bg-black/40 h-10 text-xs font-mono",
+                                            !isEditing && "cursor-not-allowed opacity-60"
+                                        )}
                                     />
                                 </div>
 
@@ -498,10 +614,12 @@ const BrandSettings = () => {
                                         value={formData.restaurant_theme}
                                         onChange={handleChange}
                                         onBlur={() => setTouched(prev => ({ ...prev, restaurant_theme: true }))}
+                                        readOnly={!isEditing}
                                         placeholder="e.g. Minimalist Tokyo Street"
                                         className={cn(
                                             "bg-black/40 h-10 text-xs font-mono",
-                                            touched.restaurant_theme && !formData.restaurant_theme && "border-destructive/50"
+                                            touched.restaurant_theme && !formData.restaurant_theme && "border-destructive/50",
+                                            !isEditing && "cursor-not-allowed opacity-60"
                                         )}
                                     />
                                     {touched.restaurant_theme && !formData.restaurant_theme && (
@@ -518,9 +636,11 @@ const BrandSettings = () => {
                                         value={formData.toneOfVoice}
                                         onChange={handleChange}
                                         onBlur={() => setTouched(prev => ({ ...prev, toneOfVoice: true }))}
+                                        readOnly={!isEditing}
                                         className={cn(
                                             "w-full h-40 bg-black/40 border-white/10 resize-none font-mono text-[11px] p-4 focus:border-primary/50 transition-colors scrollbar-none",
-                                            touched.toneOfVoice && !formData.toneOfVoice && "border-destructive/50"
+                                            touched.toneOfVoice && !formData.toneOfVoice && "border-destructive/50",
+                                            !isEditing && "cursor-not-allowed opacity-60"
                                         )}
                                         placeholder="How should your AI speak? Friendly, Elite, Sarcastic, Professional..."
                                     />
@@ -535,10 +655,10 @@ const BrandSettings = () => {
                                             <div className="pt-4">
                                                 <MagneticButton
                                                     type="submit"
-                                                    disabled={isLoading || !isFormValid()}
+                                                    disabled={isLoading || !isFormValid() || !isEditing}
                                                     className={cn(
                                                         "w-full bg-primary text-black font-bold h-12 rounded-xl shadow-[0_0_30px_rgba(0,224,208,0.2)]",
-                                                        (!isFormValid() || isLoading) && "opacity-20 grayscale-0"
+                                                        (!isFormValid() || isLoading || !isEditing) && "opacity-20 grayscale-0"
                                                     )}
                                                 >
                                                     {isLoading ? (
@@ -546,7 +666,7 @@ const BrandSettings = () => {
                                                     ) : (
                                                         <div className="flex items-center justify-center gap-2 font-bebas tracking-widest text-lg">
                                                             <Check size={20} strokeWidth={3} />
-                                                            Commit Matrix
+                                                            {isFullyOnboarded ? "Save Changes" : "Commit Matrix"}
                                                         </div>
                                                     )}
                                                 </MagneticButton>
@@ -563,6 +683,49 @@ const BrandSettings = () => {
                         </Card>
                     </div>
                 </div>
+
+                {/* OTP Verification Dialog */}
+                <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Verify Your Identity</DialogTitle>
+                            <DialogDescription>
+                                Enter the verification code sent to your email to unlock editing.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="otp">Verification Code</Label>
+                                <Input
+                                    id="otp"
+                                    value={otp}
+                                    onChange={(e) => {
+                                        setOtp(e.target.value);
+                                        setOtpError("");
+                                    }}
+                                    placeholder="Enter 6-digit code"
+                                    maxLength={6}
+                                    className={cn("font-mono", otpError && "border-destructive")}
+                                />
+                                {otpError && (
+                                    <p className="text-sm text-destructive">{otpError}</p>
+                                )}
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => {
+                                setShowOtpDialog(false);
+                                setOtp("");
+                                setOtpError("");
+                            }}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleVerifyOtp} disabled={otp.length !== 6}>
+                                Verify
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </motion.div>
         </Layout>
     );

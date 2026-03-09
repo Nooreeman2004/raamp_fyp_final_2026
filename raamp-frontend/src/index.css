@@ -128,3 +128,59 @@
     background-position: 350% 50%, 350% 50%;
   }
 }
+
+/* Google Maps Watermark & Error Hiding */
+.gm-err-container,
+.gm-err-icon,
+.gm-err-title,
+.gm-err-message,
+.gm-err-links,
+.gm-style-cc,
+.gmnoprint,
+.gm-style-cc+div,
+a[href^="https://maps.google.com/maps"],
+a[href^="https://www.google.com/intl/en-US_US/help/terms_maps.html"],
+.gm-err-content,
+.dismissButton,
+.gm-style-mtc {
+  display: none !important;
+}
+
+.gm-style iframe+div,
+.gm-style img+div,
+div:has(> .gm-err-container) {
+  display: none !important;
+}
+
+/* Force rounded corners on map container if standard method fails */
+.gm-style {
+  border-radius: inherit !important;
+}
+
+.gm-style>div:first-child {
+  border-radius: inherit !important;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 245, 212, 0.2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 245, 212, 0.4);
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 245, 212, 0.2) rgba(255, 255, 255, 0.05);
+}

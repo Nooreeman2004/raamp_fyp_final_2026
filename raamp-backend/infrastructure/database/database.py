@@ -3,6 +3,7 @@ from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import sys
+import certifi
 from dotenv import load_dotenv
 from pymongo.errors import ConfigurationError
 
@@ -35,7 +36,7 @@ async def connect_to_mongo():
         connection_attempts = [
             {
                 "name": "Standard connection",
-                "params": {}
+                "params": {"tlsCAFile": certifi.where()}
             },
             {
                 "name": "TLS disabled",
@@ -151,6 +152,11 @@ async def init_db():
     )
     from infrastructure.database.models.notification_model import NotificationModel
     from application.services.job_health_monitor_service import JobExecutionLogModel
+    from infrastructure.database.models.trend_signal_model import TrendSignalModel
+    from infrastructure.database.models.trend_detection_model import TrendDetectionModel
+    from infrastructure.database.models.trend_watchlist_model import TrendWatchlistModel
+    from infrastructure.database.models.asset_model import AssetModel
+    from infrastructure.database.models.caption_log_model import CaptionLogModel
     from infrastructure.database.seed_data import seed_business_domains
 
     await init_beanie(
@@ -186,9 +192,16 @@ async def init_db():
             NotificationModel,
             # Job health monitoring
             JobExecutionLogModel,
+            # Trend models
+            TrendSignalModel,
+            TrendDetectionModel,
+            TrendWatchlistModel,
+            # Asset management
+            AssetModel,
+            CaptionLogModel,
         ]
     )
-    print("✅ Beanie initialized with all document models including Settings, Billing, GeoIntent, Instagram & Facebook Posting")
+    print("✅ Beanie initialized with all document models including Settings, Billing, GeoIntent, Instagram & Facebook Posting, Asset Management, Caption Logs")
     
     # Seed business domains
     await seed_business_domains()

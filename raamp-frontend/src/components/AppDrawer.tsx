@@ -26,6 +26,7 @@ import {
   Info,
   BookOpen,
   Scale,
+  Images,
   type LucideIcon
 } from "lucide-react";
 import type { UserResponse } from "@/types";
@@ -74,6 +75,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { label: "Geo-Intent", icon: MapPin, href: "/dashboard/geo-intent" },
     { label: "Creative Studio", icon: Sparkles, href: "/dashboard/creative" },
+    { label: "Asset Library", icon: Images, href: "/dashboard/assets" },
     { label: "Trend Arbitrage", icon: TrendIcon, href: "/dashboard/trends" },
     { label: "A/B Testing", icon: Flask, href: "/dashboard/ab-testing" },
     { label: "Performance", icon: BarChart3, href: "/dashboard/performance" },
@@ -90,17 +92,18 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Account & Security", icon: Shield, href: "/settings/security" },
   ];
 
+  // Information items - only shown to non-logged-in users
   const infoItems: NavItem[] = [
     { label: "About Us", icon: Info, href: "/about" },
     { label: "Resources", icon: BookOpen, href: "/resources" },
     { label: "Legal & Compliance", icon: Scale, href: "/legal" },
   ];
 
-  // Build navigation sections for logged-in users only
+  // Build navigation sections for logged-in users
+  // Marketing pages (About, Resources, Legal) are intentionally excluded for logged-in users
   const navSections: NavSection[] = user ? [
     { title: "Module Status & Quick Actions", items: moduleItems },
     { title: "Settings", items: settingsItems },
-    { title: "Information", items: infoItems },
   ] : [];
 
   const handleLogout = async () => {

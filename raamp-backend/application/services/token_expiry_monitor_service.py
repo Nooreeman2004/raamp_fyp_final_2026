@@ -35,7 +35,7 @@ class TokenExpiryMonitorService:
         Returns:
             Dictionary with counts of alerts sent per platform
         """
-        logger.info(f"Checking for tokens expiring within {days_before} days...")
+        logger.info("Checking for tokens expiring within %d days...", days_before)
         
         alerts_sent = {
             "instagram": 0,
@@ -53,7 +53,7 @@ class TokenExpiryMonitorService:
         
         alerts_sent["total"] = instagram_alerts + facebook_alerts
         
-        logger.info(f"Token expiry check complete: {alerts_sent}")
+        logger.info("Token expiry check complete: %s", alerts_sent)
         return alerts_sent
     
     async def _check_instagram_tokens(self, days_before: int) -> int:
@@ -86,10 +86,10 @@ class TokenExpiryMonitorService:
                             days_remaining=estimated_expiry_days
                         )
                         alerts_sent += 1
-                        logger.info(f"Sent Instagram token expiry alert to user {user.email}")
+                        logger.info("Sent Instagram token expiry alert to user %s", user.email)
         
         except Exception as e:
-            logger.error(f"Error checking Instagram tokens: {e}")
+            logger.error("Error checking Instagram tokens: %s", e)
         
         return alerts_sent
     
@@ -120,10 +120,10 @@ class TokenExpiryMonitorService:
                             days_remaining=estimated_expiry_days
                         )
                         alerts_sent += 1
-                        logger.info(f"Sent Facebook token expiry alert to user {user.email}")
+                        logger.info("Sent Facebook token expiry alert to user %s", user.email)
         
         except Exception as e:
-            logger.error(f"Error checking Facebook tokens: {e}")
+            logger.error("Error checking Facebook tokens: %s", e)
         
         return alerts_sent
     
@@ -151,7 +151,7 @@ class TokenExpiryMonitorService:
             )
         
         except Exception as e:
-            logger.error(f"Error sending expiry notification: {e}")
+            logger.error("Error sending expiry notification: %s", e)
 
     async def auto_refresh_tokens(self) -> Dict[str, Any]:
         """
@@ -190,7 +190,7 @@ class TokenExpiryMonitorService:
                 if conn.last_refreshed_at:
                     hours_since_refresh = (datetime.utcnow() - conn.last_refreshed_at).total_seconds() / 3600
                     if hours_since_refresh < throttle_hours:
-                        logger.info(f"Throttling refresh for {conn.user_id} - last refresh was {hours_since_refresh:.1f}h ago")
+                        logger.info("Throttling refresh for %s - last refresh was %.1fh ago", conn.user_id, hours_since_refresh)
                         skipped_throttle += 1
                         continue
                 
@@ -202,12 +202,12 @@ class TokenExpiryMonitorService:
                     failed += 1
                     
             except Exception as e:
-                logger.error(f"Unexpected error in refresh loop for {conn.user_id}: {e}")
+                logger.error("Unexpected error in refresh loop for %s: %s", conn.user_id, e)
                 failed += 1
         
         # 4. Admin Alert for Mass Failures
         if failed >= 5 or (total > 0 and (failed / total) >= 0.2):
-            logger.warning(f"Mass refresh failure detected: {failed}/{total} failed. Sending admin alert.")
+            logger.warning("Mass refresh failure detected: %d/%d failed. Sending admin alert.", failed, total)
             await self._send_admin_alert(failed, total)
             
         result = {
@@ -217,7 +217,7 @@ class TokenExpiryMonitorService:
             "skipped_throttle": skipped_throttle,
             "not_needed": not_needed
         }
-        logger.info(f"Automatic refresh complete: {result}")
+        logger.info("Automatic refresh complete: %s", result)
         return result
 
     async def _send_admin_alert(self, failed_count: int, total_count: int):
@@ -233,7 +233,7 @@ class TokenExpiryMonitorService:
                     metadata={"failed": failed_count, "total": total_count, "alert_type": "mass_refresh_failure"}
                 )
         except Exception as e:
-            logger.error(f"Error sending admin alert: {e}")
+            logger.error("Error sending admin alert: %s", e)
 
 
 # Singleton instance
@@ -252,8 +252,8 @@ async def check_token_expiry() -> Dict[str, int]:
         # 2. Automatically refresh tokens nearing expiry
         refresh_result = await token_monitor_service.auto_refresh_tokens()
         
-        logger.info(f"Token maintenance completed. Alerts: {result}, Refreshes: {refresh_result}")
+        logger.info("Token maintenance completed. Alerts: %s, Refreshes: %s", result, refresh_result)
         return {**result, "refresh_summary": refresh_result}
     except Exception as e:
-        logger.error(f"Token maintenance failed: {e}")
+        logger.error("Token maintenance failed: %s", e)
         return {"instagram": 0, "facebook": 0, "total": 0, "error": str(e)}

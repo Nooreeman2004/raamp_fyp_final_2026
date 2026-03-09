@@ -206,6 +206,40 @@ class GeoIntentResponse(BaseModel):
 
 
 # ============================================
+# BUSINESS SPECIALTIES SCHEMAS
+# ============================================
+
+class SpecialtiesUpdateRequest(BaseModel):
+    """Request model for updating business specialties"""
+    specialties: list[str] = Field(
+        ..., 
+        description="List of business specialties for enhanced trend detection",
+        max_length=10,
+        examples=[["bubble tea", "matcha", "vegan"], ["streetwear", "vintage", "sustainable"]]
+    )
+
+    @field_validator("specialties")
+    @classmethod
+    def validate_specialties(cls, v):
+        """Validate specialties list"""
+        if len(v) > 10:
+            raise ValueError("Maximum 10 specialties allowed")
+        
+        for specialty in v:
+            if len(specialty) > 50:
+                raise ValueError(f"Specialty '{specialty}' exceeds 50 character limit")
+        
+        return v
+
+
+class SpecialtiesUpdateResponse(BaseModel):
+    """Response model for business specialties operations"""
+    success: bool = True
+    message: str = Field(..., description="Operation result message")
+    specialties: list[str] = Field(..., description="Current business specialties")
+
+
+# ============================================
 # ERROR RESPONSE
 # ============================================
 

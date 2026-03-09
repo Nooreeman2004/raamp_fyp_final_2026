@@ -6,7 +6,7 @@ Follows Interface Segregation and Dependency Inversion principles.
 import httpx
 import asyncio
 import logging
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 from datetime import datetime, timedelta
 from application.services.encryption_service import EncryptionService
 from infrastructure.repositories.social_media_repository import SocialMediaRepository
@@ -418,6 +418,152 @@ class InstagramGraphAPIClient:
         except Exception as e:
             logger.error(f"Error during token reachability check for user {user_id}: {e}")
             return False
+
+    # --- SOCIAL INTELLIGENCE METHODS ---
+
+    async def search_hashtag_id(self, user_id: str, hashtag_name: str) -> Optional[str]:
+        """
+        Get the ID for a specific hashtag. Required for subsequent hashtag-related calls.
+        """
+        try:
+            access_token, ig_business_id = await self.get_access_token(user_id)
+            url = f"{self.BASE_URL}/ig_hashtag_search"
+            params = {
+                "user_id": ig_business_id,
+                "q": hashtag_name.replace("#", ""),
+                "access_token": access_token
+            }
+            
+            async with httpx.AsyncClient() as client:
+                r = await client.get(url, params=params)
+                if r.status_code == 200:
+                    data = r.json().get("data", [])
+                    if data:
+                        return data[0].get("id")
+                return None
+        except Exception as e:
+            logger.warning(f"Failed to find hashtag ID for {hashtag_name}: {e}")
+            return None
+
+    async def get_hashtag_info(self, user_id: str, hashtag_id: str) -> Dict[str, Any]:
+        """
+        Get metadata for a hashtag, including total media count.
+        """
+        try:
+            access_token, _ = await self.get_access_token(user_id)
+            url = f"{self.BASE_URL}/{hashtag_id}"
+            params = {
+                "fields": "id,name,media_count",
+                "access_token": access_token
+            }
+            
+            async with httpx.AsyncClient() as client:
+                r = await client.get(url, params=params)
+                if r.status_code == 200:
+                    return r.json()
+                return {}
+        except Exception as e:
+            logger.warning(f"Failed to fetch hashtag info for {hashtag_id}: {e}")
+            return {}
+
+    async def get_hashtag_recent_media_info(self, user_id: str, hashtag_id: str, limit: int = 10) -> List[Dict]:
+        """
+        Fetch recent media for a hashtag to analyze engagement velocity.
+        """
+        try:
+            access_token, ig_business_id = await self.get_access_token(user_id)
+            url = f"{self.BASE_URL}/{hashtag_id}/recent_media"
+            params = {
+                "user_id": ig_business_id,
+                "fields": "id,media_type,comments_count,like_count,timestamp",
+                "access_token": access_token,
+                "limit": limit
+            }
+            
+            async with httpx.AsyncClient() as client:
+                r = await client.get(url, params=params)
+                if r.status_code == 200:
+                    return r.json().get("data", [])
+                return []
+        except Exception as e:
+            logger.warning(f"Failed to fetch recent media for hashtag {hashtag_id}: {e}")
+            return []
+    
+    async def compute_keyword_engagement_score(self, user_id: str, keyword: str) -> Optional[Dict[str, Any]]:
+        """
+        Compute aggregate Instagram engagement score for a keyword/hashtag.
+        
+        Returns:
+            {
+                "keyword": str,
+                "media_count": int,  # Total posts with this hashtag
+                "avg_likes": float,  # Average likes on recent posts
+                "avg_comments": float,  # Average comments on recent posts
+                "engagement_score": float,  # 0-100 normalized engagement score
+                "total_engagement": int  # Sum of likes + comments on recent sample
+            }
+            or None if API fails
+        """
+        try:
+            # Search for hashtag ID
+            clean_keyword = keyword.replace("#", "").replace(" ", "")
+            hashtag_id = await self.search_hashtag_id(user_id, clean_keyword)
+            
+            if not hashtag_id:
+                logger.warning("Hashtag ID not found for keyword: %s", keyword)
+                return None
+            
+            # Get hashtag metadata (total media count)
+            info = await self.get_hashtag_info(user_id, hashtag_id)
+            media_count = info.get("media_count", 0)
+            
+            # Get recent media for engagement analysis
+            recent_media = await self.get_hashtag_recent_media_info(user_id, hashtag_id, limit=20)
+            
+            if not recent_media:
+                logger.warning("No recent media found for hashtag: %s", keyword)
+                return None
+            
+            # Compute engagement metrics
+            total_likes = sum(post.get("like_count", 0) for post in recent_media)
+            total_comments = sum(post.get("comments_count", 0) for post in recent_media)
+            total_engagement = total_likes + total_comments
+            
+            avg_likes = total_likes / len(recent_media)
+            avg_comments = total_comments / len(recent_media)
+            
+            # Normalized engagement score (0-100)
+            # Higher engagement per post = higher score
+            # Use logarithmic scale to handle wide variance in engagement numbers
+            # Typical viral post: 10k+ engagements, typical niche post: 100-1k
+            import math
+            engagement_per_post = total_engagement / len(recent_media)
+            if engagement_per_post > 0:
+                # Log scale: 100 engagement -> ~40, 1000 -> ~60, 10000 -> ~80, 100000 -> ~100
+                engagement_score = min(100.0, max(0.0, 20 * math.log10(engagement_per_post + 1)))
+            else:
+                engagement_score = 0.0
+            
+            logger.info(
+                "Instagram engagement for '%s': %d posts, %.1f avg likes, %.1f avg comments, score: %.2f",
+                keyword, media_count, avg_likes, avg_comments, engagement_score
+            )
+            
+            return {
+                "keyword": keyword,
+                "media_count": media_count,
+                "avg_likes": avg_likes,
+                "avg_comments": avg_comments,
+                "engagement_score": engagement_score,
+                "total_engagement": total_engagement
+            }
+            
+        except InstagramAPIError as e:
+            logger.warning("Instagram API error for keyword '%s': %s", keyword, e.message)
+            return None
+        except Exception as e:
+            logger.error("Unexpected error computing engagement for '%s': %s", keyword, str(e))
+            return None
     async def validate_media_url(self, media_url: str):
         """
         Perform a pre-flight check on the media URL to ensure it's Meta-compatible.

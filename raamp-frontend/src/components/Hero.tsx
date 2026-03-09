@@ -94,7 +94,7 @@ const Hero = () => {
         {/* Feature Cards Grid (Reference Style) */}
         <div className="grid md:grid-cols-3 gap-6 pt-16 text-left">
           <ParallaxSection speed={0.05}>
-            <HolographicCard className="p-5 h-55">
+            <HolographicCard className="p-5 h-64">
               <div className="w-12 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <Sparkles className="w-6 h-6" />
               </div>
@@ -106,7 +106,7 @@ const Hero = () => {
           </ParallaxSection>
 
           <ParallaxSection speed={0.1}>
-            <HolographicCard className="p-5 h-55">
+            <HolographicCard className="p-5 h-64">
               <div className="w-12 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <Globe className="w-6 h-6" />
               </div>
@@ -118,7 +118,7 @@ const Hero = () => {
           </ParallaxSection>
 
           <ParallaxSection speed={0.15}>
-            <HolographicCard className="p-5 h-55">
+            <HolographicCard className="p-5 h-64">
               <div className="w-12 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <BarChart3 className="w-6 h-6" />
               </div>

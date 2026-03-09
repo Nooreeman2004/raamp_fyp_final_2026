@@ -4,10 +4,11 @@ import { useAuth } from "@/hooks/useAuth";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link2, Check, ArrowRight, RefreshCw, MapPin, Search, Building2, Globe, Phone, Save, X } from "lucide-react";
+import { Link2, Check, ArrowRight, RefreshCw, MapPin, Search, Building2, Globe, Phone, Save, X, Tag, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "@/services/api";
 import { businessService } from "@/services/businessService";
+import { trendService } from "@/services/trendService";
 import { cn } from "@/lib/utils";
 import LocationPicker from "@/components/LocationPicker";
 import { Label } from "@/components/ui/label";
@@ -67,6 +68,12 @@ const Onboarding = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     const [showLocationForm, setShowLocationForm] = useState(false);
+
+    // Specialties States
+    const [specialties, setSpecialties] = useState<string[]>([]);
+    const [specialtyInput, setSpecialtyInput] = useState("");
+    const [savingSpecialties, setSavingSpecialties] = useState(false);
+    const [showSpecialtiesForm, setShowSpecialtiesForm] = useState(false);
 
     interface LocationSuggestion {
         place_id: string;
@@ -285,6 +292,74 @@ const Onboarding = () => {
         } finally {
             setIsSavingLocation(false);
         }
+    };
+
+    // Specialty Handlers
+    const handleAddSpecialty = () => {
+        const trimmed = specialtyInput.trim();
+        
+        if (!trimmed) {
+            return;
+        }
+        
+        if (specialties.length >= 10) {
+            toast.error("Maximum specialties reached", {
+                description: "You can add up to 10 specialties.",
+            });
+            return;
+        }
+        
+        if (trimmed.length > 50) {
+            toast.error("Specialty too long", {
+                description: "Each specialty must be 50 characters or less.",
+            });
+            return;
+        }
+        
+        if (specialties.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+            toast.error("Duplicate specialty", {
+                description: "This specialty is already added.",
+            });
+            return;
+        }
+        
+        setSpecialties([...specialties, trimmed]);
+        setSpecialtyInput("");
+        
+        toast.success("Specialty added", {
+            description: `Added "${trimmed}" to your specialties.`,
+        });
+    };
+
+    const handleRemoveSpecialty = (index: number) => {
+        setSpecialties(specialties.filter((_, i) => i !== index));
+    };
+
+    const handleSaveSpecialties = async () => {
+        setSavingSpecialties(true);
+        try {
+            await trendService.updateBusinessSpecialties(specialties);
+            
+            toast.success("Specialties Saved", {
+                description: "Your specialties will help us show more relevant trends.",
+            });
+            
+            setShowSpecialtiesForm(false);
+        } catch (error) {
+            console.error("Failed to save specialties:", error);
+            toast.error("Save Failed", {
+                description: "Unable to save specialties. Please try again.",
+            });
+        } finally {
+            setSavingSpecialties(false);
+        }
+    };
+
+    const handleSkipSpecialties = () => {
+        setShowSpecialtiesForm(false);
+        toast("Specialties Skipped", {
+            description: "You can always add specialties later in Settings.",
+        });
     };
 
     return (
@@ -565,6 +640,134 @@ const Onboarding = () => {
                                                                 <Save className="w-4 h-4 mr-2" />
                                                             )}
                                                             Save Location
+                                                        </Button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </Card>
+                                </motion.div>
+
+                                {/* Business Specialties (Optional) */}
+                                <motion.div variants={fadeInUp} key="specialties">
+                                    <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10">
+                                        <button
+                                            onClick={() => setShowSpecialtiesForm(!showSpecialtiesForm)}
+                                            className="w-full flex items-center justify-between group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                                    <Tag className="w-6 h-6 text-purple-500" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className="font-bold font-bebas tracking-wide text-lg flex items-center gap-2">
+                                                        Business Specialties
+                                                        <span className="text-xs font-mono px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded">OPTIONAL</span>
+                                                    </h3>
+                                                    <p className="text-sm text-muted-foreground font-mono">
+                                                        {specialties.length > 0 
+                                                            ? `${specialties.length} specialt${specialties.length === 1 ? 'y' : 'ies'} added`
+                                                            : "Add keywords to see more relevant trends"
+                                                        }
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Sparkles className={cn(
+                                                "w-5 h-5 transition-transform text-purple-500",
+                                                showSpecialtiesForm && "rotate-90"
+                                            )} />
+                                        </button>
+
+                                        <AnimatePresence>
+                                            {showSpecialtiesForm && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: "auto" }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    transition={{ duration: 0.3 }}
+                                                    className="mt-6 pt-6 border-t border-primary/20 space-y-4"
+                                                >
+                                                    <div className="space-y-2">
+                                                        <Label className="font-mono text-xs">Add Specialty Keywords</Label>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Examples: "vegan", "sustainable", "handmade", "luxury", "artisan"
+                                                        </p>
+                                                        <div className="flex gap-2">
+                                                            <Input
+                                                                className="bg-background/50 font-mono"
+                                                                placeholder="e.g., organic"
+                                                                value={specialtyInput}
+                                                                onChange={(e) => setSpecialtyInput(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        handleAddSpecialty();
+                                                                    }
+                                                                }}
+                                                                maxLength={50}
+                                                            />
+                                                            <Button
+                                                                onClick={handleAddSpecialty}
+                                                                disabled={!specialtyInput.trim() || specialties.length >= 10}
+                                                                className="font-bebas tracking-wide"
+                                                            >
+                                                                Add
+                                                            </Button>
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground text-right">
+                                                            {specialties.length}/10 specialties
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Specialty Tags */}
+                                                    {specialties.length > 0 && (
+                                                        <div className="space-y-2">
+                                                            <Label className="font-mono text-xs">Your Specialties</Label>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {specialties.map((specialty, index) => (
+                                                                    <div
+                                                                        key={index}
+                                                                        className="group inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-full text-sm hover:bg-purple-500/20 transition-colors"
+                                                                    >
+                                                                        <span className="font-mono">{specialty}</span>
+                                                                        <button
+                                                                            onClick={() => handleRemoveSpecialty(index)}
+                                                                            className="opacity-60 hover:opacity-100 transition-opacity"
+                                                                        >
+                                                                            <X className="w-3 h-3" />
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Action Buttons */}
+                                                    <div className="flex justify-between items-center pt-4">
+                                                        <Button
+                                                            variant="ghost"
+                                                            onClick={handleSkipSpecialties}
+                                                            disabled={savingSpecialties}
+                                                            className="text-muted-foreground hover:text-white"
+                                                        >
+                                                            Skip for Now
+                                                        </Button>
+                                                        <Button
+                                                            onClick={handleSaveSpecialties}
+                                                            disabled={savingSpecialties || specialties.length === 0}
+                                                            className="font-bebas tracking-wide"
+                                                        >
+                                                            {savingSpecialties ? (
+                                                                <>
+                                                                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                                    Saving...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Save className="w-4 h-4 mr-2" />
+                                                                    Save Specialties
+                                                                </>
+                                                            )}
                                                         </Button>
                                                     </div>
                                                 </motion.div>

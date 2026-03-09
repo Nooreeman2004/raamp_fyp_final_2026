@@ -11,8 +11,81 @@ import {
   Minimize2,
   Loader2,
   Mic,
-  MicOff
+  MicOff,
+  Volume2,
+  VolumeX
 } from "lucide-react";
+
+// Simple markdown renderer for bold, italic, bullet lists, numbered lists
+const MarkdownText = ({ content }: { content: string }) => {
+  const renderLine = (line: string, key: number) => {
+    // Parse inline bold/italic
+    const parseInline = (text: string): React.ReactNode[] => {
+      const parts: React.ReactNode[] = [];
+      const regex = /\*\*(.+?)\*\*|\*(.+?)\*/g;
+      let last = 0;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        if (match.index > last) parts.push(text.slice(last, match.index));
+        if (match[1] !== undefined) parts.push(<strong key={match.index} className="font-semibold text-foreground">{match[1]}</strong>);
+        else if (match[2] !== undefined) parts.push(<em key={match.index}>{match[2]}</em>);
+        last = match.index + match[0].length;
+      }
+      if (last < text.length) parts.push(text.slice(last));
+      return parts;
+    };
+
+    // Heading 3 (###)
+    if (line.startsWith('### ')) return <h3 key={key} className="font-bold text-sm mt-2 mb-0.5 text-foreground">{parseInline(line.slice(4))}</h3>;
+    // Heading 2 (##)
+    if (line.startsWith('## ')) return <h2 key={key} className="font-bold text-sm mt-2 mb-0.5 text-foreground">{parseInline(line.slice(3))}</h2>;
+    // Heading 1 (#)
+    if (line.startsWith('# ')) return <h1 key={key} className="font-bold text-sm mt-2 mb-0.5 text-foreground">{parseInline(line.slice(2))}</h1>;
+    // Bullet list
+    if (line.startsWith('- ') || line.startsWith('* ')) return <li key={key} className="ml-3 list-disc text-sm">{parseInline(line.slice(2))}</li>;
+    // Numbered list
+    const numberedMatch = line.match(/^(\d+)\. (.+)/);
+    if (numberedMatch) return <li key={key} className="ml-3 list-decimal text-sm">{parseInline(numberedMatch[2])}</li>;
+    // Empty line
+    if (line.trim() === '') return <br key={key} />;
+    // Normal paragraph
+    return <p key={key} className="text-sm leading-relaxed">{parseInline(line)}</p>;
+  };
+
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  let listBuffer: React.ReactNode[] = [];
+  let listType: 'ul' | 'ol' | null = null;
+
+  const flushList = () => {
+    if (listBuffer.length > 0) {
+      if (listType === 'ol') elements.push(<ol key={`list-${elements.length}`} className="ml-2 my-1 space-y-0.5">{listBuffer}</ol>);
+      else elements.push(<ul key={`list-${elements.length}`} className="ml-2 my-1 space-y-0.5">{listBuffer}</ul>);
+      listBuffer = [];
+      listType = null;
+    }
+  };
+
+  lines.forEach((line, i) => {
+    const isBullet = line.startsWith('- ') || line.startsWith('* ');
+    const isNumbered = /^\d+\.\s/.test(line);
+    if (isBullet) {
+      if (listType === 'ol') flushList();
+      listType = 'ul';
+      listBuffer.push(renderLine(line, i));
+    } else if (isNumbered) {
+      if (listType === 'ul') flushList();
+      listType = 'ol';
+      listBuffer.push(renderLine(line, i));
+    } else {
+      flushList();
+      elements.push(renderLine(line, i));
+    }
+  });
+  flushList();
+
+  return <div className="space-y-0.5">{elements}</div>;
+};
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -37,11 +110,13 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
+  const [ttsEnabled, setTtsEnabled] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   // Generate session ID on mount
   useEffect(() => {
@@ -140,10 +215,14 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
 
-    // Stop and clear any current audio
+    // Stop and clear any current audio / TTS
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
+      setIsPlaying(false);
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
       setIsPlaying(false);
     }
 
@@ -165,9 +244,20 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
     setInput("");
     setIsTyping(true);
 
+    // Create placeholder assistant message for streaming
+    const assistantMessageId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, assistantMessage]);
+
     try {
-      // Call the actual chatbot API
-      const response = await fetch(`${API_BASE_URL}/api/chatbot/chat`, {
+      // Call the streaming chatbot API
+      const response = await fetch(`${API_BASE_URL}/api/chatbot/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -183,39 +273,131 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
         throw new Error('Failed to get response');
       }
 
-      const data = await response.json();
+      // Read the streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      // Update session ID if returned from server
-      if (data.session_id && data.session_id !== sessionId) {
-        setSessionId(data.session_id);
-        localStorage.setItem('raamp_chat_session_id', data.session_id);
+      if (!reader) {
+        throw new Error('No response body');
       }
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: data.answer,
-        timestamp: new Date(),
-      };
+      let accumulatedContent = "";
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
 
-      // 🔊 Play audio if available
-      if (data.audio_content) {
-        playAudio(data.audio_content);
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonData = JSON.parse(line.slice(6));
+
+              if (jsonData.type === 'token') {
+                // Accumulate tokens and update the message
+                accumulatedContent += jsonData.content;
+                
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  )
+                );
+              } else if (jsonData.type === 'done') {
+                // Stream completed
+                if (jsonData.session_id && jsonData.session_id !== sessionId) {
+                  setSessionId(jsonData.session_id);
+                  localStorage.setItem('raamp_chat_session_id', jsonData.session_id);
+                }
+                setIsTyping(false);
+                // TTS: speak the completed response using Web Speech API
+                if (ttsEnabled && accumulatedContent && 'speechSynthesis' in window) {
+                  window.speechSynthesis.cancel();
+                  const plainText = accumulatedContent.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/#{1,3}\s/g, '').replace(/\n/g, ' ');
+                  const utterance = new SpeechSynthesisUtterance(plainText);
+                  utterance.rate = 0.95;
+                  utterance.pitch = 1.0;
+                  utterance.volume = 1.0;
+                  utterance.onstart = () => setIsPlaying(true);
+                  utterance.onend = () => setIsPlaying(false);
+                  utterance.onerror = () => setIsPlaying(false);
+                  utteranceRef.current = utterance;
+
+                  // Select the best available natural-sounding English voice
+                  const selectVoiceAndSpeak = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    if (voices.length > 0) {
+                      // Preference order: high-quality online voices → local en-US voices → any English
+                      const preferred = [
+                        'Google US English',
+                        'Microsoft Aria Online (Natural) - English (United States)',
+                        'Microsoft Jenny Online (Natural) - English (United States)',
+                        'Microsoft Guy Online (Natural) - English (United States)',
+                        'Microsoft Zira - English (United States)',
+                        'Samantha', // macOS
+                      ];
+                      let chosen = preferred
+                        .map(name => voices.find(v => v.name === name))
+                        .find(Boolean);
+
+                      if (!chosen) {
+                        // Fallback: any en-US voice, then any English voice
+                        chosen = voices.find(v => v.lang === 'en-US')
+                          ?? voices.find(v => v.lang.startsWith('en'))
+                          ?? undefined;
+                      }
+
+                      if (chosen) utterance.voice = chosen;
+                    }
+                    window.speechSynthesis.speak(utterance);
+                  };
+
+                  const voices = window.speechSynthesis.getVoices();
+                  if (voices.length > 0) {
+                    selectVoiceAndSpeak();
+                  } else {
+                    // Voices may not be loaded yet on first call — wait for the event
+                    window.speechSynthesis.onvoiceschanged = () => {
+                      window.speechSynthesis.onvoiceschanged = null;
+                      selectVoiceAndSpeak();
+                    };
+                  }
+                }
+              } else if (jsonData.type === 'error') {
+                // Handle error from stream
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: jsonData.content }
+                      : msg
+                  )
+                );
+                setIsTyping(false);
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Chatbot error:', error);
 
       // Fallback response on error
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment.",
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId
+            ? {
+                ...msg,
+                content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
+              }
+            : msg
+        )
+      );
     } finally {
       setIsTyping(false);
     }
@@ -374,6 +556,18 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 hover:bg-primary/10"
+                    onClick={() => {
+                      if (isPlaying) { window.speechSynthesis.cancel(); setIsPlaying(false); }
+                      setTtsEnabled(v => !v);
+                    }}
+                    title={ttsEnabled ? 'Disable text-to-speech' : 'Enable text-to-speech'}
+                  >
+                    {ttsEnabled ? <Volume2 className="w-4 h-4 text-primary" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 hover:bg-primary/10"
                     onClick={() => setIsOpen(false)}
                   >
                     <Minimize2 className="w-4 h-4" />
@@ -410,7 +604,11 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
                             : "bg-muted/50 border border-primary/10 rounded-bl-md"
                         )}
                       >
-                        {message.content}
+                        {message.role === "assistant" ? (
+                          <MarkdownText content={message.content} />
+                        ) : (
+                          message.content
+                        )}
                       </div>
                     </motion.div>
                   ))}

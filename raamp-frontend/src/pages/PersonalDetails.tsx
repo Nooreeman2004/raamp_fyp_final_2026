@@ -18,6 +18,7 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { cn } from "@/lib/utils";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { useAuth } from "@/hooks/useAuth";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 interface BusinessDomain {
   id: string;
@@ -28,6 +29,7 @@ interface BusinessDomain {
 const PersonalDetails = () => {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
+  const { isFullyOnboarded } = useOnboardingStatus();
 
   // Use persistence hook for form data
   const { values: formData, setValues: setFormData, handleChange, clearPersistence } = useFormPersistence("personal_details_form", {
@@ -208,7 +210,11 @@ const PersonalDetails = () => {
         description: "Your professional parameters have been locked in.",
       });
 
-      setTimeout(() => navigate("/profile/onboarding"), 1000);
+      // Only navigate to next onboarding step if user is NOT fully onboarded (new user in onboarding flow)
+      // If user is fully onboarded (editing from Settings), just save and stay
+      if (!isFullyOnboarded) {
+        setTimeout(() => navigate("/profile/onboarding"), 1000);
+      }
     } catch (error: any) {
       console.error("Profile update error:", error);
       sonner.error("Sync Failed", {

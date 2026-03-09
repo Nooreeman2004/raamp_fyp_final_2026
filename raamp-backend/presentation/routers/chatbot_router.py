@@ -7,8 +7,11 @@ Handles chat requests, session management, and health checks.
 
 import uuid
 import re
+import json
+import asyncio
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi.responses import StreamingResponse
 from datetime import datetime
 import base64
 import os
@@ -167,18 +170,20 @@ async def chat(
             except Exception as store_err:
                 print(f"⚠️ Failed to store quick-response messages for session {session_id}: {store_err}")
 
-            # 🎙️ GENERATE TTS for quick response
+            # 🎙️ GENERATE TTS for quick response (optional, non-blocking)
             audio_base64 = None
             try:
-                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                response_tts = client.audio.speech.create(
-                    model="tts-1",
-                    voice="alloy",
-                    input=quick_answer
-                )
-                audio_base64 = base64.b64encode(response_tts.content).decode('utf-8')
+                if os.getenv("OPENAI_API_KEY"):
+                    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                    response_tts = client.audio.speech.create(
+                        model="tts-1",
+                        voice="alloy",
+                        input=quick_answer
+                    )
+                    audio_base64 = base64.b64encode(response_tts.content).decode('utf-8')
             except Exception as tts_err:
-                print(f"⚠️ TTS Error: {tts_err}")
+                # TTS is optional, silently continue without audio
+                print(f"⚠️ TTS Error (non-critical): {tts_err}")
 
             return ChatResponse(
                 answer=quick_answer,
@@ -224,20 +229,21 @@ async def chat(
                 for src in response["sources"]
             ]
         
-        # 🎙️ GENERATE TTS (Text-to-Speech)
+        # 🎙️ GENERATE TTS (Text-to-Speech) - Optional feature
         audio_base64 = None
         try:
-            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            response_tts = client.audio.speech.create(
-                model="tts-1",
-                voice="alloy", # Options: alloy, echo, fable, onyx, nova, shimmer
-                input=response["answer"][:4096] # OpenAI TTS limit
-            )
-            # Convert audio stream to base64
-            audio_base64 = base64.b64encode(response_tts.content).decode('utf-8')
+            if os.getenv("OPENAI_API_KEY"):
+                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                response_tts = client.audio.speech.create(
+                    model="tts-1",
+                    voice="alloy", # Options: alloy, echo, fable, onyx, nova, shimmer
+                    input=response["answer"][:4096] # OpenAI TTS limit
+                )
+                # Convert audio stream to base64
+                audio_base64 = base64.b64encode(response_tts.content).decode('utf-8')
         except Exception as tts_err:
-            print(f"⚠️ TTS Error: {tts_err}")
-            # Non-critical error, just log and continue without audio
+            # TTS is optional, silently continue without audio
+            print(f"⚠️ TTS Error (non-critical): {tts_err}")
 
         return ChatResponse(
             answer=response["answer"],
@@ -249,10 +255,118 @@ async def chat(
         
     except Exception as e:
         print(f"❌ Chat error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
-            detail=f"Error processing chat request: {str(e)}"
+            detail="We're experiencing technical difficulties. Please try again in a moment."
         )
+
+
+@router.post("/chat/stream")
+async def chat_stream(
+    request: ChatRequest,
+    manager: ConversationManager = Depends(get_manager),
+    x_user_id: Optional[str] = Header(None, alias="X-User-ID")
+):
+    """
+    Send a message and receive a streaming response from the RAAMP Assistant.
+    Streams tokens in real-time using Server-Sent Events (SSE) format.
+    """
+    
+    async def generate_stream():
+        """Generate SSE stream with tokens and metadata"""
+        try:
+            # Get or create session ID
+            session_id = request.session_id or generate_session_id()
+            
+            # Check for quick response first (no AI needed for greetings)
+            quick_answer = get_quick_response(request.message)
+            
+            # Try to fetch history
+            history = []
+            try:
+                history = await manager.get_history_for_llm(session_id, limit=10)
+            except Exception as history_err:
+                print(f"⚠️ Failed to load chat history for session {session_id}: {history_err}")
+            
+            if quick_answer:
+                # Stream quick response word by word for consistency
+                words = quick_answer.split()
+                for word in words:
+                    yield f"data: {json.dumps({'type': 'token', 'content': word + ' '})}\n\n"
+                    await asyncio.sleep(0.05)  # Small delay for visual effect
+                
+                # Store in DB
+                try:
+                    await manager.add_message(session_id, "user", request.message, x_user_id)
+                    await manager.add_message(session_id, "assistant", quick_answer, x_user_id)
+                except Exception as store_err:
+                    print(f"⚠️ Failed to store messages for session {session_id}: {store_err}")
+                
+                # Send metadata
+                yield f"data: {json.dumps({'type': 'done', 'session_id': session_id, 'sources': []})}\n\n"
+                return
+            
+            # For complex questions, use RAG pipeline with streaming
+            generator = get_generator()
+            
+            # PROMPT ENGINEERING WITH CONTEXT
+            query = request.message
+            if request.context:
+                page = request.context.get("current_page", "unknown")
+                query = f"[User Context: Current Page: {page}] {request.message}"
+            
+            # Get sources before streaming (so we can send them at the end)
+            sources = generator.get_sources(query, n_results=5)
+            
+            # Stream tokens
+            full_answer = ""
+            for token in generator.generate_response_stream(query, n_context=5, chat_history=history):
+                full_answer += token
+                # Send token to client
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+            
+            # Store messages in DB after streaming completes
+            try:
+                await manager.add_message(session_id, "user", request.message, x_user_id)
+                await manager.add_message(session_id, "assistant", full_answer, x_user_id)
+            except Exception as store_err:
+                print(f"⚠️ Failed to store messages for session {session_id}: {store_err}")
+            
+            # Build sources for response
+            sources_data = []
+            if request.include_sources and sources:
+                sources_data = [
+                    {
+                        "id": src["id"],
+                        "question": src["question"],
+                        "category": src["category"],
+                        "relevance": src["relevance"]
+                    }
+                    for src in sources
+                ]
+            
+            # Send completion metadata
+            yield f"data: {json.dumps({'type': 'done', 'session_id': session_id, 'sources': sources_data})}\n\n"
+            
+        except Exception as e:
+            # Stream error message
+            error_msg = "I apologize, but I'm having trouble processing your request right now. Please try again in a moment."
+            print(f"❌ Stream error: {e}")
+            import traceback
+            traceback.print_exc()
+            yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
 
 
 @router.post("/reset", response_model=SessionResetResponse)

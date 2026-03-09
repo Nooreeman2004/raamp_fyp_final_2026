@@ -24,7 +24,7 @@ class VariantInput(BaseModel):
 
 class RecommendationRequest(BaseModel):
     """Request to get AI recommendations for variants"""
-    variant_type: Literal["instagram", "whatsapp", "adcopy"]
+    variant_type: Literal["instagram", "whatsapp", "adcopy", "captions", "hashtags", "emails"]
     variants: List[VariantInput] = Field(..., min_items=1, max_items=3)
 
 
@@ -43,7 +43,32 @@ def calculate_engagement_score(variant: VariantInput, variant_type: str) -> tupl
     score = 0.0
     reasons = []
     
-    if variant_type == "instagram":
+    # Normalize variant_type for scoring logic
+    effective_type = variant_type
+    if variant_type == "captions":
+        effective_type = "instagram"
+    elif variant_type == "emails":
+        effective_type = "adcopy"
+    elif variant_type == "hashtags":
+        # Specific hashtag scoring
+        text = (variant.hashtags or "") + " " + (variant.variant_copy or "")
+        hashtag_count = len(re.findall(r'#\w+', text))
+        if 15 <= hashtag_count <= 25:
+            score += 40
+            reasons.append("broad reach")
+        elif hashtag_count > 5:
+            score += 20
+            reasons.append("niche targeting")
+        
+        # Diversity check
+        if len(set(re.findall(r'#\w+', text))) > 10:
+            score += 20
+            reasons.append("diverse strategy")
+        
+        reason = "AI detected: " + ", ".join(reasons[:3]) if reasons else "Strategic hashtag mix"
+        return float(score), reason
+
+    if effective_type == "instagram":
         text = f"{variant.caption or ''} {variant.hashtags or ''}"
         
         # Emoji usage (engagement booster)

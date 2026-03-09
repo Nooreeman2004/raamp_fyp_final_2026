@@ -82,19 +82,31 @@ async def save_hyperlocal_setup(
             country=setup.country
         )
         
-        # Update google_maps_connected flag if coordinates are valid
+        # Update google_maps_connected flag and onboarding_location if coordinates are valid
         if setup.latitude and setup.longitude:
             from infrastructure.repositories.user_repository_impl import UserRepository
+            from bson import ObjectId
             import logging
             user_repo = UserRepository()
-            # Get user by id to find email
-            user = await UserModel.find_one(UserModel.id == current_user_id)
+            # Get user by id to find email (convert string ID to ObjectId)
+            try:
+                user = await UserModel.get(ObjectId(current_user_id))
+            except Exception as e:
+                logging.error("Failed to fetch user by ID %s: %s", current_user_id, str(e))
+                user = None
+            
             if user:
-                logging.info(f"Updating google_maps_connected flag for user {user.email}")
+                logging.info("Updating google_maps_connected flag and onboarding_location for user %s", user.email)
                 result = await user_repo.update_connection_flags(user.email, google_maps=True)
-                logging.info(f"Flag update result: {result}, user.google_maps_connected should now be True")
+                logging.info("Flag update result: %s, user.google_maps_connected should now be True", result)
+                
+                # Set onboarding_location (locked for trend analysis) - use country code
+                if setup.country:
+                    user.onboarding_location = setup.country
+                    await user.save()
+                    logging.info("Set onboarding_location=%s for user %s", setup.country, user.email)
             else:
-                logging.warning(f"User not found for ID: {current_user_id}")
+                logging.warning("User not found for ID: %s", current_user_id)
         
         return HyperlocalBusinessSetupResponse(
             business_name=business.business_name,

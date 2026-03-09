@@ -30,10 +30,10 @@ class ContentGenerationRequest(BaseModel):
     """Request body for content generation endpoint.
     
     Generates ALL content types in a single request:
-    - Captions for social media
+    - Captions for social media (posts, stories, reels)
     - Hashtags for reach
     - WhatsApp/Email campaign messages
-    - Image placeholder (coming soon)
+    - AI-generated images
     """
     campaign_idea: str = Field(
         ..., 
@@ -51,13 +51,38 @@ class ContentGenerationRequest(BaseModel):
         max_length=100,
         description="Optional tone override for this campaign. If empty, uses brand's default tone."
     )
+    platform_type: str = Field(
+        default="post",
+        description="[Deprecated] Derived automatically from aspect_ratio. Kept for backward compatibility."
+    )
+    aspect_ratio: Optional[str] = Field(
+        default="1:1",
+        description="Content aspect ratio: '1:1' (square), '9:16' (vertical), '4:5' (portrait)"
+    )
+    content_type: Optional[str] = Field(
+        default="all",
+        description=(
+            "Content type to generate: "
+            "'captions' (social media captions + hashtags), "
+            "'hashtags' (hashtag sets only), "
+            "'whatsapp' (WhatsApp broadcast messages), "
+            "'emails' (email campaign messages), "
+            "'images' (image generation only), "
+            "'all' (generate all text types — default)"
+        )
+    )
+    campaign_id: Optional[str] = Field(
+        None,
+        description="Optional campaign identifier for grouping related content"
+    )
     
     class Config:
         json_schema_extra = {
             "example": {
                 "campaign_idea": "Create a summer promotion campaign for our new smoothie line emphasizing organic ingredients and sustainability.",
                 "target_audience": "Health-conscious millennials in urban areas",
-                "campaign_tone": "Playful and energetic"
+                "campaign_tone": "Playful and energetic",
+                "platform_type": "post"
             }
         }
 
@@ -73,12 +98,20 @@ class BrandContext(BaseModel):
     secondary_color: Optional[str] = None
 
 
+class HashtagSet(BaseModel):
+    """A set of hashtags for reach."""
+    id: int = Field(..., description="Set ID (1, 2, or 3)")
+    hashtag_id: str = Field(..., description="Unique ID for this hashtag set")
+    hashtags: List[str] = Field(..., description="The set of hashtags")
+
+
 class ContentGenerationResponse(BaseModel):
     """Response from content generation endpoint.
     
     Contains ALL content types generated in a single request.
     """
     success: bool = Field(..., description="Whether generation was successful")
+    platform_type: str = Field(default="post", description="Platform type used for generation: post, story, or reel")
     brand_context: BrandContext = Field(..., description="Brand context used for generation")
     
     # Social Media Content (Captions + Hashtags)
@@ -86,15 +119,18 @@ class ContentGenerationResponse(BaseModel):
     best_caption_id: int = Field(..., description="ID of best performing caption variant")
     
     # Standalone Hashtags
-    hashtag_sets: List[List[str]] = Field(..., description="Three different hashtag sets for maximum reach")
+    hashtag_sets: List[HashtagSet] = Field(..., description="Three different hashtag sets for maximum reach")
     best_hashtag_set_id: int = Field(..., description="ID of best performing hashtag set (1=Broad, 2=Niche, 3=Mixed)")
     
     # WhatsApp/Email Messages
     message_variants: List[MessageVariant] = Field(..., description="Three message variants for direct outreach")
     best_message_id: int = Field(..., description="ID of best performing message variant")
     
-    # Images (placeholder for now)
-    image_prompts: List[str] = Field(default=[], description="AI-generated image prompts (coming soon)")
+    # AI-Generated Images
+    image_prompts: List[str] = Field(default=[], description="AI-generated image prompts for reference")
+    image_paths: List[str] = Field(default=[], description="Generated image file URLs")
+    asset_ids: List[str] = Field(default=[], description="Asset IDs for generated images (stored in database)")
+    image_generation_prompt: Optional[str] = Field(None, description="The detailed prompt used for image generation")
     
     # Metadata
     reasoning: Optional[str] = Field(None, description="AI reasoning for content strategy")

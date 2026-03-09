@@ -55,7 +55,10 @@ export const chatbotService = {
                 session_id: sessionId,
                 include_sources: true,
                 context: context // Send context to backend
-            }, { headers });
+            }, { 
+                headers,
+                timeout: 60000 // 60 second timeout for RAG pipeline
+            });
 
             return response.data;
         } catch (error: any) {

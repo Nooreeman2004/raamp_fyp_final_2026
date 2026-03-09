@@ -46,7 +46,9 @@ class ContentGenerationUseCase:
                 "restaurant_theme": None,
                 "business_type": None,
                 "primary_color": None,
-                "secondary_color": None
+                "secondary_color": None,
+                "brand_logo_url": None,
+                "specialties": []
             }
         
         return {
@@ -56,7 +58,9 @@ class ContentGenerationUseCase:
             "restaurant_theme": business.restaurant_theme,
             "business_type": business.business_type,
             "primary_color": business.primary_color,
-            "secondary_color": business.secondary_color
+            "secondary_color": business.secondary_color,
+            "brand_logo_url": business.brand_logo_url,
+            "specialties": business.specialties
         }
     
     async def generate_social_content(
@@ -64,7 +68,10 @@ class ContentGenerationUseCase:
         user_id: str,
         campaign_idea: str,
         target_audience: Optional[str] = None,
-        campaign_tone: Optional[str] = None
+        campaign_tone: Optional[str] = None,
+        platform_type: str = "post",
+        campaign_id: Optional[str] = None,
+        content_type: str = "all"
     ) -> Dict[str, Any]:
         """
         Generate ALL content types for a campaign in one call.
@@ -75,11 +82,15 @@ class ContentGenerationUseCase:
         - WhatsApp/Email messages (3 variants)
         - Image prompts (3 prompts - coming soon)
         
+        Supports multiple platforms: post, story, reel
+        
         Args:
             user_id: The user's email/ID
             campaign_idea: The campaign vision/idea
             target_audience: Optional target audience description
             campaign_tone: Optional tone override (uses brand tone if not provided)
+            platform_type: Content platform (post, story, reel) - defaults to "post"
+            campaign_id: Optional campaign identifier for grouping
             
         Returns:
             Dictionary with all generated content and metadata
@@ -99,8 +110,12 @@ class ContentGenerationUseCase:
         result = await self.content_service.generate_content(
             campaign_idea=campaign_idea.strip(),
             brand_context=brand_context,
+            user_id=user_id,
             target_audience=target_audience.strip() if target_audience else None,
-            campaign_tone=campaign_tone.strip() if campaign_tone else None
+            campaign_tone=campaign_tone.strip() if campaign_tone else None,
+            platform_type=platform_type,
+            campaign_id=campaign_id,
+            content_type=content_type
         )
         
         # Add brand context to response

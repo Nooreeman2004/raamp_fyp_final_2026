@@ -25,6 +25,11 @@ from application.use_cases.content_generation_use_case import (
     get_content_generation_use_case
 )
 from presentation.routers.auth_router import get_current_user_email
+import uuid
+import traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/api/content", tags=["Content Generation"])
@@ -47,12 +52,13 @@ async def generate_content(
     """
     Generate a COMPLETE marketing package in one click.
     
-    This endpoint generates ALL content types at once:
+    This endpoint generates ALL content types at once for:
+    - **Regular Posts**: Instagram/Facebook feed posts
+    - **Instagram Stories**: 9:16 vertical format with interactive elements  
+    - **Instagram Reels**: Short-form video captions with trending hooks
     
     **1. Social Media Captions + Hashtags (3 variants)**
-    - Vibrant & Direct
-    - Informative & Engaging  
-    - Curious & Playful
+    - Platform-optimized variants with different tones
     
     **2. Standalone Hashtag Sets (3 sets)**
     - Broad Reach hashtags
@@ -64,20 +70,27 @@ async def generate_content(
     - Friendly tone
     - Urgent tone
     
-    **4. Image Prompts (3 prompts) - Coming Soon**
+    **4. Image Prompts (3 prompts)**
     - Product shot description
     - Lifestyle shot description
     - Promo graphic description
     
     All content is generated based on brand voice guidelines from the database.
+    Captions are automatically logged for creative history.
     """
     try:
+        # Generate campaign_id if not provided
+        campaign_id = request.campaign_id if hasattr(request, 'campaign_id') and request.campaign_id else str(uuid.uuid4())
+        
         # Generate ALL content using the use case
         result = await use_case.generate_social_content(
             user_id=current_user_email,
             campaign_idea=request.campaign_idea,
             target_audience=request.target_audience,
-            campaign_tone=request.campaign_tone
+            campaign_tone=request.campaign_tone,
+            platform_type="story" if getattr(request, 'aspect_ratio', '1:1') == "9:16" else "post",
+            campaign_id=campaign_id,
+            content_type=getattr(request, 'content_type', 'all') or 'all'
         )
         
         # Handle errors from the use case
@@ -128,6 +141,7 @@ async def generate_content(
         
         return ContentGenerationResponse(
             success=True,
+            platform_type=result.get("platform_type", "post"),
             brand_context=brand_context,
             caption_variants=caption_variants,
             best_caption_id=result["best_caption_id"],
@@ -136,6 +150,9 @@ async def generate_content(
             message_variants=message_variants,
             best_message_id=result["best_message_id"],
             image_prompts=result.get("image_prompts", []),
+            image_paths=result.get("image_paths", []),
+            asset_ids=result.get("asset_ids", []),
+            image_generation_prompt=result.get("image_generation_prompt"),
             reasoning=result.get("reasoning"),
             generated_at=result["generated_at"]
         )
@@ -143,13 +160,15 @@ async def generate_content(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Content generation error: {e}")
+        tb = traceback.format_exc()
+        logger.error("❌ Content generation exception: %s: %s", type(e).__name__, e)
+        logger.error("   Traceback:\n%s", tb)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "success": False,
                 "error": "Content generation failed",
-                "detail": str(e)
+                "detail": f"{type(e).__name__}: {str(e)}"
             }
         ) from e
 

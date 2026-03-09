@@ -5,7 +5,7 @@ import raampIcon from "@/assets/raamp-icon-transparent.png";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import AppDrawer from "@/components/AppDrawer";
 import RAMPFloatingWidget from "@/components/RAMPFloatingWidget";
-import { Bell } from "lucide-react";
+import { Bell, RefreshCw } from "lucide-react";
 import { authService } from "@/services/authService";
 import type { UserResponse } from "@/types";
 import { Sidebar } from "@/components/Sidebar";
@@ -94,6 +94,13 @@ const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbO
           <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-white/5 py-3 px-4 flex justify-between items-center">
             <div className="flex items-center gap-4">
               <AppDrawer user={user} />
+              <button
+                onClick={() => window.location.reload()}
+                className="text-white/50 hover:text-primary transition-colors"
+                aria-label="Refresh Page"
+              >
+                <RefreshCw size={18} />
+              </button>
               <img src={raampIcon} alt="RAAMP" className="h-8 w-8" />
             </div>
             <Link to="/profile/user">

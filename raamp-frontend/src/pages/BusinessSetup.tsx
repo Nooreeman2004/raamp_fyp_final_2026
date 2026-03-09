@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, Save, Globe, Phone, Briefcase } from "lucide-react";
+import { Building2, Save, Globe, Phone, Briefcase, Shield } from "lucide-react";
 import { toast as sonner } from "sonner";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { businessService } from "@/services/businessService";
+import { authService } from "@/services/authService";
 import { useAuth } from "@/hooks/useAuth";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import {
     Select,
     SelectContent,
@@ -18,6 +20,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 // Animation Imports
@@ -28,9 +38,17 @@ import { BlurText } from "@/components/ui/text-reveal";
 
 const BusinessSetup = () => {
     const navigate = useNavigate();
-    const { refreshUser } = useAuth();
+    const { refreshUser, user } = useAuth();
+    const { isFullyOnboarded } = useOnboardingStatus();
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
+    const [hasExistingData, setHasExistingData] = useState(false);
+
+    // OTP Dialog State
+    const [showOtpDialog, setShowOtpDialog] = useState(false);
+    const [otp, setOtp] = useState("");
+    const [otpError, setOtpError] = useState("");
 
     // Use form persistence
     const { values: formData, handleChange, setValues, clearPersistence } = useFormPersistence("business_setup_form", {
@@ -59,28 +77,81 @@ const BusinessSetup = () => {
                         description: data.description || "",
                         businessType: data.business_type || "",
                     });
+                    setHasExistingData(true);
+                    
+                    // If user is fully onboarded (existing user), keep fields read-only
+                    // New users (not fully onboarded) can edit immediately during onboarding
+                    if (!isFullyOnboarded) {
+                        setIsEditing(true);
+                    }
+                } else {
+                    // No existing data, user can edit immediately (likely new user)
+                    setIsEditing(true);
                 }
             } catch (error) {
                 console.error("Failed to fetch current setup:", error);
+                // If fetch fails, allow editing (assume new user)
+                setIsEditing(true);
             } finally {
                 setIsFetching(false);
             }
         };
         fetchCurrentSetup();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isFullyOnboarded]);
+
+    const handleEdit = async () => {
+        if (isEditing || !user?.email) return;
+
+        try {
+            // Send OTP to email
+            await authService.sendProfileEditOtp({ email: user.email });
+            sonner.info("Verification Required", {
+                description: `A security code has been sent to ${user.email}`,
+            });
+            setShowOtpDialog(true);
+        } catch (err: unknown) {
+            const error = err as { errors?: { cooldown?: string; message?: string }; message?: string };
+            const cooldownMsg = error?.errors?.cooldown || error?.errors?.message || error?.message;
+            if (cooldownMsg) {
+                sonner.error("Cooldown active", { description: cooldownMsg });
+            } else {
+                sonner.error("Error", { description: error?.message || 'Failed to send OTP' });
+            }
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        if (!user?.email) return;
+        
+        setOtpError("");
+        try {
+            await authService.verifyProfileEditOtp({ email: user.email, code: otp });
+            setShowOtpDialog(false);
+            setIsEditing(true);
+            setOtp("");
+            sonner.success("Verified", {
+                description: "You can now edit your business details",
+            });
+        } catch (err: unknown) {
+            const error = err as { message?: string };
+            setOtpError(error?.message || "Invalid OTP. Please try again.");
+        }
+    };
 
     const setValue = (key: keyof typeof formData, value: string | number) => {
         setValues(prev => ({ ...prev, [key]: value }));
     };
 
-    const validateField = (field: string, value: any): string => {
+    const validateField = (field: string, value: string | number): string => {
+        const strValue = String(value);
         switch (field) {
             case 'businessName':
-                return !value || value.trim().length < 1 ? 'Business Name required' : '';
+                return !strValue || strValue.trim().length < 1 ? 'Business Name required' : '';
             case 'businessType':
                 return !value ? 'Selection required' : '';
             case 'phone':
-                return !value || value.trim().length < 1 ? 'Contact required' : '';
+                return !strValue || strValue.trim().length < 1 ? 'Contact required' : '';
             default:
                 return '';
         }
@@ -88,7 +159,7 @@ const BusinessSetup = () => {
 
     const getFieldError = (field: string): string => {
         if (!touched[field as keyof typeof touched]) return '';
-        const value = (formData as any)[field];
+        const value = formData[field as keyof typeof formData];
         return validateField(field, value);
     };
 
@@ -130,15 +201,25 @@ const BusinessSetup = () => {
             if (response) {
                 clearPersistence();
                 await refreshUser();
+                
+                // Disable editing after successful save
+                if (isFullyOnboarded) {
+                    setIsEditing(false);
+                }
+                
                 sonner.success("Business Details Saved", {
                     description: "Your business profile has been updated.",
                 });
 
-                setTimeout(() => navigate("/profile/brand-settings"), 1000);
+                // Only navigate to next onboarding step if user is NOT fully onboarded (new user in onboarding flow)
+                if (!isFullyOnboarded) {
+                    setTimeout(() => navigate("/profile/brand-settings"), 1000);
+                }
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const err = error as { message?: string };
             sonner.error("Save Failed", {
-                description: error.message || "Unable to save business details.",
+                description: err.message || "Unable to save business details.",
             });
         } finally {
             setIsLoading(false);
@@ -154,18 +235,32 @@ const BusinessSetup = () => {
                 transition={{ duration: 0.5 }}
             >
                 <Reveal variant="blurInUp">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Building2 className="w-7 h-7 text-primary" />
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Building2 className="w-7 h-7 text-primary" />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                    <BlurText text="Business Setup" />
+                                </h1>
+                                <p className="text-muted-foreground font-mono text-sm">
+                                    Manage your business location and contact details
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-3xl font-bold font-bebas tracking-wide">
-                                <BlurText text="Business Setup" />
-                            </h1>
-                            <p className="text-muted-foreground font-mono text-sm">
-                                Manage your business location and contact details
-                            </p>
-                        </div>
+                        
+                        {/* Show Edit button only for fully onboarded users with existing data */}
+                        {isFullyOnboarded && hasExistingData && !isEditing && !isFetching && (
+                            <Button
+                                variant="outline"
+                                onClick={handleEdit}
+                                className="font-mono text-xs gap-2"
+                            >
+                                <Shield className="w-4 h-4" />
+                                Unlock Edit
+                            </Button>
+                        )}
                     </div>
                 </Reveal>
 
@@ -185,9 +280,11 @@ const BusinessSetup = () => {
                                             value={formData.businessName}
                                             onChange={handleChange}
                                             onBlur={() => setTouched(prev => ({ ...prev, businessName: true }))}
+                                            readOnly={!isEditing}
                                             className={cn(
                                                 "pl-9 bg-background/50 font-mono",
-                                                touched.businessName && !formData.businessName && "border-destructive"
+                                                touched.businessName && !formData.businessName && "border-destructive",
+                                                !isEditing && "cursor-not-allowed opacity-60"
                                             )}
                                             placeholder="Enter business name"
                                         />
@@ -209,10 +306,12 @@ const BusinessSetup = () => {
                                                 setValue('businessType', val);
                                                 setTouched(prev => ({ ...prev, businessType: true }));
                                             }}
+                                            disabled={!isEditing}
                                         >
                                             <SelectTrigger className={cn(
                                                 "pl-9 bg-background/50 font-mono w-full",
-                                                touched.businessType && !formData.businessType && "border-destructive"
+                                                touched.businessType && !formData.businessType && "border-destructive",
+                                                !isEditing && "cursor-not-allowed opacity-60"
                                             )}>
                                                 <SelectValue placeholder="Select industry" />
                                             </SelectTrigger>
@@ -242,7 +341,11 @@ const BusinessSetup = () => {
                                             name="website"
                                             value={formData.website}
                                             onChange={handleChange}
-                                            className="pl-9 bg-background/50 font-mono"
+                                            readOnly={!isEditing}
+                                            className={cn(
+                                                "pl-9 bg-background/50 font-mono",
+                                                !isEditing && "cursor-not-allowed opacity-60"
+                                            )}
                                             placeholder="https://..."
                                         />
                                     </div>
@@ -260,9 +363,11 @@ const BusinessSetup = () => {
                                             value={formData.phone}
                                             onChange={handleChange}
                                             onBlur={() => setTouched(prev => ({ ...prev, phone: true }))}
+                                            readOnly={!isEditing}
                                             className={cn(
                                                 "pl-9 bg-background/50 font-mono",
-                                                touched.phone && !formData.phone && "border-destructive"
+                                                touched.phone && !formData.phone && "border-destructive",
+                                                !isEditing && "cursor-not-allowed opacity-60"
                                             )}
                                             placeholder="+1 (555) ..."
                                         />
@@ -279,20 +384,24 @@ const BusinessSetup = () => {
                                         name="description"
                                         value={formData.description}
                                         onChange={handleChange}
-                                        className="bg-background/50 min-h-[100px] font-mono"
+                                        readOnly={!isEditing}
+                                        className={cn(
+                                            "bg-background/50 min-h-[100px] font-mono",
+                                            !isEditing && "cursor-not-allowed opacity-60"
+                                        )}
                                         placeholder="Tell us about your business..."
                                     />
                                 </div>
                             </div>
 
                             <div className="flex justify-end pt-4">
-                                <motion.div variants={hoverScale} initial="rest" whileHover={isFormValid() ? "hover" : "rest"} whileTap={isFormValid() ? "tap" : "rest"}>
+                                <motion.div variants={hoverScale} initial="rest" whileHover={isFormValid() && isEditing ? "hover" : "rest"} whileTap={isFormValid() && isEditing ? "tap" : "rest"}>
                                     <Button
                                         type="submit"
-                                        disabled={isLoading || !isFormValid()}
+                                        disabled={isLoading || !isFormValid() || !isEditing}
                                         className={cn(
                                             "font-bebas tracking-wide text-lg min-w-[150px]",
-                                            !isFormValid() && "opacity-50 cursor-not-allowed grayscale"
+                                            (!isFormValid() || !isEditing) && "opacity-50 cursor-not-allowed grayscale"
                                         )}
                                     >
                                         {isLoading ? (
@@ -303,7 +412,7 @@ const BusinessSetup = () => {
                                         ) : (
                                             <>
                                                 <Save className="w-4 h-4 mr-2" />
-                                                Save & Continue
+                                                {isFullyOnboarded ? "Save Changes" : "Save & Continue"}
                                             </>
                                         )}
                                     </Button>
@@ -312,6 +421,49 @@ const BusinessSetup = () => {
                         </form>
                     </Card>
                 </Reveal>
+
+                {/* OTP Verification Dialog */}
+                <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Verify Your Identity</DialogTitle>
+                            <DialogDescription>
+                                Enter the verification code sent to your email to unlock editing.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="otp">Verification Code</Label>
+                                <Input
+                                    id="otp"
+                                    value={otp}
+                                    onChange={(e) => {
+                                        setOtp(e.target.value);
+                                        setOtpError("");
+                                    }}
+                                    placeholder="Enter 6-digit code"
+                                    maxLength={6}
+                                    className={cn("font-mono", otpError && "border-destructive")}
+                                />
+                                {otpError && (
+                                    <p className="text-sm text-destructive">{otpError}</p>
+                                )}
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => {
+                                setShowOtpDialog(false);
+                                setOtp("");
+                                setOtpError("");
+                            }}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleVerifyOtp} disabled={otp.length !== 6}>
+                                Verify
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </motion.div>
         </Layout>
     );

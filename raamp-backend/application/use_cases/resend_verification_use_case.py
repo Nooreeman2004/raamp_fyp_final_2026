@@ -5,7 +5,7 @@ from infrastructure.repositories.pending_verification_repository import PendingV
 from infrastructure.repositories.user_repository_impl import UserRepository
 from application.utils.otp_utils import OTPGenerator
 from application.services.mailtrap_service import MailtrapService
-from config import OTP_MAX_RESENDS_PER_HOUR, OTP_MAX_RESENDS_PER_DAY
+from config import OTP_MAX_RESENDS_PER_HOUR, OTP_MAX_RESENDS_PER_DAY, Config
 
 
 class ResendVerificationUseCase:
@@ -88,12 +88,13 @@ class ResendVerificationUseCase:
             otp_code=otp_code
         )
         
-        # ALWAYS print OTP to console for testing/debugging
-        print("\n" + "="*70)
-        print(f"🔁 RESENT OTP CODE FOR {pending.email}: {otp_code}")
-        print(f"👤 Username: {pending.username}")
-        print(f"⏰ Expires at: {expires_at}")
-        print(f"📊 Resend count: {pending.resend_count + 1}/{OTP_MAX_RESENDS_PER_HOUR} (hourly)")
-        print("="*70 + "\n")
+        # Print OTP to console ONLY in development mode for testing/debugging
+        if Config.ENVIRONMENT != "production":
+            print("\n" + "="*70)
+            print(f"🔁 RESENT OTP CODE FOR {pending.email}: {otp_code}")
+            print(f"👤 Username: {pending.username}")
+            print(f"⏰ Expires at: {expires_at}")
+            print(f"📊 Resend count: {pending.resend_count + 1}/{OTP_MAX_RESENDS_PER_HOUR} (hourly)")
+            print("="*70 + "\n")
         
         return True, None, None

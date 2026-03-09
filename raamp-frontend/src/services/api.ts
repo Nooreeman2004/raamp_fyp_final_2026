@@ -71,9 +71,11 @@ class ApiClient {
     const isSocialPosting = endpoint.includes('/instagram/posting/post') ||
       endpoint.includes('/facebook/posting/post') ||
       endpoint.includes('/social/post'); // Unified social posting endpoint
+    const isTrending = endpoint.includes('/trends/') || endpoint.includes('/arbitrage/');
+    const isChatbot = endpoint.includes('/chatbot/chat'); // Chatbot RAG pipeline needs time
 
-    // Social media posting can take up to 45s-60s on the backend
-    const defaultTimeout = isAuthEndpoint ? 30000 : (isSocialPosting ? 60000 : 10000);
+    // Social media posting, trend scanning, and chatbot RAG can take up to 45s-60s on the backend
+    const defaultTimeout = isAuthEndpoint ? 30000 : (isSocialPosting || isTrending || isChatbot ? 60000 : 10000);
     const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT) || defaultTimeout;
 
     const controller = new AbortController();
@@ -277,6 +279,13 @@ class ApiClient {
   async put<T>(endpoint: string, data: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async patch<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
