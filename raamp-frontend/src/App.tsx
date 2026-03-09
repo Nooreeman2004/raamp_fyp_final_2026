@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProfileGuard from "./components/ProfileGuard";
@@ -90,6 +90,7 @@ const App = () => (
                     <Route path="/resources" element={<Resources />} />
                     <Route path="/legal" element={<Legal />} />
                     <Route path="/lusion-demo" element={<LusionDemo />} />
+                    <Route path="/pricing" element={<Navigate to="/#pricing" replace />} />
 
                     {/* Protected Routes - Dashboard & Modules (Require Profile Completion) */}
                     <Route

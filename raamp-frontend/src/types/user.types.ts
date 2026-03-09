@@ -25,6 +25,10 @@ export interface UserResponse {
   business_domain?: string | null;
   created_at: string;
   onboarding_status?: OnboardingStatus | null;
+  subscription?: {
+    type: string;
+    credits: number;
+  } | null;
 }
 
 export interface UpdateProfileRequest {

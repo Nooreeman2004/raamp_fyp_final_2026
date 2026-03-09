@@ -200,10 +200,10 @@ from presentation.routers import unified_posting_router
 from presentation.routers import trend_signal_router
 from presentation.routers import arbitrage_router
 from presentation.routers import watchlist_router
+from presentation.routers import stripe_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
-
 # Instantiate a shared onboarding service for top-level routes
 onboarding_service = OnboardingService()
 
@@ -241,6 +241,7 @@ app.include_router(unified_posting_router.router)
 app.include_router(trend_signal_router.router, prefix="/api")
 app.include_router(arbitrage_router.router, prefix="/api")
 app.include_router(watchlist_router.router, prefix="/api")
+app.include_router(stripe_router.router, prefix="/api")
 
 # Mount static files for uploaded content
 os.makedirs("uploaded_files", exist_ok=True)

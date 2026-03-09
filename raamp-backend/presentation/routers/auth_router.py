@@ -1087,60 +1087,42 @@ async def change_password(
     responses={400: {"model": ErrorResponse, "description": "Invalid request"}, 404: {"model": ErrorResponse, "description": "User not found"}}
 )
 async def forgot_password(request: ForgotPasswordRequest = Body(...)):
-    """Handle forgot password request - send OTP or reset link"""
+    """Handle forgot password request - always sends OTP (no link, app not deployed)"""
     email = request.email.lower()
     user_repository = UserRepository()
     user = await user_repository.find_by_email(email)
     
     if not user:
         # Don't reveal if user exists for security
-        return ForgotPasswordResponse(message="If an account exists with this email, password reset instructions have been sent")
+        return ForgotPasswordResponse(message="If an account exists with this email, a reset OTP has been sent")
     
     reset_repo = PasswordResetRepository()
     email_service = MailtrapService()
     
-    if request.method == "otp":
-        # Generate OTP
-        otp_code, expires_at = OTPGenerator.generate_otp_with_expiry(expiry_hours=1)  # 1 hour expiry for password reset
-        
-        # Create reset entry
-        await reset_repo.create(
-            email=email,
-            otp_code=otp_code,
-            expires_at=expires_at
-        )
-        
-        # Send OTP email
-        await email_service.send_verification_email(
-            to_email=email,
-            name=user.username or email.split('@')[0],
-            otp_code=otp_code
-        )
-        
-        print(f"Password reset OTP for {email}: {otp_code} (expires {expires_at})")
-        
-        return ForgotPasswordResponse(message="Password reset OTP sent to your email")
+    # Always use OTP (link-based reset requires a deployed URL)
+    otp_code, expires_at = OTPGenerator.generate_otp_with_expiry(expiry_hours=1)  # 1 hour expiry
     
-    else:  # method == "link"
-        # Generate secure reset token
-        reset_token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(hours=1)  # 1 hour expiry
-        
-        # Create reset entry
-        await reset_repo.create(
-            email=email,
-            reset_token=reset_token,
-            expires_at=expires_at
-        )
-        
-        # Send reset link email
-        await email_service.send_password_reset_email(
-            to_email=email,
-            name=user.username or email.split('@')[0],
-            reset_token=reset_token
-        )
-        
-        return ForgotPasswordResponse(message="Password reset link sent to your email")
+    # Delete any existing unused reset entries for this email to avoid confusion
+    existing = await reset_repo.find_by_email(email)
+    if existing:
+        await reset_repo.mark_as_used(str(existing.id))
+    
+    await reset_repo.create(
+        email=email,
+        otp_code=otp_code,
+        expires_at=expires_at
+    )
+    
+    # Send OTP email
+    await email_service.send_verification_email(
+        to_email=email,
+        name=user.username or email.split('@')[0],
+        otp_code=otp_code
+    )
+    
+    print(f"Password reset OTP for {email}: {otp_code} (expires {expires_at})")
+    
+    return ForgotPasswordResponse(message="Password reset OTP sent to your email")
 
 
 @router.post(
@@ -1483,5 +1465,55 @@ async def delete_profile_picture(
             content={"success": False, "errors": {"server": str(e)}, "message": "Failed to delete profile picture"}
         )
 
+
+@router.get("/me")
+async def get_current_user(current_user_email: str = Depends(get_current_user_email)):
+    """
+    Get the current authenticated user's information.
+    Returns user profile including subscription details.
+    """
+    user = await UserModel.find_one(UserModel.email == current_user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "subscriptionTier": user.subscriptionTier,
+        "subscriptionStatus": user.subscriptionStatus,
+        "adCreditsRemaining": user.adCreditsRemaining,
+        "subscriptionEndDate": user.subscriptionEndDate,
+        "currentPeriodEnd": user.currentPeriodEnd,
+        "cancelAtPeriodEnd": user.cancelAtPeriodEnd,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "stripeCustomerId": user.stripeCustomerId
+    }
+
+
+@router.post("/verify-password")
+async def verify_password(
+    request_data: dict = Body(...),
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """
+    Verify if the provided password matches the current user's password.
+    Used for sensitive operations that require password confirmation.
+    """
+    password = request_data.get("password")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required")
+    
+    user = await UserModel.find_one(UserModel.email == current_user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Use PasswordVerifier to check password
+    verifier = PasswordVerifier()
+    is_valid = verifier.verify(password, user.password_hash)
+    if not is_valid:
+        raise HTTPException(status_code=401, detail="Incorrect password")
+        
+    return {"status": "success", "message": "Password verified"}
 
 

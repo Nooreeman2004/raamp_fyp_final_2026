@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Target, Plus, X, Loader2, Sparkles, Save, Info } from "lucide-react";
+import { Target, Plus, X, Loader2, Sparkles, Save, Info, Shield, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { trendService } from "@/services/trendService";
@@ -13,6 +13,8 @@ import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { BlurText } from "@/components/ui/text-reveal";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PasswordVerificationDialog } from "@/components/PasswordVerificationDialog";
+import { cn } from "@/lib/utils";
 
 const BusinessSpecialties = () => {
   const { toast } = useToast();
@@ -21,6 +23,8 @@ const BusinessSpecialties = () => {
   const [specialties, setSpecialties] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showPasswordGate, setShowPasswordGate] = useState(false);
 
   // Curated suggestions (can be enhanced later with niche-specific suggestions)
   const suggestions = [
@@ -58,20 +62,20 @@ const BusinessSpecialties = () => {
 
   const handleAddSpecialty = () => {
     const trimmed = inputValue.trim().toLowerCase();
-    
+
     // Validation
     if (!trimmed) return;
-    
+
     if (trimmed.length > 50) {
       setError("Specialty must be 50 characters or less");
       return;
     }
-    
+
     if (specialties.includes(trimmed)) {
       setError("Specialty already added");
       return;
     }
-    
+
     if (specialties.length >= 10) {
       setError("Maximum 10 specialties allowed");
       return;
@@ -94,7 +98,7 @@ const BusinessSpecialties = () => {
       });
       return;
     }
-    
+
     if (specialties.length >= 10) {
       setError("Maximum 10 specialties allowed");
       return;
@@ -155,18 +159,30 @@ const BusinessSpecialties = () => {
       >
         {/* Header */}
         <Reveal variant="blurInUp">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <Target className="w-7 h-7 text-primary" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <Target className="w-7 h-7 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                  <BlurText text="Business Specialties" />
+                </h1>
+                <p className="text-muted-foreground font-mono text-sm">
+                  Add keywords to enhance trend detection for your business
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold font-bebas tracking-wide">
-                <BlurText text="Business Specialties" />
-              </h1>
-              <p className="text-muted-foreground font-mono text-sm">
-                Add keywords to enhance trend detection for your business
-              </p>
-            </div>
+            {!isEditing && (
+              <Button
+                variant="outline"
+                onClick={() => setShowPasswordGate(true)}
+                className="font-mono text-xs gap-2 border-primary/30 hover:bg-primary/5"
+              >
+                <Shield className="w-4 h-4" />
+                Unlock to Edit
+              </Button>
+            )}
           </div>
         </Reveal>
 
@@ -192,7 +208,7 @@ const BusinessSpecialties = () => {
                   <Sparkles className="w-4 h-4 text-primary" />
                   Your Specialties ({specialties.length}/10)
                 </label>
-                
+
                 {specialties.length > 0 ? (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {specialties.map((specialty) => (
@@ -202,12 +218,14 @@ const BusinessSpecialties = () => {
                         className="px-3 py-1.5 text-sm font-mono bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors"
                       >
                         {specialty}
-                        <button
-                          onClick={() => handleRemoveSpecialty(specialty)}
-                          className="ml-2 hover:text-red-400 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                        {isEditing && (
+                          <button
+                            onClick={() => handleRemoveSpecialty(specialty)}
+                            className="ml-2 hover:text-red-400 transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
                       </Badge>
                     ))}
                   </div>
@@ -239,7 +257,7 @@ const BusinessSpecialties = () => {
                   />
                   <Button
                     onClick={handleAddSpecialty}
-                    disabled={!inputValue.trim() || specialties.length >= 10}
+                    disabled={!inputValue.trim() || specialties.length >= 10 || !isEditing}
                     variant="outline"
                     className="px-4"
                   >
@@ -266,8 +284,11 @@ const BusinessSpecialties = () => {
                       <Badge
                         key={suggestion}
                         variant="outline"
-                        className="px-3 py-1.5 text-xs font-mono cursor-pointer hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors"
-                        onClick={() => handleAddSuggestion(suggestion)}
+                        className={cn(
+                          "px-3 py-1.5 text-xs font-mono transition-colors",
+                          isEditing ? "cursor-pointer hover:bg-primary/10 hover:text-primary hover:border-primary/30" : "opacity-50 cursor-not-allowed"
+                        )}
+                        onClick={() => isEditing && handleAddSuggestion(suggestion)}
                       >
                         <Plus className="w-3 h-3 mr-1" />
                         {suggestion}
@@ -291,8 +312,11 @@ const BusinessSpecialties = () => {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={saving}
-              className="bg-primary text-black hover:opacity-90 font-bebas text-lg px-8"
+              disabled={saving || !isEditing}
+              className={cn(
+                "bg-primary text-black hover:opacity-90 font-bebas text-lg px-8",
+                (!isEditing || saving) && "opacity-50 grayscale cursor-not-allowed"
+              )}
             >
               {saving ? (
                 <>
@@ -333,6 +357,19 @@ const BusinessSpecialties = () => {
             </div>
           </Card>
         </Reveal>
+        {/* Password Gate Dialog */}
+        <PasswordVerificationDialog
+          isOpen={showPasswordGate}
+          onClose={() => setShowPasswordGate(false)}
+          onVerified={() => {
+            setShowPasswordGate(false);
+            setIsEditing(true);
+            toast({
+              title: "Verified",
+              description: "You can now edit your business specialties.",
+            });
+          }}
+        />
       </motion.div>
     </Layout>
   );

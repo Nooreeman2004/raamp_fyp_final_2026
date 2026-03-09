@@ -11,7 +11,7 @@ import {
   Link2,
   Shield,
   Target,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
 } from "lucide-react";
 
 // Animation Imports

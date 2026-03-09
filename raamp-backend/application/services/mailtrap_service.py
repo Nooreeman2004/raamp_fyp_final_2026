@@ -560,6 +560,161 @@ ACCOUNT_DELETION_EMAIL_TEMPLATE = """
 </html>
 """
 
+PAYMENT_FAILED_EMAIL_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6; 
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .email-container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header { 
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white; 
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .content { 
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .message {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 15px;
+        }
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .warning-box strong {
+            color: #92400e;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .warning-box p {
+            color: #78350f;
+            margin: 5px 0;
+        }
+        .action-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 35px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .info-box h3 {
+            color: #667eea;
+            margin-top: 0;
+            font-size: 16px;
+        }
+        .info-box ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .info-box li {
+            margin: 8px 0;
+            color: #666;
+        }
+        .footer { 
+            background: #f8f9fa;
+            text-align: center;
+            padding: 25px;
+            color: #6c757d;
+            font-size: 13px;
+            border-top: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>⚠️ Payment Failed - Action Required</h1>
+        </div>
+        <div class="content">
+            <div class="greeting">
+                Hi <strong>{name}</strong>,
+            </div>
+            <div class="message">
+                We attempted to process your subscription payment, but the transaction was unsuccessful. 
+                Your subscription is now marked as <strong>past due</strong>.
+            </div>
+            
+            <div class="warning-box">
+                <strong>⏰ Immediate Action Required</strong>
+                <p>To avoid service interruption, please update your payment method and retry the payment.</p>
+                <p>If we don't receive payment within the next few days, your subscription may be canceled.</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{portalUrl}" class="action-button">Update Payment Method</a>
+            </div>
+            
+            <div class="info-box">
+                <h3>🔍 Common Payment Issues:</h3>
+                <ul>
+                    <li>Insufficient funds in your account</li>
+                    <li>Expired or invalid credit card</li>
+                    <li>Card declined by your bank</li>
+                    <li>Incorrect billing information</li>
+                </ul>
+            </div>
+            
+            <div class="message">
+                If you have questions or need assistance, our support team is here to help.
+            </div>
+            
+            <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px 20px; margin: 25px 0; border-radius: 4px; font-size: 14px; color: #0d47a1;">
+                <strong>💡 Tip:</strong> Make sure your payment method is up to date in your billing portal to prevent future payment failures.
+            </div>
+        </div>
+        <div class="footer">
+            <p><strong>RAAMP</strong> - Revolutionary AI-Powered Autonomous Marketing Platform</p>
+            <p>© 2025 RAAMP. All rights reserved.</p>
+            <p style="margin-top: 15px; font-size: 12px;">
+                This is an automated email. For support, please visit your billing dashboard.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 
 class MailtrapService:
     """
@@ -911,7 +1066,7 @@ class MailtrapService:
     
     async def send_custom_email(self, to_email: str, to_name: str, subject: str, html_content: str, text_content: str) -> bool:
         """
-        Send a custom email with provided subject and content
+        Send a custom email with provided subject and content (Non-blocking)
         
         Args:
             to_email: Recipient's email address
@@ -923,7 +1078,24 @@ class MailtrapService:
         Returns:
             True if sent successfully
         """
-        return self._send_email(to_email, subject, html_content, text_content)
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+
+        try:
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor(max_workers=1)
+            result = await asyncio.wait_for(
+                loop.run_in_executor(executor, self._send_email, to_email, subject, html_content, text_content),
+                timeout=15.0
+            )
+            print(f"📬 Consultation email send result for {to_email}: {result}")
+            return result
+        except asyncio.TimeoutError:
+            print(f"⚠️ Consultation email timed out for {to_email}, continuing...")
+            return False
+        except Exception as e:
+            print(f"⚠️ Consultation email failed for {to_email}: {e}, continuing...")
+            return False
     
     async def send_account_deletion_otp_email(self, to_email: str, name: str, otp_code: str) -> bool:
         """
@@ -987,6 +1159,92 @@ class MailtrapService:
             return False
         except Exception as e:
             print(f"⚠️ Account deletion OTP email sending failed for {to_email}: {e}")
+            return False
+            
+    async def send_upgrade_email(self, to_email: str, name: str, plan: str) -> bool:
+        """
+        Send upgrade confirmation email
+        """
+        print(f"🔔 send_upgrade_email called: to={to_email}, name={name}, plan={plan}")
+        subject = f"🎉 Welcome to {plan.capitalize()} Plan - RAAMP"
+        html_content = f"<h2>Congratulations {name}!</h2><p>You have successfully upgraded to the <strong>{plan.capitalize()}</strong> plan.</p>"
+        text_content = f"Congratulations {name}! You have successfully upgraded to the {plan.capitalize()} plan."
+        
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        try:
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor(max_workers=1)
+            result = await asyncio.wait_for(
+                loop.run_in_executor(executor, self._send_email, to_email, subject, html_content, text_content),
+                timeout=10.0
+            )
+            return result
+        except asyncio.TimeoutError:
+            print(f"⚠️ Upgrade email sending timed out for {to_email}")
+            return False
+        except Exception as e:
+            print(f"⚠️ Upgrade email sending failed for {to_email}: {e}")
+            return False
+
+    async def send_payment_failed_email(self, to_email: str, name: str, portal_url: str) -> bool:
+        """
+        Send payment failure notification email
+        
+        Args:
+            to_email: Recipient email address
+            name: User's name
+            portal_url: URL to the billing portal to update payment method
+        """
+        print(f"🔔 send_payment_failed_email called: to={to_email}, name={name}")
+        subject = "⚠️ Payment Failed - Action Required - RAAMP"
+        
+        html_content = PAYMENT_FAILED_EMAIL_TEMPLATE.replace(
+            "{name}", name
+        ).replace(
+            "{portalUrl}", portal_url
+        )
+        
+        text_content = f"""
+Hi {name},
+
+We attempted to process your subscription payment, but the transaction was unsuccessful.
+Your subscription is now marked as past due.
+
+IMMEDIATE ACTION REQUIRED:
+To avoid service interruption, please update your payment method and retry the payment.
+
+Update your payment method here: {portal_url}
+
+Common payment issues:
+- Insufficient funds in your account
+- Expired or invalid credit card
+- Card declined by your bank
+- Incorrect billing information
+
+If you have questions or need assistance, our support team is here to help.
+
+---
+RAAMP - Revolutionary AI-Powered Autonomous Marketing Platform
+© 2025 RAAMP. All rights reserved.
+        """
+        
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        try:
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor(max_workers=1)
+            result = await asyncio.wait_for(
+                loop.run_in_executor(executor, self._send_email, to_email, subject, html_content, text_content),
+                timeout=10.0
+            )
+            print(f"📬 Payment failure email send result: {result}")
+            return result
+        except asyncio.TimeoutError:
+            print(f"⚠️ Payment failure email sending timed out for {to_email}")
+            return False
+        except Exception as e:
+            print(f"⚠️ Payment failure email sending failed for {to_email}: {e}")
             return False
 
 

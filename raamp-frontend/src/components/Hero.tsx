@@ -11,7 +11,7 @@ import { VelocityScroll } from "@/components/ui/velocity-scroll";
 
 const Hero = () => {
   return (
-    <section className="relative min-h-[90vh] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 overflow-hidden pt-20">
+    <section className="relative min-h-[100vh] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 overflow-x-hidden pt-20 pb-32">
 
       {/* Background Elements */}
       <div className="absolute inset-0 -z-10 bg-background/50" />
@@ -92,9 +92,9 @@ const Hero = () => {
         </motion.div>
 
         {/* Feature Cards Grid (Reference Style) */}
-        <div className="grid md:grid-cols-3 gap-6 pt-16 text-left">
+        <div className="grid md:grid-cols-3 gap-6 pt-16 pb-12 text-left">
           <ParallaxSection speed={0.05}>
-            <HolographicCard className="p-5 h-64">
+            <HolographicCard className="p-6 min-h-[18rem] h-auto">
               <div className="w-12 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <Sparkles className="w-6 h-6" />
               </div>
@@ -106,7 +106,7 @@ const Hero = () => {
           </ParallaxSection>
 
           <ParallaxSection speed={0.1}>
-            <HolographicCard className="p-5 h-64">
+            <HolographicCard className="p-6 min-h-[18rem] h-auto">
               <div className="w-12 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <Globe className="w-6 h-6" />
               </div>
@@ -118,7 +118,7 @@ const Hero = () => {
           </ParallaxSection>
 
           <ParallaxSection speed={0.15}>
-            <HolographicCard className="p-5 h-64">
+            <HolographicCard className="p-6 min-h-[18rem] h-auto">
               <div className="w-12 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <BarChart3 className="w-6 h-6" />
               </div>

@@ -308,6 +308,7 @@ const AssetLibrary = () => {
                                             <SelectItem value="all">All Types</SelectItem>
                                             <SelectItem value="generated_image">Generated Images</SelectItem>
                                             <SelectItem value="generated_video">Generated Videos</SelectItem>
+                                            <SelectItem value="generated_reel">Generated Reels</SelectItem>
                                             <SelectItem value="uploaded_image">Uploaded Images</SelectItem>
                                             <SelectItem value="uploaded_video">Uploaded Videos</SelectItem>
                                         </SelectContent>

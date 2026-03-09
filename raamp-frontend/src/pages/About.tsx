@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { Card } from "@/components/ui/card";
 import { User } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Animations Import
 import Reveal from "@/components/ui/Reveal";
@@ -10,27 +11,38 @@ import { motion } from "framer-motion";
 import { hoverLift, staggerContainer } from "@/utils/animations";
 import { BlurText } from "@/components/ui/text-reveal";
 
+// Import team member photos
+import abdullahImg from "@/assets/team/Abdullah_aamir.jpeg";
+import noorImg from "@/assets/team/Noor_e_eman.jpg";
+import tamimiImg from "@/assets/team/tamimi.jpeg";
+import rashidImg from "@/assets/team/rashid_mehmood.jpeg";
+
 const About = () => {
   const team = [
     {
       name: "Abdullah Aamir",
       role: "Co-Founder & Developer",
-      type: "developer"
+      type: "developer",
+      image: abdullahImg
     },
     {
       name: "Noor E Eman Malik",
       role: "Co-Founder & Developer",
-      type: "developer"
+      type: "developer",
+      image: noorImg
     },
     {
       name: "Dr. Manzoor Ilahi Tamimi",
       role: "Project Supervisor",
-      type: "advisor"
+      type: "advisor",
+      image: tamimiImg,
+      objectPosition: "object-top"
     },
     {
-      name: "Mr. Mohsin Ahmed",
+      name: "Mr. Rashid Mehmood",
       role: "Co-Supervisor",
-      type: "advisor"
+      type: "advisor",
+      image: rashidImg
     }
   ];
 
@@ -113,10 +125,18 @@ const About = () => {
                 <motion.div key={index} variants={hoverLift} initial="rest" whileHover="hover">
                   {/* We wrap the card in motion to animate entrance (fadeInUp) */}
                   <Reveal variant="fadeInUp">
-                    <Card className="p-6 text-center card-shadow bg-card/70 backdrop-blur-sm border-primary/10 hover:border-primary/30 transition-all h-full cursor-pointer">
+                    <Card className="p-6 text-center card-shadow bg-card/70 backdrop-blur-sm border-primary/10 hover:border-primary/30 transition-all h-full cursor-pointer group">
                       <div className="flex flex-col items-center space-y-4">
-                        <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/20">
-                          <User className="w-16 h-16 text-primary" />
+                        <div className="w-32 h-32 rounded-full overflow-hidden flex items-center justify-center border-2 border-primary/20 group-hover:border-primary transition-all duration-300">
+                          {member.image ? (
+                            <img
+                              src={member.image}
+                              alt={member.name}
+                              className={cn("w-full h-full object-cover", (member as any).objectPosition || "object-center")}
+                            />
+                          ) : (
+                            <User className="w-16 h-16 text-primary" />
+                          )}
                         </div>
                         <div>
                           <h4 className="text-xl font-bold font-bebas tracking-wide">{member.name}</h4>
@@ -146,10 +166,18 @@ const About = () => {
               {team.filter(member => member.type === "advisor").map((member, index) => (
                 <motion.div key={index} variants={hoverLift} initial="rest" whileHover="hover">
                   <Reveal variant="fadeInUp">
-                    <Card className="p-6 text-center card-shadow bg-card/70 backdrop-blur-sm border-primary/10 hover:border-primary/30 transition-all h-full cursor-pointer">
+                    <Card className="p-6 text-center card-shadow bg-card/70 backdrop-blur-sm border-primary/10 hover:border-primary/30 transition-all h-full cursor-pointer group">
                       <div className="flex flex-col items-center space-y-4">
-                        <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/20">
-                          <User className="w-16 h-16 text-primary" />
+                        <div className="w-32 h-32 rounded-full overflow-hidden flex items-center justify-center border-2 border-primary/20 group-hover:border-primary transition-all duration-300">
+                          {member.image ? (
+                            <img
+                              src={member.image}
+                              alt={member.name}
+                              className={cn("w-full h-full object-cover", (member as any).objectPosition || "object-center")}
+                            />
+                          ) : (
+                            <User className="w-16 h-16 text-primary" />
+                          )}
                         </div>
                         <div>
                           <h4 className="text-xl font-bold font-bebas tracking-wide">{member.name}</h4>

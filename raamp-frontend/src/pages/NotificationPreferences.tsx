@@ -14,6 +14,8 @@ import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { hoverScale } from "@/utils/animations";
 import { BlurText } from "@/components/ui/text-reveal";
+import { PasswordVerificationDialog } from "@/components/PasswordVerificationDialog";
+import { Shield } from "lucide-react";
 
 interface NotificationSettings {
   emailNotifications: boolean;
@@ -30,6 +32,7 @@ const NotificationPreferences = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showPasswordGate, setShowPasswordGate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<NotificationSettings>({
@@ -131,9 +134,13 @@ const NotificationPreferences = () => {
             </div>
             {!isEditMode && !loading && (
               <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                <Button variant="outline" onClick={() => setIsEditMode(true)} className="font-mono text-xs">
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Edit
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPasswordGate(true)}
+                  className="font-mono text-xs gap-2 border-primary/30 hover:bg-primary/5"
+                >
+                  <Shield className="w-4 h-4" />
+                  Unlock to Edit
                 </Button>
               </motion.div>
             )}
@@ -286,6 +293,19 @@ const NotificationPreferences = () => {
             </div>
           </Reveal>
         )}
+        {/* Password Gate Dialog */}
+        <PasswordVerificationDialog
+          isOpen={showPasswordGate}
+          onClose={() => setShowPasswordGate(false)}
+          onVerified={() => {
+            setShowPasswordGate(false);
+            setIsEditMode(true);
+            toast({
+              title: "Verified",
+              description: "You can now edit your notification preferences.",
+            });
+          }}
+        />
       </motion.div>
     </Layout>
   );

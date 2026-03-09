@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { PricingCard3D } from "@/components/ui/pricing-card-3d";
 
 // Animation Imports
@@ -9,8 +8,8 @@ import { MaskedTextReveal } from "@/components/ui/masked-text-reveal";
 
 const Pricing = () => {
   return (
-    <section className="relative py-24 overflow-hidden">
-      {/* Background gradient - Fades in slowly */}
+    <section id="pricing" className="relative py-24">
+      {/* Background gradient */}
       <motion.div
         variants={fadeIn}
         initial="hidden"
@@ -35,47 +34,66 @@ const Pricing = () => {
           </Reveal>
           <Reveal variant="fadeIn" delay={0.2}>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-mono">
-              Choose the pricing model that best fits your business needs
+              Choose the plan that fits your business needs and scale infinitely.
             </p>
           </Reveal>
         </div>
 
-        {/* Staggered Grid */}
+        {/* Staggered Grid — pt-6 gives room for the "Most Popular" badge */}
         <motion.div
-          className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto"
+          className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto pt-12 pb-12"
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
         >
-          {/* Pay-As-You-Go Card */}
-          <Link to="/dashboard/billing" className="block h-full">
-            <PricingCard3D
-              title="Pay-As-You-Go"
-              features={[
-                "Fixed-rate pricing with no upfront costs.",
-                "Cancel anytime with monthly billing.",
-                "Perfect for small to medium businesses."
-              ]}
-            />
-          </Link>
+          {/* Free Plan */}
+          <PricingCard3D
+            title="Free"
+            price="$0"
+            features={[
+              "Create up to 5 advertisements",
+              "Access basic templates",
+              "Basic AI generation",
+              "Basic analytics",
+              "Standard email support",
+            ]}
+          />
 
-          {/* Credits Model Card */}
-          <Link to="/dashboard/billing" className="block h-full">
-            <PricingCard3D
-              title="Credits Model"
-              features={[
-                "Discounted tiered pricing with a $2,500 credit minimum.",
-                "Credits are fully refundable and do not expire.",
-                "Ideal for high-volume enterprise users."
-              ]}
-            />
-          </Link>
+          {/* Pro Plan */}
+          <PricingCard3D
+            title="Pro"
+            price="$10"
+            isPopular={true}
+            features={[
+              "Up to 50 ads per month",
+              "Premium templates",
+              "Faster AI generation",
+              "Advanced editing tools",
+              "Campaign management",
+              "Advanced analytics dashboard",
+              "Priority email support",
+            ]}
+          />
 
+          {/* Premium Plan */}
+          <PricingCard3D
+            title="Premium"
+            price="$25"
+            features={[
+              "Unlimited advertisements",
+              "Unlimited ad credits",
+              "All templates",
+              "Advanced AI generation",
+              "Campaign performance insights",
+              "Team collaboration",
+              "API access",
+              "24/7 priority support",
+            ]}
+          />
         </motion.div>
       </div>
 
-      {/* Decorative bottom line - Expands horizontally */}
       <motion.div
         initial={{ scaleX: 0 }}
         whileInView={{ scaleX: 1 }}

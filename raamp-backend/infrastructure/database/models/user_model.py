@@ -44,6 +44,17 @@ class UserModel(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
+    # Billing fields
+    subscriptionTier: str = "free"
+    adCreditsRemaining: int = 5
+    subscriptionEndDate: Optional[datetime] = None
+    stripeCustomerId: Optional[str] = None
+    stripeSubscriptionId: Optional[str] = None
+    subscriptionStatus: str = "inactive"  # inactive, active, canceled, past_due
+    cancelAtPeriodEnd: bool = False
+    currentPeriodEnd: Optional[datetime] = None
+    processed_stripe_events: list[str] = Field(default_factory=list)
+    
     class Settings:
         name = "users"  # Collection name
         indexes = [

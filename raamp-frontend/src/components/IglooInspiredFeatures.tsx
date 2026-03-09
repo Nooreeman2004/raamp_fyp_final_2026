@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import {
     Sparkles,
     Zap,
@@ -161,32 +161,7 @@ const IglooInspiredFeatures = () => {
                     </BentoCardAdvanced>
                 </BentoGridAdvanced>
 
-                {/* Bottom CTA with Wave Text */}
-                <motion.div
-                    className="text-center mt-16"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: 0.3 }}
-                >
-                    <WaveText
-                        text="Ready to Transform Your Marketing?"
-                        className="text-3xl font-bold text-white mb-4"
-                    />
-                    <p className="text-muted-foreground mb-8">
-                        Join thousands of businesses already using RAAMP to scale their growth
-                    </p>
-                    <motion.button
-                        className="px-8 py-4 rounded-full bg-primary text-primary-foreground font-semibold text-lg shadow-[0_0_30px_rgba(0,224,208,0.4)] hover:shadow-[0_0_50px_rgba(0,224,208,0.6)] transition-all duration-300"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                    >
-                        <span className="flex items-center gap-2">
-                            <Sparkles className="w-5 h-5" />
-                            Start Free Trial
-                        </span>
-                    </motion.button>
-                </motion.div>
+                {/* Bottom CTA with Wave Text */}
             </div>
         </section>
     );

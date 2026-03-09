@@ -42,8 +42,8 @@ class Config:
     MAILTRAP_API_TOKEN: str = os.getenv("MAILTRAP_API_TOKEN", "78049356a1e16f8ffe78c57832a34eed")
     MAILTRAP_ENDPOINT: str = os.getenv("MAILTRAP_ENDPOINT", "https://send.api.mailtrap.io/api/send")
     
-    SENDER_EMAIL: str = "hello@demomailtrap.com"
-    SENDER_NAME: str = "RAAMP Team"
+    SENDER_EMAIL: str = os.getenv("MAIL_FROM", "hello@demomailtrap.com")
+    SENDER_NAME: str = os.getenv("MAIL_FROM_NAME", "RAAMP Team")
     
     # Email delivery method: 'smtp' or 'api'
     # Use API by default for sandbox/testing to avoid local SMTP TLS issues
@@ -100,6 +100,15 @@ class Config:
     CLOUDINARY_CLOUD_NAME: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")
     CLOUDINARY_API_KEY: str = os.getenv("CLOUDINARY_API_KEY", "")
     CLOUDINARY_API_SECRET: str = os.getenv("CLOUDINARY_API_SECRET", "")
+    
+    # Stripe Configuration
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    PRO_PRODUCT_ID: str = os.getenv("PRO_PRODUCT_ID", "prod_dummy")
+    PREMIUM_PRODUCT_ID: str = os.getenv("PREMIUM_PRODUCT_ID", "prod_dummy")
+    # Price IDs are different from product IDs - get these from Stripe Dashboard → Products → Click product → Copy Price ID
+    PRO_PRICE_ID: str = os.getenv("PRO_PRICE_ID", "price_dummy")
+    PREMIUM_PRICE_ID: str = os.getenv("PREMIUM_PRICE_ID", "price_dummy")
     
     @classmethod
     def is_production(cls) -> bool:

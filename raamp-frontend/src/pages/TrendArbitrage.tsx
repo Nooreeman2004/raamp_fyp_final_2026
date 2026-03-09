@@ -56,7 +56,6 @@ import {
 
 import { trendService, TrendSpike, GeoTrend, SpikeTimeline, MarketGap, PlatformReach, CampaignRecommendation, WatchlistItem, ContentSuggestion } from "@/services/trendService";
 import { ContentSuggestionsModal } from "@/components/ContentSuggestionsModal";
-import { ThemeEmoji } from "@/components/ui/emoji";
 
 const TrendArbitrage = () => {
   const { user } = useAuth();
@@ -141,7 +140,7 @@ const TrendArbitrage = () => {
     setIsGeneratingContent(true);
     setContentModalOpen(true);
     setContentSuggestions(null);
-
+    
     try {
       const suggestions = await trendService.getContentSuggestions(keyword);
       setContentSuggestions(suggestions);
@@ -283,22 +282,22 @@ const TrendArbitrage = () => {
 
     } catch (err: any) {
       console.error("Scan initiation error:", err);
-
+      
       // Handle location not configured error
       if (err.response?.status === 400 && err.response?.data?.detail?.includes("Location not configured")) {
-        toast.error("Location Not Configured", {
+        toast.error("Location Not Configured", { 
           description: "Please complete your onboarding or set your business location in settings before scanning trends.",
           duration: 5000
         });
       } else {
         // Generic error handling
         const errorMessage = err.response?.data?.detail || err.message || "Unable to initiate scan";
-        toast.error("Scan Launch Failed", {
+        toast.error("Scan Launch Failed", { 
           description: errorMessage,
           duration: 4000
         });
       }
-
+      
       setIsScanning(false);
       setScanStep("");
     }
@@ -349,8 +348,8 @@ const TrendArbitrage = () => {
       if (rec?.suggested_hooks?.length) return `"${rec.suggested_hooks[0]}"`;
       const hooks: Record<string, string> = {
         carousel: `"Here's what most people don't know about ${keyword}..."`,
-        reel: `"Wait — did you know ${keyword} can do this? 👀"`,
-        story: `"The truth about ${keyword} that no one talks about"`,
+        reel:     `"Wait — did you know ${keyword} can do this? 👀"`,
+        story:    `"The truth about ${keyword} that no one talks about"`,
       };
       return hooks[fmt] ?? `"Everything you need to know about ${keyword}"`;
     };
@@ -525,13 +524,14 @@ const TrendArbitrage = () => {
                       </SelectTrigger>
                       <SelectContent className="bg-slate-950 border-white/10 text-white">
                         <SelectItem value="all">ALL STAGES</SelectItem>
-                        <SelectItem value="Emerging"><ThemeEmoji name="emerging" className="mr-1" /> EMERGING</SelectItem>
-                        <SelectItem value="Breakout"><ThemeEmoji name="breakout" className="mr-1" /> BREAKOUT</SelectItem>
-                        <SelectItem value="Mainstream"><ThemeEmoji name="mainstream" className="mr-1" /> MAINSTREAM</SelectItem>
-                        <SelectItem value="Saturated"><ThemeEmoji name="saturated" className="mr-1" /> SATURATED</SelectItem>
-                        <SelectItem value="Declining"><ThemeEmoji name="declining" className="mr-1" /> DECLINING</SelectItem>
+                        <SelectItem value="Emerging">🌱 EMERGING</SelectItem>
+                        <SelectItem value="Breakout">🚀 BREAKOUT</SelectItem>
+                        <SelectItem value="Mainstream">📈 MAINSTREAM</SelectItem>
+                        <SelectItem value="Saturated">⚠️ SATURATED</SelectItem>
+                        <SelectItem value="Declining">📉 DECLINING</SelectItem>
                       </SelectContent>
                     </Select>
+
                     <div className="w-px h-5 bg-white/10" />
                     <div className="flex items-center gap-1.5 px-2 h-8">
                       <Database className="w-3.5 h-3.5 text-white/30 shrink-0" />
@@ -544,21 +544,6 @@ const TrendArbitrage = () => {
                       />
                     </div>
                   </div>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      fetchData();
-                      toast.success("Synchronizing Data", {
-                        description: "Refreshing trend signals from global nodes..."
-                      });
-                    }}
-                    disabled={isLoading}
-                    className="bg-black/40 border-white/10 hover:border-primary/50 text-white gap-2 font-mono h-10"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">REFRESH</span>
-                  </Button>
 
                   <Button
                     variant="outline"
@@ -606,7 +591,7 @@ const TrendArbitrage = () => {
                       </p>
                       <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mt-4">
                         <p className="text-xs font-mono text-primary/80">
-                          <ThemeEmoji name="lightbulb" className="mr-1" /> <strong>Tip:</strong> Try adding business specialties (like "bubble tea", "vegan", "streetwear") in{' '}
+                          💡 <strong>Tip:</strong> Try adding business specialties (like "bubble tea", "vegan", "streetwear") in{' '}
                           <span className="underline hover:text-primary cursor-pointer" onClick={() => navigate('/settings/business-specialties')}>Settings</span>{' '}
                           to get more relevant trend detection.
                         </p>
@@ -679,9 +664,9 @@ const TrendArbitrage = () => {
                         <p className="text-base text-white/40 font-mono italic max-w-2xl">
                           {liveTrends[0].is_spike && liveTrends[0].score > 8
                             ? `High-velocity delta detected in ${liveTrends[0].location}. Arbitrage window critical.`
-                            : liveTrends[0].is_spike
-                              ? `Emerging interest pattern in ${liveTrends[0].location} vector grid. Monitoring velocity.`
-                              : `Current trend baseline in ${liveTrends[0].location}. No significant spikes detected yet—market stability observed.`}
+                            : liveTrends[0].is_spike 
+                            ? `Emerging interest pattern in ${liveTrends[0].location} vector grid. Monitoring velocity.`
+                            : `Current trend baseline in ${liveTrends[0].location}. No significant spikes detected yet—market stability observed.`}
                           {liveTrends[0].niche ? ` Sector: ${liveTrends[0].niche}.` : ''}
                         </p>
                         <div className="flex gap-4 pt-4">
@@ -1024,14 +1009,15 @@ const TrendArbitrage = () => {
                                   return (
                                     <div className="bg-black/95 border border-white/10 p-4 rounded-xl shadow-2xl backdrop-blur-md min-w-[200px]">
                                       <p className="font-bebas text-white text-xl tracking-wider uppercase mb-1">{data.keyword}</p>
-                                      <p className={`text-xs font-mono font-bold mb-3 ${isGoldMine ? 'text-primary' :
+                                      <p className={`text-xs font-mono font-bold mb-3 ${
+                                        isGoldMine ? 'text-primary' :
                                         isCrowded ? 'text-red-400' :
-                                          data.quadrant === 'Emerging' ? 'text-amber-400' : 'text-white/30'
-                                        }`}>
+                                        data.quadrant === 'Emerging' ? 'text-amber-400' : 'text-white/30'
+                                      }`}>
                                         {isGoldMine ? '🔥 Great opportunity — post now!' :
-                                          isCrowded ? '⚠️ Very competitive right now' :
-                                            data.quadrant === 'Emerging' ? '🌱 Early stage — keep an eye on it' :
-                                              '📉 Interest is fading'}
+                                         isCrowded ? '⚠️ Very competitive right now' :
+                                         data.quadrant === 'Emerging' ? '🌱 Early stage — keep an eye on it' :
+                                         '📉 Interest is fading'}
                                       </p>
                                       <div className="space-y-1.5 text-[11px] font-mono">
                                         <div className="flex justify-between"><span className="text-white/40">Growth Speed:</span><span className="text-primary font-bold">{data.velocity}×</span></div>
@@ -1083,16 +1069,16 @@ const TrendArbitrage = () => {
                         {(showAllTrends ? liveTrends : liveTrends.slice(0, 4))
                           .filter(trend => lifecycleFilter === "all" || trend.lifecycle_stage === lifecycleFilter)
                           .map((trend) => (
-                            <TrendCard
-                              key={trend.id}
-                              trend={trend}
-                              onClick={() => {
-                                setSelectedTrend(trend);
-                                setCampaignModalOpen(true);
-                              }}
-                              onGenerateContent={handleGenerateContent}
-                            />
-                          ))}
+                          <TrendCard
+                            key={trend.id}
+                            trend={trend}
+                            onClick={() => {
+                              setSelectedTrend(trend);
+                              setCampaignModalOpen(true);
+                            }}
+                            onGenerateContent={handleGenerateContent}
+                          />
+                        ))}
                       </div>
                     </div>
                   </Reveal>
@@ -1150,8 +1136,9 @@ const TrendArbitrage = () => {
                             .map((region, idx) => (
                               <div
                                 key={idx}
-                                className={`flex items-center gap-3 cursor-pointer group rounded-lg transition-colors ${selectedCity?.city === region.city ? 'bg-primary/10 px-2 -mx-2' : ''
-                                  }`}
+                                className={`flex items-center gap-3 cursor-pointer group rounded-lg transition-colors ${
+                                  selectedCity?.city === region.city ? 'bg-primary/10 px-2 -mx-2' : ''
+                                }`}
                                 onClick={() => setSelectedCity(prev => prev?.city === region.city ? null : region)}
                               >
                                 <span className="text-[10px] font-mono text-white/20 w-4 shrink-0 text-right">{idx + 1}</span>
@@ -1161,16 +1148,18 @@ const TrendArbitrage = () => {
                                       <MapPin className={`w-3 h-3 shrink-0 ${selectedCity?.city === region.city ? 'text-primary' : 'text-primary'}`} />
                                       {region.city}
                                     </span>
-                                    <span className={`font-bold shrink-0 ml-2 ${region.intensity > 80 ? 'text-amber-400' :
+                                    <span className={`font-bold shrink-0 ml-2 ${
+                                      region.intensity > 80 ? 'text-amber-400' :
                                       region.intensity > 50 ? 'text-primary' : 'text-white/30'
-                                      }`}>
+                                    }`}>
                                       {region.intensity}%
                                     </span>
                                   </div>
                                   <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                                     <div
-                                      className={`h-full rounded-full transition-all duration-700 ${region.intensity > 80 ? 'bg-amber-400' : 'bg-primary'
-                                        }`}
+                                      className={`h-full rounded-full transition-all duration-700 ${
+                                        region.intensity > 80 ? 'bg-amber-400' : 'bg-primary'
+                                      }`}
                                       style={{ width: `${region.intensity}%` }}
                                     />
                                   </div>
@@ -1268,9 +1257,9 @@ const TrendArbitrage = () => {
                               <div className="mt-4 space-y-1.5">
                                 <p className="text-[9px] font-mono text-white/30 uppercase tracking-widest mb-2">Where your audience is active</p>
                                 {([
-                                  { label: 'Google', value: platformReach.google, color: 'bg-[#00E0D0]', textColor: 'text-[#00E0D0]' },
+                                  { label: 'Google',    value: platformReach.google,    color: 'bg-[#00E0D0]', textColor: 'text-[#00E0D0]' },
                                   { label: 'Instagram', value: platformReach.instagram, color: 'bg-[#C084FC]', textColor: 'text-[#C084FC]' },
-                                  { label: 'Facebook', value: platformReach.facebook, color: 'bg-[#F59E0B]', textColor: 'text-[#F59E0B]' },
+                                  { label: 'Facebook',  value: platformReach.facebook,  color: 'bg-[#F59E0B]', textColor: 'text-[#F59E0B]' },
                                 ]).map(p => (
                                   <div key={p.label} className="flex items-center gap-3">
                                     <span className="text-[9px] font-mono text-white/40 w-16 shrink-0">{p.label}</span>
@@ -1301,7 +1290,7 @@ const TrendArbitrage = () => {
                                 <div className="px-4 pb-3 space-y-2 pt-1">
                                   {[
                                     { label: 'Audience interest', value: insight.interest, barClass: 'bg-primary' },
-                                    { label: 'Current coverage', value: insight.coverage, barClass: 'bg-white/25' },
+                                    { label: 'Current coverage',  value: insight.coverage,  barClass: 'bg-white/25' },
                                   ].map(bar => (
                                     <div key={bar.label} className="space-y-1">
                                       <div className="flex justify-between text-[9px] font-mono text-white/30">
@@ -1394,8 +1383,8 @@ const TrendArbitrage = () => {
               <div className="grid grid-cols-3 gap-2">
                 {([
                   { key: "carousel", label: "📸 Carousel", hint: "Tips & education" },
-                  { key: "reel", label: "🎬 Reel", hint: "Reach & discovery" },
-                  { key: "story", label: "✨ Story", hint: "Promos & offers" },
+                  { key: "reel",     label: "🎬 Reel",     hint: "Reach & discovery" },
+                  { key: "story",    label: "✨ Story",    hint: "Promos & offers" },
                 ] as const).map(({ key, label, hint }) => (
                   <button
                     key={key}
@@ -1405,15 +1394,16 @@ const TrendArbitrage = () => {
                       if (!base) return;
                       const prompts: Record<string, string> = {
                         carousel: `Create a 5-slide carousel post about "${base.keyword}" for ${base.location}. Niche: ${base.niche}. Make each slide educational and easy to share.`,
-                        reel: `Write a short Reel script about "${base.keyword}" for ${base.location}. Niche: ${base.niche}. Hook viewers in the first 3 seconds. Keep it under 30 seconds.`,
-                        story: `Create an Instagram Story for "${base.keyword}" targeting ${base.location}. Niche: ${base.niche}. Include a clear call-to-action and urgency.`,
+                        reel:     `Write a short Reel script about "${base.keyword}" for ${base.location}. Niche: ${base.niche}. Hook viewers in the first 3 seconds. Keep it under 30 seconds.`,
+                        story:    `Create an Instagram Story for "${base.keyword}" targeting ${base.location}. Niche: ${base.niche}. Include a clear call-to-action and urgency.`,
                       };
                       setDeployPrompt(prompts[key]);
                     }}
-                    className={`p-3 rounded-xl border text-left transition-all ${deployContentType === key
-                      ? 'border-primary bg-primary/10 text-white'
-                      : 'border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20'
-                      }`}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      deployContentType === key
+                        ? 'border-primary bg-primary/10 text-white'
+                        : 'border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20'
+                    }`}
                   >
                     <div className="text-sm font-bebas tracking-wide">{label}</div>
                     <div className="text-[9px] font-mono text-white/30 mt-0.5">{hint}</div>

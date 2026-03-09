@@ -42,6 +42,7 @@ import { BlurText } from "@/components/ui/text-reveal";
 import { InputSpotlight } from "@/components/ui/input-spotlight";
 import { MagneticButton } from "@/components/ui/magnetic-button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PasswordVerificationDialog } from "@/components/PasswordVerificationDialog";
 
 const PALETTE_TEMPLATES = [
     { name: "Neon Cyan", colors: ["#00E0D0", "#00A396", "#09151E", "#FFFFFF"], source: "template" },
@@ -65,10 +66,8 @@ const BrandSettings = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const logoRef = useRef<HTMLImageElement>(null);
 
-    // OTP Dialog State
-    const [showOtpDialog, setShowOtpDialog] = useState(false);
-    const [otp, setOtp] = useState("");
-    const [otpError, setOtpError] = useState("");
+    // Verification Gate State
+    const [showPasswordGate, setShowPasswordGate] = useState(false);
 
     // Use form persistence
     const { values: formData, handleChange, clearPersistence, setValues } = useFormPersistence("brand_settings_form", {
@@ -105,11 +104,11 @@ const BrandSettings = () => {
                         brand_colors: data.brand_colors && data.brand_colors.length > 0 ? data.brand_colors : ["#00E0D0", "#09151E"],
                         palette_source: data.palette_source || "custom"
                     });
-                    
+
                     // Check if has meaningful data (theme, tone, or logo)
                     const hasData = !!(data.restaurant_theme || data.tone_of_voice || data.brand_logo_url);
                     setHasExistingData(hasData);
-                    
+
                     // If user is fully onboarded (existing user), keep fields read-only
                     // New users (not fully onboarded) can edit immediately during onboarding
                     if (!isFullyOnboarded) {
@@ -130,41 +129,17 @@ const BrandSettings = () => {
         fetchBrandSettings();
     }, [isFullyOnboarded]);
 
-    const handleEdit = async () => {
+    const handleEdit = () => {
         if (isEditing || !user?.email) return;
-
-        try {
-            // Send OTP to email
-            await authService.sendProfileEditOtp({ email: user.email });
-            sonner.info("Verification Required", {
-                description: `A security code has been sent to ${user.email}`,
-            });
-            setShowOtpDialog(true);
-        } catch (err: any) {
-            const cooldownMsg = err?.errors?.cooldown || err?.errors?.message || err?.message;
-            if (cooldownMsg) {
-                sonner.error("Cooldown active", { description: cooldownMsg });
-            } else {
-                sonner.error("Error", { description: err?.message || 'Failed to send OTP' });
-            }
-        }
+        setShowPasswordGate(true);
     };
 
-    const handleVerifyOtp = async () => {
-        if (!user?.email) return;
-        
-        setOtpError("");
-        try {
-            await authService.verifyProfileEditOtp({ email: user.email, code: otp });
-            setShowOtpDialog(false);
-            setIsEditing(true);
-            setOtp("");
-            sonner.success("Verified", {
-                description: "You can now edit your brand settings",
-            });
-        } catch (err: any) {
-            setOtpError(err?.message || "Invalid OTP. Please try again.");
-        }
+    const handleVerified = () => {
+        setShowPasswordGate(false);
+        setIsEditing(true);
+        sonner.success("Verified", {
+            description: "You can now edit your brand settings",
+        });
     };
 
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -329,7 +304,7 @@ const BrandSettings = () => {
 
             clearPersistence();
             await refreshUser();
-            
+
             // Disable editing after successful save
             if (isFullyOnboarded) {
                 setIsEditing(false);
@@ -384,7 +359,7 @@ const BrandSettings = () => {
                                 </p>
                             </div>
                         </div>
-                        
+
                         {/* Show Edit button only for fully onboarded users with existing data */}
                         {isFullyOnboarded && hasExistingData && !isEditing && !isFetching && (
                             <Button
@@ -684,48 +659,12 @@ const BrandSettings = () => {
                     </div>
                 </div>
 
-                {/* OTP Verification Dialog */}
-                <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Verify Your Identity</DialogTitle>
-                            <DialogDescription>
-                                Enter the verification code sent to your email to unlock editing.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="otp">Verification Code</Label>
-                                <Input
-                                    id="otp"
-                                    value={otp}
-                                    onChange={(e) => {
-                                        setOtp(e.target.value);
-                                        setOtpError("");
-                                    }}
-                                    placeholder="Enter 6-digit code"
-                                    maxLength={6}
-                                    className={cn("font-mono", otpError && "border-destructive")}
-                                />
-                                {otpError && (
-                                    <p className="text-sm text-destructive">{otpError}</p>
-                                )}
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => {
-                                setShowOtpDialog(false);
-                                setOtp("");
-                                setOtpError("");
-                            }}>
-                                Cancel
-                            </Button>
-                            <Button onClick={handleVerifyOtp} disabled={otp.length !== 6}>
-                                Verify
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                {/* Password Gate Dialog */}
+                <PasswordVerificationDialog
+                    isOpen={showPasswordGate}
+                    onClose={() => setShowPasswordGate(false)}
+                    onVerified={handleVerified}
+                />
             </motion.div>
         </Layout>
     );

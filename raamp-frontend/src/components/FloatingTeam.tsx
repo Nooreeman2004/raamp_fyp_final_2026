@@ -3,30 +3,44 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { User } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import Reveal from "@/components/ui/Reveal";
+import { cn } from "@/lib/utils";
+
+// Import team member photos
+import abdullahImg from "@/assets/team/Abdullah_aamir.jpeg";
+import noorImg from "@/assets/team/Noor_e_eman.jpeg";
+import tamimiImg from "@/assets/team/tamimi.jpeg";
+import rashidImg from "@/assets/team/rashid_mehmood.jpeg";
 
 const team = [
     {
         name: "Abdullah Aamir",
         role: "Co-Founder & Developer",
         type: "developer",
+        image: abdullahImg,
         direction: { x: -200, y: -100, rotate: -10 } // Comes from top-left
     },
     {
         name: "Noor E Eman Malik",
         role: "Co-Founder & Developer",
         type: "developer",
+        image: noorImg,
+        imageScale: "scale-[1.5]",
+        objectPosition: "object-bottom",
         direction: { x: 200, y: -100, rotate: 10 } // Comes from top-right
     },
     {
         name: "Dr. Manzoor Ilahi Tamimi",
         role: "Project Supervisor",
         type: "advisor",
+        image: tamimiImg,
+        objectPosition: "object-top",
         direction: { x: -200, y: 100, rotate: -5 } // Comes from bottom-left
     },
     {
-        name: "Mr. Mohsin Ahmed",
+        name: "Mr. Rashid Mehmood",
         role: "Co-Supervisor",
         type: "advisor",
+        image: rashidImg,
         direction: { x: 200, y: 100, rotate: 5 } // Comes from bottom-right
     }
 ];
@@ -91,8 +105,16 @@ const FloatingTeam = () => {
                                         {/* Avatar with Glow */}
                                         <div className="relative">
                                             <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/10 to-transparent flex items-center justify-center border border-primary/20 relative z-10 group-hover:scale-105 transition-transform duration-300">
-                                                <User className="w-12 h-12 text-primary/80 group-hover:text-primary transition-colors" />
+                                            <div className="w-32 h-32 rounded-full overflow-hidden flex items-center justify-center border-2 border-primary/20 relative z-10 group-hover:scale-110 group-hover:border-primary transition-all duration-500 shadow-[0_0_20px_rgba(0,224,208,0.2)]">
+                                                {member.image ? (
+                                                    <img
+                                                        src={member.image}
+                                                        alt={member.name}
+                                                        className={cn("w-full h-full object-cover", (member as any).objectPosition || "object-center", (member as any).imageScale || "")}
+                                                    />
+                                                ) : (
+                                                    <User className="w-12 h-12 text-primary/80 group-hover:text-primary transition-colors" />
+                                                )}
                                             </div>
                                         </div>
 

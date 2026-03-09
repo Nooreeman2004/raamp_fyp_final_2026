@@ -1,181 +1,261 @@
-import { Link } from "react-router-dom";
+﻿import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, DollarSign, FileText, Wallet } from "lucide-react";
+import { CreditCard, DollarSign, Zap, Calendar, AlertTriangle, Loader2, Settings } from "lucide-react";
+import { HolographicCard } from "@/components/ui/holographic-card";
+import { PricingCard3D } from "@/components/ui/pricing-card-3d";
 import Layout from "@/components/Layout";
-
-// Animation Imports
+import { useAuth } from "@/hooks/useAuth";
+import { apiClient } from "@/services/api";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { staggerContainer, fadeInUp, hoverScale } from "@/utils/animations";
-import { HolographicCard } from "@/components/ui/holographic-card";
 import { BlurText } from "@/components/ui/text-reveal";
+import { PasswordVerificationDialog } from "@/components/PasswordVerificationDialog";
+
+interface UserProfile {
+  subscriptionTier: string;
+  adCreditsRemaining: number;
+  subscriptionEndDate?: string | null;
+  email?: string;
+}
+
+const getTierColor = (tier: string) => {
+  switch (tier?.toLowerCase()) {
+    case "pro": return "bg-blue-500";
+    case "premium": return "bg-purple-600";
+    default: return "bg-zinc-500";
+  }
+};
+
+const formatDate = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "N/A";
+  return new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+};
 
 const Billing = () => {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showPasswordGate, setShowPasswordGate] = useState(false);
+  const [planLoading, setPlanLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) { setLoading(false); return; }
+      try {
+        const data = await apiClient.get<any>("/auth/profile");
+        setProfile({
+          subscriptionTier: data.subscription?.type || "free",
+          adCreditsRemaining: data.subscription?.credits ?? (data.subscription?.ad_credits_remaining ?? 5),
+          subscriptionEndDate: data.subscription?.end_date ?? null,
+          email: data.email,
+        });
+      } catch {
+        // Fallback to user object
+        const sub = user?.subscription as any;
+        setProfile({
+          subscriptionTier: sub?.type || "free",
+          adCreditsRemaining: sub?.credits ?? (sub?.ad_credits_remaining ?? 5),
+          email: user?.email,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [user]);
+
+  const handlePortalVerify = async () => {
+    try {
+      const res = await apiClient.post<{ url: string }>("/stripe/create-portal-session", {});
+      if (res.url) { window.location.href = res.url; }
+      else { toast.error("Could not open Stripe portal"); }
+      setShowPasswordGate(false);
+    } catch {
+      toast.error("Could not open portal. Please try again.");
+    }
+  };
+
+  const tierOrder: Record<string, number> = { free: 0, pro: 1, premium: 2 };
+
+  const getPlanButtonText = (plan: string): string => {
+    const currentOrder = tierOrder[tier] ?? 0;
+    const planOrder = tierOrder[plan] ?? 0;
+    if (tier === plan) return tier === "free" ? "Current Plan" : "Manage Plan";
+    return planOrder > currentOrder
+      ? `Upgrade to ${plan.charAt(0).toUpperCase() + plan.slice(1)}`
+      : `Downgrade to ${plan.charAt(0).toUpperCase() + plan.slice(1)}`;
+  };
+
+  const handlePlanClick = async (plan: string) => {
+    // Free user on free plan — no action
+    if (tier === "free" && plan === "free") return;
+
+    if (tier === "free") {
+      // No Stripe customer yet — start a new checkout session
+      setPlanLoading(plan);
+      try {
+        const res = await apiClient.post<{ url: string }>("/stripe/create-checkout-session", { plan });
+        if (res.url) { window.location.href = res.url; }
+        else { toast.error("Could not start checkout. Please try again."); }
+      } catch {
+        toast.error("Failed to start checkout. Please try again.");
+      } finally {
+        setPlanLoading(null);
+      }
+    } else {
+      // Existing subscriber — Stripe Portal handles upgrades, downgrades & cancellations
+      setShowPasswordGate(true);
+    }
+  };
+
+  const isCurrentPlan = (plan: string) =>
+    (profile?.subscriptionTier || "free").toLowerCase() === plan;
+
+  if (loading) {
+    return (
+      <Layout breadcrumbItems={[{ label: "Dashboard", href: "/dashboard" }, { label: "Billing & Subscription" }]}>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  const tier = (profile?.subscriptionTier || "free").toLowerCase();
+
   return (
-    <Layout breadcrumbItems={[{ label: "Dashboard", href: "/dashboard" }, { label: "Billing & Finance" }]}>
-      <div className="space-y-8 max-w-6xl mx-auto">
+    <Layout breadcrumbItems={[{ label: "Dashboard", href: "/dashboard" }, { label: "Billing & Subscription" }]}>
+      <motion.div className="space-y-10 max-w-6xl mx-auto" variants={staggerContainer} initial="hidden" animate="visible">
+
         {/* Header */}
         <Reveal variant="blurInUp">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="p-3 bg-primary/10 rounded border border-primary/30">
-              <Wallet className="w-8 h-8 text-primary animate-pulse" />
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+              <CreditCard className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold mb-1 font-bebas tracking-wider text-white">
-                <BlurText text="BILLING & FINANCE" />
-              </h1>
-              <p className="text-muted-foreground font-mono text-sm">
-                // MANAGE BUDGET // TRANSACTION HISTORY // PAYMENT METHODS
-              </p>
+              <h1 className="text-3xl font-bold font-bebas tracking-wide"><BlurText text="Billing & Subscription" /></h1>
+              <p className="text-muted-foreground font-mono text-sm">Manage your plan, credits, and payment methods</p>
             </div>
           </div>
         </Reveal>
 
-        <motion.div
-          className="grid lg:grid-cols-2 gap-6"
-          variants={staggerContainer}
-          initial="hidden"
-          animate="visible"
-        >
-          {/* Current Payment Method */}
-          <motion.div variants={fadeInUp}>
-            <HolographicCard className="p-6 h-full border-primary/30">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-bebas tracking-wide text-white">
-                <CreditCard className="w-5 h-5 text-primary" />
-                CURRENT PAYMENT METHOD
-              </h2>
-              <p className="text-xs text-muted-foreground mb-6 font-mono">
-                  // PRIMARY SOURCE FOR SUBSCRIPTIONS & AD SPEND
-              </p>
+        {/* Current Plan Summary */}
+        <motion.div variants={fadeInUp}>
+          <div className="grid md:grid-cols-2 gap-6">
 
-              <div className="p-4 bg-white/5 rounded border border-white/10 mb-6 relative overflow-hidden group">
-                {/* Card Shine Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-
-                <div className="flex items-center justify-between mb-3 relative z-10">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
-                      <CreditCard className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-white font-mono">VISA ENDING IN 1234</p>
-                      <p className="text-xs text-muted-foreground font-mono">EXPIRES 12/26</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-[10px]">PRIMARY</Badge>
-                </div>
-                <Button variant="outline" size="sm" className="w-full border-white/10 text-white hover:bg-white/10 font-mono text-xs h-8">
-                  MANAGE CARD
-                </Button>
+            {/* Plan Info Card */}
+            <HolographicCard className="p-6 border-primary/30">
+              <div className="flex items-center gap-3 mb-6">
+                <Zap className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-bold font-bebas tracking-wide text-white">CURRENT PLAN</h2>
+                <Badge className={`${getTierColor(tier)} text-white font-mono text-xs px-3 py-1 uppercase ml-2`}>{tier}</Badge>
               </div>
-
-              <div className="space-y-3">
-                <Link to="/billing/add-funds">
-                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap" className="w-full">
-                    <Button className="w-full justify-start bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-bebas tracking-wider h-10">
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      ADD FUNDS / SET BUDGET
-                    </Button>
-                  </motion.div>
-                </Link>
-                <Link to="/billing/transactions">
-                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap" className="w-full">
-                    <Button variant="outline" className="w-full justify-start border-white/10 text-white hover:bg-white/10 hover:text-primary hover:border-primary/30 font-mono text-xs h-10">
-                      <FileText className="w-4 h-4 mr-2" />
-                      VIEW TRANSACTION HISTORY
-                    </Button>
-                  </motion.div>
-                </Link>
-              </div>
-            </HolographicCard>
-          </motion.div>
-
-          {/* Add New Payment Method */}
-          <motion.div variants={fadeInUp}>
-            <HolographicCard className="p-6 h-full">
-              <h2 className="text-xl font-bold mb-4 font-bebas tracking-wide text-white">ADD NEW PAYMENT METHOD</h2>
-              <p className="text-xs text-muted-foreground mb-6 font-mono">
-                  // SECURE ENCRYPTED CONNECTION
-              </p>
-
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cardNumber" className="text-xs font-mono text-muted-foreground">CARD NUMBER</Label>
-                  <Input
-                    id="cardNumber"
-                    placeholder="**** **** **** ****"
-                    className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
-                  />
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2"><Calendar className="w-5 h-5 text-muted-foreground" /><span className="font-mono text-sm text-muted-foreground">NEXT BILLING DATE</span></div>
+                  <div className="text-lg font-bold text-white font-mono pl-8">{tier === "free" ? "—" : formatDate(profile?.subscriptionEndDate)}</div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cardholderName" className="text-xs font-mono text-muted-foreground">CARDHOLDER NAME</Label>
-                  <Input
-                    id="cardholderName"
-                    placeholder="JOHN DOE"
-                    className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10 uppercase"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="expiryDate" className="text-xs font-mono text-muted-foreground">EXPIRATION DATE</Label>
-                    <Input
-                      id="expiryDate"
-                      placeholder="MM/YY"
-                      className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cvv" className="text-xs font-mono text-muted-foreground">CVV</Label>
-                    <Input
-                      id="cvv"
-                      placeholder="***"
-                      type="password"
-                      maxLength={3}
-                      className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
-                    />
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2"><DollarSign className="w-5 h-5 text-muted-foreground" /><span className="font-mono text-sm text-muted-foreground">AD CREDITS REMAINING</span></div>
+                  <div className="text-2xl font-bold text-white font-mono pl-8">
+                    {profile?.adCreditsRemaining === 999999999 || profile?.adCreditsRemaining === -1 ? "Unlimited" : (profile?.adCreditsRemaining ?? 0)}
                   </div>
                 </div>
-
-                <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                  <Button className="w-full mt-4 bg-white/10 hover:bg-primary hover:text-primary-foreground text-white border border-white/20 hover:border-primary transition-all font-mono font-bold text-xs h-10">
-                    SAVE PAYMENT METHOD
-                  </Button>
-                </motion.div>
               </div>
+              {tier !== "free" && (
+                <div className="mt-6">
+                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                    <Button variant="outline" onClick={() => setShowPasswordGate(true)} className="w-full justify-start border-white/20 text-white hover:bg-white/10 font-mono text-xs h-10">
+                      <Settings className="w-4 h-4 mr-2" /> MANAGE SUBSCRIPTION
+                    </Button>
+                  </motion.div>
+                </div>
+              )}
             </HolographicCard>
-          </motion.div>
+
+            {/* Payment Method Card */}
+            <HolographicCard className="p-6">
+              <h2 className="text-xl font-bold mb-1 font-bebas tracking-wide text-white">PAYMENT METHOD</h2>
+              <p className="text-xs text-muted-foreground mb-6 font-mono">// PRIMARY SOURCE FOR SUBSCRIPTIONS & AD SPEND</p>
+              {tier !== "free" ? (
+                <div className="p-4 bg-white/5 rounded border border-white/10 flex flex-col gap-4 hover:border-primary/30 transition-colors">
+                  <div><span className="text-sm font-mono text-white block mb-1">Connected via Stripe</span><span className="text-xs text-muted-foreground font-mono">Your payment methods are securely stored in the Stripe portal. Update your card, download invoices, and manage billing there.</span></div>
+                  <Button variant="default" onClick={() => setShowPasswordGate(true)} className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20 font-mono shadow-none">
+                    <CreditCard className="w-4 h-4 mr-2" /> MANAGE PAYMENT METHODS
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-4 bg-white/5 rounded border border-white/10 flex items-center justify-between hover:border-primary/30 transition-colors">
+                  <div><span className="text-sm font-mono text-white block">No Payment Method</span><span className="text-xs text-muted-foreground font-mono">Upgrade to a paid plan to add payment methods</span></div>
+                  <AlertTriangle className="w-8 h-8 text-muted-foreground/50" />
+                </div>
+              )}
+            </HolographicCard>
+          </div>
         </motion.div>
 
-        {/* Other Payment Options */}
-        <Reveal variant="fadeInUp" delay={0.4}>
-          <HolographicCard className="p-6">
-            <h2 className="text-xl font-bold mb-4 font-bebas tracking-wide text-white">OTHER PAYMENT OPTIONS</h2>
-            <p className="text-xs text-muted-foreground mb-6 font-mono">
-                // ALTERNATIVE FUNDING SOURCES
-            </p>
-
-            <div className="p-4 bg-white/5 rounded border border-white/10 flex items-center justify-between hover:border-primary/30 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded bg-white/10 flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="font-bold text-white font-mono text-sm">PAYPAL ACCOUNT</p>
-                  <p className="text-xs text-muted-foreground font-mono">verified@example.com</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 font-mono text-xs">
-                DISCONNECT
-              </Button>
+        {/* Available Plans */}
+        <Reveal variant="blurInUp">
+          <div className="pb-12">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold mb-2 font-bebas tracking-wide text-white">{tier === "free" ? "CHOOSE YOUR PLAN" : "AVAILABLE PLANS"}</h2>
+              <p className="text-sm text-muted-foreground font-mono">{tier === "free" ? "// START YOUR JOURNEY WITH THE PERFECT PLAN" : "// UPGRADE OR SWITCH YOUR SUBSCRIPTION"}</p>
             </div>
-          </HolographicCard>
+            <motion.div className="grid md:grid-cols-3 gap-8 pt-12" variants={staggerContainer} initial="hidden" animate="visible">
+              {/* Free */}
+              <div className="relative">
+                <PricingCard3D
+                  title="Free"
+                  price="$0"
+                  features={["Create up to 5 advertisements", "Access basic templates", "Basic AI generation", "Basic analytics", "Standard email support"]}
+                  isCurrentPlan={isCurrentPlan("free")}
+                  buttonText={planLoading === "free" ? "Loading..." : getPlanButtonText("free")}
+                  onClick={tier === "free" ? undefined : () => handlePlanClick("free")}
+                  className={isCurrentPlan("free") ? "border-primary/60 shadow-[0_0_30px_rgba(0,224,208,0.2)]" : ""}
+                />
+              </div>
+
+              {/* Pro */}
+              <div className="relative">
+                <PricingCard3D
+                  title="Pro"
+                  price="$10"
+                  isPopular={true}
+                  features={["Up to 50 ads per month", "Premium templates", "Faster AI generation", "Advanced editing tools", "Campaign management", "Advanced analytics dashboard", "Priority email support"]}
+                  isCurrentPlan={isCurrentPlan("pro")}
+                  buttonText={planLoading === "pro" ? "Loading..." : getPlanButtonText("pro")}
+                  onClick={() => handlePlanClick("pro")}
+                  className={isCurrentPlan("pro") ? "border-primary/60 shadow-[0_0_30px_rgba(0,224,208,0.2)]" : ""}
+                />
+              </div>
+
+              {/* Premium */}
+              <div className="relative">
+                <PricingCard3D
+                  title="Premium"
+                  price="$25"
+                  features={["Unlimited advertisements", "Unlimited ad credits", "All templates", "Advanced AI generation", "Campaign performance insights", "Team collaboration", "API access", "24/7 priority support"]}
+                  isCurrentPlan={isCurrentPlan("premium")}
+                  buttonText={planLoading === "premium" ? "Loading..." : getPlanButtonText("premium")}
+                  onClick={() => handlePlanClick("premium")}
+                  className={isCurrentPlan("premium") ? "border-primary/60 shadow-[0_0_30px_rgba(0,224,208,0.2)]" : ""}
+                />
+              </div>
+            </motion.div>
+          </div>
         </Reveal>
-      </div>
+      </motion.div>
+
+      {/* Password Gate */}
+      <PasswordVerificationDialog
+        isOpen={showPasswordGate}
+        onClose={() => setShowPasswordGate(false)}
+        onVerified={handlePortalVerify}
+      />
     </Layout>
   );
 };

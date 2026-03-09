@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -12,6 +12,7 @@ const Navigation = () => {
   const navLinks = [
     { label: "HOW IT WORKS", href: "/#how-it-works", icon: Home },
     { label: "MODULES", href: "/#modules", icon: Home },
+    { label: "PRICING", href: "/#pricing", icon: BookOpen },
     { label: "ABOUT", href: "/about", icon: Info },
     { label: "RESOURCES", href: "/resources", icon: BookOpen },
     { label: "LEGAL", href: "/legal", icon: Scale },

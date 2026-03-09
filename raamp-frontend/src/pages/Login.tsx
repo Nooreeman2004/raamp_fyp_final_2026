@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { InputSpotlight } from "@/components/ui/input-spotlight";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
 import { signInWithGoogle } from "@/services/googleAuth";
@@ -22,7 +22,6 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth(); // Use the new login method
@@ -40,38 +39,22 @@ const Login = () => {
     // Client-side validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim()) {
-      toast({
-        title: "Email Required",
-        description: "Please enter your email address.",
-        variant: "destructive",
-      });
+      toast.error("Please enter your email address.");
       return;
     }
     
     if (!emailRegex.test(email)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
+      toast.error("Please enter a valid email address.");
       return;
     }
     
     if (!password.trim()) {
-      toast({
-        title: "Password Required",
-        description: "Please enter your password.",
-        variant: "destructive",
-      });
+      toast.error("Please enter your password.");
       return;
     }
     
     if (password.length < 8) {
-      toast({
-        title: "Password Too Short",
-        description: "Password must be at least 8 characters long.",
-        variant: "destructive",
-      });
+      toast.error("Password must be at least 8 characters long.");
       return;
     }
 
@@ -93,54 +76,18 @@ const Login = () => {
         login(response.user, rememberMe);
       }
 
-      toast({
-        title: "Login Successful",
-        description: "Welcome back to the command center.",
-        className: "bg-primary/10 border-primary/20 text-primary",
-      });
+      toast.success("Welcome back to the command center.");
 
       if (response.user && !response.user.profile_completed) {
         navigate("/profile/personal-details");
       } else {
         navigate("/dashboard");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Use the enhanced error messages from the API
-      let errorTitle = "Login Failed";
-      let errorDescription = error.message || "An unexpected error occurred.";
-
-      // Map specific error statuses to titles
-      if (error.status === 0) {
-        // Network error or timeout
-        errorTitle = "Connection Error";
-        // Use the message from API (already user-friendly)
-      } else if (error.status === 401 || error.status === 422) {
-        // Unauthorized - wrong credentials or unverified
-        errorTitle = "Authentication Failed";
-        // Message already set by API (e.g., "Incorrect email or password")
-      } else if (error.status === 400) {
-        // Bad request - validation error
-        errorTitle = "Invalid Input";
-        // Message already set by API (e.g., "Please enter a valid email address")
-      } else if (error.status === 403) {
-        // Forbidden - account locked
-        errorTitle = "Account Locked";
-        // Message already set by API
-      } else if (error.status === 429) {
-        // Too many requests
-        errorTitle = "Too Many Attempts";
-        // Message already set by API
-      } else if (error.status >= 500) {
-        // Server error
-        errorTitle = "Server Error";
-        errorDescription = error.message || "Server error. Please try again later.";
-      }
-
-      toast({
-        title: errorTitle,
-        description: errorDescription,
-        variant: "destructive",
-      });
+      const apiError = error as { message?: string };
+      const errorMessage = apiError.message || "An unexpected error occurred.";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -167,23 +114,17 @@ const Login = () => {
         login(response.user, true); // Defaulting to "remember" for OAuth for better UX
       }
 
-      toast({
-        title: "Login Successful",
-        description: "Identity verified via Google.",
-        className: "bg-primary/10 border-primary/20 text-primary",
-      });
+      toast.success("Identity verified via Google.");
 
       if (response.user && !response.user.profile_completed) {
         navigate("/profile/personal-details");
       } else {
         navigate("/dashboard");
       }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Identity verification failed.",
-        variant: "destructive",
-      });
+    } catch (error: unknown) {
+      const apiError = error as { message?: string };
+      const errorMessage = apiError.message || "Identity verification failed.";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

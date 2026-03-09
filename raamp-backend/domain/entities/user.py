@@ -41,6 +41,13 @@ class User:
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
+    # Billing fields
+    subscriptionTier: str = "free"
+    adCreditsRemaining: int = 5
+    subscriptionEndDate: Optional[datetime] = None
+    stripeCustomerId: Optional[str] = None
+    processed_stripe_events: list[str] = None
+    
     def __post_init__(self):
         if self.created_at is None:
             self.created_at = datetime.utcnow()
@@ -52,3 +59,5 @@ class User:
             self.profile_picture = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png"
         if self.last_login is None:
             self.last_login = datetime.utcnow()
+        if self.processed_stripe_events is None:
+            self.processed_stripe_events = []

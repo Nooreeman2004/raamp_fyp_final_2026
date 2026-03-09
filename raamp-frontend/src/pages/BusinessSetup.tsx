@@ -35,6 +35,7 @@ import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { hoverScale } from "@/utils/animations";
 import { BlurText } from "@/components/ui/text-reveal";
+import { PasswordVerificationDialog } from "@/components/PasswordVerificationDialog";
 
 const BusinessSetup = () => {
     const navigate = useNavigate();
@@ -45,10 +46,8 @@ const BusinessSetup = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [hasExistingData, setHasExistingData] = useState(false);
 
-    // OTP Dialog State
-    const [showOtpDialog, setShowOtpDialog] = useState(false);
-    const [otp, setOtp] = useState("");
-    const [otpError, setOtpError] = useState("");
+    // Verification Gate State
+    const [showPasswordGate, setShowPasswordGate] = useState(false);
 
     // Use form persistence
     const { values: formData, handleChange, setValues, clearPersistence } = useFormPersistence("business_setup_form", {
@@ -78,7 +77,7 @@ const BusinessSetup = () => {
                         businessType: data.business_type || "",
                     });
                     setHasExistingData(true);
-                    
+
                     // If user is fully onboarded (existing user), keep fields read-only
                     // New users (not fully onboarded) can edit immediately during onboarding
                     if (!isFullyOnboarded) {
@@ -100,43 +99,17 @@ const BusinessSetup = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isFullyOnboarded]);
 
-    const handleEdit = async () => {
+    const handleEdit = () => {
         if (isEditing || !user?.email) return;
-
-        try {
-            // Send OTP to email
-            await authService.sendProfileEditOtp({ email: user.email });
-            sonner.info("Verification Required", {
-                description: `A security code has been sent to ${user.email}`,
-            });
-            setShowOtpDialog(true);
-        } catch (err: unknown) {
-            const error = err as { errors?: { cooldown?: string; message?: string }; message?: string };
-            const cooldownMsg = error?.errors?.cooldown || error?.errors?.message || error?.message;
-            if (cooldownMsg) {
-                sonner.error("Cooldown active", { description: cooldownMsg });
-            } else {
-                sonner.error("Error", { description: error?.message || 'Failed to send OTP' });
-            }
-        }
+        setShowPasswordGate(true);
     };
 
-    const handleVerifyOtp = async () => {
-        if (!user?.email) return;
-        
-        setOtpError("");
-        try {
-            await authService.verifyProfileEditOtp({ email: user.email, code: otp });
-            setShowOtpDialog(false);
-            setIsEditing(true);
-            setOtp("");
-            sonner.success("Verified", {
-                description: "You can now edit your business details",
-            });
-        } catch (err: unknown) {
-            const error = err as { message?: string };
-            setOtpError(error?.message || "Invalid OTP. Please try again.");
-        }
+    const handleVerified = () => {
+        setShowPasswordGate(false);
+        setIsEditing(true);
+        sonner.success("Verified", {
+            description: "You can now edit your business details",
+        });
     };
 
     const setValue = (key: keyof typeof formData, value: string | number) => {
@@ -201,12 +174,12 @@ const BusinessSetup = () => {
             if (response) {
                 clearPersistence();
                 await refreshUser();
-                
+
                 // Disable editing after successful save
                 if (isFullyOnboarded) {
                     setIsEditing(false);
                 }
-                
+
                 sonner.success("Business Details Saved", {
                     description: "Your business profile has been updated.",
                 });
@@ -249,7 +222,7 @@ const BusinessSetup = () => {
                                 </p>
                             </div>
                         </div>
-                        
+
                         {/* Show Edit button only for fully onboarded users with existing data */}
                         {isFullyOnboarded && hasExistingData && !isEditing && !isFetching && (
                             <Button
@@ -422,48 +395,12 @@ const BusinessSetup = () => {
                     </Card>
                 </Reveal>
 
-                {/* OTP Verification Dialog */}
-                <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Verify Your Identity</DialogTitle>
-                            <DialogDescription>
-                                Enter the verification code sent to your email to unlock editing.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="otp">Verification Code</Label>
-                                <Input
-                                    id="otp"
-                                    value={otp}
-                                    onChange={(e) => {
-                                        setOtp(e.target.value);
-                                        setOtpError("");
-                                    }}
-                                    placeholder="Enter 6-digit code"
-                                    maxLength={6}
-                                    className={cn("font-mono", otpError && "border-destructive")}
-                                />
-                                {otpError && (
-                                    <p className="text-sm text-destructive">{otpError}</p>
-                                )}
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => {
-                                setShowOtpDialog(false);
-                                setOtp("");
-                                setOtpError("");
-                            }}>
-                                Cancel
-                            </Button>
-                            <Button onClick={handleVerifyOtp} disabled={otp.length !== 6}>
-                                Verify
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                {/* Password Gate Dialog */}
+                <PasswordVerificationDialog
+                    isOpen={showPasswordGate}
+                    onClose={() => setShowPasswordGate(false)}
+                    onVerified={handleVerified}
+                />
             </motion.div>
         </Layout>
     );

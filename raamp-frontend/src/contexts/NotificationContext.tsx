@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../hooks/useAuth';
+import { apiClient } from '../services/api';
 
 export interface Notification {
     id: string;
@@ -37,12 +38,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         if (!user) return;
         try {
             setLoading(true);
-            const res = await fetch('/api/notifications?limit=20');
-            if (res.ok) {
-                const data = await res.json();
-                setNotifications(data.notifications || []);
-                setUnreadCount(data.unread_count || 0);
-            }
+            const data = await apiClient.get<{ notifications: Notification[]; unread_count: number }>('/notifications?limit=20');
+            setNotifications(data.notifications || []);
+            setUnreadCount(data.unread_count || 0);
         } catch (error) {
             console.error('Failed to fetch notifications:', error);
         } finally {
@@ -76,13 +74,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         // `useAuth` usually stores it? If not, we are in trouble.
         // Let's assume we can get it from a cookie utility or localStorage if saved there.
 
-        // Let's try to parse the cookie manually if it's there
-        const getCookie = (name: string) => {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop()?.split(';').shift();
-        };
-        const token = getCookie('access_token');
+        const token = localStorage.getItem('token');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host; // includes port if dev
@@ -143,7 +135,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             // Re-calc unread count locally for speed
             setUnreadCount(prev => Math.max(0, prev - 1));
 
-            await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
+            await apiClient.patch(`/notifications/${id}/read`, {});
         } catch (error) {
             console.error('Failed to mark read:', error);
             fetchNotifications(); // Revert on error
@@ -154,7 +146,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         try {
             setNotifications(prev => prev.map(n => ({ ...n, read: true })));
             setUnreadCount(0);
-            await fetch('/api/notifications/read-all', { method: 'POST' });
+            await apiClient.post('/notifications/read-all', {});
         } catch (error) {
             fetchNotifications();
         }
@@ -166,7 +158,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             setNotifications(prev => prev.filter(n => n.id !== id));
             if (target && !target.read) setUnreadCount(prev => Math.max(0, prev - 1));
 
-            await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
+            await apiClient.delete(`/notifications/${id}`);
         } catch (error) {
             fetchNotifications();
         }

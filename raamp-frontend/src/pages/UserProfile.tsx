@@ -26,6 +26,7 @@ import {
 import Reveal from "@/components/ui/Reveal";
 import { HolographicCard } from "@/components/ui/holographic-card";
 import { BlurText } from "@/components/ui/text-reveal";
+import { PasswordVerificationDialog } from "@/components/PasswordVerificationDialog";
 
 const UserProfile = () => {
   // Override breadcrumb to remove "Profile" and show just "User Profile"
@@ -62,10 +63,8 @@ const UserProfile = () => {
   }) !== initialUserData;
 
 
-  // OTP Dialog State
-  const [showOtpDialog, setShowOtpDialog] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [otpError, setOtpError] = useState("");
+  // Verification Gate State
+  const [showPasswordGate, setShowPasswordGate] = useState(false);
 
   // Password Change State
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -80,38 +79,14 @@ const UserProfile = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleEdit = async () => {
+  const handleEdit = () => {
     if (isEditing) return;
-
-    try {
-      // Send OTP to email
-      await authService.sendProfileEditOtp({ email: userData.email });
-      sonner.info("Verification Required", {
-        description: `A security code has been sent to ${userData.email}`,
-      });
-      setShowOtpDialog(true);
-    } catch (err: any) {
-      const cooldownMsg = err?.errors?.cooldown || err?.errors?.message || err?.message;
-      if (cooldownMsg) {
-        sonner.error("Cooldown active", { description: cooldownMsg });
-      } else {
-        sonner.error("Error", { description: err?.message || 'Failed to send OTP' });
-      }
-    }
+    setShowPasswordGate(true);
   };
 
-  const handleVerifyOtp = async () => {
-    setOtpError("");
-    try {
-      await authService.verifyProfileEditOtp({ email: userData.email, code: otp });
-      setShowOtpDialog(false);
-      setIsEditing(true);
-      sonner.success("Verified", {
-        description: "You can now edit your profile",
-      });
-    } catch (err: any) {
-      setOtpError(err?.message || "Invalid OTP. Please try again.");
-    }
+  const handleVerified = () => {
+    setShowPasswordGate(false);
+    setIsEditing(true);
   };
 
   // Load real user profile and business data on mount
@@ -577,35 +552,12 @@ const UserProfile = () => {
         </Reveal>
       </div>
 
-      {/* OTP Dialog for Profile Edit */}
-      <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
-        <DialogContent className="bg-black/90 border-primary/30 text-white backdrop-blur-xl">
-          <DialogHeader>
-            <DialogTitle className="font-bebas tracking-wider text-2xl text-primary">SECURITY VERIFICATION</DialogTitle>
-            <DialogDescription className="font-mono text-xs text-white/70">
-              ENTER THE 6-DIGIT CODE SENT TO YOUR EMAIL TO AUTHORIZE PROFILE CHANGES.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="otp" className="text-xs font-mono text-primary">ONE-TIME PASSWORD</Label>
-              <Input
-                id="otp"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="bg-black/50 border-white/10 text-center text-2xl tracking-[0.5em] font-mono focus:border-primary/50 focus:ring-primary/20"
-                maxLength={6}
-                placeholder="000000"
-              />
-              {otpError && <p className="text-red-500 text-xs font-mono">{otpError}</p>}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowOtpDialog(false)} className="font-mono text-xs text-white/50 hover:text-white">CANCEL</Button>
-            <Button onClick={handleVerifyOtp} className="bg-primary text-primary-foreground hover:bg-primary/90 font-bebas tracking-wider">VERIFY IDENTITY</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Password Gate Dialog */}
+      <PasswordVerificationDialog
+        isOpen={showPasswordGate}
+        onClose={() => setShowPasswordGate(false)}
+        onVerified={handleVerified}
+      />
 
       {/* OTP Dialog for Password Change */}
       <Dialog open={showPasswordOtpDialog} onOpenChange={setShowPasswordOtpDialog}>
