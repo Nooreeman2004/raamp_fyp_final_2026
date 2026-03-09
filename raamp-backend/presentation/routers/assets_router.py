@@ -17,7 +17,7 @@ from application.services.cloudinary_service import CloudinaryService
 from application.utils.file_manager import FileManager
 from infrastructure.repositories.asset_repository import AssetRepository
 from infrastructure.repositories.caption_log_repository import CaptionLogRepository
-from infrastructure.database.models.asset_model import AssetType, GenerationSource
+from infrastructure.database.models.asset_model import AssetType, GenerationSource, AssetModel
 from infrastructure.database.models.caption_log_model import AssetTypeEnum
 from config import settings
 
@@ -534,8 +534,14 @@ async def get_asset_library(
     try:
         skip = (page - 1) * per_page
         
-        # Parse filters
-        asset_type_filter = AssetType(asset_type) if asset_type else None
+        # Parse filters — support 'video' as a combined type for generated_video + generated_reel
+        VIDEO_TYPES = [AssetType.GENERATED_VIDEO, AssetType.GENERATED_REEL]
+        asset_type_filter = None
+        asset_types_filter = None
+        if asset_type == "video":
+            asset_types_filter = VIDEO_TYPES
+        elif asset_type:
+            asset_type_filter = AssetType(asset_type)
         source_filter = GenerationSource(source) if source else None
         
         # Fetch assets
@@ -544,13 +550,15 @@ async def get_asset_library(
             limit=per_page,
             skip=skip,
             asset_type=asset_type_filter,
+            asset_types=asset_types_filter,
             generation_source=source_filter
         )
         
         # Get total count
         total = await asset_repository.count_user_assets(
             user_id=current_user_email,
-            asset_type=asset_type_filter
+            asset_type=asset_type_filter,
+            asset_types=asset_types_filter
         )
         
         # Convert to response format
@@ -593,6 +601,88 @@ async def get_asset_library(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve asset library: {str(e)}"
         )
+
+
+class RescanResponse(BaseModel):
+    """Response from filesystem rescan"""
+    success: bool
+    imported: int
+    skipped: int
+    errors: int
+    message: str
+
+
+@router.post("/rescan", response_model=RescanResponse)
+async def rescan_generated_files(
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """
+    Scan the generated_reels/ and generated_videos/ directories on disk and
+    create missing asset records in MongoDB for any .mp4 files found.
+    Useful for recovering assets after a failed save.
+    """
+    imported = 0
+    skipped = 0
+    errors = 0
+
+    scan_dirs = [
+        ("generated_reels", AssetType.GENERATED_REEL, "/api/reels/"),
+        ("generated_videos", AssetType.GENERATED_VIDEO, "/api/videos/"),
+    ]
+
+    for folder_name, asset_type, url_prefix in scan_dirs:
+        folder = Path(folder_name)
+        if not folder.exists():
+            continue
+
+        for mp4_file in folder.rglob("*.mp4"):
+            try:
+                # Derive the storage URL from the relative path inside the folder
+                rel = mp4_file.relative_to(folder)
+                storage_url = f"{url_prefix}{str(rel).replace(chr(92), '/')}"
+
+                # Check if a record already exists for this URL
+                existing = await AssetModel.find_one(AssetModel.storage_url == storage_url)
+                if existing:
+                    skipped += 1
+                    continue
+
+                asset_data = {
+                    "asset_id": str(uuid.uuid4()),
+                    "user_id": current_user_email,
+                    "file_path": str(mp4_file),
+                    "storage_url": storage_url,
+                    "cloudinary_url": None,
+                    "firebase_url": None,
+                    "file_name": mp4_file.name,
+                    "file_size_bytes": mp4_file.stat().st_size,
+                    "content_type": "video/mp4",
+                    "asset_type": asset_type,
+                    "generation_source": GenerationSource.AI,
+                    "generation_prompt": None,
+                    "campaign_idea": mp4_file.parent.name,
+                    "variation_number": None,
+                    "model_used": None,
+                    "times_used": 0,
+                    "tags": [],
+                    "is_favorite": False,
+                }
+                doc = AssetModel(**asset_data)
+                await doc.insert()
+                imported += 1
+                logger.info("Rescan imported %s as %s", storage_url, asset_type.value)
+
+            except Exception as exc:
+                logger.error("Rescan failed for %s: %s", mp4_file, exc)
+                errors += 1
+
+    return RescanResponse(
+        success=True,
+        imported=imported,
+        skipped=skipped,
+        errors=errors,
+        message=f"Rescan complete: {imported} imported, {skipped} already in library, {errors} errors."
+    )
 
 
 @router.get("/{asset_id}", response_model=AssetResponse)
@@ -695,6 +785,35 @@ async def download_asset(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to download asset: {str(e)}"
+        )
+
+
+@router.post("/{asset_id}/favorite")
+async def toggle_asset_favorite(
+    asset_id: str,
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """Toggle favorite status on an asset"""
+    try:
+        asset = await asset_repository.get_by_asset_id(asset_id)
+        if not asset:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+        if asset.user_id != current_user_email:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+        asset.is_favorite = not asset.is_favorite
+        asset.updated_at = datetime.utcnow()
+        await asset.save()
+
+        return {"success": True, "is_favorite": asset.is_favorite}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error toggling asset favorite: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to toggle favorite: {str(e)}"
         )
 
 

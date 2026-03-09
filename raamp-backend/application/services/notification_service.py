@@ -101,7 +101,8 @@ class NotificationService:
         # 2. Persist to Database
         notification = await self.repo.create(
             user_id=user_id,
-            type=type,
+
+            notification_type=type,
             title=title,
             message=message,
             related_entity_id=related_entity_id,

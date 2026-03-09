@@ -27,6 +27,34 @@ from application.utils.url_validator import URLValidator
 logger = logging.getLogger(__name__)
 
 
+def _get_friendly_error(technical_error: str) -> str:
+    """Map raw Meta/Instagram API error strings to actionable user-facing messages."""
+    error_map = {
+        "session has been invalidated": "Your Instagram/Facebook session has expired. Please reconnect your account in Integrations.",
+        "validating access token": "Your Instagram access token is no longer valid. Please reconnect your account in Integrations.",
+        "changed their password": "Your Instagram/Facebook session was invalidated due to a password change. Please reconnect in Integrations.",
+        "error code: 190": "Your Instagram session has expired. Please reconnect your account in Integrations.",
+        "Media URL is not accessible": "Instagram was temporarily unable to reach your media. Please try again in a few moments.",
+        "The media URL returned an HTML page": "There was an issue with the media link. Please try re-uploading.",
+        "The user is not authorized": "Your Instagram connection has expired. Please go to Integrations and reconnect.",
+        "OAuthException": "Your Instagram connection has expired. Please reconnect in Integrations.",
+        "The image file is too large": "Your image is too large for Instagram. Please use a file smaller than 8 MB.",
+        "Unsupported aspect ratio": "The image aspect ratio is not supported by Instagram. Please use 1:1, 4:5, or 1.91:1.",
+        "rate limit": "Instagram rate limit reached. Please wait a few minutes before trying again.",
+        "not connected": "Instagram is not connected. Please connect your account in Integrations.",
+    }
+
+    for tech, friendly in error_map.items():
+        if tech.lower() in technical_error.lower():
+            return friendly
+
+    # Suppress any remaining stack-trace / internal noise
+    if any(x in technical_error for x in ("Traceback", "object at", "\n  File")):
+        return "An unexpected error occurred while posting. Please try again or contact support."
+
+    return technical_error
+
+
 class PostNowUseCase:
     """
     Use Case: Post content immediately to Instagram feed.
@@ -44,21 +72,8 @@ class PostNowUseCase:
         self.notification_service = notification_service
 
     def _get_friendly_error(self, technical_error: str) -> str:
-        """Map technical API errors to user-friendly messages"""
-        error_map = {
-            "Media URL is not accessible": "Instagram was temporarily unable to reach your image. Please try again in a few moments.",
-            "The media URL returned an HTML page": "There was an issue with the image link. Please try re-uploading the image.",
-            "The user is not authorized": "Your Instagram connection has expired. Please go to Integrations and reconnect.",
-            "OAuthException": "There was a problem with your Instagram connection. Please try reconnecting in Integrations.",
-            "The image file is too large": "Your image is too large for Instagram. Please use a file smaller than 8MB.",
-            "Unsupported aspect ratio": "The image aspect ratio is not supported by Instagram. Our auto-optimizer should handle this next time!",
-        }
-        
-        for tech, friendly in error_map.items():
-            if tech.lower() in technical_error.lower():
-                return friendly
-                
-        return technical_error
+        """Delegate to module-level helper for backward compat."""
+        return _get_friendly_error(technical_error)
         self.post_repository = post_repository
         self.api_client = api_client
         self.notification_service = notification_service
@@ -220,7 +235,7 @@ class PostNowUseCase:
                 "status": "failed",
                 "post_id": post_id,
                 "instagram_post_id": None,
-                "error": e.message
+                "error": self._get_friendly_error(e.message)
             }
             
         except Exception as e:
@@ -476,12 +491,13 @@ class PostStoryUseCase:
                 )
             except Exception as db_err:
                 logger.warning(f"Failed to update error status for {story_id}: {db_err}")
-            
+
+            friendly = _get_friendly_error(e.message)
             return {
                 "status": "failed",
                 "story_id": story_id,
                 "instagram_story_id": None,
-                "error": e.message
+                "error": friendly
             }
             
         except Exception as e:

@@ -138,21 +138,33 @@ export const assetService = {
     },
 
     /**
-     * Download an asset file
+     * Download an asset file using fetch with auth header, then trigger browser download via blob
      */
-    downloadAsset(assetId: string, filename: string): void {
+    async downloadAsset(assetId: string, filename: string): Promise<void> {
         const token = getAuthToken();
         if (!token) {
             throw new Error('Authentication required');
         }
 
-        // Create a temporary link and trigger download
+        const response = await fetch(`${API_URL}/api/assets/${assetId}/download`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error((error as { detail?: string }).detail || 'Download failed');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = `${API_URL}/api/assets/${assetId}/download?token=${token}`;
+        link.href = url;
         link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     },
 
     /**
@@ -294,6 +306,31 @@ export const assetService = {
     },
 
     /**
+     * Toggle favorite status for an asset
+     */
+    async toggleAssetFavorite(assetId: string): Promise<{ is_favorite: boolean }> {
+        try {
+            const token = getAuthToken();
+            if (!token) throw new Error('Authentication required');
+
+            const response = await fetch(`${API_URL}/api/assets/${assetId}/favorite`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to toggle favorite');
+            }
+
+            return await response.json();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to toggle favorite';
+            throw new Error(message);
+        }
+    },
+
+    /**
      * Toggle favorite status for a caption
      */
     async toggleCaptionFavorite(captionId: string): Promise<{ is_favorite: boolean }> {
@@ -318,6 +355,36 @@ export const assetService = {
             return await response.json();
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to toggle favorite status';
+            throw new Error(message);
+        }
+    },
+
+    /**
+     * Scan generated_reels/ and generated_videos/ on disk and create
+     * missing asset records in MongoDB for the current user.
+     */
+    async rescanFiles(): Promise<{ imported: number; skipped: number; errors: number; message: string }> {
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                throw new Error('Authentication required');
+            }
+
+            const response = await fetch(`${API_URL}/api/assets/rescan`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Rescan failed');
+            }
+
+            return await response.json();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Rescan failed';
             throw new Error(message);
         }
     },

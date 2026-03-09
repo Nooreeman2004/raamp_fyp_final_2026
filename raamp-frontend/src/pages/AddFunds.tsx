@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { Zap, DollarSign, TrendingUp } from "lucide-react";
+import { Zap, DollarSign, TrendingUp, Loader2 } from "lucide-react";
+import { apiClient } from "@/services/api";
+import { toast } from "sonner";
 
 // Animation Imports
 import { motion } from "framer-motion";
@@ -15,8 +17,54 @@ import { BlurText } from "@/components/ui/text-reveal";
 const AddFunds = () => {
     const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
     const [customAmount, setCustomAmount] = useState<number[]>([1000]);
+    const [walletBalance, setWalletBalance] = useState<number>(0);
+    const [loadingWallet, setLoadingWallet] = useState(true);
+    const [processing, setProcessing] = useState(false);
+    const [searchParams] = useSearchParams();
 
     const presetAmounts = [100, 500, 1000, 2500, 5000];
+
+    useEffect(() => {
+        if (searchParams.get("canceled") === "true") {
+            toast.error("Payment was canceled");
+        }
+    }, [searchParams]);
+
+    useEffect(() => {
+        const fetchWallet = async () => {
+            try {
+                const res = await apiClient.get<{ balance: number }>("/api/billing/wallet");
+                setWalletBalance(res.balance);
+            } catch {
+                // Wallet may not exist yet
+                setWalletBalance(0);
+            } finally {
+                setLoadingWallet(false);
+            }
+        };
+        fetchWallet();
+    }, []);
+
+    const handleProcessPayment = async () => {
+        const amount = selectedAmount || customAmount[0];
+        if (amount <= 0) {
+            toast.error("Please select an amount");
+            return;
+        }
+        setProcessing(true);
+        try {
+            const res = await apiClient.post<{ url: string }>("/stripe/create-addfunds-session", { amount });
+            if (res.url) {
+                window.location.href = res.url;
+            } else {
+                toast.error("Could not start checkout. Please try again.");
+            }
+        } catch {
+            toast.error("Failed to start payment. Please try again.");
+        } finally {
+            setProcessing(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-background">
@@ -42,47 +90,33 @@ const AddFunds = () => {
                     <Reveal variant="blurInUp">
                         <div>
                             <h1 className="text-4xl font-bold mb-2 font-bebas tracking-wide">
-                                <BlurText text="Add Funds & Set Budget" />
+                                <BlurText text="Add Funds to Wallet" />
                             </h1>
                             <p className="text-muted-foreground font-mono text-sm">
-                                Efficiently manage your marketing budget with precision
+                                Securely add funds via Stripe — your wallet is updated automatically
                             </p>
                         </div>
                     </Reveal>
 
-                    {/* Current Budget Overview - Fade In Up */}
+                    {/* Current Wallet Balance */}
                     <Reveal variant="fadeInUp" delay={0.2}>
                         <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10">
                             <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-bebas tracking-wide">
                                 <TrendingUp className="w-5 h-5 text-primary" />
-                                Current Budget Overview
+                                Current Wallet Balance
                             </h2>
-                            <p className="text-sm text-muted-foreground mb-6 font-mono">
-                                Visualize your available funds at a glance
-                            </p>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-2xl font-bold font-mono">$7,500</span>
-                                    <span className="text-muted-foreground font-mono text-sm">of $20,000 Budget</span>
-                                </div>
-                                <div className="h-4 bg-muted rounded-full overflow-hidden">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        whileInView={{ width: '37.5%' }}
-                                        transition={{ duration: 1, ease: "easeOut" }}
-                                        className="h-full bg-primary breathing-glow"
-                                    />
-                                </div>
-                                <div className="flex justify-between text-sm text-muted-foreground font-mono">
-                                    <span>Available Budget</span>
-                                    <span>37.5% remaining</span>
-                                </div>
+                            <div className="flex items-center gap-4">
+                                {loadingWallet ? (
+                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                ) : (
+                                    <span className="text-3xl font-bold font-mono">${walletBalance.toFixed(2)}</span>
+                                )}
+                                <span className="text-muted-foreground font-mono text-sm">USD</span>
                             </div>
                         </Card>
                     </Reveal>
 
-                    {/* Select or Enter Amount - Fade In Up */}
+                    {/* Select or Enter Amount */}
                     <Reveal variant="fadeInUp" delay={0.3}>
                         <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10">
                             <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-bebas tracking-wide">
@@ -122,16 +156,18 @@ const AddFunds = () => {
                                         value={customAmount[0]}
                                         onChange={(e) => {
                                             const value = parseInt(e.target.value) || 0;
-                                            setCustomAmount([value]);
+                                            setCustomAmount([Math.min(Math.max(value, 0), 10000)]);
                                             setSelectedAmount(null);
                                         }}
                                         className="bg-background/50 font-mono"
                                         placeholder="Enter custom amount"
+                                        min={1}
+                                        max={10000}
                                     />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium font-mono">Adjust Budget Range</label>
+                                    <label className="text-sm font-medium font-mono">Adjust Amount</label>
                                     <Slider
                                         value={customAmount}
                                         onValueChange={(value) => {
@@ -143,18 +179,18 @@ const AddFunds = () => {
                                         step={100}
                                         className="mb-2"
                                     />
-                                    <p className="text-xs text-muted-foreground font-mono">Adjusting to: ${customAmount[0].toLocaleString()}</p>
+                                    <p className="text-xs text-muted-foreground font-mono">Amount: ${customAmount[0].toLocaleString()}</p>
                                 </div>
                             </div>
                         </Card>
                     </Reveal>
 
-                    {/* Finalize Payment - Fade In Up */}
+                    {/* Checkout */}
                     <Reveal variant="fadeInUp" delay={0.4}>
                         <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10">
-                            <h2 className="text-xl font-bold mb-4 font-bebas tracking-wide">Finalize Payment</h2>
+                            <h2 className="text-xl font-bold mb-4 font-bebas tracking-wide">Proceed to Payment</h2>
                             <p className="text-sm text-muted-foreground mb-6 font-mono">
-                                Confirm the amount and process your payment securely
+                                You'll be redirected to Stripe's secure checkout to complete the payment
                             </p>
 
                             <div className="p-6 bg-primary/5 rounded-lg border border-primary/20 mb-6">
@@ -164,23 +200,35 @@ const AddFunds = () => {
                                         ${(selectedAmount || customAmount[0]).toLocaleString()}.00
                                     </span>
                                 </div>
-                                <div className="flex items-center justify-between text-sm text-muted-foreground font-mono">
-                                    <span>New Total Budget:</span>
-                                    <span className="font-medium">
-                                        ${(7500 + (selectedAmount || customAmount[0])).toLocaleString()}.00
-                                    </span>
-                                </div>
+                                {!loadingWallet && (
+                                    <div className="flex items-center justify-between text-sm text-muted-foreground font-mono">
+                                        <span>Estimated New Balance:</span>
+                                        <span className="font-medium">
+                                            ${(walletBalance + (selectedAmount || customAmount[0])).toLocaleString()}.00
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                                <Button variant="hero" size="lg" className="w-full font-bebas tracking-wide text-lg">
-                                    <DollarSign className="w-5 h-5 mr-2" />
-                                    Process Payment: ${(selectedAmount || customAmount[0]).toLocaleString()}.00
+                                <Button
+                                    variant="hero"
+                                    size="lg"
+                                    className="w-full font-bebas tracking-wide text-lg"
+                                    onClick={handleProcessPayment}
+                                    disabled={processing || (selectedAmount || customAmount[0]) <= 0}
+                                >
+                                    {processing ? (
+                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                    ) : (
+                                        <DollarSign className="w-5 h-5 mr-2" />
+                                    )}
+                                    {processing ? "Redirecting to Stripe..." : `Pay $${(selectedAmount || customAmount[0]).toLocaleString()}.00`}
                                 </Button>
                             </motion.div>
 
                             <p className="text-xs text-center text-muted-foreground mt-4 font-mono">
-                                Your payment will be processed securely using your saved payment method
+                                Payments are processed securely by Stripe. Your wallet will be credited once payment is confirmed.
                             </p>
                         </Card>
                     </Reveal>

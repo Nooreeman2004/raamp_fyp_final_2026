@@ -58,23 +58,45 @@ async def process_stripe_webhook_controller(event: dict):
         
         metadata = session.get('metadata', {})
         user_id = metadata.get('userId')
-        plan = metadata.get('plan')
-        customer_id = session.get('customer')
-        subscription_id = session.get('subscription')
-        
-        if user_id and plan:
-            success = await update_user_subscription(
-                user_id=user_id,
-                plan=plan,
-                customer_id=customer_id,
-                subscription_id=subscription_id,
-                status="active",
-                event_id=event_id
-            )
-            if not success:
-                logging.error(f"Failed to update subscription for {user_id}")
+
+        # Wallet top-up (one-time payment)
+        if metadata.get('type') == 'wallet_topup':
+            amount = float(metadata.get('amount', 0))
+            if user_id and amount > 0:
+                from infrastructure.repositories.wallet_repository import WalletRepository
+                repo = WalletRepository()
+                payment_intent_id = session.get('payment_intent', event_id)
+                await repo.add_funds(
+                    user_id=user_id,
+                    amount=amount,
+                    transaction_id=payment_intent_id
+                )
+                customer_id = session.get('customer')
+                if customer_id:
+                    user = await UserModel.find_one(UserModel.id == user_id)
+                    if user and not user.stripeCustomerId:
+                        user.stripeCustomerId = customer_id
+                        await user.save()
+                logging.info(f"Wallet topped up ${amount} for user {user_id}")
         else:
-            logging.error("Missing metadata in stripe session")
+            # Subscription checkout
+            plan = metadata.get('plan')
+            customer_id = session.get('customer')
+            subscription_id = session.get('subscription')
+            
+            if user_id and plan:
+                success = await update_user_subscription(
+                    user_id=user_id,
+                    plan=plan,
+                    customer_id=customer_id,
+                    subscription_id=subscription_id,
+                    status="active",
+                    event_id=event_id
+                )
+                if not success:
+                    logging.error(f"Failed to update subscription for {user_id}")
+            else:
+                logging.error("Missing metadata in stripe session")
     
     # Handle subscription updates (upgrades, downgrades, renewals)
     elif event_type == 'customer.subscription.updated':
@@ -211,6 +233,88 @@ async def create_portal_session_endpoint(
         raise HTTPException(status_code=400, detail="No active subscription found to manage")
 
     return await create_portal_session_controller(user.stripeCustomerId)
+
+
+@router.get("/invoices")
+async def list_invoices(
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """List Stripe invoices for the current user"""
+    user = await UserModel.find_one(UserModel.email == current_user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.stripeCustomerId:
+        return {"invoices": []}
+
+    try:
+        invoices = stripe.Invoice.list(
+            customer=user.stripeCustomerId,
+            limit=50,
+            expand=["data.charge"]
+        )
+        result = []
+        for inv in invoices.data:
+            result.append({
+                "id": inv.id,
+                "date": inv.created,
+                "description": inv.lines.data[0].description if inv.lines.data else (inv.description or "Subscription payment"),
+                "amount": inv.amount_paid / 100,
+                "currency": (inv.currency or "usd").upper(),
+                "status": inv.status,
+                "invoice_pdf": inv.invoice_pdf,
+                "hosted_invoice_url": inv.hosted_invoice_url,
+                "type": "credit" if inv.amount_paid < 0 else "debit",
+            })
+        return {"invoices": result}
+    except Exception as e:
+        logging.error("Error fetching invoices: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to fetch invoices") from e
+
+
+@router.post("/create-addfunds-session")
+async def create_addfunds_session(
+    request_data: dict,
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """Create a Stripe checkout session for a one-time wallet top-up"""
+    user = await UserModel.find_one(UserModel.email == current_user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    amount = request_data.get("amount")
+    if not amount or not isinstance(amount, (int, float)) or amount <= 0 or amount > 10000:
+        raise HTTPException(status_code=400, detail="Amount must be between $1 and $10,000")
+
+    try:
+        session_params = {
+            "payment_method_types": ["card"],
+            "line_items": [{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": "RAAMP Wallet Top-Up"},
+                    "unit_amount": int(round(amount * 100)),
+                },
+                "quantity": 1,
+            }],
+            "mode": "payment",
+            "success_url": f"{Config.FRONTEND_URL}/dashboard/billing?funds_added=true&amount={amount}",
+            "cancel_url": f"{Config.FRONTEND_URL}/billing/add-funds?canceled=true",
+            "metadata": {
+                "userId": str(user.id),
+                "type": "wallet_topup",
+                "amount": str(amount),
+            },
+        }
+        if user.stripeCustomerId:
+            session_params["customer"] = user.stripeCustomerId
+        else:
+            session_params["customer_email"] = user.email
+
+        session = stripe.checkout.Session.create(**session_params)
+        return {"url": session.url}
+    except Exception as e:
+        logging.error("Stripe add-funds checkout error: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to create checkout session") from e
 
 
 @router.post("/webhook")

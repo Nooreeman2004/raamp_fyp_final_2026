@@ -61,6 +61,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (apiError?.status === 401 || apiError?.status === 403) {
         setUser(null);
         localStorage.removeItem("user");
+        localStorage.removeItem("token");
         sessionStorage.removeItem("user");
       }
       // For other errors, keep existing user from storage if available
@@ -92,6 +93,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } finally {
       setUser(null);
       localStorage.removeItem("user");
+      localStorage.removeItem("token");
       sessionStorage.removeItem("user");
     }
   };

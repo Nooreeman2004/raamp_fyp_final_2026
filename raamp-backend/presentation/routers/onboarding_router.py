@@ -81,7 +81,20 @@ async def facebook_auth(current_user_email: str = Depends(get_current_user_email
 
 
 @router.get("/facebook/callback")
-async def facebook_callback(request: Request, code: str = None, state: str = None):
+async def facebook_callback(
+    request: Request,
+    code: str = None,
+    state: str = None,
+    error: str = None,
+    error_code: str = None,
+    error_message: str = None,
+    error_reason: str = None,
+):
+    # Facebook sends error params instead of code when the user denies or there's a config issue
+    if error or error_code:
+        detail = error_message or error_reason or error or f"Facebook OAuth error (code: {error_code})"
+        logging.warning(f"Facebook OAuth error redirect: error={error}, error_code={error_code}, message={error_message}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
     if not code:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing code")
     if not state:

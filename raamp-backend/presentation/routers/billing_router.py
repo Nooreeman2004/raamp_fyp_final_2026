@@ -2,17 +2,11 @@
 Billing Router - handles billing profile and wallet/add-funds endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from datetime import datetime
-import uuid
-import asyncio
-import random
 
 from presentation.schemas.settings_schemas import (
     BillingProfileRequest,
     BillingProfileResponse,
     BillingProfileGetResponse,
-    AddFundsRequest,
-    AddFundsResponse,
     WalletBalanceResponse,
     ErrorResponse
 )
@@ -183,118 +177,4 @@ async def get_wallet_balance(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch wallet balance"
-        ) from e
-
-
-@router.post(
-    "/add-funds",
-    response_model=AddFundsResponse,
-    responses={400: {"model": ErrorResponse}}
-)
-async def add_funds(
-    request: AddFundsRequest,
-    current_user_email: str = Depends(get_current_user_email)
-):
-    """
-    Add funds to user's wallet (SIMULATED - no real payment processing).
-    
-    This is a mock endpoint that:
-    1. Validates the amount
-    2. Simulates payment processing with a delay
-    3. Updates the wallet balance
-    4. Returns transaction details with breadcrumbs
-    
-    Parameters:
-    - amount: Amount to add (must be positive, max 10000)
-    """
-    try:
-        # Generate mock transaction ID
-        transaction_id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
-        
-        # Get current balance
-        repo = WalletRepository()
-        wallet = await repo.get_or_create(current_user_email)
-        previous_balance = wallet.balance
-        
-        # Simulate payment processing with breadcrumbs
-        breadcrumbs = []
-        start_time = datetime.utcnow()
-        
-        # Step 1: Validate request
-        breadcrumbs.append({
-            "step": 1,
-            "action": "validate_request",
-            "status": "success",
-            "message": f"Request validated: Adding ${request.amount:.2f}"
-        })
-        
-        # Step 2: Simulate payment gateway connection (mock delay)
-        await asyncio.sleep(random.uniform(0.3, 0.8))
-        breadcrumbs.append({
-            "step": 2,
-            "action": "connect_payment_gateway",
-            "status": "success",
-            "message": "Connected to payment gateway (simulated)"
-        })
-        
-        # Step 3: Simulate payment authorization
-        await asyncio.sleep(random.uniform(0.2, 0.5))
-        breadcrumbs.append({
-            "step": 3,
-            "action": "authorize_payment",
-            "status": "success",
-            "message": f"Payment authorized for ${request.amount:.2f}"
-        })
-        
-        # Step 4: Process payment (mock)
-        await asyncio.sleep(random.uniform(0.1, 0.3))
-        breadcrumbs.append({
-            "step": 4,
-            "action": "process_payment",
-            "status": "success",
-            "message": "Payment processed successfully (simulated)"
-        })
-        
-        # Step 5: Update wallet balance
-        updated_wallet = await repo.add_funds(
-            user_id=current_user_email,
-            amount=request.amount,
-            transaction_id=transaction_id
-        )
-        breadcrumbs.append({
-            "step": 5,
-            "action": "update_wallet",
-            "status": "success",
-            "message": f"Wallet updated: ${previous_balance:.2f} → ${updated_wallet.balance:.2f}"
-        })
-        
-        # Calculate processing time
-        end_time = datetime.utcnow()
-        processing_time_ms = int((end_time - start_time).total_seconds() * 1000)
-        
-        # Step 6: Complete transaction
-        breadcrumbs.append({
-            "step": 6,
-            "action": "complete_transaction",
-            "status": "success",
-            "message": f"Transaction {transaction_id} completed"
-        })
-        
-        return AddFundsResponse(
-            success=True,
-            message="Funds added successfully",
-            transaction_id=transaction_id,
-            amount_added=request.amount,
-            previous_balance=round(previous_balance, 2),
-            new_balance=round(updated_wallet.balance, 2),
-            processing_time_ms=processing_time_ms,
-            breadcrumbs=breadcrumbs,
-            timestamp=datetime.utcnow().isoformat()
-        )
-        
-    except Exception as e:
-        print(f"Error adding funds: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to add funds to wallet"
         ) from e

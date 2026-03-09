@@ -13,21 +13,25 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
     Image,
     Download,
     Trash2,
     Search,
-    Filter,
     Sparkles,
-    Upload,
-    Calendar,
     Eye,
     RefreshCw,
     Copy,
     Check,
     Heart,
     FileText,
-    Video
+    Video,
+    Maximize2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { assetService, type Asset, type CaptionAsset } from "@/services/assetService";
@@ -47,7 +51,6 @@ const AssetLibrary = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [assetTypeFilter, setAssetTypeFilter] = useState("all");
     const [sourceFilter, setSourceFilter] = useState("all");
-    const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
     // Caption state
     const [captions, setCaptions] = useState<CaptionAsset[]>([]);
@@ -57,6 +60,21 @@ const AssetLibrary = () => {
     const [copiedCaptionId, setCopiedCaptionId] = useState<string | null>(null);
 
     const [activeTab, setActiveTab] = useState("images");
+    const [isRescanning, setIsRescanning] = useState(false);
+    const [viewAsset, setViewAsset] = useState<Asset | null>(null);
+
+    const handleRescan = async () => {
+        setIsRescanning(true);
+        try {
+            const result = await assetService.rescanFiles();
+            toast.success(`Rescan Complete`, { description: result.message });
+            if (result.imported > 0) fetchAssets();
+        } catch (error: any) {
+            toast.error("Rescan Failed", { description: error.message });
+        } finally {
+            setIsRescanning(false);
+        }
+    };
 
     // Helper to get full media URL safely
     const getMediaUrl = (path: string | null | undefined) => {
@@ -173,9 +191,9 @@ const AssetLibrary = () => {
         }
     };
 
-    const handleDownload = (asset: Asset) => {
+    const handleDownload = async (asset: Asset) => {
         try {
-            assetService.downloadAsset(asset.asset_id, asset.file_name);
+            await assetService.downloadAsset(asset.asset_id, asset.file_name);
             toast.success("Download Started", {
                 description: `Downloading ${asset.file_name}`
             });
@@ -183,6 +201,22 @@ const AssetLibrary = () => {
             toast.error("Download Failed", {
                 description: error.message
             });
+        }
+    };
+
+    const handleToggleAssetFavorite = async (asset: Asset, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const result = await assetService.toggleAssetFavorite(asset.asset_id);
+            setAssets(prev => prev.map(a =>
+                a.asset_id === asset.asset_id ? { ...a, is_favorite: result.is_favorite } : a
+            ));
+            if (viewAsset?.asset_id === asset.asset_id) {
+                setViewAsset(v => v ? { ...v, is_favorite: result.is_favorite } : v);
+            }
+            toast.success(result.is_favorite ? "Added to Favorites" : "Removed from Favorites");
+        } catch (error: any) {
+            toast.error("Failed to update favorite", { description: error.message });
         }
     };
 
@@ -247,16 +281,29 @@ const AssetLibrary = () => {
                                 </p>
                             </div>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => activeTab === "images" ? fetchAssets() : fetchCaptions()}
-                            disabled={activeTab === "images" ? isLoading : isLoadingCaptions}
-                            className="gap-2"
-                        >
-                            <RefreshCw className={`w-4 h-4 ${(isLoading || isLoadingCaptions) ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRescan}
+                                disabled={isRescanning}
+                                className="gap-2"
+                                title="Scan disk for existing videos & reels not yet in library"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isRescanning ? 'animate-spin' : ''}`} />
+                                {isRescanning ? 'Scanning...' : 'Rescan Files'}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => activeTab === "images" ? fetchAssets() : fetchCaptions()}
+                                disabled={activeTab === "images" ? isLoading : isLoadingCaptions}
+                                className="gap-2"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${(isLoading || isLoadingCaptions) ? 'animate-spin' : ''}`} />
+                                Refresh
+                            </Button>
+                        </div>
                     </div>
                 </Reveal>
 
@@ -307,8 +354,7 @@ const AssetLibrary = () => {
                                         <SelectContent>
                                             <SelectItem value="all">All Types</SelectItem>
                                             <SelectItem value="generated_image">Generated Images</SelectItem>
-                                            <SelectItem value="generated_video">Generated Videos</SelectItem>
-                                            <SelectItem value="generated_reel">Generated Reels</SelectItem>
+                                            <SelectItem value="video">Generated Videos &amp; Reels</SelectItem>
                                             <SelectItem value="uploaded_image">Uploaded Images</SelectItem>
                                             <SelectItem value="uploaded_video">Uploaded Videos</SelectItem>
                                         </SelectContent>
@@ -331,6 +377,13 @@ const AssetLibrary = () => {
                                 <p className="text-muted-foreground mb-4">
                                     Start creating content in the Creative Studio to generate AI images and videos
                                 </p>
+                                <p className="text-muted-foreground text-sm mb-4">
+                                    Already generated content? Click <strong>Rescan Files</strong> to import existing videos &amp; reels.
+                                </p>
+                                <Button variant="outline" onClick={handleRescan} disabled={isRescanning} className="gap-2">
+                                    <RefreshCw className={`w-4 h-4 ${isRescanning ? 'animate-spin' : ''}`} />
+                                    {isRescanning ? 'Scanning...' : 'Rescan Files'}
+                                </Button>
                             </Card>
                         ) : (
                             <motion.div
@@ -342,10 +395,11 @@ const AssetLibrary = () => {
                                 {assets.map((asset) => (
                                     <motion.div
                                         key={asset.asset_id}
-                                        className="group relative aspect-square rounded-lg overflow-hidden border bg-card hover:shadow-lg transition-all"
+                                        className="group relative aspect-square rounded-lg overflow-hidden border bg-card hover:shadow-lg transition-all cursor-pointer"
                                         whileHover={{ scale: 1.02 }}
+                                        onClick={() => setViewAsset(asset)}
                                     >
-                                        {/* Render video or image based on asset type */}
+                                        {/* Media */}
                                         {isVideoAsset(asset) ? (
                                             <video
                                                 src={getMediaUrl(asset.storage_url)}
@@ -354,19 +408,18 @@ const AssetLibrary = () => {
                                                 muted
                                                 loop
                                                 playsInline
-                                                onMouseEnter={(e) => (e.target as HTMLVideoElement).play()}
+                                                onMouseEnter={(e) => { e.stopPropagation(); (e.target as HTMLVideoElement).play(); }}
                                                 onMouseLeave={(e) => {
-                                                    const video = e.target as HTMLVideoElement;
-                                                    video.pause();
-                                                    video.currentTime = 0;
+                                                    const v = e.target as HTMLVideoElement;
+                                                    v.pause(); v.currentTime = 0;
                                                 }}
                                                 onError={(e) => {
-                                                    const video = e.target as HTMLVideoElement;
-                                                    video.style.display = 'none';
-                                                    const fallback = document.createElement('div');
-                                                    fallback.className = 'w-full h-full flex items-center justify-center bg-black text-primary';
-                                                    fallback.innerHTML = '<span class="text-sm font-mono">Video Not Found</span>';
-                                                    video.parentElement?.appendChild(fallback);
+                                                    const v = e.target as HTMLVideoElement;
+                                                    v.style.display = 'none';
+                                                    const fb = document.createElement('div');
+                                                    fb.className = 'w-full h-full flex items-center justify-center bg-black text-primary';
+                                                    fb.innerHTML = '<span class="text-sm font-mono">Video Not Found</span>';
+                                                    v.parentElement?.appendChild(fb);
                                                 }}
                                             />
                                         ) : (
@@ -380,58 +433,70 @@ const AssetLibrary = () => {
                                             />
                                         )}
 
-                                        {/* Video indicator overlay (top left) */}
+                                        {/* Top-left: Video/Reel badge (always visible) */}
                                         {isVideoAsset(asset) && (
-                                            <div className="absolute top-3 left-3">
-                                                <Badge className="bg-purple-500/90 text-white gap-1">
-                                                    <Video className="w-3 h-3" />
-                                                    Video
+                                            <div className="absolute top-2 left-2">
+                                                <Badge className="bg-purple-600/90 text-white gap-1 text-[10px] px-1.5 py-0.5">
+                                                    <Video className="w-2.5 h-2.5" />
+                                                    {asset.asset_type === 'generated_reel' ? 'Reel' : 'Video'}
                                                 </Badge>
                                             </div>
                                         )}
 
-                                        {/* Overlay with actions */}
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3">
-                                            <div className="flex justify-between items-start">
-                                                {asset.generation_source === 'AI' && !isVideoAsset(asset) && (
-                                                    <Badge className="bg-primary/90 text-primary-foreground gap-1">
-                                                        <Sparkles className="w-3 h-3" />
-                                                        AI
-                                                    </Badge>
-                                                )}
-                                                {asset.times_used > 0 && (
-                                                    <Badge variant="outline" className="bg-background/90 ml-auto">
-                                                        <Eye className="w-3 h-3 mr-1" />
-                                                        {asset.times_used}
-                                                    </Badge>
-                                                )}
+                                        {/* Top-left AI badge for images */}
+                                        {!isVideoAsset(asset) && asset.generation_source === 'AI' && (
+                                            <div className="absolute top-2 left-2">
+                                                <Badge className="bg-primary/90 text-primary-foreground gap-1 text-[10px] px-1.5 py-0.5">
+                                                    <Sparkles className="w-2.5 h-2.5" />
+                                                    AI
+                                                </Badge>
                                             </div>
+                                        )}
 
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    className="flex-1"
-                                                    onClick={() => handleDownload(asset)}
-                                                >
-                                                    <Download className="w-4 h-4" />
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => handleDelete(asset.asset_id)}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </div>
+                                        {/* Top-right: Favorite heart (always visible when favorited, else on hover) */}
+                                        <button
+                                            className={`absolute top-2 right-2 p-1.5 rounded-full transition-all ${
+                                                asset.is_favorite
+                                                    ? 'bg-red-500/90 opacity-100'
+                                                    : 'bg-black/50 opacity-0 group-hover:opacity-100'
+                                            }`}
+                                            onClick={(e) => handleToggleAssetFavorite(asset, e)}
+                                            title={asset.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+                                        >
+                                            <Heart className={`w-3.5 h-3.5 ${asset.is_favorite ? 'fill-white text-white' : 'text-white'}`} />
+                                        </button>
+
+                                        {/* Bottom: always-visible info bar */}
+                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2.5 pt-6">
+                                            <p className="text-white text-xs font-mono truncate leading-tight">{asset.file_name}</p>
+                                            <p className="text-white/60 text-[10px] font-mono mt-0.5">
+                                                {formatDate(asset.created_at)} · {formatFileSize(asset.file_size_bytes)}
+                                            </p>
                                         </div>
 
-                                        {/* Info badge at bottom */}
-                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <p className="text-white text-xs font-mono truncate">{asset.file_name}</p>
-                                            <p className="text-white/60 text-[10px] font-mono">
-                                                {formatDate(asset.created_at)} • {formatFileSize(asset.file_size_bytes)}
-                                            </p>
+                                        {/* Bottom-right: action buttons (on hover, above info bar) */}
+                                        <div className="absolute bottom-12 right-2 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                className="p-1.5 bg-white/20 hover:bg-white/40 backdrop-blur rounded-md transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); setViewAsset(asset); }}
+                                                title="View fullscreen"
+                                            >
+                                                <Maximize2 className="w-3.5 h-3.5 text-white" />
+                                            </button>
+                                            <button
+                                                className="p-1.5 bg-white/20 hover:bg-primary/80 backdrop-blur rounded-md transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); handleDownload(asset); }}
+                                                title="Download"
+                                            >
+                                                <Download className="w-3.5 h-3.5 text-white" />
+                                            </button>
+                                            <button
+                                                className="p-1.5 bg-white/20 hover:bg-red-600/80 backdrop-blur rounded-md transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); handleDelete(asset.asset_id); }}
+                                                title="Delete"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5 text-white" />
+                                            </button>
                                         </div>
                                     </motion.div>
                                 ))}
@@ -614,6 +679,73 @@ const AssetLibrary = () => {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* Fullscreen Asset Viewer Modal */}
+            <Dialog open={!!viewAsset} onOpenChange={(open) => !open && setViewAsset(null)}>
+                <DialogContent className="max-w-5xl w-full p-0 overflow-hidden bg-black border-border">
+                    <DialogHeader className="absolute top-0 left-0 right-0 z-10 flex flex-row items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
+                        <DialogTitle className="text-white font-mono text-sm truncate max-w-md">
+                            {viewAsset?.file_name}
+                        </DialogTitle>
+                        <div className="flex items-center gap-2">
+                            {viewAsset && (
+                                <button
+                                    className={`p-2 rounded-full transition-colors ${
+                                        viewAsset.is_favorite ? 'bg-red-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'
+                                    }`}
+                                    onClick={(e) => viewAsset && handleToggleAssetFavorite(viewAsset, e)}
+                                    title={viewAsset.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+                                >
+                                    <Heart className={`w-4 h-4 ${viewAsset.is_favorite ? 'fill-white' : ''}`} />
+                                </button>
+                            )}
+                            {viewAsset && (
+                                <button
+                                    className="p-2 rounded-full bg-white/10 hover:bg-primary/80 text-white transition-colors"
+                                    onClick={() => viewAsset && handleDownload(viewAsset)}
+                                    title="Download"
+                                >
+                                    <Download className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    </DialogHeader>
+
+                    {/* Media */}
+                    <div className="flex items-center justify-center min-h-[60vh] max-h-[80vh] bg-black">
+                        {viewAsset && isVideoAsset(viewAsset) ? (
+                            <video
+                                src={getMediaUrl(viewAsset.storage_url)}
+                                className="max-w-full max-h-[80vh] object-contain"
+                                controls
+                                autoPlay
+                                loop
+                            />
+                        ) : viewAsset ? (
+                            <img
+                                src={getMediaUrl(viewAsset.storage_url)}
+                                alt={viewAsset.file_name}
+                                className="max-w-full max-h-[80vh] object-contain"
+                            />
+                        ) : null}
+                    </div>
+
+                    {/* Metadata footer */}
+                    {viewAsset && (
+                        <div className="p-4 bg-card border-t border-border flex flex-wrap gap-4 text-sm text-muted-foreground font-mono">
+                            <span><span className="text-foreground">Type:</span> {viewAsset.asset_type.replace('_', ' ')}</span>
+                            <span><span className="text-foreground">Size:</span> {formatFileSize(viewAsset.file_size_bytes)}</span>
+                            <span><span className="text-foreground">Created:</span> {formatDate(viewAsset.created_at)}</span>
+                            {viewAsset.generation_source && (
+                                <span><span className="text-foreground">Source:</span> {viewAsset.generation_source}</span>
+                            )}
+                            {viewAsset.times_used > 0 && (
+                                <span><span className="text-foreground">Used:</span> {viewAsset.times_used}×</span>
+                            )}
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </Layout>
     );
 };

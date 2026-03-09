@@ -49,6 +49,7 @@ const ProtectedRoute = ({ children, requireProfile = false }: ProtectedRouteProp
           if (apiError?.status === 401 || apiError?.status === 403) {
             setIsAuthenticated(false);
             localStorage.removeItem("user");
+            localStorage.removeItem("token");
           } else {
             // Network error or other issue - allow access but log error
             console.error("Auth check failed:", error);

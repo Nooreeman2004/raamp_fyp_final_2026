@@ -275,7 +275,9 @@ const Signup = () => {
         // Authentication/Authorization errors
         else if (error.status === 401 || error.status === 403) {
           errorTitle = "Access Denied";
-          errorDescription = "You don't have permission to perform this action.";
+          errorDescription = error.message || "You don't have permission to perform this action.";
+          // Clear any stale token that may be causing this
+          localStorage.removeItem("token");
         }
         // Rate limiting
         else if (error.status === 429 || errorMsg.includes('too many') || errorMsg.includes('rate limit')) {

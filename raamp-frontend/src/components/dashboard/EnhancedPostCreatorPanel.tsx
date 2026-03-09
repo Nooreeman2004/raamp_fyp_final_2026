@@ -69,6 +69,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { mapBackendErrorToUI } from "@/lib/history-utils";
 import { AssetPickerDialog } from "@/components/dashboard/AssetPickerDialog";
 import { Asset, assetService } from "@/services/assetService";
 
@@ -365,7 +366,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                 onSuccess?.();
             } else if (successes.length > 0 && failures.length > 0) {
                 // Partial success
-                const errorMessages = failures.map(r => `${r.platform}: ${r.error}`);
+                const errorMessages = failures.map(r => `${r.platform}: ${mapBackendErrorToUI(r.error)}`);
                 toast.warning("Partial Success", {
                     description: `Posted to ${successes.length} platform(s), but failed on: ${errorMessages.join(", ")}`,
                 });
@@ -373,17 +374,18 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                 onSuccess?.();
             } else {
                 // Complete failure
-                const errors = failures.map(r => `${r.platform}: ${r.error}`);
+                const errors = failures.map(r => `${mapBackendErrorToUI(r.error)}`);
                 setUploadStatus('error');
                 setErrorMessage(errors.join(" | "));
-                toast.error("Submission failed", {
+                toast.error("Post Failed", {
                     description: errors.join(", "),
                 });
             }
         } catch (error: any) {
+            const friendlyMsg = mapBackendErrorToUI(error.message);
             setUploadStatus('error');
-            setErrorMessage(error.message || "An error occurred while processing your request");
-            toast.error(error.message || "Failed to create post. Please try again.");
+            setErrorMessage(friendlyMsg);
+            toast.error("Post Failed", { description: friendlyMsg });
         } finally {
             setIsSubmitting(false);
             isSubmittingRef.current = false;

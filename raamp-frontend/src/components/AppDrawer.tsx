@@ -110,6 +110,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     try {
       await authService.logout();
       localStorage.removeItem("user");
+      localStorage.removeItem("token");
       sonner.success("Logged Out", {
         description: "You have been successfully logged out.",
       });

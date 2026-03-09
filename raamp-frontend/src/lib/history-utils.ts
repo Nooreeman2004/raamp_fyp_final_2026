@@ -8,6 +8,13 @@ export const mapBackendErrorToUI = (error: string | undefined | null): string =>
 
     const errorLower = error.toLowerCase();
 
+    if (errorLower.includes("session has been invalidated") ||
+        errorLower.includes("validating access token") ||
+        errorLower.includes("changed their password") ||
+        errorLower.includes("error code: 190")) {
+        return "Instagram session expired. Please reconnect your account in Integrations → Instagram.";
+    }
+
     if (errorLower.includes("instagramconnectionmodel") && errorLower.includes("page_access_token")) {
         return "Instagram session expired. Please reconnect in Onboarding.";
     }
@@ -40,9 +47,9 @@ export const mapBackendErrorToUI = (error: string | undefined | null): string =>
         return "Input validation failed. Please check your data.";
     }
 
-    // Fallback for long technical stack traces or specific object errors
-    if (error.includes("object at") || error.includes("Traceback") || error.includes("Error:")) {
-        return "System error. Our engineers have been notified.";
+    // Suppress Python stack traces or raw technical strings
+    if (error.includes("Traceback") || error.includes("object at") || error.includes("\n  File")) {
+        return "An unexpected error occurred. Our team has been notified.";
     }
 
     return error; // Return original if it seems readable enough or not matched

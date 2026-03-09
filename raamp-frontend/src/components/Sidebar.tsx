@@ -51,6 +51,7 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
 
     const handleLogout = async () => {
         await authService.logout();
+        localStorage.removeItem("token");
         navigate("/login");
     };
 

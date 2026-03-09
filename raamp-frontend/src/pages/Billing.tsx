@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, DollarSign, Zap, Calendar, AlertTriangle, Loader2, Settings } from "lucide-react";
+import { CreditCard, DollarSign, Zap, Calendar, AlertTriangle, Loader2, Settings, FileText } from "lucide-react";
 import { HolographicCard } from "@/components/ui/holographic-card";
 import { PricingCard3D } from "@/components/ui/pricing-card-3d";
 import Layout from "@/components/Layout";
@@ -167,11 +168,18 @@ const Billing = () => {
                 </div>
               </div>
               {tier !== "free" && (
-                <div className="mt-6">
+                <div className="mt-6 space-y-2">
                   <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                     <Button variant="outline" onClick={() => setShowPasswordGate(true)} className="w-full justify-start border-white/20 text-white hover:bg-white/10 font-mono text-xs h-10">
                       <Settings className="w-4 h-4 mr-2" /> MANAGE SUBSCRIPTION
                     </Button>
+                  </motion.div>
+                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                    <Link to="/billing/transactions">
+                      <Button variant="outline" className="w-full justify-start border-white/20 text-white hover:bg-white/10 font-mono text-xs h-10">
+                        <FileText className="w-4 h-4 mr-2" /> VIEW TRANSACTION HISTORY
+                      </Button>
+                    </Link>
                   </motion.div>
                 </div>
               )}

@@ -4,6 +4,7 @@ Asset Repository - handles database operations for media assets
 from infrastructure.database.models.asset_model import AssetModel, AssetType, GenerationSource
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from beanie.operators import In
 
 
 class AssetRepository:
@@ -25,6 +26,7 @@ class AssetRepository:
         limit: int = 100,
         skip: int = 0,
         asset_type: Optional[AssetType] = None,
+        asset_types: Optional[List[AssetType]] = None,
         generation_source: Optional[GenerationSource] = None
     ) -> List[AssetModel]:
         """
@@ -34,12 +36,15 @@ class AssetRepository:
             user_id: User identifier
             limit: Maximum number of results
             skip: Number of results to skip (pagination)
-            asset_type: Filter by asset type
+            asset_type: Filter by a single asset type
+            asset_types: Filter by multiple asset types (OR)
             generation_source: Filter by generation source
         """
         query = AssetModel.find(AssetModel.user_id == user_id)
         
-        if asset_type:
+        if asset_types:
+            query = query.find(In(AssetModel.asset_type, asset_types))
+        elif asset_type:
             query = query.find(AssetModel.asset_type == asset_type)
         
         if generation_source:
@@ -106,12 +111,15 @@ class AssetRepository:
     async def count_user_assets(
         self,
         user_id: str,
-        asset_type: Optional[AssetType] = None
+        asset_type: Optional[AssetType] = None,
+        asset_types: Optional[List[AssetType]] = None
     ) -> int:
         """Count total assets for a user"""
         query = AssetModel.find(AssetModel.user_id == user_id)
         
-        if asset_type:
+        if asset_types:
+            query = query.find(In(AssetModel.asset_type, asset_types))
+        elif asset_type:
             query = query.find(AssetModel.asset_type == asset_type)
         
         return await query.count()

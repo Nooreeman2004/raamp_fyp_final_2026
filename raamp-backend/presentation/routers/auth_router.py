@@ -702,11 +702,23 @@ async def get_current_user_email(request: Request) -> str:
 async def get_current_user_id(request: Request) -> str:
     """Resolve the authenticated user's internal id (string).
 
-    This depends on the cookie JWT and returns the user's id as stored in the DB
-    (stringified ObjectId). Raises 401 if not authenticated or 404 if user missing.
+    This depends on the JWT token from cookies or Authorization header
+    and returns the user's id as stored in the DB (stringified ObjectId).
+    Raises 401 if not authenticated or 404 if user missing.
     """
     from fastapi import HTTPException
-    token = request.cookies.get("access_token")
+    
+    # First try to get token from Authorization header
+    token = None
+    auth_header = request.headers.get("Authorization")
+    
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
+    
+    # If not in header, try cookies
+    if not token:
+        token = request.cookies.get("access_token")
+    
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
