@@ -94,10 +94,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                     setNotifications(prev => [newNotif, ...prev]);
                     setUnreadCount(prev => prev + 1);
 
-                    // Show toast
+                    // Show toast - hide 'View' for trends as requested
+                    const isTrend = newNotif.metadata?.sub_type === 'trend';
+
                     toast(newNotif.title, {
                         description: newNotif.message,
-                        action: {
+                        action: isTrend ? undefined : {
                             label: 'View',
                             onClick: () => window.location.href = '/notifications'
                         }

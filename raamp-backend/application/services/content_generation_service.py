@@ -200,6 +200,7 @@ class ContentGenerationService:
                 industry_section = ""
         
         # Build the prompt
+        biz_name = brand_context.get("business_name", "Our Team")
         prompt_parts = [
             brand_section,
             ""
@@ -231,9 +232,9 @@ class ContentGenerationService:
             "CONTENT GUIDELINES:",
             "1. Three social media captions: short, catchy (2-4 lines max), brand-aligned, ending with exactly 5-8 hashtags.",
             "2. Three hashtag strategy sets (Reach, Niche, Local).",
-            "3. Three WhatsApp Messages: Catchy, SHORT, casual, direct. NO subject lines. Start with 'Hey {name}!'",
-            f"4. Three Email Campaigns: LONG, professional. Format EXACTLY as:\n   Subject: [Subject Line]\n   Body: [Email Body]\n   Regards,\n   Team {brand_context.get('business_name', 'Our Brand')}",
-            "5. Three detailed image generation prompts.",
+            "3. WhatsApp Messages: SHORT, CASUAL, CHATTY. NO Subject lines. NO placeholders. Start with 'Hey {{name}}!'. End with a friendly sign-off like 'Regards, Team {biz_name}'.",
+            f"4. Email Campaigns: PROFESSIONAL, STRUCTURED. Format EXACTLY as:\n   Subject: [Compelling Line]\n   Body: [Professional greeting, 2 paragraphs of detail]\n   Regards,\n   Team {biz_name}",
+            "5. Three detailed, descriptive image generation prompts. DO NOT focus only on current brand if the campaign idea involves a new concept or industry (like a University Admission). Follow the CAMPAIGN IDEA's visual theme primarily.",
             "",
             "EXACT JSON SCHEMA TO FOLLOW:",
             "{",
@@ -245,8 +246,12 @@ class ContentGenerationService:
             '    { "id": 1, "strategy": "Reach", "hashtags": ["#tag1", "#tag2", ...] },',
             "    ...",
             "  ],",
-            '  "message_variants": [',
-            '    { "id": 1, "tone": "Friendly", "message": "your whatsapp/email content here", "predicted_performance": "High" },',
+            '  "whatsapp_variants": [',
+            '    { "id": 1, "tone": "Friendly", "message": "Hey {{name}}! Check out our new campaign...", "predicted_performance": "High" },',
+            "    ...",
+            "  ],",
+            '  "email_variants": [',
+            '    { "id": 1, "tone": "Professional", "message": "Subject: [Topic]\\n\\nBody: [Details]\\n\\nRegards, [Team]", "predicted_performance": "High" },',
             "    ...",
             "  ],",
             '  "image_generation_prompts": [',
@@ -567,79 +572,136 @@ class ContentGenerationService:
             except Exception as log_error:
                 logger.error(f"⚠️ Failed to log hashtags: {log_error}")
             
-            # Normalize message variants
-            message_variants = result.get("message_variants", [])
-            if not message_variants or len(message_variants) < 3:
-                # Create default messages
-                default_tones = ["Professional", "Friendly", "Urgent"]
-                while len(message_variants) < 3:
-                    idx = len(message_variants)
-                    biz_name = brand_context.get("business_name", "Our Team")
-                    if content_type == "whatsapp" or "whatsapp" in campaign_idea.lower():
-                        msg = f"Hey {{name}}! We noticed you love our {biz_name} products. We've got a special {campaign_idea[:30]} campaign running just for you! Check it out here: [Link]"
-                    else:
-                        msg = f"Subject: Exciting news from {biz_name}!\n\nBody: Hi there, we are thrilled to announce our latest {campaign_idea[:40]} initiative.\n\nRegards, Team {biz_name}"
-                    
-                    message_variants.append({
-                        "id": idx + 1,
-                        "tone": default_tones[idx],
-                        "message": msg,
-                        "predicted_performance": "Good"
-                    })
+            # Normalize WhatsApp variants
+            whatsapp_variants_raw = result.get("whatsapp_variants", [])
+            if not whatsapp_variants_raw:
+                # Fallback to message_variants if AI didn't follow new schema
+                whatsapp_variants_raw = result.get("message_variants", [])
             
-            # Generate message_ids and normalize
-            message_ids = [str(uuid.uuid4()) for _ in range(min(3, len(message_variants)))]
-            normalized_messages = []
-            for i, msg in enumerate(message_variants[:3]):
-                message_id = message_ids[i] if i < len(message_ids) else str(uuid.uuid4())
+            if not whatsapp_variants_raw or len(whatsapp_variants_raw) < 3:
+                default_tones = ["Friendly", "Direct", "Urgent"]
+                while len(whatsapp_variants_raw) < 3:
+                    idx = len(whatsapp_variants_raw)
+                    biz_name = brand_context.get("business_name", "Our Team")
+                    msg = f"Hey {{name}}! We've got a special {campaign_idea[:30]} campaign running just for you! Check it out here: [Link] \n\nRegards, Team {biz_name}"
+                    whatsapp_variants_raw.append({"id": idx + 1, "tone": default_tones[idx], "message": msg, "predicted_performance": "Good"})
+
+            normalized_whatsapp = []
+            for i, msg in enumerate(whatsapp_variants_raw[:3]):
                 text = msg.get("message", "")
-                
-                # Post-processing: Enforce Formatting
-                biz_name = brand_context.get("business_name", "Our Team")
-                if (content_type == "whatsapp" or "whatsapp" in campaign_idea.lower()) and "hey {name}" not in text.lower():
+                text = re.sub(r'Subject:.*?\n', '', text, flags=re.IGNORECASE)
+                text = re.sub(r'Body:\s*', '', text, flags=re.IGNORECASE)
+                text = text.replace("[Body]", "").replace("[Subject]", "").strip()
+                if "hey {name}" not in text.lower():
                     if not text.startswith("Hey"):
                         text = f"Hey {{name}}! " + text
-                elif (content_type == "emails" or "email" in campaign_idea.lower()) and "subject:" not in text.lower():
-                    text = f"Subject: Special Campaign Update\n\nBody: {text}\n\nRegards, Team {biz_name}"
+                biz_name = brand_context.get("business_name", "Our Team")
+                # Aggressive replacement of common placeholders
+                text = text.replace("[Team]", biz_name).replace("[Your Team]", biz_name)
+                text = text.replace("[Brand Name]", biz_name).replace("{{brand_name}}", biz_name)
+                text = text.replace("Our Brand", biz_name).replace("[Brand]", biz_name)
 
-                normalized_messages.append({
-                    "id": msg.get("id", i + 1),
-                    "message_id": message_id,  # Add message_id for tracking
+                if "regards" not in text.lower() and "best" not in text.lower() and "cheers" not in text.lower():
+                    text += f"\n\nRegards, Team {biz_name}"
+                
+                normalized_whatsapp.append({
+                    "id": i + 1,
+                    "message_id": str(uuid.uuid4()),
                     "tone": msg.get("tone", f"Variant {i + 1}"),
                     "message": text,
                     "predicted_performance": msg.get("predicted_performance", "Good")
                 })
+
+            # Normalize Email variants
+            email_variants_raw = result.get("email_variants", [])
+            if not email_variants_raw and not result.get("whatsapp_variants"):
+                 # Only fallback if AI didn't use new keys at all
+                email_variants_raw = result.get("message_variants", [])
+
+            if not email_variants_raw or len(email_variants_raw) < 3:
+                default_tones = ["Professional", "Informative", "Direct"]
+                while len(email_variants_raw) < 3:
+                    idx = len(email_variants_raw)
+                    biz_name = brand_context.get("business_name", "Our Team")
+                    msg = f"Subject: Exciting news from {biz_name}!\n\nBody: Hi there, we are thrilled to announce our latest {campaign_idea[:40]} initiative.\n\nRegards, Team {biz_name}"
+                    email_variants_raw.append({"id": idx + 1, "tone": default_tones[idx], "message": msg, "predicted_performance": "Good"})
+
+            normalized_email = []
+            for i, msg in enumerate(email_variants_raw[:3]):
+                text = msg.get("message", "")
+                biz_name = brand_context.get("business_name", "Our Team")
+                # Aggressive replacement of common placeholders
+                text = text.replace("[Team]", biz_name).replace("[Your Team]", biz_name)
+                text = text.replace("[Brand Name]", biz_name).replace("{{brand_name}}", biz_name)
+                text = text.replace("Our Brand", biz_name).replace("[Brand]", biz_name)
+
+                if "subject:" not in text.lower():
+                    text = f"Subject: Special Campaign Update\n\nBody: {text}\n\nRegards, Team {biz_name}"
+                
+                normalized_email.append({
+                    "id": i + 1,
+                    "message_id": str(uuid.uuid4()),
+                    "tone": msg.get("tone", f"Variant {i + 1}"),
+                    "message": text,
+                    "predicted_performance": msg.get("predicted_performance", "Good")
+                })
+
+            # Legacy compatibility
+            normalized_messages = normalized_whatsapp if content_type == "whatsapp" else normalized_email
+            if content_type == "all":
+                normalized_messages = normalized_whatsapp + normalized_email
             
             # Log messages to database (non-blocking)
             try:
-                # Determine asset type based on content_type
-                message_asset_type = AssetTypeEnum.WHATSAPP if content_type == "whatsapp" else AssetTypeEnum.EMAIL
-                
                 message_logs_data = []
-                for message_data in normalized_messages:
-                    message_log = {
-                        "caption_id": message_data["message_id"],  # Using caption_id field for message_id
-                        "user_id": user_id,
-                        "campaign_id": campaign_id,
-                        "campaign_idea": campaign_idea[:500] if campaign_idea else None,
-                        "asset_type": message_asset_type,
-                        "caption_text": message_data["message"],
-                        "hashtags": [],  # Messages don't have hashtags
-                        "tone": message_data["tone"],
-                        "generation_prompt": user_prompt[:1000] if user_prompt else None,
-                        "model_used": self.model,
-                        "variant_number": message_data["id"],
-                        "predicted_performance": message_data.get("predicted_performance"),
-                        "brand_tone_used": brand_context.get("tone_of_voice"),
-                        "target_audience": target_audience,
-                        "times_used": 0,
-                        "tags": [content_type] + ([campaign_tone] if campaign_tone else []),
-                        "is_favorite": False
-                    }
-                    message_logs_data.append(message_log)
+                # Add WhatsApp logs
+                if content_type in ["all", "whatsapp"]:
+                    for m in normalized_whatsapp:
+                        message_logs_data.append({
+                            "caption_id": m["message_id"],
+                            "user_id": user_id,
+                            "campaign_id": campaign_id,
+                            "campaign_idea": campaign_idea[:500] if campaign_idea else None,
+                            "asset_type": AssetTypeEnum.WHATSAPP,
+                            "caption_text": m["message"],
+                            "hashtags": [],
+                            "tone": m["tone"],
+                            "generation_prompt": user_prompt[:1000] if user_prompt else None,
+                            "model_used": self.model,
+                            "variant_number": m["id"],
+                            "predicted_performance": m.get("predicted_performance"),
+                            "brand_tone_used": brand_context.get("tone_of_voice"),
+                            "target_audience": target_audience,
+                            "times_used": 0,
+                            "tags": ["whatsapp"] + ([campaign_tone] if campaign_tone else []),
+                            "is_favorite": False
+                        })
+                # Add Email logs
+                if content_type in ["all", "emails"]:
+                    for m in normalized_email:
+                        message_logs_data.append({
+                            "caption_id": m["message_id"],
+                            "user_id": user_id,
+                            "campaign_id": campaign_id,
+                            "campaign_idea": campaign_idea[:500] if campaign_idea else None,
+                            "asset_type": AssetTypeEnum.EMAIL,
+                            "caption_text": m["message"],
+                            "hashtags": [],
+                            "tone": m["tone"],
+                            "generation_prompt": user_prompt[:1000] if user_prompt else None,
+                            "model_used": self.model,
+                            "variant_number": m["id"],
+                            "predicted_performance": m.get("predicted_performance"),
+                            "brand_tone_used": brand_context.get("tone_of_voice"),
+                            "target_audience": target_audience,
+                            "times_used": 0,
+                            "tags": ["emails"] + ([campaign_tone] if campaign_tone else []),
+                            "is_favorite": False
+                        })
                 
-                await self.caption_repo.create_many(message_logs_data)
-                logger.info(f"✅ Logged {len(message_logs_data)} {content_type} messages to database")
+                if message_logs_data:
+                    await self.caption_repo.create_many(message_logs_data)
+                    logger.info(f"✅ Logged {len(message_logs_data)} messages to database")
             except Exception as log_error:
                 logger.error(f"⚠️ Failed to log messages: {log_error}")
             
@@ -680,36 +742,49 @@ class ContentGenerationService:
             empty_messages = [{"id": 1, "message_id": "", "tone": "N/A", "message": "", "predicted_performance": "N/A"}]
             empty_hashtag_sets: list = []
             
+            # Final output lists
+            final_whatsapp = normalized_whatsapp
+            final_email = normalized_email
+            final_captions = normalized_captions
+            final_hashtags = normalized_hashtag_sets
+
             # If generating only images, clear other fields in response
             if content_type == "images":
-                normalized_captions = empty_captions
-                normalized_messages = empty_messages
-                normalized_hashtag_sets = empty_hashtag_sets
-                # No text logging needed for image-only generation? 
-                # Actually text generation still happened, we just filter it out here.
+                final_captions = empty_captions
+                final_messages = empty_messages
+                final_hashtags = empty_hashtag_sets
+                final_whatsapp = empty_messages
+                final_email = empty_messages
 
             elif content_type == "captions":
-                # Only captions + their hashtags
-                normalized_messages = empty_messages
-                normalized_hashtag_sets = empty_hashtag_sets
+                final_messages = empty_messages
+                final_hashtags = empty_hashtag_sets
+                final_whatsapp = empty_messages
+                final_email = empty_messages
             elif content_type == "hashtags":
-                # Only hashtag sets
-                normalized_captions = empty_captions
-                normalized_messages = empty_messages
-            elif content_type in ("whatsapp", "emails"):
-                # Only messages (+ images for whatsapp? Wait user doesn't want images in campaign path)
-                normalized_captions = empty_captions
-                normalized_hashtag_sets = empty_hashtag_sets
-            # content_type == "all" → return everything (no filtering) but images will be [] because generate_images is False
+                final_captions = empty_captions
+                final_messages = empty_messages
+                final_whatsapp = empty_messages
+                final_email = empty_messages
+            elif content_type == "whatsapp":
+                final_captions = empty_captions
+                final_hashtags = empty_hashtag_sets
+                final_email = empty_messages
+            elif content_type == "emails":
+                final_captions = empty_captions
+                final_hashtags = empty_hashtag_sets
+                final_whatsapp = empty_messages
             
             logger.info("✅ Content generation completed successfully")
             return {
                 "success": True,
                 "platform_type": platform_type,
-                "caption_variants": normalized_captions,
+                "caption_variants": final_captions,
                 "best_caption_id": result.get("best_caption_id", 1),
-                "hashtag_sets": normalized_hashtag_sets[:3],
-                "message_variants": normalized_messages,
+                "hashtag_sets": final_hashtags[:3],
+                "whatsapp_variants": final_whatsapp,
+                "email_variants": final_email,
+                "message_variants": normalized_messages, # Legacy support
                 "best_message_id": result.get("best_message_id", 1),
                 "image_prompts": image_prompts[:3],
                 "image_paths": image_paths,

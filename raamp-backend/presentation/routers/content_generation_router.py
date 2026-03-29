@@ -17,6 +17,7 @@ from presentation.schemas.content_generation_schema import (
     ContentGenerationResponse,
     ContentVariant,
     MessageVariant,
+    HashtagSet,
     BrandContext,
     ContentGenerationError
 )
@@ -116,7 +117,39 @@ async def generate_content(
             for v in result["caption_variants"]
         ]
         
-        # Build message variants
+        # Build WhatsApp variants
+        whatsapp_variants = [
+            MessageVariant(
+                id=m["id"],
+                tone=m["tone"],
+                message=m["message"],
+                predicted_performance=m.get("predicted_performance")
+            )
+            for m in result.get("whatsapp_variants", [])
+        ]
+        
+        # Build Email variants
+        email_variants = [
+            MessageVariant(
+                id=m["id"],
+                tone=m["tone"],
+                message=m["message"],
+                predicted_performance=m.get("predicted_performance")
+            )
+            for m in result.get("email_variants", [])
+        ]
+        
+        # Build Hashtag sets
+        hashtag_sets = [
+            HashtagSet(
+                id=h["id"],
+                hashtag_id=h.get("hashtag_id") or str(uuid.uuid4()),
+                hashtags=h["hashtags"]
+            )
+            for h in result.get("hashtag_sets", [])
+        ]
+        
+        # Build message variants (Legacy fallback)
         message_variants = [
             MessageVariant(
                 id=m["id"],
@@ -144,11 +177,13 @@ async def generate_content(
             platform_type=result.get("platform_type", "post"),
             brand_context=brand_context,
             caption_variants=caption_variants,
-            best_caption_id=result["best_caption_id"],
-            hashtag_sets=result["hashtag_sets"],
+            best_caption_id=result.get("best_caption_id", 1),
+            hashtag_sets=hashtag_sets,
             best_hashtag_set_id=result.get("best_hashtag_set_id", 1),
+            whatsapp_variants=whatsapp_variants,
+            email_variants=email_variants,
             message_variants=message_variants,
-            best_message_id=result["best_message_id"],
+            best_message_id=result.get("best_message_id", 1),
             image_prompts=result.get("image_prompts", []),
             image_paths=result.get("image_paths", []),
             asset_ids=result.get("asset_ids", []),

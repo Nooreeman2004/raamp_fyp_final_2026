@@ -236,7 +236,7 @@ async def create_portal_session_endpoint(
 
 
 @router.get("/invoices")
-async def list_invoices(
+async def list_invoices_endpoint(
     current_user_email: str = Depends(get_current_user_email)
 ):
     """List Stripe invoices for the current user"""
@@ -247,24 +247,8 @@ async def list_invoices(
         return {"invoices": []}
 
     try:
-        invoices = stripe.Invoice.list(
-            customer=user.stripeCustomerId,
-            limit=50,
-            expand=["data.charge"]
-        )
-        result = []
-        for inv in invoices.data:
-            result.append({
-                "id": inv.id,
-                "date": inv.created,
-                "description": inv.lines.data[0].description if inv.lines.data else (inv.description or "Subscription payment"),
-                "amount": inv.amount_paid / 100,
-                "currency": (inv.currency or "usd").upper(),
-                "status": inv.status,
-                "invoice_pdf": inv.invoice_pdf,
-                "hosted_invoice_url": inv.hosted_invoice_url,
-                "type": "credit" if inv.amount_paid < 0 else "debit",
-            })
+        from application.services.stripe_service import list_customer_invoices
+        result = list_customer_invoices(user.stripeCustomerId)
         return {"invoices": result}
     except Exception as e:
         logging.error("Error fetching invoices: %s", e)
@@ -272,7 +256,7 @@ async def list_invoices(
 
 
 @router.post("/create-addfunds-session")
-async def create_addfunds_session(
+async def create_addfunds_session_endpoint(
     request_data: dict,
     current_user_email: str = Depends(get_current_user_email)
 ):
@@ -286,31 +270,13 @@ async def create_addfunds_session(
         raise HTTPException(status_code=400, detail="Amount must be between $1 and $10,000")
 
     try:
-        session_params = {
-            "payment_method_types": ["card"],
-            "line_items": [{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {"name": "RAAMP Wallet Top-Up"},
-                    "unit_amount": int(round(amount * 100)),
-                },
-                "quantity": 1,
-            }],
-            "mode": "payment",
-            "success_url": f"{Config.FRONTEND_URL}/dashboard/billing?funds_added=true&amount={amount}",
-            "cancel_url": f"{Config.FRONTEND_URL}/billing/add-funds?canceled=true",
-            "metadata": {
-                "userId": str(user.id),
-                "type": "wallet_topup",
-                "amount": str(amount),
-            },
-        }
-        if user.stripeCustomerId:
-            session_params["customer"] = user.stripeCustomerId
-        else:
-            session_params["customer_email"] = user.email
-
-        session = stripe.checkout.Session.create(**session_params)
+        from application.services.stripe_service import create_addfunds_checkout_session
+        session = create_addfunds_checkout_session(
+            user_id=str(user.id),
+            email=user.email,
+            amount=amount,
+            customer_id=user.stripeCustomerId
+        )
         return {"url": session.url}
     except Exception as e:
         logging.error("Stripe add-funds checkout error: %s", e)

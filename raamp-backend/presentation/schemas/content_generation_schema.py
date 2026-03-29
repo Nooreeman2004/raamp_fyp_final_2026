@@ -122,8 +122,14 @@ class ContentGenerationResponse(BaseModel):
     hashtag_sets: List[HashtagSet] = Field(..., description="Three different hashtag sets for maximum reach")
     best_hashtag_set_id: int = Field(..., description="ID of best performing hashtag set (1=Broad, 2=Niche, 3=Mixed)")
     
-    # WhatsApp/Email Messages
-    message_variants: List[MessageVariant] = Field(..., description="Three message variants for direct outreach")
+    # WhatsApp Messages
+    whatsapp_variants: List[MessageVariant] = Field(..., description="Three WhatsApp broadcast variants")
+    
+    # Email Campaigns
+    email_variants: List[MessageVariant] = Field(..., description="Three email campaign variants")
+    
+    # [Deprecated] WhatsApp/Email Messages (Combined)
+    message_variants: List[MessageVariant] = Field(..., description="Combined message variants (legacy)")
     best_message_id: int = Field(..., description="ID of best performing message variant")
     
     # AI-Generated Images

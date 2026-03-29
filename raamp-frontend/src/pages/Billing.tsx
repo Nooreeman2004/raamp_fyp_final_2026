@@ -167,41 +167,42 @@ const Billing = () => {
                   </div>
                 </div>
               </div>
-              {tier !== "free" && (
-                <div className="mt-6 space-y-2">
-                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                    <Button variant="outline" onClick={() => setShowPasswordGate(true)} className="w-full justify-start border-white/20 text-white hover:bg-white/10 font-mono text-xs h-10">
-                      <Settings className="w-4 h-4 mr-2" /> MANAGE SUBSCRIPTION
-                    </Button>
-                  </motion.div>
-                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                    <Link to="/billing/transactions">
-                      <Button variant="outline" className="w-full justify-start border-white/20 text-white hover:bg-white/10 font-mono text-xs h-10">
-                        <FileText className="w-4 h-4 mr-2" /> VIEW TRANSACTION HISTORY
-                      </Button>
-                    </Link>
-                  </motion.div>
-                </div>
-              )}
             </HolographicCard>
 
-            {/* Payment Method Card */}
+            {/* Billing Actions Card */}
             <HolographicCard className="p-6">
-              <h2 className="text-xl font-bold mb-1 font-bebas tracking-wide text-white">PAYMENT METHOD</h2>
-              <p className="text-xs text-muted-foreground mb-6 font-mono">// PRIMARY SOURCE FOR SUBSCRIPTIONS & AD SPEND</p>
-              {tier !== "free" ? (
-                <div className="p-4 bg-white/5 rounded border border-white/10 flex flex-col gap-4 hover:border-primary/30 transition-colors">
-                  <div><span className="text-sm font-mono text-white block mb-1">Connected via Stripe</span><span className="text-xs text-muted-foreground font-mono">Your payment methods are securely stored in the Stripe portal. Update your card, download invoices, and manage billing there.</span></div>
-                  <Button variant="default" onClick={() => setShowPasswordGate(true)} className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20 font-mono shadow-none">
-                    <CreditCard className="w-4 h-4 mr-2" /> MANAGE PAYMENT METHODS
-                  </Button>
-                </div>
-              ) : (
-                <div className="p-4 bg-white/5 rounded border border-white/10 flex items-center justify-between hover:border-primary/30 transition-colors">
-                  <div><span className="text-sm font-mono text-white block">No Payment Method</span><span className="text-xs text-muted-foreground font-mono">Upgrade to a paid plan to add payment methods</span></div>
-                  <AlertTriangle className="w-8 h-8 text-muted-foreground/50" />
-                </div>
-              )}
+              <h2 className="text-xl font-bold mb-1 font-bebas tracking-wide text-white">BILLING ACTIONS</h2>
+              <p className="text-xs text-muted-foreground mb-6 font-mono">// MANAGE INVOICES AND SUBSCRIPTION SETTINGS</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                  <Link to="/billing/transactions">
+                    <Button variant="hero" className="w-full h-14 font-bebas tracking-widest text-lg">
+                      <FileText className="w-5 h-5 mr-3" /> VIEW TRANSACTION HISTORY
+                    </Button>
+                  </Link>
+                </motion.div>
+
+                <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
+                  <Link to="/billing/add-funds">
+                    <Button variant="hero" className="w-full h-14 font-bebas tracking-widest text-lg">
+                      <DollarSign className="w-5 h-5 mr-3" /> ADD FUNDS TO WALLET
+                    </Button>
+                  </Link>
+                </motion.div>
+
+                {tier !== "free" && (
+                  <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap" className="sm:col-span-2">
+                    <Button variant="outline" onClick={() => setShowPasswordGate(true)} className="w-full h-14 border-primary/30 text-white hover:bg-primary/10 font-bebas tracking-widest text-lg">
+                      <Settings className="w-5 h-5 mr-3" /> MANAGE SUBSCRIPTION
+                    </Button>
+                  </motion.div>
+                )}
+              </div>
+
+              <p className="mt-4 text-[10px] text-muted-foreground font-mono text-center">
+                Need to update your payment method? It's available in the <strong>Manage Subscription</strong> portal.
+              </p>
             </HolographicCard>
           </div>
         </motion.div>

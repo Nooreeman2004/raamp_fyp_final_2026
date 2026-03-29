@@ -45,46 +45,24 @@ Your task is to generate a highly detailed, professional image generation prompt
 
 ## CRITICAL RULES:
 
-1. **Use Only Provided Brand Assets**:
-   - Use the exact brand name, colors, tone, and style guidelines provided
-   - If brand information is missing or limited, make smart creative assumptions based on the campaign idea
-   - NEVER respond asking for more information — always generate a complete prompt
+1. **Campaign Vision Priority**:
+   - The user's specific campaign idea or theme (e.g., 'University Admissions', 'Holiday Special') MUST be the absolute primary focus of the visual.
+   - If the user provides specific details like 'Audience', 'Highlights', 'Programs', or 'Important Dates', incorporate EVERY SINGLE ONE of these into the visual composition.
+   - Do NOT ignore specific industry details in the request in favor of general brand context.
+   - Integrate the brand identity (name, logo cues, colors) INTO the requested scene naturally.
 
 2. **Brand Consistency**:
-   - Enforce the brand's color palette exactly as provided
-   - Match the brand tone (e.g., playful, professional, luxury)
-   - Respect industry-specific design conventions
-   - Reference uploaded logos if mentioned
+   - Use the brand's color palette where possible.
+   - Match the overall brand tone (e.g., playful, luxury) while respecting the campaign's specific mood.
 
 3. **Social Media Optimization**:
-   - Design for Instagram/Facebook feed posts (1:1 or 4:5 aspect ratio)
-   - Ensure text readability on mobile devices
-   - Follow current social media design trends
-   - Create eye-catching, scroll-stopping visuals
-
-4. **Composition Guidelines**:
-   Include in your prompt:
-   - Visual style (e.g., modern, minimalist, bold, vintage)
-   - Lighting (natural, studio, dramatic, soft)
-   - Color scheme (use provided brand colors, or infer from the campaign theme)
-   - Typography style (if text is needed)
-   - Layout composition (centered, rule of thirds, asymmetric)
-   - Mood and atmosphere
-   - Product/subject placement
-   - Background style
-
-5. **Quality Standards**:
-   - Specify "professional photography" or "high-quality graphic design"
-   - Mention desired resolution or quality level
-   - Include style modifiers (clean, polished, modern, etc.)
+   - Design for Instagram/Facebook feed posts (1:1 or 4:5 aspect ratio).
+   - Ensure visuals are scroll-stopping and professional.
 
 ## OUTPUT FORMAT:
 
-Generate a single, comprehensive image generation prompt (150-300 words) that can be directly used for AI image generation.
-
-The prompt should be detailed, specific, and ready to use without modification.
-
-IMPORTANT: You MUST always output the complete image prompt. Never ask for clarification. If information is missing, make reasonable creative assumptions."""
+Generate a single, comprehensive image generation prompt (150-300 words).
+IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never ask for clarification."""
 
     def __init__(self):
         """Initialize the image generation service."""
@@ -243,55 +221,59 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
         aspect_ratio: str = "1:1"
     ) -> Optional[str]:
         """
-        Generate a single image using a multi-strategy approach.
-        Strategy 1: Imagen API (generate_image)
-        Strategy 2: Gemini 2.0 Flash with image output
+        Generate a single image using a multi-strategy approach with retry.
         
         Returns: File path if successful, None otherwise
         """
-        # --- Strategy 1: Gemini generate_content with IMAGE modality (confirmed working) ---
-        try:
-            logger.info("🎨 [Strategy 1] generate_content IMAGE modality (%s) for: %s", self.image_model, filename)
-            response = self.client.models.generate_content(
-                model=self.image_model,
-                contents=image_prompt,
-                config=genai_types.GenerateContentConfig(
-                    response_modalities=["TEXT", "IMAGE"]
+        # Try up to 2 times for each image variation
+        for attempt in range(1, 3):
+            logger.info("🎨 Generating image attempt %d/2 for: %s", attempt, filename)
+            
+            # --- Strategy 1: Gemini generate_content with IMAGE modality ---
+            try:
+                response = self.client.models.generate_content(
+                    model=self.image_model,
+                    contents=image_prompt,
+                    config=genai_types.GenerateContentConfig(
+                        response_modalities=["TEXT", "IMAGE"]
+                    )
                 )
-            )
-            if response.candidates:
-                for part in response.candidates[0].content.parts:
-                    if hasattr(part, 'inline_data') and part.inline_data is not None:
-                        img_bytes = part.inline_data.data
-                        with open(filename, "wb") as f:
-                            f.write(img_bytes)
-                        logger.info("✅ [Strategy 1] Image saved: %s (%d bytes)", filename, len(img_bytes))
+                if response.candidates:
+                    for part in response.candidates[0].content.parts:
+                        if hasattr(part, 'inline_data') and part.inline_data is not None:
+                            img_bytes = part.inline_data.data
+                            with open(filename, "wb") as f:
+                                f.write(img_bytes)
+                            logger.info("✅ [Strategy 1] Image saved: %s (attempt %d)", filename, attempt)
+                            return filename
+                logger.warning("⚠️ [Strategy 1] No inline_data in response (attempt %d)", attempt)
+            except Exception as e:
+                logger.warning("⚠️ [Strategy 1] failed: %s (attempt %d)", str(e), attempt)
+
+            # --- Strategy 2: Imagen API generate_image ---
+            try:
+                response = self.client.models.generate_image(
+                    model=self.image_model,
+                    prompt=image_prompt,
+                    config=types.GenerateImageConfig(
+                        number_of_images=1,
+                        aspect_ratio=aspect_ratio
+                    )
+                )
+                if response.generated_images and len(response.generated_images) > 0:
+                    image_obj = response.generated_images[0]
+                    saved = self._save_image_object(image_obj, filename)
+                    if saved:
+                        logger.info("✅ [Strategy 2] Image saved (attempt %d)", attempt)
                         return filename
-            logger.warning("⚠️ [Strategy 1] No inline_data in response for %s", filename)
-        except Exception as e:
-            logger.warning("⚠️ [Strategy 1] generate_content IMAGE failed: %s", str(e))
+            except Exception as e:
+                logger.warning("⚠️ [Strategy 2] failed: %s (attempt %d)", str(e), attempt)
+            
+            if attempt < 2:
+                # Add a small delay between retries
+                await asyncio.sleep(1)
 
-        # --- Strategy 2: Imagen API generate_image (may not exist in all SDK versions) ---
-        try:
-            logger.info("🎨 [Strategy 2] Trying Imagen generate_image API for: %s", filename)
-            response = self.client.models.generate_image(
-                model=self.image_model,
-                prompt=image_prompt,
-                config=types.GenerateImageConfig(
-                    number_of_images=1,
-                    aspect_ratio=aspect_ratio
-                )
-            )
-            if response.generated_images and len(response.generated_images) > 0:
-                image_obj = response.generated_images[0]
-                saved = self._save_image_object(image_obj, filename)
-                if saved:
-                    logger.info("✅ [Strategy 2] Image saved via Imagen API: %s", filename)
-                    return filename
-        except Exception as e:
-            logger.warning("⚠️ [Strategy 2] Imagen generate_image failed: %s", str(e))
-
-        logger.error("❌ All image generation strategies failed for: %s", filename)
+        logger.error("❌ All image generation strategies failed for: %s after 2 attempts", filename)
         return None
 
     def _save_image_object(self, image_obj, filename: str) -> bool:
@@ -357,13 +339,19 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
-        # Filter out None values and exceptions
-        successful_images = [
-            r for r in results 
-            if r is not None and not isinstance(r, Exception)
-        ]
+        # Filter out None values and exceptions, and log errors
+        successful_images = []
+        for i, r in enumerate(results):
+            if r is not None and not isinstance(r, Exception):
+                successful_images.append(r)
+            else:
+                logger.error("❌ Image variation %d failed: %s", i+1, r)
         
         logger.info("Successfully generated %d/%d images", len(successful_images), count)
+        
+        # Ensure we always return at least one image if any succeeded
+        if not successful_images:
+             logger.error("❌ NO IMAGES GENERATED AT ALL")
         
         # Convert file paths to URLs
         image_urls = []

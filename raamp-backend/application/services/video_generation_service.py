@@ -238,16 +238,28 @@ Generate a detailed video production prompt ({aspect_ratio} aspect ratio) follow
                 return None
             
             # Save video
-            generated_video = operation.response.generated_videos[0]
-            self.client.files.download(file=generated_video.video)
-            generated_video.video.save(filename)
+            result = operation.result if hasattr(operation, 'result') else operation.response
+            generated_video = result.generated_videos[0]
             
-            logger.info(f"✅ Video saved as {filename}")
+            # Use the download method to get video bytes
+            logger.info(f"  Downloading video content for {filename}...")
+            video_bytes = self.client.files.download(file=generated_video.video)
+            
+            if not video_bytes:
+                logger.error(f"❌ Failed to download video bytes for {filename}")
+                return None
+                
+            # Write bytes to file
+            with open(filename, 'wb') as f:
+                f.write(video_bytes)
+            
+            logger.info(f"✅ Video saved as {filename} (Size: {len(video_bytes)} bytes)")
             return filename
             
         except Exception as e:
             logger.error(f"❌ Failed to generate video {filename}: {str(e)}")
-            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"   Traceback:\n{traceback.format_exc()}")
             return None
     
     async def generate_single_video_async(

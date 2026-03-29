@@ -22,7 +22,7 @@ class ConnectionManager:
         self.active_connections: Dict[str, List[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, user_id: str):
-        await websocket.accept()
+        # The router now handles accept() to allow auth before/after handshake control
         if user_id not in self.active_connections:
             self.active_connections[user_id] = []
         self.active_connections[user_id].append(websocket)

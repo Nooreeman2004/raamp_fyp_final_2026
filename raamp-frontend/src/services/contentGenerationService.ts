@@ -67,6 +67,8 @@ export interface ContentGenerationResponse {
     best_caption_id: number;
     hashtag_sets: HashtagSet[];
     best_hashtag_set_id: number;
+    whatsapp_variants: MessageVariant[];
+    email_variants: MessageVariant[];
     message_variants: MessageVariant[];
     best_message_id: number;
     image_prompts: string[];

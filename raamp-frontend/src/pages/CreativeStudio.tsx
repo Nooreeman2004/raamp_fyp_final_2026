@@ -141,13 +141,31 @@ const CreativeStudio = () => {
       }));
     }
 
-    if (selectedAsset === "whatsapp" || selectedAsset === "emails") {
-      return generatedContent.message_variants.map((variant: MessageVariant, idx: number) => ({
+    if (selectedAsset === "whatsapp") {
+      const variants = generatedContent.whatsapp_variants && generatedContent.whatsapp_variants.length > 0
+        ? generatedContent.whatsapp_variants
+        : generatedContent.message_variants;
+
+      return variants.map((variant: MessageVariant, idx: number) => ({
         id: variant.id,
-        message_id: variant.message_id,  // Preserve message_id for tracking
+        message_id: variant.message_id,
         tone: variant.tone,
         copy: variant.message,
         imagePath: (generatedContent.image_paths || [])[idx] || null
+      }));
+    }
+
+    if (selectedAsset === "emails") {
+      const variants = generatedContent.email_variants && generatedContent.email_variants.length > 0
+        ? generatedContent.email_variants
+        : generatedContent.message_variants;
+
+      return variants.map((variant: MessageVariant) => ({
+        id: variant.id,
+        message_id: variant.message_id,
+        tone: variant.tone,
+        copy: variant.message,
+        imagePath: null // Emails don't show the generated images in the preview card
       }));
     }
 
@@ -339,7 +357,9 @@ const CreativeStudio = () => {
       return;
     }
     // If details not provided and dialog hasn't been shown, show it first
-    if (!skipDialog && (!imageThemeColor && !imageMood && !imageSubject && !imageStyle)) {
+    // SKIP dialog if current prompt already has substantial content (>100 chars)
+    const isDetailedPrompt = basePrompt.length > 50;
+    if (!skipDialog && !isDetailedPrompt && (!imageThemeColor && !imageMood && !imageSubject && !imageStyle)) {
       setShowImageDetailsDialog(true);
       return;
     }
@@ -1209,9 +1229,8 @@ const CreativeStudio = () => {
         </motion.div>
       </div>
 
-      {/* Variants Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[70vh] flex flex-col bg-black/90 backdrop-blur-xl border-white/10 p-0 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden">
+        <DialogContent className="max-w-[95vw] w-[95vw] h-fit max-h-[95vh] flex flex-col bg-black/90 backdrop-blur-xl border-white/10 p-0 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden transition-all duration-300">
 
           <div className="p-6 pb-4 border-b border-white/10 shrink-0 relative bg-black/50 z-10">
             <DialogHeader>

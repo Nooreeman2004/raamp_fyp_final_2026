@@ -80,7 +80,7 @@ Be specific about timing, visuals, and audio."""
         
         self.client = genai.Client(api_key=self.api_key)
         self.text_model = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
-        self.video_model = os.getenv("VEO_MODEL", "veo-3.1-generate-001")
+        self.video_model = os.getenv("VEO_MODEL", "veo-3.1-generate-preview")
         self.output_folder = Path("generated_reels")
         self.output_folder.mkdir(exist_ok=True)
         self.asset_repo = AssetRepository()
@@ -232,16 +232,29 @@ Generate a detailed Instagram Reel production prompt (8-15 seconds, 9:16 aspect 
                 return None
             
             # Save video
-            generated_video = operation.response.generated_videos[0]
-            self.client.files.download(file=generated_video.video)
-            generated_video.video.save(filename)
+            # For Veo, result contains the generated videos
+            result = operation.result if hasattr(operation, 'result') else operation.response
+            generated_video = result.generated_videos[0]
             
-            logger.info(f"✅ Reel saved as {filename}")
+            # Use the download method to get video bytes
+            logger.info(f"  Downloading video content for {filename}...")
+            video_bytes = self.client.files.download(file=generated_video.video)
+            
+            if not video_bytes:
+                logger.error(f"❌ Failed to download video bytes for {filename}")
+                return None
+                
+            # Write bytes to file
+            with open(filename, 'wb') as f:
+                f.write(video_bytes)
+            
+            logger.info(f"✅ Reel saved as {filename} (Size: {len(video_bytes)} bytes)")
             return filename
             
         except Exception as e:
             logger.error(f"❌ Failed to generate Reel {filename}: {str(e)}")
-            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"   Traceback:\n{traceback.format_exc()}")
             return None
     
     async def generate_single_reel_async(

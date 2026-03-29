@@ -100,15 +100,9 @@ async def websocket_endpoint(
 ):
     """
     Real-time notification socket.
-    
-    Authentication Note: 
-    Real implementations should validate the 'token' via `auth_service.verify_token(token)`.
-    For now, we will trust the caller providing a valid JWT or session id in strict env, 
-    but here we might need a workaround if `get_current_user_email` depends on cookies 
-    which might not pass easily to WS in all clients. 
-    
-    For MVP within this codebase structure: We assume frontend passes JWT in query param `?token=...`.
     """
+    # Accept connection first to avoid 403 handshake rejection
+    await websocket.accept()
     
     # Simple Token Validation Logic
     user_email = None
@@ -120,8 +114,13 @@ async def websocket_endpoint(
              payload = jwt_service.verify_token(token)
              if payload:
                  user_email = payload.get("email")
+                 print(f"WS Auth Success: {user_email}")
+             else:
+                 print(f"WS Auth Failed: Invalid Token")
+         else:
+             print(f"WS Auth Failed: No token provided")
     except Exception as e:
-        print(f"WS Auth Error: {e}")
+        print(f"WS Auth Exception: {e}")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
@@ -129,7 +128,7 @@ async def websocket_endpoint(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    # Connect
+    # Connect – Now that handshake is accepted and auth passed, we register it
     await manager.connect(websocket, user_email)
     
     try:

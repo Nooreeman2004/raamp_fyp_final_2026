@@ -59,6 +59,21 @@ from infrastructure.repositories.account_deletion_verification_repository import
 from infrastructure.repositories.business_repository import BusinessRepository
 from application.services.firebase_storage_service import FirebaseStorageService
 from domain.entities.user import User
+
+# --- Imports for Data Cleanup on Deletion ---
+from infrastructure.database.models.facebook_connection_model import FacebookConnectionModel
+from infrastructure.database.models.instagram_connection_model import InstagramConnectionModel
+from infrastructure.database.models.social_media_account_model import SocialMediaAccountModel
+from infrastructure.database.models.business_model import BusinessModel
+from infrastructure.database.models.notification_model import NotificationModel
+from infrastructure.database.models.notification_settings_model import NotificationSettingsModel
+from infrastructure.database.models.asset_model import AssetModel
+from infrastructure.database.models.instagram_post_model import InstagramPostModel, ScheduledInstagramPostModel, InstagramStoryModel
+from infrastructure.database.models.facebook_post_model import FacebookPostModel, ScheduledFacebookPostModel
+from infrastructure.database.models.oauth_state_model import OAuthStateModel
+from infrastructure.database.models.wallet_model import WalletModel
+# ----------------------------------------------
+
 import secrets
 from fastapi import Body
 
@@ -421,8 +436,28 @@ async def signin(
         message="Sign in successful"
     )
 
+@router.post(
+    "/logout",
+    status_code=status.HTTP_200_OK,
+    responses={200: {"description": "Logged out successfully"}}
+)
+async def logout(response: Response):
+    """
+    Sign out of RAAMP.
+    Clears the access_token HTTP-only cookie.
+    """
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax",
+        secure=False,  # Set to True in production
+    )
+    return {"success": True, "message": "Logged out successfully"}
+
+
 
 @router.post(
+
     "/signin/google",
     response_model=SignInResponse,
     status_code=status.HTTP_200_OK,
@@ -1330,20 +1365,56 @@ async def verify_account_deletion(
             )
         
         # Delete user profile picture from Firebase Storage if exists
-        if user.profile_picture and "firebasestorage.googleapis.com" in (user.profile_picture or ""):
-            try:
-                storage_service = FirebaseStorageService()
-                await storage_service.delete_profile_picture(user.profile_picture)
-            except Exception as e:
-                print(f"Warning: Failed to delete profile picture: {e}")
+        try:
+             # Check both 'profile_picture' and 'profile_picture_url' as some models use different names
+             picture_to_delete = getattr(user, 'profile_picture', None) or getattr(user, 'profile_picture_url', None)
+             if picture_to_delete and "firebasestorage.googleapis.com" in (picture_to_delete or ""):
+                 storage_service = FirebaseStorageService()
+                 await storage_service.delete_profile_picture(picture_to_delete)
+                 print(f"✅ Deleted profile picture for {email}")
+        except Exception as e:
+            print(f"Warning: Failed to delete profile picture: {e}")
         
-        # Delete user account
+        # --- COMPREHENSIVE DATA CLEANUP ---
+        # This resolves the bug where new users with same email inherited old connections/data
+        cleanup_models = [
+            FacebookConnectionModel,
+            InstagramConnectionModel,
+            SocialMediaAccountModel,
+            BusinessModel,
+            NotificationModel,
+            NotificationSettingsModel,
+            AssetModel,
+            InstagramPostModel,
+            ScheduledInstagramPostModel,
+            InstagramStoryModel,
+            FacebookPostModel,
+            ScheduledFacebookPostModel,
+            OAuthStateModel,
+            WalletModel,
+        ]
+        
+        for model in cleanup_models:
+            model_name = model.__name__
+            try:
+                # We attempt to delete by both email (string) and ObjectID (string hex)
+                # because some repositories use email as 'user_id' while others use the hex ID.
+                res1 = await model.find(model.user_id == email).delete()
+                res2 = await model.find(model.user_id == str(user.id)).delete()
+                
+                deleted_count = (getattr(res1, 'deleted_count', 0) or 0) + (getattr(res2, 'deleted_count', 0) or 0)
+                if deleted_count > 0:
+                    print(f"🗑️ Cleaned up {deleted_count} records from {model_name}")
+            except Exception as e:
+                print(f"⚠️ Warning: Cleanup failed for {model_name}: {e}")
+        
+        # Delete user account (UserModel)
         deleted = await user_repository.delete_by_email(email)
         if not deleted:
             await deletion_repo.set_verification_lock(email, False)
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={"success": False, "errors": {"server": "Failed to delete account"}, "message": "Could not delete account"}
+                content={"success": False, "errors": {"server": "Failed to delete account"}, "message": "Could not delete user document"}
             )
         
         # Clean up verification entry

@@ -10,7 +10,7 @@ import { apiClient } from "@/services/api";
 import { businessService } from "@/services/businessService";
 import { trendService } from "@/services/trendService";
 import { cn } from "@/lib/utils";
-import LocationPicker from "@/components/LocationPicker";
+import GoogleLocationPicker from "@/components/GoogleLocationPicker";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +29,30 @@ import { motion, AnimatePresence } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { staggerContainer, fadeInUp, hoverScale } from "@/utils/animations";
 import { BlurText } from "@/components/ui/text-reveal";
+
+// Social Logos
+const FacebookLogo = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-white">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+);
+
+const InstagramLogo = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+    </svg>
+);
+
+const GoogleLogo = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+        <path d="M12 23c3.11 0 5.72-1.03 7.63-2.79l-3.57-2.77c-.99.66-2.26 1.05-4.06 1.05-3.12 0-5.76-2.11-6.7-4.94H1.67v2.86C3.57 20.31 7.49 23 12 23z" fill="#34A853" />
+        <path d="M5.3 13.55c-.24-.72-.38-1.49-.38-2.3s.14-1.58.38-2.3V6.09H1.67C.61 8.21 0 10.59 0 13.1s.61 4.89 1.67 7.01l3.63-2.86z" fill="#FBBC05" />
+        <path d="M12 4.07c1.69 0 3.2.58 4.39 1.72l3.29-3.29C17.71 1.03 15.1 0 12 0 7.49 0 3.57 2.69 1.67 6.09L5.3 8.95c.94-2.83 3.58-4.88 6.7-4.88z" fill="#EA4335" />
+    </svg>
+);
 
 interface OnboardingStatus {
     facebook_connected: boolean;
@@ -178,11 +202,11 @@ const Onboarding = () => {
         setDisconnecting(true);
         try {
             const response = await apiClient.delete(`/profile/onboarding/${platformToDisconnect}/disconnect`);
-            
+
             toast.success("Disconnected Successfully", {
                 description: `${platformToDisconnect === 'facebook' ? 'Facebook' : 'Instagram'} account has been disconnected.`,
             });
-            
+
             await fetchStatus();
             await refreshUser();
         } catch (error: any) {
@@ -225,20 +249,47 @@ const Onboarding = () => {
         return () => clearTimeout(timer);
     }, [locationData.address, isTyping]);
 
-    const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
-        setLocationData(prev => ({
-            ...prev,
-            address: suggestion.formatted_address || suggestion.name,
-            latitude: suggestion.lat,
-            longitude: suggestion.lng,
-            place_id: suggestion.place_id || ""
-        }));
-
-        setShowSuggestions(false);
+    const handleSuggestionSelect = async (suggestion: LocationSuggestion) => {
         setIsTyping(false);
-        toast.success("Location Selected", {
-            description: `Selected: ${suggestion.name}`,
-        });
+        setShowSuggestions(false);
+
+        // If suggestion is missing coordinates (standard for autocomplete), fetch them from details
+        if (!suggestion.lat || !suggestion.lng) {
+            try {
+                const toastId = toast.loading("Fetching location details...");
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/maps/details?place_id=${suggestion.place_id}`);
+                if (response.ok) {
+                    const details = await response.json();
+                    setLocationData(prev => ({
+                        ...prev,
+                        address: details.formatted_address || details.name || suggestion.name,
+                        city: details.city || prev.city,
+                        country: details.country || prev.country,
+                        latitude: details.lat,
+                        longitude: details.lng,
+                        place_id: details.place_id
+                    }));
+                    toast.success("Location Details Loaded", { id: toastId });
+                } else {
+                    toast.error("Failed to load location details", { id: toastId });
+                }
+            } catch (error) {
+                console.error("Details fetch error:", error);
+                toast.error("Error loading location details");
+            }
+        } else {
+            // Suggestion already had coords (from direct search)
+            setLocationData(prev => ({
+                ...prev,
+                address: suggestion.formatted_address || suggestion.name,
+                latitude: suggestion.lat,
+                longitude: suggestion.lng,
+                place_id: suggestion.place_id || ""
+            }));
+            toast.success("Location Selected", {
+                description: `Selected: ${suggestion.name}`,
+            });
+        }
     };
 
     const handleSaveLocation = async () => {
@@ -254,7 +305,7 @@ const Onboarding = () => {
             // Try to get existing setup data, but provide defaults if it doesn't exist
             let business_name = user?.company || "My Business"; // Use user's company name if available
             let business_type = "General";
-            
+
             try {
                 const currentSetup = await businessService.getHyperlocalSetup();
                 if (currentSetup.business_name) business_name = currentSetup.business_name;
@@ -265,7 +316,7 @@ const Onboarding = () => {
                     throw error; // Re-throw if it's not a 404
                 }
             }
-            
+
             await businessService.saveHyperlocalSetup({
                 business_name: business_name,
                 business_type: business_type,
@@ -297,35 +348,35 @@ const Onboarding = () => {
     // Specialty Handlers
     const handleAddSpecialty = () => {
         const trimmed = specialtyInput.trim();
-        
+
         if (!trimmed) {
             return;
         }
-        
+
         if (specialties.length >= 10) {
             toast.error("Maximum specialties reached", {
                 description: "You can add up to 10 specialties.",
             });
             return;
         }
-        
+
         if (trimmed.length > 50) {
             toast.error("Specialty too long", {
                 description: "Each specialty must be 50 characters or less.",
             });
             return;
         }
-        
+
         if (specialties.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
             toast.error("Duplicate specialty", {
                 description: "This specialty is already added.",
             });
             return;
         }
-        
+
         setSpecialties([...specialties, trimmed]);
         setSpecialtyInput("");
-        
+
         toast.success("Specialty added", {
             description: `Added "${trimmed}" to your specialties.`,
         });
@@ -339,11 +390,11 @@ const Onboarding = () => {
         setSavingSpecialties(true);
         try {
             await trendService.updateBusinessSpecialties(specialties);
-            
+
             toast.success("Specialties Saved", {
                 description: "Your specialties will help us show more relevant trends.",
             });
-            
+
             setShowSpecialtiesForm(false);
         } catch (error) {
             console.error("Failed to save specialties:", error);
@@ -422,12 +473,13 @@ const Onboarding = () => {
                                     <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10 flex items-center justify-between group">
                                         <div className="flex items-center gap-4">
                                             <div className={cn(
-                                                 connecting === 'facebook' ? "bg-blue-600/40 animate-pulse scale-110" : "bg-blue-600/20"
+                                                "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500",
+                                                connecting === 'facebook' ? "bg-blue-600/40 animate-pulse scale-110" : "bg-blue-600"
                                             )}>
-                                                <span className="text-blue-500 font-bold text-xl">f</span>
+                                                <FacebookLogo />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold font-bebas tracking-wide text-lg">Facebook Ads</h3>
+                                                <h3 className="font-bold font-bebas tracking-wide text-lg text-white">Facebook Ads</h3>
                                                 <p className="text-sm text-muted-foreground font-mono">Connect your ad account</p>
                                             </div>
                                         </div>
@@ -469,12 +521,12 @@ const Onboarding = () => {
                                         <div className="flex items-center gap-4">
                                             <div className={cn(
                                                 "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500",
-                                                connecting === 'instagram' ? "bg-pink-600/40 animate-pulse scale-110" : "bg-pink-600/20"
+                                                connecting === 'instagram' ? "bg-pink-600/40 animate-pulse scale-110" : "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 shadow-lg shadow-pink-500/20"
                                             )}>
-                                                <span className="text-pink-500 font-bold text-xl">Ig</span>
+                                                <InstagramLogo />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold font-bebas tracking-wide text-lg">Instagram</h3>
+                                                <h3 className="font-bold font-bebas tracking-wide text-lg text-white">Instagram</h3>
                                                 <div className="flex flex-col">
                                                     <p className="text-sm text-muted-foreground font-mono">Connect for organic insights</p>
                                                     {!status.facebook_connected && (
@@ -523,12 +575,12 @@ const Onboarding = () => {
                                     )}>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-full bg-red-600/20 flex items-center justify-center">
-                                                    <span className="text-red-500 font-bold text-xl">G</span>
+                                                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md">
+                                                    <GoogleLogo />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold font-bebas tracking-wide text-lg">Google Business</h3>
-                                                    <p className="text-sm text-muted-foreground font-mono">Connect for search intent</p>
+                                                    <h3 className="font-bold font-bebas tracking-wide text-lg text-white">Google Business</h3>
+                                                    <p className="text-sm text-white/60 font-mono">Connect for search intent</p>
                                                 </div>
                                             </div>
                                             <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
@@ -619,7 +671,7 @@ const Onboarding = () => {
 
                                                     <div className="space-y-2">
                                                         <Label className="font-mono text-xs">Pin Precise Location</Label>
-                                                        <LocationPicker
+                                                        <GoogleLocationPicker
                                                             initialLat={locationData.latitude}
                                                             initialLng={locationData.longitude}
                                                             onLocationSelect={(lat, lng) => {
@@ -665,7 +717,7 @@ const Onboarding = () => {
                                                         <span className="text-xs font-mono px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded">OPTIONAL</span>
                                                     </h3>
                                                     <p className="text-sm text-muted-foreground font-mono">
-                                                        {specialties.length > 0 
+                                                        {specialties.length > 0
                                                             ? `${specialties.length} specialt${specialties.length === 1 ? 'y' : 'ies'} added`
                                                             : "Add keywords to see more relevant trends"
                                                         }
@@ -790,13 +842,13 @@ const Onboarding = () => {
                                 try {
                                     // Mark onboarding as completed
                                     await apiClient.post('/profile/onboarding', {});
-                                    
+
                                     // Refresh the user context to get updated onboarding_status
                                     await refreshUser();
-                                    
+
                                     // Small delay to ensure state propagates
                                     await new Promise(resolve => setTimeout(resolve, 300));
-                                    
+
                                     // Navigate to dashboard using React Router
                                     navigate('/dashboard', { replace: true });
                                 } catch (error) {
@@ -820,7 +872,7 @@ const Onboarding = () => {
                                 Disconnect {platformToDisconnect === 'facebook' ? 'Facebook' : 'Instagram'}?
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                                Are you sure you want to disconnect your {platformToDisconnect === 'facebook' ? 'Facebook' : 'Instagram'} account? 
+                                Are you sure you want to disconnect your {platformToDisconnect === 'facebook' ? 'Facebook' : 'Instagram'} account?
                                 {platformToDisconnect === 'facebook' && ' This will also disconnect Instagram if connected.'}
                                 {' '}You will need to reconnect to use posting features again.
                             </AlertDialogDescription>

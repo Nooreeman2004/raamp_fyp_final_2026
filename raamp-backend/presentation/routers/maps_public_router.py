@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from presentation.routers.auth_router import get_current_user_email
-from application.services.maps_local import query_places, show_on_map
+from application.services.maps_local import query_places, autocomplete_places, show_on_map
 from infrastructure.repositories.google_business_repository import GoogleBusinessRepository
 from infrastructure.repositories.user_repository_impl import UserRepository
 from pydantic import BaseModel, Field
@@ -43,10 +43,11 @@ class MapConnectResponse(BaseModel):
 
 @router.get('/search', response_model=List[MapSearchResult])
 async def maps_search(query: str, type: Optional[str] = None):
-    """Return top 5 places matching query. Uses built-in maps_local service."""
+    """Return top 5 places matching query. Uses autocomplete for live suggestions."""
     if not query or not query.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="query parameter is required")
-    places = await query_places(query=query, limit=5, type=type)
+    # Using None for type by default to be more inclusive (cities, addresses, etc.)
+    places = await autocomplete_places(query=query, limit=5, type=type)
     # map to response format
     out = []
     for p in places:
