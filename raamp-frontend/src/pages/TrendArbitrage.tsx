@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
@@ -14,7 +14,7 @@ import {
   Zap, TrendingUp, Flame, Target, MapPin,
   Globe, ArrowRight, RefreshCw, AlertCircle,
   Activity, Wind, Sparkles, ChevronRight, Check, Search, Database,
-  Info, Lightbulb
+  Info, Lightbulb, Rocket
 } from "lucide-react";
 
 // Animation Imports
@@ -40,9 +40,8 @@ import { useAuth } from "@/hooks/useAuth";
 // Chart Imports
 import {
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar, ScatterChart,
-  Scatter, ZAxis, Cell, Area, ComposedChart,
-  PieChart, Pie, Line, ReferenceArea, ReferenceLine, LabelList, Label
+  ResponsiveContainer, Area, ComposedChart,
+  Line
 } from 'recharts';
 
 import {
@@ -54,48 +53,183 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-import { trendService, TrendSpike, GeoTrend, SpikeTimeline, MarketGap, PlatformReach, CampaignRecommendation, WatchlistItem, ContentSuggestion } from "@/services/trendService";
-import { ContentSuggestionsModal } from "@/components/ContentSuggestionsModal";
+import { trendService, TrendSpike, GeoTrend, SpikeTimeline, MarketGap, PlatformReach, WatchlistItem } from "@/services/trendService";
+import { businessService } from "@/services/businessService";
+import { apiClient } from "@/services/api";
+import { AIStrategyDrawer } from "@/components/trends/AIStrategyDrawer";
+import { IntelligenceGrid } from "@/components/trends/IntelligenceGrid";
+import { SignalsCarousel } from "@/components/trends/SignalsCarousel";
+import { TrendHistoryTable } from "@/components/trends/TrendHistoryTable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LaunchCampaignDialog } from "@/components/LaunchCampaignDialog";
 
 const TrendArbitrage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const userPlatform = (user as any)?.primary_platform || "instagram";
   const [liveTrends, setLiveTrends] = useState<TrendSpike[]>([]);
+  const [rawTrends, setRawTrends] = useState<TrendSpike[]>([]);
   const [geoData, setGeoData] = useState<GeoTrend[]>([]);
+  const [isRealGeo, setIsRealGeo] = useState<boolean>(true);
   const [timelineData, setTimelineData] = useState<SpikeTimeline[]>([]);
   const [marketGapData, setMarketGapData] = useState<MarketGap[]>([]);
   const [platformReach, setPlatformReach] = useState<PlatformReach | null>(null);
-  const [recommendations, setRecommendations] = useState<CampaignRecommendation[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
-  const [recContext, setRecContext] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isGeneratingRecs, setIsGeneratingRecs] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanStep, setScanStep] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date>(new Date());
+  const [lastSuccessfulScanAt, setLastSuccessfulScanAt] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
-  const [expandedReasonings, setExpandedReasonings] = useState<Set<number>>(new Set());
+  const [timelineFetchError, setTimelineFetchError] = useState<string | null>(null);
+  const [geoFetchError, setGeoFetchError] = useState<string | null>(null);
+  const [lastScanSummary, setLastScanSummary] = useState<{
+    niche: string;
+    location: string;
+    category: string;
+    timeframeDays: number;
+    trendId?: string;
+    completedAt?: number;
+  } | null>(null);
   const [deploySheetOpen, setDeploySheetOpen] = useState(false);
   const [deployPrompt, setDeployPrompt] = useState("");
   const [deployContentType, setDeployContentType] = useState<"carousel" | "reel" | "story">("carousel");
 
   // Filter States
-  const [location, setLocation] = useState<string>("PK");
-  const [searchQuery, setSearchQuery] = useState<string>("PK");
+  const [location, setLocation] = useState<string>((user as any)?.business_location || "PK");
+  const [searchQuery, setSearchQuery] = useState<string>((user as any)?.business_location || "PK");
   const [category, setCategory] = useState<string>("all");
+  const [customKeywordInput, setCustomKeywordInput] = useState<string>("");
+  const [customKeywords, setCustomKeywords] = useState<string[]>([]);
+  const [useTrendingNow, setUseTrendingNow] = useState<boolean>(true);
+  const [hasSpecialties, setHasSpecialties] = useState<boolean>(true);
+  const [specialtiesLoading, setSpecialtiesLoading] = useState<boolean>(true);
   const [timeframe, setTimeframe] = useState<string>("30");
   const [lifecycleFilter, setLifecycleFilter] = useState<string>("all");
   const [showAllTrends, setShowAllTrends] = useState(false);
   const [selectedCity, setSelectedCity] = useState<GeoTrend | null>(null);
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [selectedTrend, setSelectedTrend] = useState<TrendSpike | null>(null);
+  const [activeTrend, setActiveTrend] = useState<TrendSpike | null>(null);
   const [gapAnalysisOpen, setGapAnalysisOpen] = useState(false);
+  const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
+  const [compareTrends, setCompareTrends] = useState<TrendSpike[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
 
-  // Content Suggestions States
-  const [contentSuggestions, setContentSuggestions] = useState<ContentSuggestion | null>(null);
-  const [contentModalOpen, setContentModalOpen] = useState(false);
-  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  // AI Content Suggestions removed (keep Trends page focused on signals + page sections)
+  const [qualityBannerDismissed, setQualityBannerDismissed] = useState(false);
+  const [brandProfile, setBrandProfile] = useState<any>(null);
+  const [businessDetails, setBusinessDetails] = useState<any>(null);
+  const [trendHistory, setTrendHistory] = useState<any[]>([]);
+  const [execAnalysis, setExecAnalysis] = useState<{
+    keyword: string;
+    explanation: string;
+    why_now: string;
+    content_prompt: string;
+    fetchedAt: number;
+  } | null>(null);
+  const [execAnalysisLoading, setExecAnalysisLoading] = useState(false);
+  const [execAnalysisError, setExecAnalysisError] = useState<string | null>(null);
+  const inflightFetchRef = useRef<AbortController | null>(null);
+  const lastAnalyticsHydrateMsRef = useRef<number>(0);
+  const [trendingNow, setTrendingNow] = useState<string[]>([]);
+  const [trendingNowRelevant, setTrendingNowRelevant] = useState<{ term: string; score: number; matched_terms: string[] }[]>([]);
+  const [trendingNowLoading, setTrendingNowLoading] = useState(false);
+  const [industryTerms, setIndustryTerms] = useState<string[]>([]);
+  const [industryGlobalNotes, setIndustryGlobalNotes] = useState<string | null>(null);
+  const [industryLoading, setIndustryLoading] = useState(false);
+  const [brandAlignedTerms, setBrandAlignedTerms] = useState<{ term: string; score: number; matched: string[] }[]>([]);
+
+  // New AI Analysis State (Trend AI Analysis System)
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeDrawerTrend, setActiveDrawerTrend] = useState<string | null>(null);
+  const [aiAnalysisStatus, setAiAnalysisStatus] = useState<"pending" | "ready" | "failed" | null>(null);
+  const [aiAnalysisData, setAiAnalysisData] = useState<any>(null);
+  const [aiPolling, setAiPolling] = useState(false);
+  const aiKickoffRef = useRef<Set<string>>(new Set());
+  const [topTrendExpanded, setTopTrendExpanded] = useState(false);
+
+  const topTrend = useMemo(() => liveTrends?.[0] || null, [liveTrends]);
+  const effectiveTrend = activeTrend || topTrend;
+
+  const aiNextStep = useMemo(() => {
+    const kw = String(effectiveTrend?.keyword || "").trim();
+    const pkTop = String(trendingNowRelevant?.[0]?.term || trendingNow?.[0] || "").trim();
+    const nicheTop = String(industryTerms?.[0] || "").trim();
+    if (!kw) return "Run a scan to surface your top opportunity. AI analysis will appear automatically.";
+
+    const platform = String(userPlatform || "instagram").toLowerCase();
+    const fmt = platform === "instagram" ? "Reel" : platform === "facebook" ? "short video" : "post";
+    const hook = pkTop ? `Hook it to what’s hot in PK (“${pkTop}”)` : "Lead with a fast, curiosity-driven hook";
+    const angle = nicheTop ? `and position it within your niche (“${nicheTop}”).` : "and tie it tightly to your niche.";
+
+    return `Next: publish a ${fmt} about “${kw}”. ${hook} ${angle}`;
+  }, [effectiveTrend, trendingNowRelevant, trendingNow, industryTerms, userPlatform]);
+
+  const toggleCompare = (trend: TrendSpike) => {
+    setCompareTrends((prev) => {
+      const key = String(trend?.keyword || "").toLowerCase();
+      const exists = prev.some((t) => String(t?.keyword || "").toLowerCase() === key);
+      if (exists) return prev.filter((t) => String(t?.keyword || "").toLowerCase() !== key);
+      const next = [...prev, trend];
+      return next.slice(0, 3);
+    });
+  };
+
+  // Synchronize effectiveTrend with AI analysis auto-fetch
+  useEffect(() => {
+    const tid =
+      (effectiveTrend as any)?.trend_signal_id ||
+      (lastScanSummary as any)?.trendId ||
+      (effectiveTrend as any)?.id;
+    if (tid && tid !== activeDrawerTrend) {
+      setActiveDrawerTrend(String(tid));
+      setAiAnalysisStatus("pending");
+      trendService.getAIAnalysis(String(tid)).then(doc => {
+        setAiAnalysisData(doc);
+        const st = (doc as any)?.status;
+        setAiAnalysisStatus(st === "completed" ? "ready" : (st === "failed" ? "failed" : "pending"));
+      }).catch(async () => {
+        // If analysis doc doesn't exist yet, kick off generation once, then polling will pick it up.
+        const key = String(tid);
+        if (!aiKickoffRef.current.has(key)) {
+          aiKickoffRef.current.add(key);
+          try {
+            await trendService.regenerateAIAnalysis(key);
+          } catch {
+            // ignore: polling + UI will handle empty/unavailable states
+          }
+        }
+      });
+    }
+  }, [effectiveTrend, activeDrawerTrend, lastScanSummary]);
+
+  // Poll AI analysis while pending
+  useEffect(() => {
+    if (!activeDrawerTrend) return;
+    if (aiAnalysisStatus !== "pending") return;
+    if (aiPolling) return;
+    let cancelled = false;
+    setAiPolling(true);
+    const timer = setInterval(async () => {
+      try {
+        const doc = await trendService.getAIAnalysis(activeDrawerTrend);
+        if (cancelled) return;
+        setAiAnalysisData(doc);
+        const st = (doc as any)?.status;
+        if (st === "completed") setAiAnalysisStatus("ready");
+        else if (st === "failed") setAiAnalysisStatus("failed");
+      } catch {
+        // keep polling until server has it
+      }
+    }, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      setAiPolling(false);
+    };
+  }, [activeDrawerTrend, aiAnalysisStatus, aiPolling]);
 
   // Debounce location search
   useEffect(() => {
@@ -107,115 +241,705 @@ const TrendArbitrage = () => {
     return () => clearTimeout(timer);
   }, [searchQuery, location]);
 
-  const fetchRecommendations = async (trends: TrendSpike[]) => {
-    if (trends.length === 0) return;
-    setIsGeneratingRecs(true);
+  useEffect(() => {
+    let cancelled = false;
+    const loadSpecialties = async () => {
+      try {
+        setSpecialtiesLoading(true);
+        const res = await trendService.getBusinessSpecialties();
+        const list = Array.isArray(res?.specialties) ? res.specialties : [];
+        const cleaned = list.map((s) => (s || "").trim()).filter(Boolean);
+        if (!cancelled) setHasSpecialties(cleaned.length > 0);
+      } catch (e: any) {
+        // If endpoint fails, don't hard-block scanning; backend will enforce.
+        if (!cancelled) setHasSpecialties(true);
+      } finally {
+        if (!cancelled) setSpecialtiesLoading(false);
+      }
+    };
+    loadSpecialties();
+
+    const fetchGlobalData = async () => {
+      try {
+        const [brand, business] = await Promise.all([
+          businessService.getBrandAlignment(),
+          // This endpoint was removed/never existed in backend; use hyperlocal setup as best-effort business context.
+          businessService.getHyperlocalSetup().catch(() => null),
+        ]);
+        setBrandProfile(brand);
+        setBusinessDetails(business);
+      } catch (err) {
+        console.error("Failed to fetch brand/business profile", err);
+      }
+    };
+    fetchGlobalData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const showQualityBanner = useMemo(() => {
+    if (qualityBannerDismissed) return false;
+    return liveTrends.some((t) => {
+      const isSimulated = t.is_simulated === true;
+      const rateLimited = (t.error_message || "").toLowerCase().includes("rate_limited");
+      return isSimulated || rateLimited;
+    });
+  }, [liveTrends, qualityBannerDismissed]);
+
+  const snapshotKey = useMemo(() => {
+    const tf = String(timeframe || "30").trim();
+    const loc = String(location || "GLOBAL").trim().toUpperCase();
+    return `trend_arbitrage_snapshot:v1:${loc}:${tf}`;
+  }, [location, timeframe]);
+
+  const execAnalysisKey = useMemo(() => {
+    const loc = String(location || "GLOBAL").trim().toUpperCase();
+    return `trend_arbitrage_exec_analysis:v1:${loc}`;
+  }, [location]);
+
+  const saveSnapshot = (partial?: Partial<{
+    liveTrends: TrendSpike[];
+    geoData: GeoTrend[];
+    isRealGeo: boolean;
+    timelineData: SpikeTimeline[];
+    marketGapData: MarketGap[];
+    platformReach: PlatformReach | null;
+    watchlist: WatchlistItem[];
+    trendHistory: any[];
+    lastSuccessfulScanAt: string | null;
+    lastSyncMs: number;
+  }>) => {
     try {
-      const userProfile = {
-        niche: user?.business_domain || "SMB",
-        location: location,
-        target_audience: user?.business_domain ? `${user.business_domain} customers` : "General Audience"
+      const payload = {
+        liveTrends,
+        geoData,
+        isRealGeo,
+        timelineData,
+        marketGapData,
+        platformReach,
+        watchlist,
+        trendHistory,
+        lastSuccessfulScanAt,
+        lastSyncMs: Date.now(),
+        ...(partial || {}),
       };
-
-      const trendSignals = trends.slice(0, 3).map(t => ({
-        keyword: t.keyword,
-        velocity_label: t.score > 7 ? "Extreme" : t.score > 4 ? "High" : "Moderate",
-        saturation_label: t.current_value > 70 ? "Saturated" : t.current_value > 40 ? "Competitive" : "Emerging",
-        arbitrage_potential: (t.profit_score ?? 0) > 80 ? "Gold Mine" : (t.profit_score ?? 0) > 60 ? "High" : "Moderate",
-        platform_fit: (t.social_score ?? 0) > 60 ? ["Instagram", "Facebook", "Google Search"] : (t.social_score ?? 0) > 30 ? ["Instagram", "Google Search"] : ["Google Search"],
-        hashtags: t.rising_queries || []
-      }));
-
-      const res = await trendService.getRecommendations(userProfile, trendSignals);
-      setRecommendations(res.recommendations);
-      setRecContext(res.context);
-    } catch (err) {
-      console.error("Failed to generate recommendations", err);
-    } finally {
-      setIsGeneratingRecs(false);
+      localStorage.setItem(snapshotKey, JSON.stringify(payload));
+    } catch {
+      // best-effort cache only
     }
   };
 
-  const handleGenerateContent = async (keyword: string) => {
-    setIsGeneratingContent(true);
-    setContentModalOpen(true);
-    setContentSuggestions(null);
-    
+  const loadSnapshot = () => {
     try {
-      const suggestions = await trendService.getContentSuggestions(keyword);
-      setContentSuggestions(suggestions);
-      toast.success("AI Content Generated", {
-        description: `Got ${suggestions.video_ideas.length} video ideas for "${keyword}"`
-      });
-    } catch (err: any) {
-      console.error("Failed to generate content suggestions", err);
-      toast.error("Content Generation Failed", {
-        description: err.response?.data?.detail || "Please try again"
-      });
-      setContentModalOpen(false);
-    } finally {
-      setIsGeneratingContent(false);
+      const raw = localStorage.getItem(snapshotKey);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      if (parsed?.liveTrends && Array.isArray(parsed.liveTrends)) setLiveTrends(parsed.liveTrends);
+      if (parsed?.geoData && Array.isArray(parsed.geoData)) setGeoData(parsed.geoData);
+      if (typeof parsed?.isRealGeo === "boolean") setIsRealGeo(parsed.isRealGeo);
+      if (parsed?.timelineData && Array.isArray(parsed.timelineData)) setTimelineData(parsed.timelineData);
+      if (parsed?.marketGapData && Array.isArray(parsed.marketGapData)) setMarketGapData(parsed.marketGapData);
+      if (parsed?.platformReach !== undefined) setPlatformReach(parsed.platformReach);
+      if (parsed?.watchlist && Array.isArray(parsed.watchlist)) setWatchlist(parsed.watchlist);
+      if (parsed?.trendHistory && Array.isArray(parsed.trendHistory)) setTrendHistory(parsed.trendHistory);
+      if (parsed?.lastSuccessfulScanAt !== undefined) setLastSuccessfulScanAt(parsed.lastSuccessfulScanAt ?? null);
+      if (parsed?.lastSyncMs) setLastSync(new Date(Number(parsed.lastSyncMs)));
+      return true;
+    } catch {
+      return false;
     }
   };
 
-  // MOCK DATA REMOVED - All data now comes from real backend APIs
-
-  const fetchData = async () => {
-    setIsLoading(true);
+  const persistLocalStrategyHistory = (entry: {
+    keyword: string;
+    location: string;
+    niche?: string;
+    prompt: string;
+    recommendations?: any;
+    viral_audio?: any[];
+    executive_analysis?: any;
+    createdAt: number;
+  }) => {
     try {
-      const [live, geo, timeline, gap, reach, saved] = await Promise.all([
-        trendService.getLiveTrends(location),
-        trendService.getGeoHeatmap(location),
-        trendService.getSpikeTimeline(parseInt(timeframe), location),
-        trendService.getMarketGapData(location),
-        trendService.getPlatformReach(location),
-        trendService.getWatchlist()
-      ]);
-
-      setWatchlist(saved || []);
-
-      const hasData = live && live.length > 0;
-      console.log('[TrendArbitrage] fetchData results:', {
-        live: live?.length ?? 'n/a',
-        geo: geo?.length ?? 'n/a',
-        timeline: timeline?.length ?? 'n/a',
-        gap: gap?.length ?? 'n/a',
-        reach,
-        hasData
+      const k = `trend_arbitrage_strategy_history:v1`;
+      const raw = localStorage.getItem(k);
+      const list = raw ? JSON.parse(raw) : [];
+      const arr = Array.isArray(list) ? list : [];
+      arr.unshift(entry);
+      // dedupe by keyword+location and cap
+      const seen = new Set<string>();
+      const deduped = arr.filter((x: any) => {
+        const kk = `${String(x?.keyword || "").toLowerCase()}|${String(x?.location || "").toUpperCase()}`;
+        if (!kk || seen.has(kk)) return false;
+        seen.add(kk);
+        return true;
       });
+      localStorage.setItem(k, JSON.stringify(deduped.slice(0, 50)));
+    } catch {
+      // ignore
+    }
+  };
 
-      if (!hasData) {
-        // DO NOT load mock data automatically anymore.
-        // Instead, keep state empty so we can show the "Initial Scan" UI.
-        setLiveTrends([]);
-        setError(null);
-      } else {
-        setLiveTrends(live || []);
-        setGeoData(geo || []);
-        setTimelineData(timeline || []);
-        setMarketGapData(gap || []);
-        setPlatformReach(reach || { google: 0, instagram: 0, facebook: 0, total_reach: "0%" });
-        setError(null);
-        fetchRecommendations(live);
+  const buildDeployPrompt = (params: {
+    keyword: string;
+    niche?: string;
+    trendLocation?: string;
+    recommendations?: any;
+    viralAudio?: any[];
+    executiveAnalysis?: { explanation?: string; why_now?: string; content_prompt?: string } | null;
+  }) => {
+    const kw = params.keyword;
+    const loc = params.trendLocation || location || "GLOBAL";
+    const niche = params.niche || (user as any)?.business_domain_name || user?.business_domain || "general";
+    const rec = params.recommendations || null;
+    const audio = Array.isArray(params.viralAudio) ? params.viralAudio : [];
+    const ea = params.executiveAnalysis || null;
+
+    const ideas = (rec?.actionable_recommendations?.content_ideas || rec?.content_ideas || [])
+      .slice?.(0, 3)
+      ?.map?.((x: any) => (typeof x === "string" ? x : (x?.idea || x?.title || "")))
+      .filter(Boolean);
+
+    const hashtags = (rec?.actionable_recommendations?.hashtags || rec?.hashtags || [])
+      .slice?.(0, 10)
+      ?.map?.((h: any) => String(h || "").replace(/[#\s]+/g, ""))
+      .filter(Boolean);
+
+    const audioLines = audio.slice(0, 2).map((t: any) => {
+      const name = t?.track_name || t?.name || "Unknown track";
+      const artist = t?.artist || t?.artistName || "Unknown artist";
+      const url = t?.url ? ` (${t.url})` : "";
+      return `- ${name} — ${artist}${url}`;
+    });
+
+    return [
+      `You are a marketing content AI assistant.`,
+      ``,
+      `Trend detected: "${kw}"`,
+      `Location: ${loc}`,
+      `Niche: ${niche}`,
+      ``,
+      ea?.explanation ? `Executive analysis: ${ea.explanation}` : null,
+      ea?.why_now ? `Why act now: ${ea.why_now}` : null,
+      ``,
+      ideas?.length ? `Top content ideas:\n${ideas.map((x: string) => `- ${x}`).join("\n")}` : null,
+      hashtags?.length ? `Suggested hashtags: ${hashtags.map((h: string) => `#${h}`).join(" ")}` : null,
+      ``,
+      audioLines.length ? `Audio candidates (verified feed):\n${audioLines.join("\n")}` : `Audio candidates: none available (use voiceover + on-screen captions).`,
+      ``,
+      ea?.content_prompt ? `Ready-to-use prompt:\n${ea.content_prompt}` : `Create 3 content ideas (Reel/Carousel/Story) that leverage "${kw}" in ${loc} for a ${niche} business. Include hooks, CTAs, and a posting plan for the next 48 hours.`,
+      ``,
+      `Return a concise, execution-ready plan.`,
+    ]
+      .filter((x) => typeof x === "string" && x.trim().length > 0)
+      .join("\n");
+  };
+
+  const fetchExecutiveAnalysis = async (trend: TrendSpike | null) => {
+    const kw = (trend?.keyword || "").trim();
+    if (!kw) return;
+    setExecAnalysisError(null);
+
+    // local cache: per-location, per-keyword
+    try {
+      const raw = localStorage.getItem(execAnalysisKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.keyword?.toLowerCase?.() === kw.toLowerCase() && parsed?.explanation) {
+          setExecAnalysis(parsed);
+          // still refresh in background if stale
+          if (Date.now() - Number(parsed?.fetchedAt || 0) < 10 * 60 * 1000) return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    setExecAnalysisLoading(true);
+    try {
+      const niche = (trend?.niche || (user as any)?.business_domain_name || user?.business_domain || "general").toString();
+      const lifecycle_stage = (trend as any)?.lifecycle_stage || undefined;
+      const breakout_probability = (trend as any)?.breakout_probability ?? undefined;
+      const profit_score = (trend as any)?.profit_score ?? undefined;
+      const competition = (trend as any)?.saturation_score ?? undefined;
+      const buzz = (trend as any)?.social_score ?? undefined;
+
+      const res = await trendService.getTrendExplanation({
+        keyword: kw,
+        niche,
+        location: trend?.location || location || "GLOBAL",
+        lifecycle_stage,
+        breakout_probability,
+        profit_score,
+        competition,
+        buzz,
+      } as any);
+
+      const payload = {
+        keyword: kw,
+        explanation: String((res as any)?.explanation || ""),
+        why_now: String((res as any)?.why_now || ""),
+        content_prompt: String((res as any)?.content_prompt || ""),
+        fetchedAt: Date.now(),
+      };
+      setExecAnalysis(payload);
+      try {
+        localStorage.setItem(execAnalysisKey, JSON.stringify(payload));
+      } catch {
+        // ignore
+      }
+    } catch (e: any) {
+      setExecAnalysisError(e?.message || "Failed to generate executive analysis.");
+    } finally {
+      setExecAnalysisLoading(false);
+    }
+  };
+
+  const handleMagicBridge = async (keyword: string) => {
+    try {
+      const match =
+        liveTrends.find((t) => (t.keyword || "").toLowerCase() === (keyword || "").toLowerCase()) ||
+        (selectedTrend && (selectedTrend.keyword || "").toLowerCase() === (keyword || "").toLowerCase() ? selectedTrend : null);
+
+      // Ensure executive analysis is available (best-effort, non-blocking)
+      if (!execAnalysis || execAnalysis.keyword.toLowerCase() !== (keyword || "").toLowerCase()) {
+        fetchExecutiveAnalysis(match || { keyword, niche: "", location: location, id: "", score: 0, impact: "", current_value: 0, detected_at: "" } as any).catch(() => {});
       }
 
-      setLastSync(new Date());
-      setIsOffline(false);
+      const richPrompt = buildDeployPrompt({
+        keyword,
+        niche: match?.niche,
+        trendLocation: match?.location,
+        recommendations: (match as any)?.recommendations,
+        viralAudio: (match as any)?.recommendations?.viral_audio || (match as any)?.viral_audio,
+        executiveAnalysis: execAnalysis && execAnalysis.keyword.toLowerCase() === (keyword || "").toLowerCase() ? execAnalysis : null,
+      });
 
+      // Persist local strategy history (frontend-only; does not change backend contracts)
+      persistLocalStrategyHistory({
+        keyword,
+        location: (match?.location || location || "GLOBAL").toString(),
+        niche: match?.niche,
+        prompt: richPrompt,
+        recommendations: (match as any)?.recommendations,
+        viral_audio: (match as any)?.recommendations?.viral_audio,
+        executive_analysis: execAnalysis,
+        createdAt: Date.now(),
+      });
+
+      // ASYNC LOGGING (Don't block navigation) - backend persistence
+      trendService.logTrendActivity({
+        trend_keyword: keyword,
+        trend_source: "Hyperlocal Scanner",
+        generated_prompt: richPrompt,
+        niche: match?.niche || (user as any)?.business_domain_name || user?.business_domain || "general",
+        location: match?.location || location
+      }).catch(e => console.error("History logging failed", e));
+
+      navigate("/dashboard/creative", { state: { prefillPrompt: richPrompt } });
+      toast.success("Ready to create assets!", {
+        description: `Automatically pasted the best AI strategy for "${keyword}"`
+      });
     } catch (err: any) {
-      console.error("Failed to fetch trend data", err);
-      setError("Unable to reach the signal network. Please check your connection to the RAAMP server.");
-      setIsOffline(true);
+      console.error("Magic Bridge failed", err);
+      toast.error("Magic Bridge Failed", { description: "Please try again" });
+    }
+  };
+
+  const selectedRecs = useMemo(() => {
+    const rec = (selectedTrend as any)?.recommendations;
+    if (!rec || typeof rec !== "object") return null;
+    return rec as any;
+  }, [selectedTrend]);
+
+  // Ensure we always have a "selected" trend so Actionable Strategy can render for the top signal.
+  useEffect(() => {
+    if (!selectedTrend && liveTrends.length > 0) {
+      setSelectedTrend(liveTrends[0]);
+    }
+    // If selected keyword disappears from feed, snap back to top signal.
+    if (selectedTrend && liveTrends.length > 0) {
+      const stillThere = liveTrends.some((t) => (t?.keyword || "").toLowerCase() === (selectedTrend?.keyword || "").toLowerCase());
+      if (!stillThere) setSelectedTrend(liveTrends[0]);
+    }
+  }, [liveTrends, selectedTrend]);
+
+  // Ensure we always have an "active" trend for the right-side intelligence surfaces.
+  useEffect(() => {
+    if (!activeTrend && topTrend) setActiveTrend(topTrend);
+    if (activeTrend && liveTrends.length > 0) {
+      const stillThere = liveTrends.some((t) => (t?.keyword || "").toLowerCase() === (activeTrend?.keyword || "").toLowerCase());
+      if (!stillThere) setActiveTrend(liveTrends[0] || null);
+    }
+  }, [activeTrend, topTrend, liveTrends]);
+
+  // Real data only - staged loading (fast first paint, then hydrate analytics)
+  const fetchCoreData = async () => {
+    // cancel previous inflight background refresh when filters change
+    try {
+      inflightFetchRef.current?.abort?.();
+    } catch {}
+    const controller = new AbortController();
+    inflightFetchRef.current = controller;
+
+    setTimelineFetchError(null);
+    setGeoFetchError(null);
+
+    // Phase 0: show cached snapshot immediately (if available)
+    const hadCache = loadSnapshot();
+    if (hadCache) {
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
+    const withTimeout = async <T,>(p: Promise<T>, ms: number): Promise<T> => {
+      return await Promise.race([
+        p,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+      ]);
+    };
+
+    // Phase 1: fetch ONLY live trends first (fastest visible win)
+    try {
+      // Give live trends a strict budget so UI doesn't "hang" behind non-critical calls.
+      // If backend is slow, cached snapshot (if any) remains visible and user can retry.
+      const [businessLive, rawLive] = await withTimeout(
+        Promise.all([
+          trendService.getLiveTrends(location, "business"),
+          trendService.getLiveTrends(location, "raw"),
+        ]),
+        12000
+      );
+      const live = businessLive;
+      setLiveTrends(live || []);
+      setRawTrends(rawLive || []);
+      setError(null);
+      setIsOffline(false);
+      setLastSync(new Date());
+      saveSnapshot({ liveTrends: live || [], lastSyncMs: Date.now() });
+
+      // Fetch executive analysis for featured trend (main screen requirement)
+      const featured = (live || [])[0] || null;
+      if (featured) {
+        fetchExecutiveAnalysis(featured).catch(() => {});
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch core trend data", err);
+      if (!hadCache) {
+        setError("Unable to reach the signal network. Please check your connection.");
+        setIsOffline(true);
+      }
     } finally {
       setIsLoading(false);
     }
+
+    // Phase 1b: fetch watchlist + history after trends are visible (background)
+    // This avoids delaying initial feed render and keeps perceived load under 2s.
+    try {
+      const [saved, history] = await Promise.allSettled([
+        trendService.getWatchlist(),
+        trendService.getTrendHistory(20),
+      ]).then((results) => {
+        const w = results[0].status === "fulfilled" ? results[0].value : [];
+        const h = results[1].status === "fulfilled" ? results[1].value : [];
+        return [w, h] as const;
+      });
+      setWatchlist(saved || []);
+      console.log("[TrendArbitrage] trend history:", history);
+      setTrendHistory(history || []);
+      saveSnapshot({ watchlist: saved || [], trendHistory: history || [], lastSyncMs: Date.now() });
+    } catch {
+      // non-fatal
+    }
+
+    // Phase 2: hydrate analytics in background (avoid blocking first paint)
+    const hydrate = async () => {
+      try {
+        const settled = await Promise.allSettled([
+          trendService.getGeoHeatmap(location),
+          trendService.getSpikeTimeline(parseInt(timeframe), location),
+          trendService.getMarketGapData(location),
+          trendService.getPlatformReach(location),
+        ]);
+
+        const geoResp = settled[0].status === "fulfilled" ? settled[0].value : { regions: [], count: 0, is_real_geo: false };
+        const geo = (geoResp as any)?.regions ?? [];
+        const spikeTimeline = settled[1].status === "fulfilled" ? settled[1].value : { timeline: [], lastSuccessfulScanAt: null };
+        const gap = settled[2].status === "fulfilled" ? settled[2].value : [];
+        const reach = settled[3].status === "fulfilled" ? settled[3].value : { google: 0, instagram: 0, facebook: 0, total_reach: "0%" };
+
+        if (settled[0].status === "rejected") setGeoFetchError("Unavailable");
+        if (settled[1].status === "rejected") setTimelineFetchError("Unavailable");
+
+        setGeoData(geo || []);
+        setIsRealGeo(Boolean((geoResp as any)?.is_real_geo));
+        setTimelineData(Array.isArray((spikeTimeline as any)?.timeline) ? (spikeTimeline as any).timeline : []);
+        setLastSuccessfulScanAt((spikeTimeline as any)?.lastSuccessfulScanAt ?? null);
+        setMarketGapData(gap || []);
+        setPlatformReach(reach || null);
+
+        saveSnapshot({
+          geoData: geo || [],
+          isRealGeo: Boolean((geoResp as any)?.is_real_geo),
+          timelineData: Array.isArray((spikeTimeline as any)?.timeline) ? (spikeTimeline as any).timeline : [],
+          lastSuccessfulScanAt: (spikeTimeline as any)?.lastSuccessfulScanAt ?? null,
+          marketGapData: gap || [],
+          platformReach: reach || null,
+          lastSyncMs: Date.now(),
+        });
+      } catch (e: any) {
+        // non-fatal; keep cached analytics
+      }
+    };
+
+    // Do NOT hydrate analytics on every refresh tick.
+    // Hydrate on first load, on filter changes (handled by useEffect), and then at a low frequency.
+    const now = Date.now();
+    const shouldHydrate = lastAnalyticsHydrateMsRef.current === 0 || (now - lastAnalyticsHydrateMsRef.current) > 5 * 60 * 1000;
+    if (shouldHydrate) {
+      lastAnalyticsHydrateMsRef.current = now;
+      try {
+        const ric = (window as any).requestIdleCallback;
+        if (typeof ric === "function") {
+          ric(() => hydrate(), { timeout: 1500 });
+        } else {
+          setTimeout(hydrate, 250);
+        }
+      } catch {
+        setTimeout(hydrate, 250);
+      }
+    }
   };
 
+  const fetchTrendingNow = async () => {
+    setTrendingNowLoading(true);
+    try {
+      // Regional tab: always show what's trending in PK
+      const resp = await trendService.getTrendingNow("PK", category || "all", 12);
+      setTrendingNow(resp?.terms || []);
+      setTrendingNowRelevant(resp?.relevant || []);
+    } catch {
+      setTrendingNow([]);
+      setTrendingNowRelevant([]);
+    } finally {
+      setTrendingNowLoading(false);
+    }
+  };
+
+  const deriveBusinessNiche = () => {
+    const fromUser = ((user as any)?.business_domain_name || user?.business_domain || "").toString().trim();
+    const fromBusiness = (businessDetails?.niche || businessDetails?.business_type || "").toString().trim();
+    return fromUser || fromBusiness || "fashion";
+  };
+
+  const fetchIndustryTrending = async () => {
+    setIndustryLoading(true);
+    try {
+      const niche = deriveBusinessNiche();
+      const withTimeout = async <T,>(p: Promise<T>, ms: number): Promise<T> => {
+        return await Promise.race([
+          p,
+          new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+        ]);
+      };
+      const globalResp = await withTimeout(trendService.getIndustryTrends(niche, "GLOBAL", "7d", 12), 12000);
+      const gTerms =
+        (Array.isArray((globalResp as any)?.terms) && (globalResp as any).terms.length ? (globalResp as any).terms : null) ||
+        (Array.isArray((globalResp as any)?.seed_keywords) ? (globalResp as any).seed_keywords : []);
+      setIndustryTerms(gTerms);
+      setIndustryGlobalNotes((globalResp as any)?.data_quality?.notes ?? null);
+    } catch {
+      setIndustryTerms([]);
+      setIndustryGlobalNotes("Failed to load global industry trends.");
+    } finally {
+      setIndustryLoading(false);
+    }
+  };
+
+  const recomputeBrandAligned = () => {
+    // Token-overlap scoring against brand profile + niche + specialties.
+    const niche = deriveBusinessNiche();
+    const specialties = Array.isArray((businessDetails as any)?.specialties) ? (businessDetails as any).specialties : [];
+    const brandBits = [
+      brandProfile?.tagline,
+      brandProfile?.tone_of_voice,
+      brandProfile?.restaurant_theme,
+      (businessDetails as any)?.business_type,
+      niche,
+      ...(Array.isArray(specialties) ? specialties : []),
+    ]
+      .map((x: any) => String(x || "").trim())
+      .filter(Boolean)
+      .join(" ");
+
+    const STOP = new Set(["vs", "v", "and", "or", "the", "a", "an", "in", "of", "for", "to", "with", "on", "at", "by", "from", "today", "now", "live", "pakistan"]);
+    const tokenize = (s: string): string[] => {
+      const raw = (s || "").toLowerCase().match(/[a-z0-9]+/g) || [];
+      return raw.filter((t) => t.length >= 3 && !STOP.has(t));
+    };
+
+    const brandTokens = new Set(tokenize(brandBits));
+    const pool = Array.from(
+      new Set([
+        ...(industryTerms || []),
+        ...(trendingNow || []),
+        ...(rawTrends || []).map((t) => t.keyword),
+      ])
+    )
+      .map((t) => String(t || "").trim())
+      .filter(Boolean);
+
+    if (!brandTokens.size || pool.length === 0) {
+      setBrandAlignedTerms([]);
+      return;
+    }
+
+    const scored = pool
+      .map((term) => {
+        const toks = new Set(tokenize(term));
+        const overlap = Array.from(toks).filter((t) => brandTokens.has(t));
+        const score = overlap.length / Math.max(1, toks.size);
+        return { term, score, matched: overlap.slice(0, 6) };
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8);
+
+    setBrandAlignedTerms(scored);
+  };
+
+  const handlePageRefresh = async () => {
+    await Promise.allSettled([fetchCoreData(), fetchTrendingNow(), fetchIndustryTrending()]);
+  };
+
+  const loadLastVerifiedLiveTrends = (): TrendSpike[] | null => {
+    try {
+      const k = `trend_arbitrage_verified_live:v1:${String(location || "GLOBAL").toUpperCase()}`;
+      const raw = localStorage.getItem(k);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed?.trends) ? (parsed.trends as TrendSpike[]) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const saveLastVerifiedLiveTrends = (trends: TrendSpike[]) => {
+    try {
+      const k = `trend_arbitrage_verified_live:v1:${String(location || "GLOBAL").toUpperCase()}`;
+      localStorage.setItem(k, JSON.stringify({ trends: trends.slice(0, 50), savedAt: Date.now() }));
+    } catch {
+      // ignore
+    }
+  };
+
+  const isTrendRealEnough = (t: TrendSpike) => {
+    // "Real" here means: not simulated + not failed + not rate-limited marker.
+    // We intentionally do not require IG connection; we only avoid clearly simulated placeholders.
+    const simulated = t.is_simulated === true;
+    const failed = String(t.fetch_status || "").toLowerCase() === "failed";
+    const rateLimited = (t.error_message || "").toLowerCase().includes("rate_limited");
+    return !simulated && !failed && !rateLimited;
+  };
+
+  const fetchLiveOnly = async () => {
+    const withTimeout = async <T,>(p: Promise<T>, ms: number): Promise<T> => {
+      return await Promise.race([
+        p,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+      ]);
+    };
+
+    try {
+      const [businessLive, rawLive] = await withTimeout(
+        Promise.all([
+          trendService.getLiveTrends(location, "business"),
+          trendService.getLiveTrends(location, "raw"),
+        ]),
+        12000
+      );
+      const live = businessLive;
+      const real = (live || []).filter(isTrendRealEnough);
+
+      if (real.length > 0) {
+        setLiveTrends(live || []);
+        setRawTrends(rawLive || []);
+        setError(null);
+        setIsOffline(false);
+        setLastSync(new Date());
+        saveSnapshot({ liveTrends: live || [], lastSyncMs: Date.now() });
+        saveLastVerifiedLiveTrends(real);
+        return;
+      }
+
+      // If backend returns simulated/limited data, keep showing last verified real trends.
+      const fallback = loadLastVerifiedLiveTrends();
+      if (fallback && fallback.length > 0) {
+        setLiveTrends(fallback);
+        setError("Real-time providers are temporarily rate-limited. Showing last verified real trends.");
+        setIsOffline(true);
+        setLastSync(new Date());
+        return;
+      }
+
+      // No fallback available; show what we got (still visible, but flagged)
+      setLiveTrends(live || []);
+      setRawTrends(rawLive || []);
+      setError("Real-time providers are temporarily rate-limited. Some trends may be estimated.");
+      setIsOffline(true);
+      setLastSync(new Date());
+      saveSnapshot({ liveTrends: live || [], lastSyncMs: Date.now() });
+    } catch (e: any) {
+      // If live refresh fails, keep existing UI; don't nuke feed.
+      setError((prev) => prev || "Unable to refresh live trends right now.");
+    }
+  };
+
+
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
+    fetchCoreData();
+    fetchTrendingNow();
+    fetchIndustryTrending();
+    // Refresh ONLY the live feed frequently (perceived “live”).
+    const liveInterval = setInterval(fetchLiveOnly, 30000);
+    // Refresh analytics rarely (low perceived value, high cost).
+    const analyticsInterval = setInterval(() => {
+      // Force next core fetch to include a hydrate (every 10 minutes)
+      lastAnalyticsHydrateMsRef.current = 0;
+      fetchCoreData();
+    }, 10 * 60 * 1000);
+    return () => {
+      try {
+        inflightFetchRef.current?.abort?.();
+      } catch {}
+      clearInterval(liveInterval);
+      clearInterval(analyticsInterval);
+    };
   }, [location, timeframe]);
+
+  useEffect(() => {
+    recomputeBrandAligned();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandProfile, businessDetails, industryTerms, trendingNow, rawTrends]);
+
+  const addCustomKeyword = (raw: string) => {
+    const trimmed = (raw || "").trim().toLowerCase();
+    if (!trimmed) return;
+    if (trimmed.length > 60) return;
+    setCustomKeywords((prev) => {
+      const set = new Set(prev.map((k) => (k || "").trim().toLowerCase()).filter(Boolean));
+      set.add(trimmed);
+      return Array.from(set).slice(0, 20);
+    });
+  };
+
+  const removeCustomKeyword = (kw: string) => {
+    const t = (kw || "").trim().toLowerCase();
+    setCustomKeywords((prev) => prev.filter((k) => (k || "").trim().toLowerCase() !== t));
+  };
 
   const handleTriggerScan = async () => {
     if (isScanning) return;
@@ -223,14 +947,28 @@ const TrendArbitrage = () => {
 
     try {
       setScanStep("Global Node Sync Initialized...");
-      console.log(`🚀 SCAN INITIATED for niche: ${user?.business_domain || 'marketing'}, location: ${location}`);
+      const niche = (user as any)?.business_domain_name || user?.business_domain || "marketing";
+      const timeframeDays = parseInt(timeframe);
+      console.log(`🚀 SCAN INITIATED for niche: ${niche}, location: ${location}`);
       toast.info("Vector Scan Initiated", {
         description: `Establishing connection to global signal nodes for ${location}...`
       });
 
-      const response = await trendService.triggerFetch(user?.business_domain || 'marketing', location, category);
+      const cleanedCustom = Array.from(
+        new Set(
+          (customKeywords || [])
+            .map((k) => (k || "").trim().toLowerCase())
+            .filter(Boolean)
+        )
+      ).slice(0, 20);
+
+      const response = await trendService.triggerFetch(niche, category, `${timeframeDays}d`, {
+        discovery_mode: useTrendingNow,
+        custom_keywords: cleanedCustom,
+      });
       const trendId = response.trend_id;
       console.log(`✅ Scan registered on backend. TrendID: ${trendId}`);
+      setLastScanSummary({ niche, location, category, timeframeDays, trendId });
 
       // Poll for completion
       let attempts = 0;
@@ -238,10 +976,14 @@ const TrendArbitrage = () => {
 
       const poll = async () => {
         if (attempts >= maxAttempts) {
-          toast.warning("Network Latency High", { description: "Signal analysis is taking longer than expected. Update will occur in the background." });
+          toast.warning("Scan taking longer than expected", {
+            description:
+              "PyTrends may be rate limited. Results will appear when the scan completes.",
+            duration: 6000,
+          });
           setIsScanning(false);
           setScanStep("");
-          fetchData();
+          fetchCoreData();
           return;
         }
 
@@ -249,31 +991,49 @@ const TrendArbitrage = () => {
           const statusRes = await trendService.getTrendStatus(trendId);
           console.log(`🔍 Scan Status [Attempt ${attempts}]:`, statusRes.status);
 
-          // Show progress based on status if backend provides it, otherwise simulate phases
-          if (attempts < 5) setScanStep("Scraping Local Search Intensity (Google)...");
-          else if (attempts < 12) setScanStep("Interpreting Social Engagement Velocity (Meta)...");
-          else setScanStep("Finalizing Vector Arbitrage Calculations...");
+          // Show real-time progress step from backend
+          if (statusRes.progress_step) {
+            setScanStep(statusRes.progress_step);
+          }
 
           if (statusRes.status === 'completed') {
             setScanStep("Vector Grid Acquired.");
-            toast.success("Signal Acquired", { description: "The Vector Grid has been successfully updated with live market data." });
-            await fetchData();
+            toast.success("Scan completed", {
+              description: `Niche: ${niche} • Category: ${category || "all"} • Window: ${timeframeDays}d`
+            });
+            const after = await fetchCoreData();
+            setLastScanSummary((prev) =>
+              prev
+                ? { ...prev, completedAt: Date.now() }
+                : { niche, location, category, timeframeDays, trendId, completedAt: Date.now() }
+            );
+            // Fast Current Trends mode does not compute spikes/time-series.
+            // The UI should show the latest current trends from the live feed + latest scan keywords.
             setIsScanning(false);
             setScanStep("");
           } else if (statusRes.status === 'failed') {
-            setError(`SCAN ERROR: ${statusRes.error_message || "Unknown signal processing failure."}`);
-            toast.error("Signal Interpretation Failure", { description: "The scan failed to resolve correctly. Check your niche/location parameters." });
+            const raw = (statusRes.error_message || "Unknown signal processing failure.").toString();
+            const friendly =
+              raw.includes("serpapi_no_timeline_data") || raw.includes("serpapi_empty_timeline")
+                ? "No usable Google Trends timeline for these keywords. Try Trending Now ON, or add broader keywords."
+                : raw;
+            setError(`SCAN ERROR: ${friendly}`);
+            toast.error("Scan Failed", { description: friendly });
             setIsScanning(false);
             setScanStep("");
           } else {
             attempts++;
             setTimeout(poll, 3000);
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error("Polling error", e);
-          setError("COMMUNICATION ERROR: Lost contact with scanning node during polling.");
           setIsScanning(false);
           setScanStep("");
+          toast.error("Scan Interrupted", {
+            description: e?.status === 429 
+              ? `Cooldown active. Please wait ${e?.detail?.match(/\d+/)?.[0] || '60'}s.`
+              : "Lost contact with scanning node. Check your internet."
+          });
         }
       };
 
@@ -283,18 +1043,27 @@ const TrendArbitrage = () => {
     } catch (err: any) {
       console.error("Scan initiation error:", err);
       
-      // Handle location not configured error
-      if (err.response?.status === 400 && err.response?.data?.detail?.includes("Location not configured")) {
-        toast.error("Location Not Configured", { 
-          description: "Please complete your onboarding or set your business location in settings before scanning trends.",
-          duration: 5000
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+
+      if (status === 412 && typeof detail === "string") {
+        toast.warning("Action required before scanning", {
+          description: detail,
+          duration: 7000,
+        });
+        if (detail.toLowerCase().includes("specialt")) {
+          navigate("/settings/business-specialties");
+        }
+      } else if (status === 400 && typeof detail === "string" && detail.includes("Location not configured")) {
+        toast.error("Location Not Configured", {
+          description: "Please complete onboarding or set your business location in settings before scanning trends.",
+          duration: 5000,
         });
       } else {
-        // Generic error handling
-        const errorMessage = err.response?.data?.detail || err.message || "Unable to initiate scan";
-        toast.error("Scan Launch Failed", { 
+        const errorMessage = detail || err.message || "Unable to initiate scan";
+        toast.error("Scan Launch Failed", {
           description: errorMessage,
-          duration: 4000
+          duration: 4000,
         });
       }
       
@@ -307,10 +1076,10 @@ const TrendArbitrage = () => {
     try {
       await trendService.addTrendToWatchlist({
         keyword,
-        niche: user?.business_domain || 'marketing',
+        niche: (user as any)?.business_domain_name || user?.business_domain || 'marketing',
         location: location
       });
-      toast.success("Watchlist Updated", { description: `${keyword} is now being tracked for spikes.` });
+      toast.success("Watchlist Updated", { description: `${keyword} is now being tracked.` });
       const updated = await trendService.getWatchlist();
       setWatchlist(updated);
     } catch (err: any) {
@@ -328,6 +1097,15 @@ const TrendArbitrage = () => {
     }
   };
 
+  const handleToggleWatchlist = async (keyword: string) => {
+    const isWatchlisted = watchlist.some(item => item.keyword.toLowerCase() === keyword.toLowerCase());
+    if (isWatchlisted) {
+      await handleRemoveFromWatchlist(keyword);
+    } else {
+      await handleAddToWatchlist(keyword);
+    }
+  };
+
   const tickerItems = liveTrends.length > 0
     ? liveTrends.map(t => `${t.keyword.toUpperCase()} [${t.location}] ${t.is_spike ? 'SPIKE' : t.label || 'TREND'}: ${t.is_spike ? `+${t.score}σ` : `+${t.score}%`}`)
     : ["SCANNING GLOBAL SIGNAL VECTORS...", "WAITING FOR MARKET SPIKES..."];
@@ -341,11 +1119,6 @@ const TrendArbitrage = () => {
     const results: GapInsight[] = [];
 
     const pickHook = (keyword: string, fmt: string): string => {
-      const rec = recommendations.find(r =>
-        r.trend_name?.toLowerCase().includes(keyword.toLowerCase()) ||
-        r.campaign_idea?.toLowerCase().includes(keyword.toLowerCase())
-      );
-      if (rec?.suggested_hooks?.length) return `"${rec.suggested_hooks[0]}"`;
       const hooks: Record<string, string> = {
         carousel: `"Here's what most people don't know about ${keyword}..."`,
         reel:     `"Wait — did you know ${keyword} can do this? 👀"`,
@@ -414,7 +1187,7 @@ const TrendArbitrage = () => {
       });
 
     return results.slice(0, 5);
-  }, [marketGapData, liveTrends, recommendations, user, location]);
+  }, [marketGapData, liveTrends, user, location]);
 
   const ImpactNode = (props: any) => {
     const { cx, cy, payload } = props;
@@ -437,125 +1210,351 @@ const TrendArbitrage = () => {
 
   return (
     <Layout>
-      <div className="space-y-0 pb-24 overflow-x-hidden bg-background relative">
+      <div className="space-y-0 pb-24 pt-6 overflow-x-hidden bg-background relative">
         <div className="absolute top-0 left-1/4 w-1/2 h-1/2 bg-primary/5 blur-[160px] rounded-full pointer-events-none -z-10" />
 
         <div className="space-y-0">
 
-          {/* Ticker Strip */}
-          <div className="w-full overflow-hidden bg-white/5 border-y border-white/5 py-1 backdrop-blur-md relative z-20">
+          {/* Ticker strip */}
+          <div className="w-full overflow-hidden bg-foreground/5 border-y border-border py-1 backdrop-blur-md sticky top-0 z-50">
             <motion.div
               className="flex gap-12 whitespace-nowrap cursor-pointer hover:pause"
               animate={{ x: [0, -3000] }}
               transition={{ repeat: Infinity, duration: 80, ease: "linear" }}
               onHoverStart={() => { }} // Could dispatch a pause action
             >
-              {[...tickerItems, ...tickerItems, ...tickerItems].map((item, i) => (
-                <div
-                  key={i}
-                  onClick={() => {
-                    const match = liveTrends.find(t =>
-                      item.toUpperCase().startsWith(t.keyword.toUpperCase())
-                    );
-                    if (match) {
-                      setSelectedTrend(match);
-                      setCampaignModalOpen(true);
-                    }
-                  }}
-                  className="flex items-center gap-2 text-[11px] font-mono font-bold tracking-tight text-white/40 hover:text-primary transition-colors hover:scale-105 transform duration-200"
-                >
-                  <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-                  {item}
-                </div>
-              ))}
+              {[...tickerItems, ...tickerItems, ...tickerItems].map((item, i) => {
+                // Use a more unique key combining index and item content
+                const uniqueKey = `ticker-${i}-${item.substring(0, 10)}`;
+                return (
+                  <div
+                    key={uniqueKey}
+                    onClick={() => {
+                      const match = liveTrends.find(t =>
+                        item.toUpperCase().startsWith(t.keyword.toUpperCase())
+                      );
+                      if (match) {
+                        setSelectedTrend(match);
+                        setActiveTrend(match);
+                        setCampaignModalOpen(true);
+                      }
+                    }}
+                    className="flex items-center gap-2 text-[11px] font-mono font-bold tracking-tight text-muted-foreground/80 dark:text-muted-foreground/60 hover:text-primary transition-colors hover:scale-105 transform duration-200"
+                  >
+                    <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+                    {item}
+                  </div>
+                );
+              })}
             </motion.div>
           </div>
 
-          <div className="space-y-8 px-6 pt-6">
-            {/* Header Strip */}
-            <div className="flex flex-col gap-6">
-              <div className="flex justify-between items-center py-3 px-5 bg-black/20 backdrop-blur-xl border border-white/5 rounded-xl shadow-2xl">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-primary/20 rounded-lg border border-primary/40">
-                    <Globe className="w-5 h-5 text-primary" />
+          {/* Profit Windows strip (moved to top) */}
+          <div className="px-6 pt-2">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 py-3 px-5 bg-card/50 backdrop-blur-xl border border-border rounded-xl shadow-2xl min-w-0">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="p-2 bg-primary/20 rounded-lg border border-primary/40">
+                  <Globe className="w-5 h-5 text-primary" />
+                </div>
+                <div className="hidden sm:block">
+                  <h1 className="text-2xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground uppercase leading-none mb-1">
+                    Profit Windows
+                  </h1>
+                  <div className="flex items-center gap-4 text-[9px] font-mono font-black text-foreground/40 dark:text-white/30 tracking-[0.1em] uppercase">
+                    <div className="flex items-center gap-1.5">
+                      <span>PK.VEC.NODE: {isOffline ? "CACHE" : "ACTIVE"}</span>
+                      <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? "bg-amber-500" : "bg-primary"} animate-pulse`} />
+                    </div>
+                    <div className="flex items-center gap-2 border-l border-border/50 pl-3 uppercase">
+                      <RefreshCw className="w-2.5 h-2.5 text-foreground/20 dark:text-white/20" />
+                      <span>LAST SYNC: {Math.floor((new Date().getTime() - lastSync.getTime()) / 60000)}m AGO</span>
+                    </div>
                   </div>
-                  <div className="hidden sm:block">
-                    <h1 className="text-2xl font-bold font-bebas tracking-[0.1em] text-white uppercase leading-none mb-1">Profit Windows</h1>
-                    <div className="flex items-center gap-4 text-[9px] font-mono font-black text-white/30 tracking-[0.1em] uppercase">
-                      <div className="flex items-center gap-1.5">
-                        <span>PK.VEC.NODE: {isOffline ? 'CACHE' : 'ACTIVE'}</span>
-                        <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-primary'} animate-pulse`} />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 lg:gap-6 flex-wrap justify-between lg:justify-end min-w-0">
+                <div className="hidden lg:flex items-center gap-2 bg-foreground/5 border border-border/50 rounded-xl px-2 h-10 flex-wrap min-w-0 max-w-full">
+                  <div className="flex items-center gap-2 px-3 h-8 text-muted-foreground/60">
+                    <Search className="w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="LOCATION..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
+                      className="bg-transparent border-none outline-none text-sm font-mono font-bold text-foreground w-28 xl:w-32 placeholder:text-muted-foreground/30 dark:placeholder:text-white/20"
+                    />
+                  </div>
+                  <div className="w-px h-5 bg-foreground/10" />
+                  <button
+                    type="button"
+                    onClick={() => setUseTrendingNow((v) => !v)}
+                    style={{ flexShrink: 0 }}
+                    className={`px-2 h-8 rounded-lg border text-[10px] font-mono font-black tracking-[0.15em] uppercase transition-colors ${
+                      useTrendingNow
+                        ? "bg-primary/20 border-primary/40 text-primary hover:bg-primary/30"
+                        : "bg-foreground/5 border-border/50 text-muted-foreground/70 hover:text-foreground/80"
+                    }`}
+                    title="Discovery Mode: ON pulls fresh trending terms for your region to seed scans (faster discovery). OFF relies more on your specialties/custom keywords."
+                  >
+                    Discovery {useTrendingNow ? "ON" : "OFF"}
+                  </button>
+                </div>
+
+                <Button
+                  variant="outline"
+                  onClick={handleTriggerScan}
+                  disabled={isScanning || isLoading || specialtiesLoading}
+                  className="bg-primary/20 border-primary/40 text-primary hover:bg-primary hover:text-black font-heading font-semibold text-sm px-5 h-10"
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  {specialtiesLoading ? "CHECKING..." : isScanning ? "SCANNING..." : "SCAN WORLD"}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => handlePageRefresh()}
+                  disabled={isScanning || isLoading || trendingNowLoading}
+                  className="bg-foreground/5 border border-border/50 text-muted-foreground/80 hover:text-foreground font-mono font-black text-[10px] h-10 px-4 uppercase tracking-widest"
+                  title="Refresh live feed + regional + industry trends"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 mr-2 ${(isLoading || trendingNowLoading) ? "animate-spin" : ""}`} />
+                  REFRESH
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* --- NEW: Above-the-fold 2-column intelligence layout --- */}
+          <div className="w-full px-6 pt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
+              {/* Left (60%) */}
+              <div className="lg:col-span-3 flex flex-col space-y-4">
+                <div className="rounded-xl border border-border bg-foreground/5 p-4 flex-shrink-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm text-muted-foreground">Active trend</div>
+                      <div className="mt-1 text-xl font-semibold truncate">
+                        {effectiveTrend?.keyword || "—"}
                       </div>
-                      <div className="flex items-center gap-2 border-l border-white/10 pl-3 uppercase">
-                        <RefreshCw className="w-2.5 h-2.5 text-white/20" />
-                        <span>LAST SYNC: {Math.floor((new Date().getTime() - lastSync.getTime()) / 60000)}m AGO</span>
+                      <div className={`mt-2 text-sm text-muted-foreground ${topTrendExpanded ? "" : "line-clamp-2"}`}>
+                        {execAnalysis?.keyword?.toLowerCase?.() === (effectiveTrend?.keyword || "").toLowerCase?.()
+                          ? execAnalysis?.explanation
+                          : "Run a scan to surface your top opportunity. AI analysis will appear automatically."}
                       </div>
+                      <button
+                        type="button"
+                        className="mt-2 text-[10px] font-mono font-black uppercase tracking-widest text-primary/70 hover:text-primary transition-colors"
+                        onClick={() => setTopTrendExpanded((v) => !v)}
+                      >
+                        {topTrendExpanded ? "Show less" : "Show more"}
+                      </button>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge variant="secondary">
+                        Urgency {Math.round(Number((effectiveTrend as any)?.profit_score ?? (effectiveTrend as any)?.score ?? 0) || 0)}
+                      </Badge>
+                      <Badge variant="outline">
+                        {String((effectiveTrend as any)?.impact || "—")}
+                      </Badge>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="rounded-xl border border-border bg-foreground/5 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">Trends intelligence</div>
+                    <Badge variant="outline">Tabs</Badge>
+                  </div>
+                  <Tabs defaultValue="regional" className="mt-3">
+                    <TabsList className="w-full justify-start">
+                      <TabsTrigger value="regional">Regional</TabsTrigger>
+                      <TabsTrigger value="global">Business trends (global)</TabsTrigger>
+                    </TabsList>
 
+                    <TabsContent value="regional">
+                      <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+                        <div className="text-xs text-muted-foreground">Trending now · PK</div>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {(trendingNowRelevant?.length ? trendingNowRelevant.map((x) => x.term) : trendingNow)
+                            .slice(0, 10)
+                            .map((t) => (
+                              <Badge
+                                key={t}
+                                variant="secondary"
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  addCustomKeyword(t);
+                                  toast.success("Added keyword", { description: `"${t}" added to scan keywords.` });
+                                }}
+                              >
+                                {t}
+                              </Badge>
+                            ))}
+                        </div>
+                      </div>
+                    </TabsContent>
 
-                  <div className="hidden lg:flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-2 h-10">
-                    <div className="flex items-center gap-2 px-3 h-8 text-white/40">
-                      <Search className="w-4 h-4" />
-                      <input
-                        type="text"
-                        placeholder="LOCATION..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
-                        className="bg-transparent border-none outline-none text-sm font-mono font-bold text-white w-32 placeholder:text-white/20"
-                      />
+                    <TabsContent value="global">
+                      <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+                        <div className="text-xs text-muted-foreground">Trending in your niche · Global</div>
+                        {industryGlobalNotes ? (
+                          <div className="mt-1 text-[10px] font-mono text-muted-foreground/60">
+                            {industryGlobalNotes}
+                          </div>
+                        ) : null}
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {industryLoading ? (
+                            <span className="text-xs text-muted-foreground/60">Loading…</span>
+                          ) : industryTerms.length > 0 ? (
+                            industryTerms.slice(0, 10).map((t) => (
+                              <Badge
+                                key={t}
+                                variant="secondary"
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  addCustomKeyword(t);
+                                  toast.success("Added keyword", { description: `"${t}" added to scan keywords.` });
+                                }}
+                              >
+                                {t}
+                              </Badge>
+                            ))
+                          ) : brandAlignedTerms.length > 0 ? (
+                            brandAlignedTerms.slice(0, 10).map((x) => (
+                              <Badge
+                                key={x.term}
+                                variant="secondary"
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  addCustomKeyword(x.term);
+                                  toast.success("Added keyword", { description: `"${x.term}" added to scan keywords.` });
+                                }}
+                                title={x.matched?.length ? `Matched: ${x.matched.join(", ")}` : undefined}
+                              >
+                                {x.term}
+                              </Badge>
+                            ))
+                          ) : (
+                            <div className="flex items-center justify-between gap-3 w-full">
+                              <span className="text-xs text-muted-foreground/60">
+                                No niche trends yet. Try refresh (or add more Business Specialties).
+                              </span>
+                              <Button size="sm" variant="outline" onClick={() => fetchIndustryTrending()}>
+                                Refresh
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </div>
+
+              {/* Right (40%) */}
+              <div className="lg:col-span-2 flex flex-col items-stretch">
+                <div className="rounded-xl border border-border bg-foreground/5 p-4 flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">AI intelligence</div>
+                    <Badge variant="outline">
+                      {aiAnalysisStatus || (effectiveTrend as any)?.ai_analysis_status || "—"}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 text-sm text-muted-foreground">
+                    {aiAnalysisStatus === "pending"
+                      ? "Generating strategy…"
+                      : (aiAnalysisData?.executive_summary || aiNextStep || execAnalysis?.explanation || "Open Full Strategy to view detailed AI guidance.")}
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg border border-border/60 bg-background/40 p-2">
+                      <div className="text-xs text-muted-foreground">Urgency</div>
+                      <div className="text-sm font-semibold">{aiAnalysisData?.opportunity_score?.urgency ?? "—"}</div>
                     </div>
-                    <Select value={timeframe} onValueChange={setTimeframe}>
-                      <SelectTrigger className="w-[100px] border-none bg-transparent h-8 focus:ring-0 text-white/90 font-bold text-xs uppercase">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-950 border-white/10 text-white">
-                        <SelectItem value="7">7D</SelectItem>
-                        <SelectItem value="30">30D</SelectItem>
-                        <SelectItem value="90">90D</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
-                      <SelectTrigger className="w-[130px] border-none bg-transparent h-8 focus:ring-0 text-white/90 font-bold text-xs uppercase">
-                        <SelectValue placeholder="LIFECYCLE" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-950 border-white/10 text-white">
-                        <SelectItem value="all">ALL STAGES</SelectItem>
-                        <SelectItem value="Emerging">🌱 EMERGING</SelectItem>
-                        <SelectItem value="Breakout">🚀 BREAKOUT</SelectItem>
-                        <SelectItem value="Mainstream">📈 MAINSTREAM</SelectItem>
-                        <SelectItem value="Saturated">⚠️ SATURATED</SelectItem>
-                        <SelectItem value="Declining">📉 DECLINING</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <div className="w-px h-5 bg-white/10" />
-                    <div className="flex items-center gap-1.5 px-2 h-8">
-                      <Database className="w-3.5 h-3.5 text-white/30 shrink-0" />
-                      <input
-                        type="text"
-                        placeholder="SUB-NICHE..."
-                        value={category === 'all' ? '' : category}
-                        onChange={(e) => setCategory(e.target.value.trim().toLowerCase() || 'all')}
-                        className="bg-transparent border-none outline-none text-xs font-mono font-bold text-white w-24 placeholder:text-white/20"
-                      />
+                    <div className="rounded-lg border border-border/60 bg-background/40 p-2">
+                      <div className="text-xs text-muted-foreground">Relevance</div>
+                      <div className="text-sm font-semibold">{aiAnalysisData?.opportunity_score?.relevance ?? "—"}</div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-background/40 p-2">
+                      <div className="text-xs text-muted-foreground">Competition</div>
+                      <div className="text-sm font-semibold">{aiAnalysisData?.opportunity_score?.competition ?? "—"}</div>
                     </div>
                   </div>
 
+                  <div className="mt-auto pt-4 grid grid-cols-1 gap-2">
+                    <Button
+                      onClick={() => {
+                        const tid = (effectiveTrend as any)?.trend_signal_id || (lastScanSummary as any)?.trendId || null;
+                        if (!tid) {
+                          toast.error("No trend_id available yet. Run a scan first.");
+                          return;
+                        }
+                        setDrawerOpen(true);
+                      }}
+                    >
+                      Full Strategy →
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (effectiveTrend?.keyword) handleMagicBridge(effectiveTrend.keyword);
+                        else toast.error("No trend selected.");
+                      }}
+                    >
+                      Draft Content →
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (!effectiveTrend?.keyword) {
+                          toast.error("No trend selected.");
+                          return;
+                        }
+                        setLaunchDialogOpen(true);
+                      }}
+                    >
+                      Launch Campaign →
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-8 px-6 pt-6">
+            {showQualityBanner && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start justify-between gap-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
+                  <div className="text-xs font-mono text-amber-200/90">
+                    Some trends are showing estimated data while scans complete. Results will update automatically.
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  className="h-7 px-2 text-[10px] font-mono text-amber-200/70 hover:text-amber-200"
+                  onClick={() => setQualityBannerDismissed(true)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            )}
+            {!specialtiesLoading && !hasSpecialties && (
+              <div className="mt-3">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between gap-3">
+                  <div className="text-xs font-mono text-amber-200/90">
+                    Add at least 1 <span className="text-amber-200 font-black">Business Specialty</span> to enable scans.
+                  </div>
                   <Button
-                    variant="outline"
-                    onClick={handleTriggerScan}
-                    disabled={isScanning || isLoading}
-                    className="bg-primary/20 border-primary/40 text-primary hover:bg-primary hover:text-black font-bebas tracking-widest text-sm px-5 h-10"
+                    variant="ghost"
+                    className="h-8 px-3 text-[10px] font-mono text-amber-200/80 hover:text-amber-200"
+                    onClick={() => navigate("/settings/business-specialties")}
                   >
-                    <Zap className="w-4 h-4 mr-2" />
-                    {isScanning ? "SCANNING..." : "SCAN WORLD"}
+                    Open Specialties
                   </Button>
                 </div>
               </div>
+            )}
 
               <AnimatePresence>
                 {/* Subtle Offline Indicator (Pulse) */}
@@ -571,6 +1570,18 @@ const TrendArbitrage = () => {
                         <span className="text-[10px] font-mono font-black text-red-500 uppercase tracking-[0.2em]">System Alert</span>
                         <span className="text-[11px] font-mono text-white/80 leading-tight">{error || "Connection failure detected."}</span>
                       </div>
+                        <button
+                          type="button"
+                          className="ml-2 text-white/40 hover:text-white/80 transition-colors text-xs font-mono"
+                          onClick={() => {
+                            setError(null);
+                            setIsOffline(false);
+                          }}
+                          aria-label="Dismiss system alert"
+                          title="Dismiss"
+                        >
+                          ✕
+                        </button>
                     </div>
                   </motion.div>
                 )}
@@ -579,13 +1590,13 @@ const TrendArbitrage = () => {
               {/* Hero Trend / Empty State */}
               {liveTrends.length === 0 && !isLoading ? (
                 <Reveal variant="fadeInUp">
-                  <div className="relative overflow-hidden group p-12 bg-white/[0.02] border border-white/10 rounded-3xl backdrop-blur-3xl flex flex-col items-center text-center space-y-8">
+                  <div className="relative overflow-hidden group p-12 bg-white/[0.02] border border-border/50 rounded-3xl backdrop-blur-3xl flex flex-col items-center text-center space-y-8">
                     <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center animate-pulse">
                       <Globe className="w-10 h-10 text-primary" />
                     </div>
                     <div className="space-y-4 max-w-2xl">
-                      <h2 className="text-4xl font-bold font-bebas tracking-[0.2em] text-white uppercase">No Trends Found</h2>
-                      <p className="text-sm font-mono text-white/40 leading-relaxed uppercase">
+                      <h2 className="text-4xl font-bold font-heading font-semibold tracking-[0.2em] text-foreground uppercase">No Trends Found</h2>
+                      <p className="text-sm font-mono text-muted-foreground/60 leading-relaxed uppercase">
                         No trend data detected for your niche yet. RAAMP needs to scan the global signal network
                         using your <span className="text-primary">Instagram Business Identity</span> and <span className="text-primary">Google Search Spikes</span>.
                       </p>
@@ -599,11 +1610,15 @@ const TrendArbitrage = () => {
                     </div>
                     <Button
                       onClick={handleTriggerScan}
-                      disabled={isScanning}
-                      className={`font-bebas text-2xl tracking-[0.2em] px-12 py-8 h-auto rounded-2xl transition-all shadow-[0_0_30px_rgba(0,224,208,0.3)] ${isScanning ? 'bg-primary/20 text-primary cursor-not-allowed' : 'bg-primary text-black hover:scale-105'
+                      disabled={isScanning || specialtiesLoading}
+                      className={`font-heading font-semibold text-2xl tracking-[0.2em] px-12 py-8 h-auto rounded-2xl transition-all shadow-[0_0_30px_rgba(0,224,208,0.3)] ${isScanning ? 'bg-primary/20 text-primary cursor-not-allowed' : 'bg-primary text-black hover:scale-105'
                         }`}
                     >
-                      {isScanning ? (
+                      {specialtiesLoading ? (
+                        <div className="flex items-center gap-3">
+                          <RefreshCw className="w-6 h-6 animate-spin" /> CHECKING...
+                        </div>
+                      ) : isScanning ? (
                         <div className="flex flex-col items-center">
                           <div className="flex items-center gap-3">
                             <RefreshCw className="w-6 h-6 animate-spin" /> SCANNING...
@@ -616,9 +1631,22 @@ const TrendArbitrage = () => {
                       )}
                     </Button>
 
+                    {!specialtiesLoading && !hasSpecialties && (
+                      <div className="text-[10px] font-mono text-amber-200/80 uppercase tracking-[0.2em]">
+                        Add Business Specialties to enable scanning.
+                        {" "}
+                        <span
+                          className="underline hover:text-amber-200 cursor-pointer"
+                          onClick={() => navigate("/settings/business-specialties")}
+                        >
+                          Open Settings
+                        </span>
+                      </div>
+                    )}
+
                     {isScanning && (
                       <div className="flex flex-col items-center gap-2">
-                        <div className="w-64 h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div className="w-64 h-1 bg-foreground/5 rounded-full overflow-hidden">
                           <motion.div
                             className="h-full bg-primary"
                             animate={{ x: [-256, 256] }}
@@ -628,203 +1656,17 @@ const TrendArbitrage = () => {
                         <span className="text-[10px] font-mono text-primary animate-pulse uppercase tracking-[0.2em]">{scanStep}</span>
                       </div>
                     )}
-
-                    <div className="flex gap-8 text-[10px] font-mono font-black text-white/20 uppercase">
-                      <span className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                        {isOffline ? 'API Unreachable' : 'API Connected'}
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${user?.business_domain ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                        {user?.business_domain ? `Niche: ${user.business_domain}` : 'Niche Not Set'}
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${isScanning ? 'bg-primary animate-ping' : 'bg-white/20'}`} />
-                        {isScanning ? 'Active Syncing' : 'Waiting for Command'}
-                      </span>
-                    </div>
                   </div>
                 </Reveal>
-              ) : liveTrends.length > 0 && (
-                <Reveal variant="fadeInUp">
-                  <motion.div whileHover={{ y: -3 }} className="relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5 opacity-50 backdrop-blur-3xl rounded-2xl border border-white/10 group-hover:border-primary/50 transition-all duration-500" />
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] rounded-full -translate-y-1/2 translate-x-1/2" />
-                    <div className="relative z-10 p-6 md:p-8 flex flex-col md:flex-row items-center gap-8">
-                      <div className="flex-1 space-y-3">
-                        <div className="flex items-center gap-3">
-                          <Badge className={`${liveTrends[0].is_spike ? 'bg-primary/20 text-primary border-primary/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'} py-1 px-4 font-mono font-black text-[10px] tracking-widest`}>
-                            {liveTrends[0].is_spike ? 'FEATURED VEC SIGNAL' : liveTrends[0].label || 'BASELINE TREND'}
-                          </Badge>
-                          <div className="flex items-center gap-2 text-white/20 font-mono text-[10px] font-black uppercase tracking-widest">
-                            <TrendingUp className="w-3 h-3" /> STRENGTH: {liveTrends[0].score}σ
-                          </div>
-                        </div>
-                        <h2 className="text-4xl md:text-6xl font-bold font-bebas tracking-[0.1em] text-white leading-tight mb-4">{liveTrends[0].keyword}</h2>
-                        <p className="text-base text-white/40 font-mono italic max-w-2xl">
-                          {liveTrends[0].is_spike && liveTrends[0].score > 8
-                            ? `High-velocity delta detected in ${liveTrends[0].location}. Arbitrage window critical.`
-                            : liveTrends[0].is_spike 
-                            ? `Emerging interest pattern in ${liveTrends[0].location} vector grid. Monitoring velocity.`
-                            : `Current trend baseline in ${liveTrends[0].location}. No significant spikes detected yet—market stability observed.`}
-                          {liveTrends[0].niche ? ` Sector: ${liveTrends[0].niche}.` : ''}
-                        </p>
-                        <div className="flex gap-4 pt-4">
-                          <Button
-                            className="bg-primary text-black hover:opacity-90 font-bebas text-lg px-8 h-12 rounded-xl"
-                            onClick={() => {
-                              const base = liveTrends[0];
-                              setDeployContentType("carousel");
-                              setDeployPrompt(`Create a 5-slide carousel post about "${base.keyword}" for ${base.location}. Niche: ${base.niche}. Make each slide educational and easy to share.`);
-                              setDeploySheetOpen(true);
-                            }}
-                          >DEPLOY AI ASSETS</Button>
-                          <Button
-                            variant="outline"
-                            className="border-white/10 bg-white/[0.03] text-white/60 hover:text-white font-bebas text-lg px-8 h-12 rounded-xl"
-                            onClick={() => setGapAnalysisOpen(true)}
-                          >AI GAP INSIGHTS</Button>
-                        </div>
-                      </div>
-                      <div className="w-40 h-40 flex items-center justify-center relative">
-                        <div className={`w-32 h-32 rounded-full ${liveTrends[0].is_spike ? 'bg-gradient-to-br from-primary/50 to-emerald-500/50' : 'bg-gradient-to-br from-blue-500/30 to-cyan-500/30'} p-[1px]`}>
-                          <div className="w-full h-full rounded-full bg-background flex flex-col items-center justify-center p-4 text-center">
-                            {liveTrends[0].is_spike ? (
-                              <>
-                                <Flame className="w-8 h-8 text-primary mb-1" />
-                                <span className="text-xl font-bold font-bebas text-white tracking-widest">SPIKE</span>
-                                <span className="text-[8px] font-mono text-primary/60 tracking-widest uppercase">{liveTrends[0].score > 10 ? 'CRITICAL' : 'DETECTED'}</span>
-                              </>
-                            ) : (
-                              <>
-                                <Activity className="w-8 h-8 text-blue-400 mb-1" />
-                                <span className="text-xl font-bold font-bebas text-white tracking-widest">BASELINE</span>
-                                <span className="text-[8px] font-mono text-blue-400/60 tracking-widest uppercase">MONITORING</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                </Reveal>
-              )}
+              ) : null}
 
-              {/* Arbitrage Intelligence Strategy Brief */}
-              {recContext && recommendations.length > 0 && (
-                <Reveal variant="fadeIn">
-                  <div className="bg-primary/5 border-l-4 border-l-primary p-4 rounded-r-xl backdrop-blur-md mb-2">
-                    <div className="flex items-start gap-4">
-                      <div className="p-2 bg-primary/20 rounded-full mt-1">
-                        <Info className="w-4 h-4 text-primary" />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-[10px] font-mono font-black text-primary/60 uppercase tracking-widest">Market Strategy Brief</h4>
-                        <p className="text-sm text-white/80 font-mono italic leading-relaxed">
-                          {recContext}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </Reveal>
-              )}
+              
 
-              {/* Arbitrage Intelligence Cards (Layer 2 Output) */}
-              {(recommendations.length > 0 || isGeneratingRecs) && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-end">
-                    <div className="space-y-1">
-                      <h2 className="text-2xl font-bold font-bebas tracking-wider text-white flex items-center gap-3">
-                        <Sparkles className="w-6 h-6 text-primary animate-pulse" /> ARBITRAGE STRATEGY
-                      </h2>
-                      <p className="text-[10px] font-mono font-bold text-white/20 uppercase tracking-[0.2em]">Deployment-Ready Campaign Vectors</p>
-                    </div>
-                    {isGeneratingRecs && (
-                      <div className="flex items-center gap-2 text-[10px] font-mono text-primary font-black uppercase animate-pulse">
-                        <RefreshCw className="w-3 h-3 animate-spin" /> GENUINE AI REASONING...
-                      </div>
-                    )}
-                  </div>
+              {/* Market/strategy is shown inside the drawer tabs (source of truth: AI analysis). */}
 
-                  <div className="flex gap-6 overflow-x-auto pb-6 -mx-2 px-2 scrollbar-none snap-x">
-                    {recommendations.map((rec, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.1 }}
-                        whileHover={{ y: -5 }}
-                        className="min-w-[320px] max-w-[320px] bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden group snap-center flex flex-col relative"
-                      >
-                        <div className="absolute top-0 right-0 p-4">
-                          <Badge className="bg-primary/20 text-primary border-primary/30 font-mono font-black text-[9px]">PRIORITY {rec.priority}/10</Badge>
-                        </div>
+              {/* AI Executive Analysis (Main Screen) */}
+              
 
-                        <div className="p-6 space-y-4 flex-1">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-[9px] font-mono text-primary/60 font-black uppercase tracking-tighter">
-                              <Target className="w-3 h-3" /> {rec.recommended_platform} STRATEGY
-                            </div>
-                            <h3 className="text-xl font-bold font-bebas text-white tracking-wider group-hover:text-primary transition-colors uppercase">{rec.campaign_idea}</h3>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap gap-2 pt-1">
-                              {rec.suggested_hooks.slice(0, 2).map((hook, h) => (
-                                <div key={h} className="text-[9px] font-mono bg-white/5 border border-white/10 rounded-md px-2 py-1 text-white/40 italic flex items-center gap-1.5">
-                                  <Zap className="w-2 h-2 text-primary" /> {hook}
-                                </div>
-                              ))}
-                            </div>
-                            {rec.reasoning && (
-                              <div className="space-y-1.5 pt-1">
-                                <button
-                                  className="text-[9px] font-mono text-white/30 hover:text-primary flex items-center gap-1 transition-colors"
-                                  onClick={() => {
-                                    setExpandedReasonings(prev => {
-                                      const next = new Set(prev);
-                                      if (next.has(i)) next.delete(i); else next.add(i);
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  WHY THIS WORKS {expandedReasonings.has(i) ? '▴' : '▾'}
-                                </button>
-                                {expandedReasonings.has(i) && (
-                                  <p className="text-[10px] font-mono text-white/50 italic border-l-2 border-primary/30 pl-3 leading-relaxed">
-                                    {rec.reasoning}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="p-4 bg-white/5 border-t border-white/5 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[8px] font-mono text-white/20 uppercase font-black">Goal</span>
-                            <span className="text-[10px] font-mono text-white/60 font-bold uppercase">{rec.expected_marketing_goal}</span>
-                          </div>
-                          <Button
-                            className="h-8 rounded-lg bg-primary text-black font-bebas text-xs tracking-wider px-4"
-                            onClick={() => {
-                              const hooks = rec.suggested_hooks.length > 0 ? ` Use hook: "${rec.suggested_hooks[0]}".` : '';
-                              const prompt = `${rec.campaign_idea} on ${rec.recommended_platform}.${hooks} Goal: ${rec.expected_marketing_goal}.`;
-                              navigate("/dashboard/creative", { state: { prefillPrompt: prompt } });
-                            }}
-                          >EXECUTE</Button>
-                        </div>
-                      </motion.div>
-                    ))}
-
-                    {isGeneratingRecs && Array(3).fill(0).map((_, i) => (
-                      <div key={i} className="min-w-[320px] bg-white/5 border border-white/10 rounded-2xl h-[240px] animate-pulse flex items-center justify-center">
-                        <Wind className="w-8 h-8 text-white/10 animate-bounce" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-red-100/60 text-[10px] font-mono uppercase">
@@ -833,231 +1675,53 @@ const TrendArbitrage = () => {
                 </div>
               )}
 
+              {(timelineFetchError || geoFetchError) && (
+                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex items-center gap-3 text-amber-100/70 text-[10px] font-mono uppercase">
+                  <AlertCircle className="w-4 h-4 text-amber-300" />
+                  <span>
+                    {timelineFetchError ? `Timeline: ${timelineFetchError} ` : ""}
+                    {geoFetchError ? `Geo: ${geoFetchError}` : ""}
+                  </span>
+                </div>
+              )}
+
+              {lastScanSummary?.completedAt && timelineData.length === 0 && geoData.length === 0 && !timelineFetchError && !geoFetchError && (
+                <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl flex items-center gap-3 text-primary/80 text-[10px] font-mono uppercase">
+                  <Info className="w-4 h-4 text-primary" />
+                  <span>
+                    Scan completed — showing current trends (fast scan). Open Live Feed / Notifications to see the top keywords and launch a campaign.
+                  </span>
+                </div>
+              )}
+
               {/* Content Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Column 1: Timeline & Feed */}
-                <div className="lg:col-span-8 space-y-8">
-                  {/* Timeline */}
-                  <Reveal variant="fadeInUp" delay={0.3}>
-                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl overflow-hidden relative">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h2 className="text-xl font-bold flex items-center gap-3 font-bebas tracking-[0.1em] text-white">
-                            <Activity className="w-6 h-6 text-primary" /> Trend Activity
-                          </h2>
-                          <p className="text-[10px] font-mono font-bold text-white/20 tracking-widest mt-1 uppercase">How search interest changes over time</p>
-                        </div>
-                        {timelineData.length > 0 && (
-                          <div className="hidden sm:flex gap-5 text-right">
-                            <div>
-                              <p className="text-[10px] font-mono text-white/30 uppercase tracking-wider">Days Tracked</p>
-                              <p className="text-2xl font-bebas text-white">{timelineData.length}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-mono text-white/30 uppercase tracking-wider">Peak Activity</p>
-                              <p className="text-2xl font-bebas text-primary">{Math.max(...timelineData.map(d => d.count))}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+              <div className="grid grid-cols-1 gap-8">
+                {/* Single Column Feed & History */}
+                <div className="space-y-8">
 
-                      <div className="h-[300px] w-full relative">
-                        {/* Background Scan Grid Visualization */}
-                        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,224,208,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,224,208,0.03)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
-
-                        {timelineData.length === 0 ? (
-                          <div className="h-full w-full flex flex-col items-center justify-center gap-4 text-center">
-                            <Database className="w-10 h-10 text-white/10" />
-                            <p className="text-xs font-mono text-white/20 uppercase tracking-widest">Data will appear here after your first scan</p>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={handleTriggerScan}
-                              disabled={isScanning}
-                              className="border-white/10 text-white/30 hover:text-primary hover:border-primary/30 font-mono text-xs"
-                            >
-                              {isScanning ? "Scanning..." : "Run Scan Now"}
-                            </Button>
-                          </div>
-                        ) : (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={timelineData}>
-                              <defs>
-                                <linearGradient id="velocityFill" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#00E0D0" stopOpacity={0.2} />
-                                  <stop offset="95%" stopColor="#00E0D0" stopOpacity={0} />
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
-                              <XAxis
-                                dataKey="date"
-                                stroke="#ffffff40"
-                                fontSize={11}
-                                tickFormatter={(str) => new Date(str).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                tickLine={false}
-                                axisLine={{ stroke: '#ffffff15' }}
-                                dy={10}
-                              />
-                              <YAxis
-                                stroke="#ffffff40"
-                                fontSize={11}
-                                tickLine={false}
-                                axisLine={{ stroke: '#ffffff15' }}
-                                dx={-10}
-                                label={{ value: 'Activity Level', angle: -90, position: 'insideLeft', fill: '#ffffff30', fontSize: 10, dy: 50 }}
-                              />
-                              <Tooltip
-                                contentStyle={{ backgroundColor: '#09090b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px' }}
-                                formatter={(value: number | string) => [value, 'Trend Activity']}
-                                labelFormatter={(label) => new Date(label).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                                itemStyle={{ color: '#00E0D0', fontSize: '12px', fontFamily: 'monospace' }}
-                                labelStyle={{ color: '#ffffff60', fontSize: '11px', fontFamily: 'monospace', marginBottom: '6px' }}
-                              />
-                              <Area type="monotone" dataKey="count" stroke="none" fill="url(#velocityFill)" />
-                              <Line
-                                type="monotone"
-                                dataKey="count"
-                                stroke="#00E0D0"
-                                strokeWidth={2.5}
-                                dot={(props: { cx: number; cy: number; payload: { avg_z: number } }) => {
-                                  const { cx, cy, payload } = props;
-                                  const isHot = payload.avg_z > 4;
-                                  return <circle cx={cx} cy={cy} r={isHot ? 5 : 3} fill={isHot ? "#F59E0B" : "#00E0D0"} />;
-                                }}
-                                activeDot={{ r: 6, fill: '#00E0D0' }}
-                                animationDuration={1500}
-                              />
-                            </ComposedChart>
-                          </ResponsiveContainer>
-                        )}
-                      </div>
-                    </div>
-                  </Reveal>
-
-                  {/* Arbitrage Sweet Spot Scatter Chart */}
+                  {/* Intelligence Grid */}
                   <Reveal variant="fadeInUp" delay={0.35}>
-                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl overflow-hidden relative">
-                      <div className="flex items-center justify-between mb-6">
-                        <div>
-                          <h2 className="text-xl font-bold flex items-center gap-3 font-bebas tracking-[0.1em] text-white">
-                            <Target className="w-6 h-6 text-primary" /> ARBITRAGE SWEET SPOT
-                          </h2>
-                          <p className="text-[10px] font-mono font-bold text-white/10 tracking-widest mt-1 uppercase">Saturation vs Velocity Matrix</p>
-                        </div>
-                        <Badge className="bg-primary/10 text-primary border-primary/20 font-mono text-[9px] px-2 py-0.5 uppercase tracking-widest font-black">AI GRID ACTIVE</Badge>
-                      </div>
-
-                      <div className="h-[350px] w-full relative">
-                        {/* Matrix Quadrant Labels */}
-                        <div className="absolute top-4 right-4 text-[11px] font-mono text-white/40 font-black uppercase text-right leading-relaxed bg-black/40 backdrop-blur-md px-3 py-1 rounded-lg border border-white/5">
-                          <span className="text-red-400">CROWDED</span><br />(High Saturation)
-                        </div>
-                        <div className="absolute top-4 left-4 text-[11px] font-mono text-white/40 font-black uppercase leading-relaxed bg-black/40 backdrop-blur-md px-3 py-1 rounded-lg border border-white/5">
-                          <span className="text-primary">GOLD MINE</span><br />(High Velocity)
-                        </div>
-                        <div className="absolute bottom-12 left-4 text-[11px] font-mono text-white/40 font-black uppercase leading-relaxed bg-black/40 backdrop-blur-md px-3 py-1 rounded-lg border border-white/5">
-                          EMERGING
-                        </div>
-                        <div className="absolute bottom-12 right-4 text-[11px] font-mono text-white/40 font-black uppercase text-right leading-relaxed bg-black/40 backdrop-blur-md px-3 py-1 rounded-lg border border-white/5">
-                          FADING
-                        </div>
-
-                        {marketGapData.length === 0 && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
-                            <Target className="w-10 h-10 text-white/10" />
-                            <p className="text-xs font-mono text-white/20 uppercase tracking-widest text-center">Arbitrage matrix populates after scan</p>
-                          </div>
-                        )}
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                            {/* Quadrant background fills */}
-                            <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="#00E0D0" fillOpacity={0.04} />
-                            <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="#ef4444" fillOpacity={0.04} />
-                            <ReferenceArea x1={0} x2={50} y1={0} y2={5} fill="#F59E0B" fillOpacity={0.03} />
-                            <XAxis
-                              type="number"
-                              dataKey="saturation"
-                              name="Status"
-                              unit="%"
-                              domain={[0, 100]}
-                              stroke="#ffffff50"
-                              fontSize={11}
-                              axisLine={{ stroke: '#ffffff15' }}
-                              tickLine={false}
-                              label={{ value: 'Competition Level →', position: 'insideBottomRight', fill: '#ffffff50', fontSize: 11, dy: 10 }}
-                            />
-                            <YAxis
-                              type="number"
-                              dataKey="velocity"
-                              name="Velocity"
-                              domain={[0, 10]}
-                              stroke="#ffffff50"
-                              fontSize={11}
-                              axisLine={{ stroke: '#ffffff15' }}
-                              tickLine={false}
-                              label={{ value: 'Growth Speed ↑', angle: -90, position: 'insideLeft', fill: '#ffffff50', fontSize: 11, dy: 50 }}
-                            />
-                            <ZAxis type="number" dataKey="arbitrage_score" range={[100, 1000]} />
-                            <Tooltip
-                              cursor={{ strokeDasharray: '3 3' }}
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  const data = payload[0].payload;
-                                  const isGoldMine = data.quadrant === 'Gold Mine';
-                                  const isCrowded = data.quadrant === 'Crowded';
-                                  return (
-                                    <div className="bg-black/95 border border-white/10 p-4 rounded-xl shadow-2xl backdrop-blur-md min-w-[200px]">
-                                      <p className="font-bebas text-white text-xl tracking-wider uppercase mb-1">{data.keyword}</p>
-                                      <p className={`text-xs font-mono font-bold mb-3 ${
-                                        isGoldMine ? 'text-primary' :
-                                        isCrowded ? 'text-red-400' :
-                                        data.quadrant === 'Emerging' ? 'text-amber-400' : 'text-white/30'
-                                      }`}>
-                                        {isGoldMine ? '🔥 Great opportunity — post now!' :
-                                         isCrowded ? '⚠️ Very competitive right now' :
-                                         data.quadrant === 'Emerging' ? '🌱 Early stage — keep an eye on it' :
-                                         '📉 Interest is fading'}
-                                      </p>
-                                      <div className="space-y-1.5 text-[11px] font-mono">
-                                        <div className="flex justify-between"><span className="text-white/40">Growth Speed:</span><span className="text-primary font-bold">{data.velocity}×</span></div>
-                                        <div className="flex justify-between"><span className="text-white/40">Competition:</span><span className="text-white/70">{data.saturation}%</span></div>
-                                        {data.profit_score !== undefined && (
-                                          <div className="flex justify-between">
-                                            <span className="text-white/40">Opportunity:</span>
-                                            <span className={`font-bold ${data.profit_score >= 80 ? 'text-emerald-400' : data.profit_score >= 60 ? 'text-blue-400' : 'text-amber-400'}`}>
-                                              {data.profit_score}/100
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                            <Scatter name="Trends" data={marketGapData}>
-                              {marketGapData.map((entry, index) => (
-                                <Cell
-                                  key={`cell-${index}`}
-                                  fill={entry.quadrant === 'Gold Mine' ? '#00E0D0' : entry.quadrant === 'Crowded' ? '#ef4444' : '#ffffff20'}
-                                  className="filter drop-shadow-[0_0_8px_rgba(0,224,208,0.3)] transition-all duration-500 hover:opacity-100"
-                                  opacity={0.7}
-                                />
-                              ))}
-                            </Scatter>
-                          </ScatterChart>
-                        </ResponsiveContainer>
-                      </div>
+                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
+                      <h2 className="text-xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground uppercase flex items-center gap-3">
+                        <div className="w-1.5 h-6 bg-teal-500 rounded-full" /> Intelligence Grid
+                      </h2>
+                      <IntelligenceGrid 
+                        trendId={(effectiveTrend as any)?.trend_signal_id || lastScanSummary?.trendId || (effectiveTrend as any)?.id || null} 
+                        aiAnalysisStatus={aiAnalysisStatus || (effectiveTrend as any)?.ai_analysis_status || null}
+                        aiAnalysisData={aiAnalysisData} 
+                        location={location} 
+                        niche={(user as any)?.business_domain_name || user?.business_domain || 'marketing'} 
+                        userPlatform={userPlatform}
+                        keyword={effectiveTrend?.keyword || ""}
+                      />
                     </div>
                   </Reveal>
 
-                  {/* Live Feed */}
+                  {/* Signals Feed */}
                   <Reveal variant="fadeInUp" delay={0.4}>
-                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl space-y-6">
+                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
                       <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold font-bebas tracking-[0.1em] text-white uppercase flex items-center gap-3">
+                        <h2 className="text-xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground uppercase flex items-center gap-3">
                           <div className="w-1.5 h-6 bg-primary rounded-full" /> Signals Feed
                         </h2>
                         <Button variant="ghost" onClick={() => setShowAllTrends(!showAllTrends)} className="text-[10px] font-mono font-bold text-primary/60 hover:text-primary uppercase h-8 px-4">
@@ -1065,34 +1729,55 @@ const TrendArbitrage = () => {
                         </Button>
                       </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {(showAllTrends ? liveTrends : liveTrends.slice(0, 4))
-                          .filter(trend => lifecycleFilter === "all" || trend.lifecycle_stage === lifecycleFilter)
-                          .map((trend) => (
-                          <TrendCard
-                            key={trend.id}
-                            trend={trend}
-                            onClick={() => {
-                              setSelectedTrend(trend);
-                              setCampaignModalOpen(true);
-                            }}
-                            onGenerateContent={handleGenerateContent}
-                          />
-                        ))}
-                      </div>
+                      {isScanning && (
+                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <RefreshCw className="w-4 h-4 animate-spin text-primary/80" />
+                            <div className="text-[10px] font-mono font-black uppercase tracking-[0.2em] text-primary/80">
+                              Scanning…
+                              <span className="ml-2 text-white/40 font-normal tracking-normal">
+                                {scanStep || "Processing signal vectors"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-[10px] font-mono text-white/30 uppercase tracking-widest">
+                            {location}
+                          </div>
+                        </div>
+                      )}
+
+                      <SignalsCarousel 
+                        liveTrends={liveTrends} 
+                        isLoading={isLoading} 
+                        showAllTrends={showAllTrends} 
+                        lifecycleFilter={lifecycleFilter} 
+                        watchlist={watchlist} 
+                        compare={compareTrends}
+                        location={location} 
+                        activeKeyword={effectiveTrend?.keyword || null}
+                        onToggleWatchlist={handleToggleWatchlist} 
+                        onToggleCompare={(t) => toggleCompare(t)}
+                        onSelectTrend={(trend) => {
+                          setSelectedTrend(trend);
+                          setActiveTrend(trend);
+                          setCampaignModalOpen(true);
+                        }} 
+                        onMagicBridge={handleMagicBridge} 
+                        onTriggerScan={handleTriggerScan} 
+                      />
                     </div>
                   </Reveal>
 
                   {/* Watchlist Section */}
                   {watchlist.length > 0 && (
                     <Reveal variant="fadeInUp" delay={0.5}>
-                      <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl space-y-6">
-                        <h2 className="text-xl font-bold font-bebas tracking-[0.1em] text-white uppercase flex items-center gap-3">
+                      <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
+                        <h2 className="text-xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground uppercase flex items-center gap-3">
                           <div className="w-1.5 h-6 bg-amber-500 rounded-full" /> Tracked Vectors
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                           {watchlist.map((item) => (
-                            <div key={item.id} className="p-4 bg-white/5 border border-white/10 rounded-xl relative group">
+                            <div key={item.id} className="p-4 bg-foreground/5 border border-border/50 rounded-xl relative group">
                               <button
                                 onClick={() => handleRemoveFromWatchlist(item.keyword)}
                                 className="absolute top-2 right-2 text-white/20 hover:text-red-500 transition-colors"
@@ -1100,12 +1785,12 @@ const TrendArbitrage = () => {
                                 <AlertCircle className="w-4 h-4" />
                               </button>
                               <div className="flex flex-col gap-1">
-                                <span className="text-sm font-bold font-bebas text-white tracking-widest uppercase">{item.keyword}</span>
+                                <span className="text-sm font-bold font-heading font-semibold text-foreground tracking-widest uppercase">{item.keyword}</span>
                                 <div className="flex gap-4 items-center">
                                   <div className="text-[10px] font-mono text-primary flex gap-1 items-center">
                                     <Wind className="w-3 h-3" /> {item.last_velocity}σ
                                   </div>
-                                  <div className="text-[10px] font-mono text-white/40 flex gap-1 items-center">
+                                  <div className="text-[10px] font-mono text-muted-foreground/60 flex gap-1 items-center">
                                     <Database className="w-3 h-3" /> {item.last_saturation}%
                                   </div>
                                 </div>
@@ -1116,280 +1801,56 @@ const TrendArbitrage = () => {
                       </div>
                     </Reveal>
                   )}
-                </div>
 
-                {/* Column 2: Geography & Analytics */}
-                <div className="lg:col-span-4 space-y-8">
-                  {/* Geo Intensity */}
-                  <Reveal variant="fadeInUp" delay={0.5}>
-                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl space-y-6">
-                      <h2 className="text-xl font-bold font-bebas tracking-[0.1em] text-white flex items-center gap-3"><MapPin className="w-6 h-6 text-primary" /> GEO INTENSITY</h2>
-                      {geoData.length === 0 ? (
-                        <div className="h-[200px] flex flex-col items-center justify-center gap-3 text-center">
-                          <MapPin className="w-8 h-8 text-white/10" />
-                          <p className="text-xs font-mono text-white/20 uppercase tracking-widest">Regional data loads after scan</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1 scrollbar-none">
-                          {[...geoData]
-                            .sort((a, b) => b.intensity - a.intensity)
-                            .map((region, idx) => (
-                              <div
-                                key={idx}
-                                className={`flex items-center gap-3 cursor-pointer group rounded-lg transition-colors ${
-                                  selectedCity?.city === region.city ? 'bg-primary/10 px-2 -mx-2' : ''
-                                }`}
-                                onClick={() => setSelectedCity(prev => prev?.city === region.city ? null : region)}
-                              >
-                                <span className="text-[10px] font-mono text-white/20 w-4 shrink-0 text-right">{idx + 1}</span>
-                                <div className="flex-1 space-y-1">
-                                  <div className="flex items-center justify-between text-xs font-mono">
-                                    <span className="text-white/70 group-hover:text-white transition-colors flex items-center gap-1.5">
-                                      <MapPin className={`w-3 h-3 shrink-0 ${selectedCity?.city === region.city ? 'text-primary' : 'text-primary'}`} />
-                                      {region.city}
-                                    </span>
-                                    <span className={`font-bold shrink-0 ml-2 ${
-                                      region.intensity > 80 ? 'text-amber-400' :
-                                      region.intensity > 50 ? 'text-primary' : 'text-white/30'
-                                    }`}>
-                                      {region.intensity}%
-                                    </span>
-                                  </div>
-                                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full transition-all duration-700 ${
-                                        region.intensity > 80 ? 'bg-amber-400' : 'bg-primary'
-                                      }`}
-                                      style={{ width: `${region.intensity}%` }}
-                                    />
-                                  </div>
-                                  {selectedCity?.city === region.city && (
-                                    <div className="pt-1.5 pb-1 flex flex-wrap gap-x-4 gap-y-1">
-                                      {region.keyword && (
-                                        <span className="text-[10px] font-mono text-white/40">
-                                          <span className="text-white/20">KEYWORD</span> {region.keyword}
-                                        </span>
-                                      )}
-                                      {region.velocity && (
-                                        <span className="text-[10px] font-mono text-primary">
-                                          <span className="text-white/20">VELOCITY</span> {region.velocity}
-                                        </span>
-                                      )}
-                                      {region.delta && (
-                                        <span className="text-[10px] font-mono text-emerald-400">
-                                          <span className="text-white/20">Δ</span> {region.delta}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          <div className="pt-2 border-t border-white/5 flex justify-between text-[10px] font-mono text-white/20 uppercase">
-                            <span>Pakistan</span>
-                            <span>{geoData.filter(g => g.intensity > 80).length} hotspot{geoData.filter(g => g.intensity > 80).length !== 1 ? 's' : ''}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </Reveal>
-
-                  {/* Market Arbitrage Depth */}
+                  {/* Trend History Matrix */}
                   <Reveal variant="fadeInUp" delay={0.6}>
-                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl space-y-6">
-                      <h2 className="text-xl font-bold font-bebas tracking-[0.1em] text-white flex items-center gap-3"><Target className="w-6 h-6 text-primary" /> OPPORTUNITIES</h2>
-                      <div className="h-40 flex items-center justify-center relative">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Tooltip contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: '1px solid #333' }} itemStyle={{ fontSize: '12px', fontFamily: 'monospace' }} />
-                            <Pie
-                              data={[
-                                { name: "Google", value: platformReach?.google ?? 0, fill: "#00E0D0" },
-                                { name: "Instagram", value: platformReach?.instagram ?? 0, fill: "#C084FC" },
-                                { name: "Facebook", value: platformReach?.facebook ?? 0, fill: "#F59E0B" }
-                              ]}
-                              innerRadius={45}
-                              outerRadius={60}
-                              paddingAngle={5}
-                              dataKey="value"
-                              stroke="none"
-                            >
-                              <Cell fill="#00E0D0" /><Cell fill="#C084FC" /><Cell fill="#F59E0B" />
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                          <span className="text-2xl font-bebas text-white">{platformReach?.total_reach || '0%'}</span>
-                          <span className="text-[8px] font-mono text-white/30 uppercase font-black">Reach</span>
-                        </div>
-                      </div>
-                      <div className="flex justify-center gap-4 py-2">
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#00E0D0]" /><span className="text-[9px] font-mono text-white/60 uppercase">Google</span></div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#C084FC]" /><span className="text-[9px] font-mono text-white/60 uppercase">Insta</span></div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#F59E0B]" /><span className="text-[9px] font-mono text-white/60 uppercase">Facebook</span></div>
-                      </div>
-                      <Sheet open={gapAnalysisOpen} onOpenChange={setGapAnalysisOpen}>
-                        <SheetTrigger asChild>
-                          <Button className="w-full bg-white/5 border border-primary/30 text-primary font-bebas text-xl h-14 rounded-xl hover:bg-primary hover:text-black">ANALYZE GAPS</Button>
-                        </SheetTrigger>
-                        <SheetContent className="bg-[#0a0a0a] border-l border-white/10 text-white w-[440px] flex flex-col gap-0 p-0">
-                          {/* Header */}
-                          <div className="px-6 pt-6 pb-4 border-b border-white/5 shrink-0">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="space-y-0.5">
-                                <SheetTitle className="font-bebas text-2xl tracking-wide flex items-center gap-2 text-white">
-                                  <Lightbulb className="w-5 h-5 text-primary" /> AI GAP INSIGHTS
-                                </SheetTitle>
-                                <SheetDescription className="text-xs text-white/40 leading-relaxed">
-                                  Topics your audience is searching for that you haven't created content about yet.
-                                </SheetDescription>
-                              </div>
-                              {gapInsights.length > 0 && (
-                                <div className="shrink-0 text-center bg-primary/10 border border-primary/20 rounded-xl px-3 py-2">
-                                  <div className="text-2xl font-bebas text-primary leading-none">{gapInsights.length}</div>
-                                  <div className="text-[8px] font-mono text-primary/60 uppercase tracking-wider">gaps found</div>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Platform reach bars */}
-                            {platformReach && (
-                              <div className="mt-4 space-y-1.5">
-                                <p className="text-[9px] font-mono text-white/30 uppercase tracking-widest mb-2">Where your audience is active</p>
-                                {([
-                                  { label: 'Google',    value: platformReach.google,    color: 'bg-[#00E0D0]', textColor: 'text-[#00E0D0]' },
-                                  { label: 'Instagram', value: platformReach.instagram, color: 'bg-[#C084FC]', textColor: 'text-[#C084FC]' },
-                                  { label: 'Facebook',  value: platformReach.facebook,  color: 'bg-[#F59E0B]', textColor: 'text-[#F59E0B]' },
-                                ]).map(p => (
-                                  <div key={p.label} className="flex items-center gap-3">
-                                    <span className="text-[9px] font-mono text-white/40 w-16 shrink-0">{p.label}</span>
-                                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                      <div className={`h-full ${p.color} rounded-full`} style={{ width: `${p.value}%` }} />
-                                    </div>
-                                    <span className={`text-[10px] font-mono font-bold ${p.textColor} w-8 text-right`}>{p.value}%</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Gap cards */}
-                          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                            {gapInsights.length > 0 ? gapInsights.map((insight, idx) => (
-                              <div key={idx} className={`bg-white/[0.02] border ${insight.borderClass} rounded-2xl overflow-hidden`}>
-                                {/* Card header */}
-                                <div className="px-4 pt-4 pb-2 space-y-2">
-                                  <div className="flex justify-between items-start gap-2">
-                                    <p className="text-sm font-semibold text-white leading-snug">{insight.title}</p>
-                                    <Badge className={`${insight.badgeClass} border text-[9px] font-mono font-black shrink-0`}>{insight.badge}</Badge>
-                                  </div>
-                                  <p className="text-xs text-white/60 leading-relaxed">{insight.suggestion}</p>
-                                </div>
-
-                                {/* Interest vs coverage bars */}
-                                <div className="px-4 pb-3 space-y-2 pt-1">
-                                  {[
-                                    { label: 'Audience interest', value: insight.interest, barClass: 'bg-primary' },
-                                    { label: 'Current coverage',  value: insight.coverage,  barClass: 'bg-white/25' },
-                                  ].map(bar => (
-                                    <div key={bar.label} className="space-y-1">
-                                      <div className="flex justify-between text-[9px] font-mono text-white/30">
-                                        <span>{bar.label}</span>
-                                        <span>{bar.value}%</span>
-                                      </div>
-                                      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div className={`h-full ${bar.barClass} rounded-full`} style={{ width: `${bar.value}%` }} />
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                {/* Format + platform tags */}
-                                <div className="px-4 pb-3 flex items-center gap-2">
-                                  <span className="text-[9px] font-mono bg-white/5 border border-white/10 rounded-md px-2 py-1 text-white/40">
-                                    {insight.format === 'reel' ? '🎬 Reel' : insight.format === 'story' ? '✨ Story' : '📸 Carousel'}
-                                  </span>
-                                  <span className="text-[9px] font-mono bg-white/5 border border-white/10 rounded-md px-2 py-1 text-white/40">{insight.platform}</span>
-                                </div>
-
-                                {/* CTA */}
-                                <div className="px-3 pb-3">
-                                  <Button
-                                    size="sm"
-                                    className="w-full bg-white/5 hover:bg-primary hover:text-black text-white/60 border border-white/10 hover:border-primary text-xs font-mono transition-all rounded-xl h-9"
-                                    onClick={() => {
-                                      setGapAnalysisOpen(false);
-                                      navigate("/dashboard/creative", { state: { prefillPrompt: insight.prompt } });
-                                    }}
-                                  >
-                                    Create this post — prompt ready to edit →
-                                  </Button>
-                                </div>
-                              </div>
-                            )) : (
-                              <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-                                <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center">
-                                  <Sparkles className="w-7 h-7 text-white/20" />
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="text-sm font-bebas text-white/40 tracking-wide">No gaps detected yet</p>
-                                  <p className="text-xs font-mono text-white/20">Run a scan first to find content opportunities.</p>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-white/10 text-white/40 font-mono text-xs"
-                                  onClick={() => { setGapAnalysisOpen(false); handleTriggerScan(); }}
-                                >
-                                  Run a scan
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </SheetContent>
-                      </Sheet>
+                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-8">
+                       <h2 className="text-xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground flex items-center gap-3">
+                           <Activity className="w-6 h-6 text-primary" /> TREND HISTORY MATRIX
+                        </h2>
+                        
+                        <TrendHistoryTable trendHistory={trendHistory} />
                     </div>
                   </Reveal>
                 </div>
               </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Deploy AI Assets Sheet */}
       <Sheet open={deploySheetOpen} onOpenChange={setDeploySheetOpen}>
-        <SheetContent className="bg-black/95 border-l border-white/10 text-white w-[420px] flex flex-col">
+        <SheetContent className="border-l border-border/50 text-foreground w-[420px] flex flex-col">
           <SheetHeader className="mb-6">
-            <SheetTitle className="font-bebas text-3xl tracking-wide flex items-center gap-2">
+            <SheetTitle className="font-heading font-semibold text-3xl tracking-wide flex items-center gap-2">
               <Zap className="w-6 h-6 text-primary" /> DEPLOY AI ASSETS
             </SheetTitle>
-            <SheetDescription className="font-mono text-xs text-white/40">
+            <SheetDescription className="font-mono text-xs text-muted-foreground/60">
               Pick a content type, review the prompt, then open it in Creative Studio.
             </SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto space-y-6">
             {liveTrends[0] && (
-              <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-1">
+              <div className="relative p-6 bg-zinc-900/80 border border-white/10 rounded-2xl space-y-4">
                 <div className="text-[9px] font-mono text-primary/60 uppercase tracking-widest">Currently Trending · {liveTrends[0].location}</div>
-                <div className="text-2xl font-bebas text-white tracking-wide">{liveTrends[0].keyword}</div>
-                <div className="text-xs font-mono text-white/40">{liveTrends[0].niche} · Signal: {liveTrends[0].score}σ</div>
+                <div className="text-2xl font-heading font-semibold text-foreground tracking-wide">{liveTrends[0].keyword}</div>
+                <div className="text-xs font-mono text-muted-foreground/60">{liveTrends[0].niche} · Signal: {liveTrends[0].score}σ</div>
               </div>
             )}
 
             <div className="space-y-2">
-              <p className="text-[10px] font-mono text-white/40 uppercase tracking-widest">What do you want to create?</p>
+              <p className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">What do you want to create?</p>
               <div className="grid grid-cols-3 gap-2">
-                {([
-                  { key: "carousel", label: "📸 Carousel", hint: "Tips & education" },
-                  { key: "reel",     label: "🎬 Reel",     hint: "Reach & discovery" },
-                  { key: "story",    label: "✨ Story",    hint: "Promos & offers" },
-                ] as const).map(({ key, label, hint }) => (
+                {[
+                  { key: "carousel", label: "Carousel", hint: "Tips & education" },
+                  { key: "reel",     label: "Reel",     hint: "Reach & discovery" },
+                  { key: "story",    label: "Story",    hint: "Promos & offers" },
+                ].map(({ key, label, hint }) => (
                   <button
                     key={key}
                     onClick={() => {
-                      setDeployContentType(key);
+                      setDeployContentType(key as any);
                       const base = liveTrends[0];
                       if (!base) return;
                       const prompts: Record<string, string> = {
@@ -1401,11 +1862,11 @@ const TrendArbitrage = () => {
                     }}
                     className={`p-3 rounded-xl border text-left transition-all ${
                       deployContentType === key
-                        ? 'border-primary bg-primary/10 text-white'
-                        : 'border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20'
+                        ? 'border-primary bg-primary/10 text-foreground'
+                        : 'border-border/50 bg-white/[0.02] text-muted-foreground/80 hover:border-border/80'
                     }`}
                   >
-                    <div className="text-sm font-bebas tracking-wide">{label}</div>
+                    <div className="text-sm font-heading font-semibold">{label}</div>
                     <div className="text-[9px] font-mono text-white/30 mt-0.5">{hint}</div>
                   </button>
                 ))}
@@ -1413,19 +1874,19 @@ const TrendArbitrage = () => {
             </div>
 
             <div className="space-y-2">
-              <p className="text-[10px] font-mono text-white/40 uppercase tracking-widest">AI-suggested prompt (edit freely)</p>
+              <p className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">AI-suggested prompt (edit freely)</p>
               <textarea
                 value={deployPrompt}
                 onChange={(e) => setDeployPrompt(e.target.value)}
                 rows={5}
-                className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-sm font-mono text-white/80 resize-none focus:outline-none focus:border-primary/50 leading-relaxed"
+                className="w-full bg-white/[0.03] border border-border/50 rounded-xl p-4 text-sm font-mono text-white/80 resize-none focus:outline-none focus:border-primary/50 leading-relaxed"
               />
             </div>
           </div>
 
-          <div className="pt-4 border-t border-white/5 space-y-2 mt-4">
+          <div className="pt-4 border-t border-border space-y-2 mt-4">
             <Button
-              className="w-full bg-primary text-black font-bebas text-lg h-12 rounded-xl hover:opacity-90"
+              className="w-full bg-primary text-black font-heading font-semibold text-lg h-12 rounded-xl hover:opacity-90"
               onClick={() => {
                 setDeploySheetOpen(false);
                 navigate("/dashboard/creative", { state: { prefillPrompt: deployPrompt } });
@@ -1438,22 +1899,17 @@ const TrendArbitrage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* Content Suggestions Modal */}
-      <ContentSuggestionsModal
-        isOpen={contentModalOpen}
-        onClose={() => setContentModalOpen(false)}
-        suggestions={contentSuggestions}
-        isLoading={isGeneratingContent}
-      />
-
       {/* Trend Detail Dialog */}
       <Dialog open={campaignModalOpen} onOpenChange={setCampaignModalOpen}>
-        <DialogContent className="bg-slate-950 border border-white/10 text-white max-w-lg rounded-2xl">
+        <DialogContent className="border border-border/50 text-foreground max-w-lg rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="font-bebas text-2xl tracking-[0.15em] text-primary uppercase">
-              {selectedTrend?.keyword ?? "Trend Detail"}
+            <DialogTitle className="font-heading font-semibold text-2xl tracking-[0.15em] text-primary uppercase">
+              {(() => {
+                  if (!selectedTrend) return "Trend Detail";
+                  return selectedTrend.keyword;
+              })()}
             </DialogTitle>
-            <DialogDescription className="text-white/40 font-mono text-xs uppercase tracking-wider">
+            <DialogDescription className="text-muted-foreground/60 font-mono text-xs uppercase tracking-wider">
               {selectedTrend?.lifecycle_stage ?? ""} · {selectedTrend?.location ?? ""}
             </DialogDescription>
           </DialogHeader>
@@ -1462,27 +1918,27 @@ const TrendArbitrage = () => {
             <div className="space-y-4 pt-2">
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "SIGNAL SCORE", value: `${selectedTrend.score?.toFixed(1) ?? "—"}σ` },
-                  { label: "PROFIT SCORE", value: `${selectedTrend.profit_score ?? "—"}` },
-                  { label: "SATURATION", value: `${selectedTrend.saturation_score ?? "—"}%` },
-                  { label: "SOCIAL SCORE", value: `${selectedTrend.social_score ?? "—"}` },
-                ].map(({ label, value }) => (
-                  <div key={label} className="p-3 bg-white/5 border border-white/10 rounded-xl">
+                  { label: "SIGNAL SCORE", value: selectedTrend.score ? `${selectedTrend.score.toFixed(1)}σ` : null },
+                  { label: "PROFIT SCORE", value: selectedTrend.profit_score || null },
+                  { label: "SATURATION", value: selectedTrend.saturation_score ? `${selectedTrend.saturation_score}%` : null },
+                  { label: "SOCIAL SCORE", value: selectedTrend.social_score || null },
+                ].filter(m => m.value !== null).map(({ label, value }) => (
+                  <div key={label} className="p-3 bg-foreground/5 border border-border/50 rounded-xl">
                     <p className="text-[9px] font-mono font-black text-white/30 uppercase tracking-wider mb-1">{label}</p>
-                    <p className="text-lg font-bebas text-white">{value}</p>
+                    <p className="text-lg font-heading font-semibold text-foreground">{value}</p>
                   </div>
                 ))}
               </div>
 
               {selectedTrend.niche && (
-                <div className="p-3 bg-white/5 border border-white/10 rounded-xl">
+                <div className="p-3 bg-foreground/5 border border-border/50 rounded-xl">
                   <p className="text-[9px] font-mono font-black text-white/30 uppercase tracking-wider mb-1">NICHE</p>
                   <p className="text-sm font-mono text-white/80">{selectedTrend.niche}</p>
                 </div>
               )}
 
               {(selectedTrend.rising_queries?.length ?? 0) > 0 && (
-                <div className="p-3 bg-white/5 border border-white/10 rounded-xl">
+                <div className="p-3 bg-foreground/5 border border-border/50 rounded-xl">
                   <p className="text-[9px] font-mono font-black text-white/30 uppercase tracking-wider mb-2">RISING QUERIES</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedTrend.rising_queries!.slice(0, 6).map((q, i) => (
@@ -1494,10 +1950,11 @@ const TrendArbitrage = () => {
 
               <div className="flex gap-3 pt-2">
                 <Button
-                  className="flex-1 bg-primary text-black font-bebas text-base h-10 rounded-xl hover:opacity-90"
+                  className="flex-1 bg-primary text-black font-heading font-semibold text-base h-10 rounded-xl hover:opacity-90"
                   onClick={() => {
                     setCampaignModalOpen(false);
-                    const prompt = `Create an Instagram Reel script about "${selectedTrend.keyword}" targeting ${selectedTrend.location}. Niche: ${selectedTrend.niche || user?.business_domain || 'marketing'}. Keep it under 30 seconds with a strong hook and clear call-to-action.`;
+                    const currentNiche = (user as any)?.business_domain_name || user?.business_domain || 'marketing';
+                    const prompt = `Create an Instagram Reel script about "${selectedTrend.keyword}" targeting ${selectedTrend.location}. Niche: ${selectedTrend.niche || currentNiche}. Keep it under 30 seconds with a strong hook and clear call-to-action.`;
                     navigate("/dashboard/creative", { state: { prefillPrompt: prompt } });
                   }}
                 >
@@ -1505,7 +1962,7 @@ const TrendArbitrage = () => {
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-white/10 text-white/60 font-bebas text-base h-10 rounded-xl hover:bg-white/5"
+                  className="border-border/50 text-muted-foreground/80 font-heading font-semibold text-base h-10 rounded-xl hover:bg-foreground/5"
                   onClick={() => handleAddToWatchlist(selectedTrend.keyword)}
                 >
                   + WATCHLIST
@@ -1515,9 +1972,49 @@ const TrendArbitrage = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <LaunchCampaignDialog
+        open={launchDialogOpen}
+        onOpenChange={setLaunchDialogOpen}
+        prefill={{
+          trend_id: (effectiveTrend as any)?.trend_signal_id || (lastScanSummary as any)?.trendId || (effectiveTrend as any)?.id || null,
+          keyword: effectiveTrend?.keyword || null,
+          niche: effectiveTrend?.niche || ((user as any)?.business_domain_name || user?.business_domain || null),
+          location: effectiveTrend?.location || location || null,
+          suggested_platforms: Array.isArray(aiAnalysisData?.platform_recommendations)
+            ? Array.from(new Set(aiAnalysisData.platform_recommendations.map((x: any) => String(x?.platform || "").toLowerCase()).filter(Boolean)))
+            : [userPlatform],
+          hashtags: (() => {
+            const pack = aiAnalysisData?.hashtag_pack || {};
+            const out = [
+              ...(Array.isArray(pack.primary) ? pack.primary : []),
+              ...(Array.isArray(pack.secondary) ? pack.secondary : []),
+              ...(Array.isArray(pack.niche) ? pack.niche : []),
+            ];
+            return out.filter((h: any) => typeof h === "string" && h.trim()).slice(0, 12);
+          })(),
+          lifecycle_stage: (topTrend as any)?.lifecycle_stage || null,
+        }}
+      />
+
+      <AIStrategyDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        trendId={activeDrawerTrend}
+        analysis={aiAnalysisData}
+        onOpenInCreative={(text) => navigate("/dashboard/creative", { state: { prefillPrompt: text } })}
+        onRegenerate={async () => {
+          if (!activeDrawerTrend) return;
+          setAiAnalysisStatus("pending");
+          try {
+            await trendService.regenerateAIAnalysis(activeDrawerTrend);
+          } catch {
+            // ignore
+          }
+        }}
+      />
     </Layout>
   );
 };
-
 
 export default TrendArbitrage;
