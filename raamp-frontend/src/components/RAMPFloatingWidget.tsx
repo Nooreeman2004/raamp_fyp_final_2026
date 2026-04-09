@@ -100,7 +100,22 @@ interface RAMPFloatingWidgetProps {
   userName?: string;
 }
 
-// API base URL
+// Detect WebSocket URL from environment or current window host
+const getWsUrl = (token: string) => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host; // e.g. localhost:8080 or tunnel.loca.lt
+  // If we're using the Vite proxy at /api/v1/..., the actual websocket is at the backend port (8000)
+  // But since we want to be port-agnostic, we can try to use a relative path if the proxy supports it,
+  // or use the backend port directly if we can detect it.
+  
+  // Check if VITE_API_BASE_URL is set (e.g. /api)
+  const apiPrefix = import.meta.env.VITE_API_BASE_URL || '/api';
+  
+  // For local dev, we typically proxy /api to 8000. 
+  // Standard RAMP backend WebSocket path is usually /api/v1/notifications/ws or similar
+  return `${protocol}//${host}${apiPrefix}/v1/dashboard-analytics/ws?token=${token}`;
+};
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
@@ -510,7 +525,7 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
             boxShadow: "0 0 20px rgba(0, 153, 153, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3)",
           }}
         >
-          <MessageSquare className="w-6 h-6 text-white" />
+          <MessageSquare className="w-6 h-6 text-foreground" />
           {/* Pulse animation */}
           <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" />
         </Button>
@@ -544,7 +559,7 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
               <div className="flex items-center justify-between p-4 border-b border-primary/10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-white" />
+                    <Sparkles className="w-5 h-5 text-foreground" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-sm">RAAMP Assistant</h3>

@@ -165,7 +165,7 @@ const BusinessSpecialties = () => {
                 <Target className="w-7 h-7 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                <h1 className="text-3xl font-bold font-heading font-semibold">
                   <BlurText text="Business Specialties" />
                 </h1>
                 <p className="text-muted-foreground font-mono text-sm">
@@ -204,7 +204,7 @@ const BusinessSpecialties = () => {
             <div className="space-y-6">
               {/* Current Specialties */}
               <div>
-                <label className="text-sm font-semibold font-bebas tracking-wide flex items-center gap-2 mb-3">
+                <label className="text-sm font-semibold font-heading font-semibold flex items-center gap-2 mb-3">
                   <Sparkles className="w-4 h-4 text-primary" />
                   Your Specialties ({specialties.length}/10)
                 </label>
@@ -238,7 +238,7 @@ const BusinessSpecialties = () => {
 
               {/* Add New Specialty */}
               <div>
-                <label className="text-sm font-semibold font-bebas tracking-wide mb-2 block">
+                <label className="text-sm font-semibold font-heading font-semibold mb-2 block">
                   Add New Specialty
                 </label>
                 <div className="flex gap-2">
@@ -274,7 +274,7 @@ const BusinessSpecialties = () => {
 
               {/* Suggestions */}
               <div>
-                <label className="text-sm font-semibold font-bebas tracking-wide mb-2 block">
+                <label className="text-sm font-semibold font-heading font-semibold mb-2 block">
                   Quick Suggestions
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -314,7 +314,7 @@ const BusinessSpecialties = () => {
               onClick={handleSave}
               disabled={saving || !isEditing}
               className={cn(
-                "bg-primary text-black hover:opacity-90 font-bebas text-lg px-8",
+                "bg-primary text-black hover:opacity-90 font-heading font-semibold text-lg px-8",
                 (!isEditing || saving) && "opacity-50 grayscale cursor-not-allowed"
               )}
             >
@@ -336,7 +336,7 @@ const BusinessSpecialties = () => {
         {/* Help Section */}
         <Reveal variant="fadeInUp" delay={0.4}>
           <Card className="p-6 bg-muted/30 border-dashed">
-            <h3 className="font-semibold mb-3 font-bebas tracking-wide">Examples by Niche</h3>
+            <h3 className="font-semibold mb-3 font-heading font-semibold">Examples by Niche</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono">
               <div>
                 <p className="text-primary font-bold mb-1">Restaurant:</p>

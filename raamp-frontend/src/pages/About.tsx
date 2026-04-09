@@ -13,7 +13,7 @@ import { BlurText } from "@/components/ui/text-reveal";
 
 // Import team member photos
 import abdullahImg from "@/assets/team/Abdullah_aamir.jpeg";
-import noorImg from "@/assets/team/Noor_e_eman.jpg";
+import noorImg from "@/assets/team/Noor_e_eman.jpeg";
 import tamimiImg from "@/assets/team/tamimi.jpeg";
 import rashidImg from "@/assets/team/rashid_mehmood.jpeg";
 
@@ -64,7 +64,7 @@ const About = () => {
           <div className="text-center space-y-6">
             {/* Title uses Blur Effect*/}
             <Reveal variant="blurInUp">
-              <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent font-bebas tracking-wide">
+              <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent font-heading font-semibold">
                 <BlurText text="Revolutionizing Local Business Marketing" />
               </h1>
             </Reveal>
@@ -87,7 +87,7 @@ const About = () => {
           {/* The whole card fades up when scrolled into view */}
           <Reveal variant="fadeInUp" duration={0.8}>
             <Card className="p-8 md:p-12 bg-card/50 backdrop-blur-sm border-primary/10">
-              <h2 className="text-3xl font-bold mb-6 text-center font-bebas tracking-wide">Our Vision</h2>
+              <h2 className="text-3xl font-bold mb-6 text-center font-heading font-semibold">Our Vision</h2>
               <p className="text-lg text-muted-foreground leading-relaxed text-center max-w-4xl mx-auto font-mono">
                 For local businesses such as restaurants and fashion boutiques that struggle with costly, complex tools,
                 RAAMP offers an intelligent, fully automated solution. We utilize Bayesian analytics and generative
@@ -102,14 +102,14 @@ const About = () => {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <Reveal variant="fadeInUp" className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4 font-bebas tracking-wide">Meet the Team</h2>
+            <h2 className="text-4xl font-bold mb-4 font-heading font-semibold">Meet the Team</h2>
             <p className="text-muted-foreground font-mono">The people behind RAAMP's innovation</p>
           </Reveal>
 
           {/* Developers */}
           <div className="mb-16">
             <Reveal variant="fadeInLeft">
-              <h3 className="text-2xl font-bold mb-8 text-center text-primary font-bebas tracking-wide">Developers</h3>
+              <h3 className="text-2xl font-bold mb-8 text-center text-primary font-heading font-semibold">Developers</h3>
             </Reveal>
 
             {/* We use motion.div here for the Stagger Effect */}
@@ -139,7 +139,7 @@ const About = () => {
                           )}
                         </div>
                         <div>
-                          <h4 className="text-xl font-bold font-bebas tracking-wide">{member.name}</h4>
+                          <h4 className="text-xl font-bold font-heading font-semibold">{member.name}</h4>
                           <p className="text-primary text-sm mt-1 font-mono">{member.role}</p>
                         </div>
                       </div>
@@ -153,7 +153,7 @@ const About = () => {
           {/* Advisors */}
           <div>
             <Reveal variant="fadeInLeft">
-              <h3 className="text-2xl font-bold mb-8 text-center text-primary font-bebas tracking-wide">Advisors</h3>
+              <h3 className="text-2xl font-bold mb-8 text-center text-primary font-heading font-semibold">Advisors</h3>
             </Reveal>
 
             <motion.div
@@ -180,7 +180,7 @@ const About = () => {
                           )}
                         </div>
                         <div>
-                          <h4 className="text-xl font-bold font-bebas tracking-wide">{member.name}</h4>
+                          <h4 className="text-xl font-bold font-heading font-semibold">{member.name}</h4>
                           <p className="text-primary text-sm mt-1 font-mono">{member.role}</p>
                         </div>
                       </div>

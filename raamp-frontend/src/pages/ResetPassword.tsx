@@ -118,7 +118,7 @@ const ResetPassword = () => {
                             </div>
                             <Reveal variant="fadeInUp" delay={0.3}>
                                 <div className="space-y-2">
-                                    <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                    <h1 className="text-3xl font-bold font-heading font-semibold">
                                         <BlurText text="Password Reset Successful" />
                                     </h1>
                                     <p className="text-muted-foreground font-mono text-sm">
@@ -130,7 +130,7 @@ const ResetPassword = () => {
                                 <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                                     <Button
                                         onClick={() => navigate("/login")}
-                                        className="bg-gradient-to-r from-primary to-accent hover:opacity-90 w-full font-bebas tracking-wide text-lg"
+                                        className="bg-gradient-to-r from-primary to-accent hover:opacity-90 w-full font-heading font-semibold text-lg"
                                     >
                                         Go to Login
                                     </Button>
@@ -161,7 +161,7 @@ const ResetPassword = () => {
                             </Reveal>
                             <Reveal variant="blurInUp" delay={0.4}>
                                 <div className="space-y-2">
-                                    <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                    <h1 className="text-3xl font-bold font-heading font-semibold">
                                         <BlurText text="Reset Your Password" />
                                     </h1>
                                     <p className="text-muted-foreground font-mono text-sm">
@@ -309,7 +309,7 @@ const ResetPassword = () => {
                                 <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                                     <Button
                                         type="submit"
-                                        className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity font-bebas tracking-wide text-lg"
+                                        className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity font-heading font-semibold text-lg"
                                         disabled={!isFormValid || isLoading}
                                     >
                                         {isLoading ? (

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,7 @@ interface UserProfile {
 
 const getTierColor = (tier: string) => {
   switch (tier?.toLowerCase()) {
-    case "pro": return "bg-blue-500";
+    case "pro": return "bg-teal-500";
     case "premium": return "bg-purple-600";
     default: return "bg-zinc-500";
   }
@@ -48,8 +48,8 @@ const Billing = () => {
       try {
         const data = await apiClient.get<any>("/auth/profile");
         setProfile({
-          subscriptionTier: data.subscription?.type || "free",
-          adCreditsRemaining: data.subscription?.credits ?? (data.subscription?.ad_credits_remaining ?? 5),
+          subscriptionTier: data.subscriptionTier || "free",
+          adCreditsRemaining: data.adCreditsRemaining ?? 0,
           subscriptionEndDate: data.subscription?.end_date ?? null,
           email: data.email,
         });
@@ -57,8 +57,8 @@ const Billing = () => {
         // Fallback to user object
         const sub = user?.subscription as any;
         setProfile({
-          subscriptionTier: sub?.type || "free",
-          adCreditsRemaining: sub?.credits ?? (sub?.ad_credits_remaining ?? 5),
+          subscriptionTier: sub?.subscriptionTier || "free",
+          adCreditsRemaining: sub?.adCreditsRemaining ?? 0,
           email: user?.email,
         });
       } finally {
@@ -138,7 +138,7 @@ const Billing = () => {
               <CreditCard className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold font-bebas tracking-wide"><BlurText text="Billing & Subscription" /></h1>
+              <h1 className="text-3xl font-bold font-heading font-semibold"><BlurText text="Billing & Subscription" /></h1>
               <p className="text-muted-foreground font-mono text-sm">Manage your plan, credits, and payment methods</p>
             </div>
           </div>
@@ -152,17 +152,17 @@ const Billing = () => {
             <HolographicCard className="p-6 border-primary/30">
               <div className="flex items-center gap-3 mb-6">
                 <Zap className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-bold font-bebas tracking-wide text-white">CURRENT PLAN</h2>
-                <Badge className={`${getTierColor(tier)} text-white font-mono text-xs px-3 py-1 uppercase ml-2`}>{tier}</Badge>
+                <h2 className="text-lg font-bold font-heading font-semibold text-foreground">CURRENT PLAN</h2>
+                <Badge className={`${getTierColor(tier)} text-foreground font-mono text-xs px-3 py-1 uppercase ml-2`}>{tier}</Badge>
               </div>
               <div className="space-y-4">
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <div className="bg-foreground/5 border border-border/50 rounded-lg p-4">
                   <div className="flex items-center gap-3 mb-2"><Calendar className="w-5 h-5 text-muted-foreground" /><span className="font-mono text-sm text-muted-foreground">NEXT BILLING DATE</span></div>
-                  <div className="text-lg font-bold text-white font-mono pl-8">{tier === "free" ? "—" : formatDate(profile?.subscriptionEndDate)}</div>
+                  <div className="text-lg font-bold text-foreground font-mono pl-8">{tier === "free" ? "—" : formatDate(profile?.subscriptionEndDate)}</div>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <div className="bg-foreground/5 border border-border/50 rounded-lg p-4">
                   <div className="flex items-center gap-3 mb-2"><DollarSign className="w-5 h-5 text-muted-foreground" /><span className="font-mono text-sm text-muted-foreground">AD CREDITS REMAINING</span></div>
-                  <div className="text-2xl font-bold text-white font-mono pl-8">
+                  <div className="text-2xl font-bold text-foreground font-mono pl-8">
                     {profile?.adCreditsRemaining === 999999999 || profile?.adCreditsRemaining === -1 ? "Unlimited" : (profile?.adCreditsRemaining ?? 0)}
                   </div>
                 </div>
@@ -171,30 +171,30 @@ const Billing = () => {
 
             {/* Billing Actions Card */}
             <HolographicCard className="p-6">
-              <h2 className="text-xl font-bold mb-1 font-bebas tracking-wide text-white">BILLING ACTIONS</h2>
+              <h2 className="text-xl font-bold mb-1 font-heading font-semibold text-foreground">BILLING ACTIONS</h2>
               <p className="text-xs text-muted-foreground mb-6 font-mono">// MANAGE INVOICES AND SUBSCRIPTION SETTINGS</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                   <Link to="/billing/transactions">
-                    <Button variant="hero" className="w-full h-14 font-bebas tracking-widest text-lg">
-                      <FileText className="w-5 h-5 mr-3" /> VIEW TRANSACTION HISTORY
+                    <Button variant="hero" className="w-full h-14 font-heading font-semibold text-[13px]">
+                      <FileText className="w-4 h-4 mr-2" /> VIEW TRANSACTION HISTORY
                     </Button>
                   </Link>
                 </motion.div>
 
                 <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                   <Link to="/billing/add-funds">
-                    <Button variant="hero" className="w-full h-14 font-bebas tracking-widest text-lg">
-                      <DollarSign className="w-5 h-5 mr-3" /> ADD FUNDS TO WALLET
+                    <Button variant="hero" className="w-full h-14 font-heading font-semibold text-[13px]">
+                      <DollarSign className="w-4 h-4 mr-2" /> ADD FUNDS TO WALLET
                     </Button>
                   </Link>
                 </motion.div>
 
                 {tier !== "free" && (
                   <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap" className="sm:col-span-2">
-                    <Button variant="outline" onClick={() => setShowPasswordGate(true)} className="w-full h-14 border-primary/30 text-white hover:bg-primary/10 font-bebas tracking-widest text-lg">
-                      <Settings className="w-5 h-5 mr-3" /> MANAGE SUBSCRIPTION
+                    <Button variant="outline" onClick={() => setShowPasswordGate(true)} className="w-full h-14 border-primary/30 text-foreground hover:bg-primary/10 font-heading font-semibold text-[13px]">
+                      <Settings className="w-4 h-4 mr-2" /> MANAGE SUBSCRIPTION
                     </Button>
                   </motion.div>
                 )}
@@ -211,7 +211,7 @@ const Billing = () => {
         <Reveal variant="blurInUp">
           <div className="pb-12">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold mb-2 font-bebas tracking-wide text-white">{tier === "free" ? "CHOOSE YOUR PLAN" : "AVAILABLE PLANS"}</h2>
+              <h2 className="text-3xl font-bold mb-2 font-heading font-semibold text-foreground">{tier === "free" ? "CHOOSE YOUR PLAN" : "AVAILABLE PLANS"}</h2>
               <p className="text-sm text-muted-foreground font-mono">{tier === "free" ? "// START YOUR JOURNEY WITH THE PERFECT PLAN" : "// UPGRADE OR SWITCH YOUR SUBSCRIPTION"}</p>
             </div>
             <motion.div className="grid md:grid-cols-3 gap-8 pt-12" variants={staggerContainer} initial="hidden" animate="visible">

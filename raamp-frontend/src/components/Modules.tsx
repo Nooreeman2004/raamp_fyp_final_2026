@@ -79,7 +79,7 @@ const Modules = () => {
     <section className="py-24 bg-card/30">
       <div className="container mx-auto px-4 mb-16 text-center">
         <Reveal variant="blurInUp">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 font-bebas tracking-wide">
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 font-heading font-semibold">
             Everything You Need to Market,{" "}
             <span className="text-primary">In One Autonomous Platform</span>
           </h2>

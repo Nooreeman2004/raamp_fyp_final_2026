@@ -60,12 +60,6 @@ class GoogleSignupRequest(BaseModel):
     photo_url: Optional[str] = Field(None, description="Profile photo URL")
 
 
-class GoogleAuthPlaceholder(BaseModel):
-    """Placeholder for Google OAuth - not yet implemented"""
-    provider: str = "google"
-    message: str = "Google OAuth integration coming soon"
-
-
 class SignInRequest(BaseModel):
     """Request schema for user sign-in"""
     email: EmailStr = Field(..., description="Email address")
@@ -104,6 +98,9 @@ class UserResponse(BaseModel):
     profile_picture: Optional[str] = None
     is_admin: bool = False
     subscription: Optional[Dict] = None
+    subscriptionTier: str = "free"
+    adCreditsRemaining: int = 0
+    business_domain_name: Optional[str] = None
     last_login: Optional[datetime] = None
     created_at: datetime
     

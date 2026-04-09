@@ -49,7 +49,7 @@ const Hero = () => {
             />
             <MaskedTextReveal
               text="Autonomous"
-              className="text-5xl md:text-7xl font-bold tracking-tight text-white leading-[1.1] justify-center"
+              className="text-5xl md:text-7xl font-bold tracking-tight text-foreground leading-[1.1] justify-center"
               tag="h1"
               delay={0.3}
             />
@@ -84,7 +84,7 @@ const Hero = () => {
             </MagneticButton>
           </Link>
           <Link to="/demo">
-            <MagneticButton className="px-8 h-14 text-lg font-medium border border-white/10 bg-white/5 text-white hover:bg-white/10 backdrop-blur-sm whitespace-nowrap">
+            <MagneticButton className="px-8 h-14 text-lg font-medium border border-border/50 bg-foreground/5 text-foreground hover:bg-foreground/10 backdrop-blur-sm whitespace-nowrap">
               View Interactive Demo
               <ArrowRight className="w-4 h-4 ml-2 flex-shrink-0" />
             </MagneticButton>
@@ -98,7 +98,7 @@ const Hero = () => {
               <div className="w-12 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <Sparkles className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">AI Optimization</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-2">AI Optimization</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 Autonomous algorithms that adjust bids and targeting in real-time to maximize ROAS.
               </p>
@@ -110,7 +110,7 @@ const Hero = () => {
               <div className="w-12 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <Globe className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Geo-Targeting</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-2">Geo-Targeting</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 Pinpoint audiences with hyper-local precision using our proprietary intent mapping.
               </p>
@@ -122,7 +122,7 @@ const Hero = () => {
               <div className="w-12 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <BarChart3 className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Instant Scale</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-2">Instant Scale</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 Launch campaigns across 5+ platforms simultaneously with a single click.
               </p>
@@ -136,7 +136,7 @@ const Hero = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: [0, 10, 0] }}
         transition={{ delay: 2, duration: 2, repeat: Infinity }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/50"
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 text-muted-foreground/80"
       >
         <div className="flex flex-col items-center gap-2">
           <span className="text-[10px] uppercase tracking-[0.2em]">Scroll</span>

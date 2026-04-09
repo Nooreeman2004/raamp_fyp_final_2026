@@ -67,7 +67,7 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
     onOpenChange,
     onSuccess,
 }) => {
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     const form = useForm<PostFormValues>({
@@ -99,11 +99,12 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
 
     const onSubmit = async (values: PostFormValues) => {
         try {
-            setIsSubmitting(true);
+            setIsPublishing(true);
 
             // If a file was selected but no URL, we need to upload it first
             if (selectedFile && !values.media_url) {
                 toast.error("Please use the Media URL tab to provide a publicly accessible URL");
+                setIsPublishing(false);
                 return;
             }
 
@@ -117,26 +118,27 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
                 // Check if scheduled time is in the future
                 if (scheduledDateTime <= new Date()) {
                     toast.error("Scheduled time must be in the future");
+                    setIsPublishing(false);
                     return;
                 }
 
                 scheduled_time = scheduledDateTime.toISOString();
             }
 
-            const request = {
-                mode: values.mode,
-                media_url: values.media_url,
+            const response = await instagramService.publishPost({
+                imageUrl: values.media_url,
                 caption: values.caption || undefined,
-                scheduled_time,
-            };
-
-            const response = await instagramService.createPost(request);
+                mode: values.mode,
+                scheduledTime: scheduled_time
+            });
 
             if (response.status === "published" || response.status === "scheduled") {
                 const modeLabel = values.mode === PostMode.POST_NOW ? "posted" :
                     values.mode === PostMode.SCHEDULE_POST ? "scheduled" :
                         "story posted";
-                toast.success(`Successfully ${modeLabel}!`);
+                toast.success(`Successfully ${modeLabel}!`, {
+                    description: response.instagram_post_id ? `Post ID: ${response.instagram_post_id}` : undefined
+                });
                 form.reset();
                 setSelectedFile(null);
                 onOpenChange(false);
@@ -148,7 +150,7 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
             console.error("Error creating post:", error);
             toast.error(error.message || "Failed to create post. Please try again.");
         } finally {
-            setIsSubmitting(false);
+            setIsPublishing(false);
         }
     };
 
@@ -197,7 +199,7 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
                                             </SelectItem>
                                             <SelectItem value={PostMode.SCHEDULE_POST}>
                                                 <div className="flex items-center gap-2">
-                                                    <Clock className="w-4 h-4 text-blue-500" />
+                                                    <Clock className="w-4 h-4 text-teal-500" />
                                                     Schedule
                                                 </div>
                                             </SelectItem>
@@ -247,7 +249,7 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
                                         <FormControl>
                                             <Textarea
                                                 placeholder="Write your caption here..."
-                                                className="min-h-[100px] resize-none bg-white/5 border-white/10"
+                                                className="min-h-[100px] resize-none bg-foreground/5 border-border/50"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -262,7 +264,7 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
 
                         {/* Scheduled Date & Time (only for schedule mode) */}
                         {selectedMode === PostMode.SCHEDULE_POST && (
-                            <div className="space-y-4 p-4 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+                            <div className="space-y-4 p-4 bg-teal-500/5 border border-teal-500/20 rounded-lg">
                                 <FormField
                                     control={form.control}
                                     name="scheduled_date"
@@ -275,7 +277,7 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
                                                         <Button
                                                             variant="outline"
                                                             className={cn(
-                                                                "w-full pl-3 text-left font-normal bg-white/5 border-white/10",
+                                                                "w-full pl-3 text-left font-normal bg-foreground/5 border-border/50",
                                                                 !field.value && "text-muted-foreground"
                                                             )}
                                                         >
@@ -312,7 +314,7 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
                                             <FormControl>
                                                 <Input
                                                     type="time"
-                                                    className="bg-white/5 border-white/10"
+                                                    className="bg-foreground/5 border-border/50"
                                                     {...field}
                                                 />
                                             </FormControl>
@@ -330,16 +332,16 @@ export const PostCreatorPanel: React.FC<PostCreatorPanelProps> = ({
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
                                 className="flex-1"
-                                disabled={isSubmitting}
+                                disabled={isPublishing}
                             >
                                 Cancel
                             </Button>
                             <Button
                                 type="submit"
                                 className="flex-1"
-                                disabled={isSubmitting}
+                                disabled={isPublishing}
                             >
-                                {isSubmitting ? (
+                                {isPublishing ? (
                                     <>
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                         {selectedMode === PostMode.SCHEDULE_POST ? "Scheduling..." : "Posting..."}

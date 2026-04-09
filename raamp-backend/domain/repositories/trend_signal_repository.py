@@ -37,9 +37,10 @@ class ITrendSignalRepository(ABC):
         self, 
         trend_id: str, 
         status: str, 
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
+        progress_step: Optional[str] = None
     ) -> bool:
-        """Update the fetch status of a trend signal"""
+        """Update the fetch status and progress step of a trend signal"""
         pass
     
     @abstractmethod
@@ -50,7 +51,10 @@ class ITrendSignalRepository(ABC):
         search_interest: dict,
         geo_data: dict,
         related_queries: dict,
-        rising_queries: dict
+        rising_queries: dict,
+        provider: Optional[str] = None,
+        fallback_from: Optional[str] = None,
+        geo_relaxed: Optional[bool] = None,
     ) -> bool:
         """Update trend signal with fetched Google Trends data"""
         pass

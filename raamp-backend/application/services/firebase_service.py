@@ -3,6 +3,9 @@ import firebase_admin
 from firebase_admin import credentials, auth
 import os
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class FirebaseService:
@@ -27,21 +30,15 @@ class FirebaseService:
                         'storageBucket': storage_bucket
                     })
                     cls._initialized = True
-                    print(f"✅ Firebase Admin initialized successfully")
-                    print(f"   Storage bucket: {storage_bucket}")
-                    print(f"   Service account: {cred_path}")
+                    logger.info("Firebase Admin initialized successfully")
+                    logger.info("Firebase Storage bucket: %s", storage_bucket)
+                    logger.info("Firebase service account: %s", cred_path)
                 except Exception as e:
-                    print(f"❌ Firebase Admin initialization failed: {e}")
-                    print(f"   Error type: {type(e).__name__}")
-                    print(f"   This may be due to:")
-                    print(f"   - Invalid service account JSON")
-                    print(f"   - Incorrect storage bucket name")
-                    print(f"   - Missing Firebase Storage permissions")
-                    print(f"   Falling back to local storage for uploads")
+                    logger.warning("Firebase Admin initialization failed: %s (%s)", str(e), type(e).__name__)
+                    logger.warning("Falling back to local storage for uploads")
             else:
-                print(f"⚠️  Firebase service account not found at: {cred_path}")
-                print("   Google OAuth and Storage will not work until you add the service account JSON")
-                print("   Using local storage fallback for file uploads")
+                logger.warning("Firebase service account not found at: %s", cred_path)
+                logger.warning("Google OAuth and Storage will not work until credentials are provided")
     
     @staticmethod
     async def verify_id_token(id_token: str) -> Optional[dict]:

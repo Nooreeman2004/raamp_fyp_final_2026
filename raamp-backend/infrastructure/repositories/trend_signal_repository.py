@@ -75,7 +75,8 @@ class TrendSignalRepository(ITrendSignalRepository):
         self, 
         trend_id: str, 
         status: str, 
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
+        progress_step: Optional[str] = None
     ) -> bool:
         """Update the fetch status of a trend signal"""
         try:
@@ -85,10 +86,13 @@ class TrendSignalRepository(ITrendSignalRepository):
             
             model.fetch_status = status
             model.error_message = error_message
+            if progress_step:
+                model.progress_step = progress_step
             model.updated_at = datetime.utcnow()
             
             if status == "completed":
                 model.fetched_at = datetime.utcnow()
+                model.progress_step = "Scan Complete."
             
             await model.save()
             return True
@@ -102,7 +106,10 @@ class TrendSignalRepository(ITrendSignalRepository):
         search_interest: dict,
         geo_data: dict,
         related_queries: dict,
-        rising_queries: dict
+        rising_queries: dict,
+        provider: Optional[str] = None,
+        fallback_from: Optional[str] = None,
+        geo_relaxed: Optional[bool] = None,
     ) -> bool:
         """Update trend signal with fetched Google Trends data"""
         try:
@@ -115,6 +122,12 @@ class TrendSignalRepository(ITrendSignalRepository):
             model.geo_data = geo_data
             model.related_queries = related_queries
             model.rising_queries = rising_queries
+            if provider is not None:
+                model.provider = provider
+            if fallback_from is not None:
+                model.fallback_from = fallback_from
+            if geo_relaxed is not None:
+                model.geo_relaxed = bool(geo_relaxed)
             model.fetch_status = "completed"
             model.fetched_at = datetime.utcnow()
             model.updated_at = datetime.utcnow()
@@ -180,6 +193,30 @@ class TrendSignalRepository(ITrendSignalRepository):
             return True
         except Exception:
             return False
+
+    async def update_event_fields(
+        self,
+        trend_id: str,
+        *,
+        event_score: Optional[float],
+        event_items: Optional[List[Dict]],
+        is_real_events: bool,
+    ) -> bool:
+        """Update trend signal with event catalyst fields (non-blocking for pipeline)."""
+        try:
+            model = await TrendSignalModel.get(ObjectId(trend_id))
+            if not model:
+                return False
+            if event_score is not None:
+                model.event_score = event_score
+            if event_items is not None:
+                model.event_items = event_items
+            model.is_real_events = is_real_events
+            model.updated_at = datetime.utcnow()
+            await model.save()
+            return True
+        except Exception:
+            return False
     
     def _to_entity(self, model: TrendSignalModel) -> TrendSignal:
         """Convert database model to domain entity"""
@@ -195,6 +232,9 @@ class TrendSignalRepository(ITrendSignalRepository):
             geo_data=model.geo_data,
             related_queries=model.related_queries,
             rising_queries=model.rising_queries,
+            provider=getattr(model, "provider", None),
+            fallback_from=getattr(model, "fallback_from", None),
+            geo_relaxed=bool(getattr(model, "geo_relaxed", False)),
             arbitrage_score=model.arbitrage_score,
             saturation_score=model.saturation_score,
             social_score=model.social_score,
@@ -209,6 +249,7 @@ class TrendSignalRepository(ITrendSignalRepository):
             forecast_series=model.forecast_series,
             timeframe=model.timeframe,
             fetch_status=model.fetch_status,
+            progress_step=model.progress_step,
             error_message=model.error_message,
             fetched_at=model.fetched_at,
             created_at=model.created_at,

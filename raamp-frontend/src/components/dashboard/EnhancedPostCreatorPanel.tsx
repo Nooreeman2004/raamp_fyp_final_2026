@@ -113,7 +113,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
     onSuccess,
 }) => {
     const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [localPreview, setLocalPreview] = useState<string | null>(null);
     const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
@@ -210,7 +210,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
             setUploadStatus('idle');
             setOptimizationBadge(false);
             setErrorMessage(null);
-            setIsSubmitting(false);
+            setIsPublishing(false);
             isSubmittingRef.current = false;
             selectedFile.current = null;
         }
@@ -286,9 +286,9 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
 
     const onSubmit = async (values: PostFormValues) => {
         // CRITICAL: Set flags IMMEDIATELY before any other logic to prevent race conditions
-        if (isSubmitting || isSubmittingRef.current) {
+        if (isPublishing || isSubmittingRef.current) {
             console.warn("⚠️ Duplicate submission attempt blocked (flags)!", {
-                isSubmitting,
+                isPublishing,
                 isSubmittingRef: isSubmittingRef.current,
                 timestamp: new Date().toISOString()
             });
@@ -316,7 +316,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
         }
 
         // Set BOTH flags and timestamp immediately to block any subsequent clicks
-        setIsSubmitting(true);
+        setIsPublishing(true);
         isSubmittingRef.current = true;
         lastSubmitTimeRef.current = now;
 
@@ -335,7 +335,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
 
                 if (date <= new Date()) {
                     toast.error("Scheduled time must be in the future");
-                    setIsSubmitting(false);
+                    setIsPublishing(false);
                     isSubmittingRef.current = false;
                     return;
                 }
@@ -343,58 +343,94 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                 finalizedScheduledTime = date.toISOString();
             }
 
-            // Perform Unified Submission
-            const response = await instagramService.unifiedPost({
-                platform: values.platform as any,
-                mode: values.mode,
-                media_url: values.media_url,
-                caption: finalCaption,
-                scheduled_time: finalizedScheduledTime,
-                facebook_page_id: connectionStatus?.facebook_details?.page_id
-            });
-
-            // Check for any failures
-            const failures = response.results.filter(r => r.status === "failed");
-            const successes = response.results.filter(r => r.status === "published" || r.status === "scheduled");
-
-            if (response.success && failures.length === 0) {
-                // Full success
-                toast.success(`Success! Post ${values.mode === PostMode.SCHEDULE_POST ? "scheduled" : "published"}.`, {
-                    description: response.message,
+            // Perform Deployment Deployment via the real backend pipeline
+            if (values.platform === "instagram") {
+                const response = await instagramService.publishPost({
+                    imageUrl: values.media_url,
+                    caption: finalCaption,
+                    mode: values.mode,
+                    scheduledTime: finalizedScheduledTime,
                 });
-                onOpenChange(false);
-                onSuccess?.();
-            } else if (successes.length > 0 && failures.length > 0) {
-                // Partial success
-                const errorMessages = failures.map(r => `${r.platform}: ${mapBackendErrorToUI(r.error)}`);
-                toast.warning("Partial Success", {
-                    description: `Posted to ${successes.length} platform(s), but failed on: ${errorMessages.join(", ")}`,
-                });
-                onOpenChange(false);
-                onSuccess?.();
+
+                if (response.status === "published" || response.status === "scheduled") {
+                    const statusLabel = response.status === "published" ? "Published" : "Scheduled";
+                    toast.success(`${statusLabel} to Instagram Successfully`, {
+                        description: `Post ID: ${response.instagram_post_id || response.post_id || "Success"}`,
+                    });
+
+                    // ROI Auto-Trigger (25s delay)
+                    const internalPostId = response.post_id;
+                    if (internalPostId && response.status === "published") {
+                        console.log(`🚀 Scheduling ROI auto-trigger for post ${internalPostId} in 25s`);
+                        setTimeout(() => {
+                            instagramService.refreshPostROI(internalPostId).catch(err => 
+                                console.error("ROI Auto-trigger failure:", err)
+                            );
+                        }, 25000);
+                    }
+
+                    onOpenChange(false);
+                    onSuccess?.();
+                } else {
+                    throw new Error(response.error || "Execution failed on provider");
+                }
             } else {
-                // Complete failure
-                const errors = failures.map(r => `${mapBackendErrorToUI(r.error)}`);
-                setUploadStatus('error');
-                setErrorMessage(errors.join(" | "));
-                toast.error("Post Failed", {
-                    description: errors.join(", "),
+                // Handle Multi-platform or Facebook only through unified endpoint
+                const response = await instagramService.unifiedPost({
+                    platform: values.platform as any,
+                    mode: values.mode,
+                    media_url: values.media_url,
+                    caption: finalCaption,
+                    scheduled_time: finalizedScheduledTime,
+                    facebook_page_id: connectionStatus?.facebook_details?.page_id
                 });
+
+                // Check for any failures
+                const failures = response.results.filter(r => r.status === "failed");
+                const successes = response.results.filter(r => r.status === "published" || r.status === "scheduled");
+
+                if (response.success && failures.length === 0) {
+                    toast.success(`Deployment Successful`, {
+                        description: response.message,
+                    });
+
+                    // ROI Auto-Trigger for Instagram (25s delay)
+                    const igResult = response.results.find(r => r.platform === "instagram");
+                    if (igResult && igResult.status === "published" && igResult.post_id) {
+                        console.log(`🚀 Scheduling ROI auto-trigger for unified post ${igResult.post_id} in 25s`);
+                        setTimeout(() => {
+                            instagramService.refreshPostROI(igResult.post_id!).catch(err => 
+                                console.error("ROI Auto-trigger failure:", err)
+                            );
+                        }, 25000);
+                    }
+
+                    onOpenChange(false);
+                    onSuccess?.();
+                } else if (successes.length > 0) {
+                    toast.warning("Partial Deployment Completed", {
+                        description: `Success on some platforms, failed on some. Check logs.`
+                    });
+                    onSuccess?.();
+                } else {
+                    throw new Error(failures[0]?.error || "Deployment failed on all platforms");
+                }
             }
         } catch (error: any) {
-            const friendlyMsg = mapBackendErrorToUI(error.message);
+            const friendlyMsg = mapBackendErrorToUI(error.message || "Unknown Provider Error");
             setUploadStatus('error');
             setErrorMessage(friendlyMsg);
-            toast.error("Post Failed", { description: friendlyMsg });
+            toast.error("Deployment Failed", { description: friendlyMsg });
+            console.error("Critical Deployment Error:", error);
         } finally {
-            setIsSubmitting(false);
+            setIsPublishing(false);
             isSubmittingRef.current = false;
         }
     };
 
     const isReadyToSubmit = !!mediaUrl && uploadStatus === 'success' &&
         (mode !== PostMode.SCHEDULE_POST || (!!scheduledDate && !!scheduledTime && isFutureTime)) &&
-        !isSubmitting;
+        !isPublishing;
 
     const isDirty = !!mediaUrl || !!caption || mode !== PostMode.POST_NOW;
 
@@ -417,7 +453,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
         });
         setLocalPreview(null);
         setUploadStatus('idle');
-        setOptimizationBadge(null);
+        setOptimizationBadge(false);
         selectedFile.current = null;
         setShowDiscardConfirm(false);
         onOpenChange(false);
@@ -426,7 +462,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
     return (
         <Dialog open={open} onOpenChange={(val) => {
             // Allow closing if not submitting
-            if (!val && !isSubmitting) {
+            if (!val && !isPublishing) {
                 onOpenChange(false);
             } else if (val) {
                 onOpenChange(true);
@@ -435,20 +471,20 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
             <DialogContent
                 onInteractOutside={(e) => {
                     // Only prevent if submitting
-                    if (isSubmitting) {
+                    if (isPublishing) {
                         e.preventDefault();
                     }
                 }}
                 onEscapeKeyDown={(e) => {
                     // Only prevent if submitting
-                    if (isSubmitting) {
+                    if (isPublishing) {
                         e.preventDefault();
                     }
                 }}
-                className="sm:max-w-[600px] bg-[#0A0A0B]/95 border-[#00E0D0]/30 backdrop-blur-xl text-white p-0 overflow-hidden shadow-[0_0_40px_rgba(0,224,208,0.15)]"
+                className="sm:max-w-[600px] bg-[#0A0A0B]/95 border-[#00E0D0]/30 backdrop-blur-xl text-foreground p-0 overflow-hidden shadow-[0_0_40px_rgba(0,224,208,0.15)]"
             >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E0D0]/5 blur-[80px] -z-10" />
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-[80px] -z-10" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-teal-500/5 blur-[80px] -z-10" />
                 <div className="p-6">
                     <DialogHeader className="mb-6">
                         <DialogTitle className="text-xl font-bold flex items-center gap-2">
@@ -464,7 +500,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                         <form
                             onSubmit={(e) => {
                                 // Additional guard: prevent form submission if already submitting
-                                if (isSubmitting || isSubmittingRef.current) {
+                                if (isPublishing || isSubmittingRef.current) {
                                     e.preventDefault();
                                     console.warn("⚠️ Form submission blocked - already in progress");
                                     return;
@@ -483,11 +519,11 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                             <FormLabel className="text-xs font-bold uppercase tracking-widest text-gray-500">Platform</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
-                                                    <SelectTrigger className="bg-[#141416] border-white/10 h-10">
+                                                    <SelectTrigger className="bg-[#141416] border-border/50 h-10">
                                                         <SelectValue placeholder="Platform" />
                                                     </SelectTrigger>
                                                 </FormControl>
-                                                <SelectContent className="bg-[#141416] border-white/10 text-white">
+                                                <SelectContent className="bg-[#141416] border-border/50 text-foreground">
                                                     <SelectItem value="instagram">
                                                         <div className="flex items-center gap-2">
                                                             <Instagram className="w-3.5 h-3.5 text-pink-400" />
@@ -496,13 +532,13 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                     </SelectItem>
                                                     <SelectItem value="facebook" disabled={mode === PostMode.POST_STORY}>
                                                         <div className="flex items-center gap-2">
-                                                            <Facebook className="w-3.5 h-3.5 text-blue-500" />
+                                                            <Facebook className="w-3.5 h-3.5 text-teal-500" />
                                                             Facebook
                                                         </div>
                                                     </SelectItem>
                                                     <SelectItem value="both" disabled={mode === PostMode.POST_STORY}>
                                                         <div className="flex items-center gap-2">
-                                                            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                                                            <Sparkles className="w-3.5 h-3.5 text-teal-400" />
                                                             IG + Facebook
                                                             {mode === PostMode.POST_STORY && <span className="text-[10px] opacity-40 ml-1 uppercase">(IG Only)</span>}
                                                         </div>
@@ -522,11 +558,11 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                             <FormLabel className="text-xs font-bold uppercase tracking-widest text-gray-500">Post Type</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
-                                                    <SelectTrigger className="bg-[#141416] border-white/10 h-10">
+                                                    <SelectTrigger className="bg-[#141416] border-border/50 h-10">
                                                         <SelectValue placeholder="Mode" />
                                                     </SelectTrigger>
                                                 </FormControl>
-                                                <SelectContent className="bg-[#141416] border-white/10 text-white">
+                                                <SelectContent className="bg-[#141416] border-border/50 text-foreground">
                                                     <SelectItem value={PostMode.POST_NOW}>
                                                         <div className="flex items-center gap-2">
                                                             <Zap className="w-3.5 h-3.5 text-yellow-500" />
@@ -535,7 +571,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                     </SelectItem>
                                                     <SelectItem value={PostMode.SCHEDULE_POST}>
                                                         <div className="flex items-center gap-2">
-                                                            <Clock className="w-3.5 h-3.5 text-blue-500" />
+                                                            <Clock className="w-3.5 h-3.5 text-teal-500" />
                                                             Schedule
                                                         </div>
                                                     </SelectItem>
@@ -564,7 +600,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                         "relative border-2 border-dashed rounded-xl transition-all h-56 flex flex-col items-center justify-center gap-3 overflow-hidden",
                                         uploadStatus === 'error' ? "border-red-500/30 bg-red-500/5" :
                                             uploadStatus === 'success' ? "border-[#00E0D0]/30 bg-[#00E0D0]/5" :
-                                                "border-white/5 bg-[#141416] hover:bg-[#1A1A1C]"
+                                                "border-border bg-[#141416] hover:bg-[#1A1A1C]"
                                     )}
                                 >
                                     {localPreview ? (
@@ -578,13 +614,13 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                             </div>
 
                                             {isUploading && (
-                                                <div className="absolute inset-0 bg-black/60 z-10 flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
+                                                <div className="absolute inset-0 bg-background/60 z-10 flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
                                                     <Loader2 className="w-8 h-8 text-primary animate-spin" />
                                                     <div className="text-sm font-medium animate-pulse text-white/80 tracking-tight">Automatic Optimization...</div>
                                                 </div>
                                             )}
 
-                                            {!isSubmitting && (
+                                            {!isPublishing && (
                                                 <button
                                                     type="button"
                                                     onClick={() => {
@@ -593,7 +629,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                         form.setValue("media_url", "");
                                                         selectedFile.current = null;
                                                     }}
-                                                    className="absolute top-3 right-3 z-20 p-1.5 bg-black/50 backdrop-blur-md rounded-full hover:bg-red-500/80 transition-all border border-white/10"
+                                                    className="absolute top-3 right-3 z-20 p-1.5 bg-black/50 backdrop-blur-md rounded-full hover:bg-red-500/80 transition-all border border-border/50"
                                                 >
                                                     <X className="w-3.5 h-3.5" />
                                                 </button>
@@ -645,16 +681,16 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                 {/* Asset Library Button */}
                                 <div className="flex items-center justify-center">
                                     <div className="flex items-center gap-2 w-full">
-                                        <div className="flex-1 h-px bg-white/5" />
+                                        <div className="flex-1 h-px bg-foreground/5" />
                                         <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">OR</span>
-                                        <div className="flex-1 h-px bg-white/5" />
+                                        <div className="flex-1 h-px bg-foreground/5" />
                                     </div>
                                 </div>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={() => setAssetPickerOpen(true)}
-                                    className="w-full bg-[#141416] border-white/10 hover:bg-[#1A1A1C] hover:border-primary/30 transition-all"
+                                    className="w-full bg-[#141416] border-border/50 hover:bg-[#1A1A1C] hover:border-primary/30 transition-all"
                                 >
                                     <Folder className="w-4 h-4 mr-2 text-primary" />
                                     Select from Asset Library
@@ -677,7 +713,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                                 <Button
                                                                     variant={"outline"}
                                                                     className={cn(
-                                                                        "w-full h-11 bg-[#141416] border-white/5 pl-3 text-left font-normal",
+                                                                        "w-full h-11 bg-[#141416] border-border pl-3 text-left font-normal",
                                                                         !field.value && "text-muted-foreground"
                                                                     )}
                                                                 >
@@ -690,7 +726,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                                 </Button>
                                                             </FormControl>
                                                         </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0 bg-[#0A0A0B] border-white/10" align="start">
+                                                        <PopoverContent className="w-auto p-0 bg-[#0A0A0B] border-border/50" align="start">
                                                             <Calendar
                                                                 mode="single"
                                                                 selected={field.value}
@@ -720,7 +756,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                         <input
                                                             type="time"
                                                             className={cn(
-                                                                "w-full h-11 bg-[#141416] border border-white/5 rounded-md px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#00E0D0]/50 transition-all text-white/90",
+                                                                "w-full h-11 bg-[#141416] border border-border rounded-md px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#00E0D0]/50 transition-all text-white/90",
                                                                 !isFutureTime && mode === PostMode.SCHEDULE_POST && "border-red-500/50 text-red-400"
                                                             )}
                                                             {...field}
@@ -752,7 +788,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                         <FormControl>
                                             <Textarea
                                                 placeholder="What's the story behind this post? Use hashtags for better reach..."
-                                                className="min-h-[100px] bg-[#141416] border-white/5 border-b-2 focus:border-b-primary transition-all resize-none shadow-inner"
+                                                className="min-h-[100px] bg-[#141416] border-border border-b-2 focus:border-b-primary transition-all resize-none shadow-inner"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -762,13 +798,13 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                             />
 
                             {/* Final Actions */}
-                            <div className="flex gap-4 pt-4 border-t border-white/5">
+                            <div className="flex gap-4 pt-4 border-t border-border">
                                 <Button
                                     type="button"
                                     variant="ghost"
                                     onClick={handleDiscardClick}
-                                    className="flex-1 h-12 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-white"
-                                    disabled={isSubmitting}
+                                    className="flex-1 h-12 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-foreground"
+                                    disabled={isPublishing}
                                 >
                                     Discard
                                 </Button>
@@ -777,11 +813,11 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                     className={cn(
                                         "flex-1 h-12 text-xs font-black uppercase tracking-widest transition-all shadow-xl",
                                         mode === PostMode.SCHEDULE_POST ? "bg-[#00E0D0] hover:bg-[#00E0D0]/90 text-black" : "bg-primary hover:bg-primary/90 text-black",
-                                        isSubmitting && "pointer-events-none opacity-70"
+                                        isPublishing && "pointer-events-none opacity-70"
                                     )}
-                                    disabled={!isReadyToSubmit || isSubmitting}
+                                    disabled={!isReadyToSubmit || isPublishing}
                                 >
-                                    {isSubmitting ? (
+                                    {isPublishing ? (
                                         <div className="flex items-center gap-2">
                                             <Loader2 className="w-4 h-4 animate-spin" />
                                             <span>Processing...</span>
@@ -800,7 +836,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
             </DialogContent>
 
             <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
-                <AlertDialogContent className="bg-[#0A0A0B] border-white/10 text-white">
+                <AlertDialogContent className="bg-[#0A0A0B] border-border/50 text-foreground">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Discard changes?</AlertDialogTitle>
                         <AlertDialogDescription className="text-gray-400">
@@ -808,10 +844,10 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-white/5 border-white/10 hover:bg-white/10 text-white">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel className="bg-foreground/5 border-border/50 hover:bg-foreground/10 text-foreground">Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={confirmDiscard}
-                            className="bg-red-500 hover:bg-red-600 text-white border-none"
+                            className="bg-red-500 hover:bg-red-600 text-foreground border-none"
                         >
                             Discard Post
                         </AlertDialogAction>

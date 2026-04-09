@@ -451,7 +451,24 @@ class ContentGenerationService:
                     "predicted_performance": variant.get("predicted_performance", "Good")
                 })
             
+            # ── ML ENRICHMENT ─────────────────────────────────────────────────────────
+            # Replace hardcoded "Good" scores with ML-predicted engagement rates.
+            # Graceful: if models aren't trained yet, variants pass through unchanged.
+            try:
+                from application.services.ml_enrichment_service import enrich_captions
+                normalized_captions, ml_best_id = await enrich_captions(
+                    variants=normalized_captions,
+                    tone=campaign_tone or brand_context.get("tone_of_voice", "General"),
+                    asset_type=platform_type,
+                )
+                logger.info("✅ ML enrichment applied — best_caption_id=%s", ml_best_id)
+            except Exception as ml_err:
+                ml_best_id = result.get("best_caption_id", 1)
+                logger.warning("⚠️ ML enrichment skipped: %s", ml_err)
+            # ── END ML ENRICHMENT ─────────────────────────────────────────────────────
+
             # Define asset_type_map here so it's always in scope for caption + hashtag logging
+
             asset_type_map = {
                 "post": AssetTypeEnum.POST,
                 "story": AssetTypeEnum.STORY,
@@ -780,7 +797,7 @@ class ContentGenerationService:
                 "success": True,
                 "platform_type": platform_type,
                 "caption_variants": final_captions,
-                "best_caption_id": result.get("best_caption_id", 1),
+                "best_caption_id": ml_best_id if 'ml_best_id' in dir() else result.get("best_caption_id", 1),
                 "hashtag_sets": final_hashtags[:3],
                 "whatsapp_variants": final_whatsapp,
                 "email_variants": final_email,

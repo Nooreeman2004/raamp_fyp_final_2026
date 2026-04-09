@@ -15,8 +15,45 @@ import type {
     SocialConnectionStatus,
     MediaAsset,
     CaptionAsset,
-    PostMode,
 } from '@/types/instagram.types';
+import { PostMode } from '@/types/instagram.types';
+
+export interface UnifiedPostResponse {
+    success: boolean;
+    results: Array<{
+        platform: string;
+        status: string;
+        post_id?: string;
+        external_id?: string;
+        error?: string;
+    }>;
+    message: string;
+}
+
+export interface ROIMetrics {
+  reach: number;
+  impressions: number;
+  engagement: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saved: number;
+  engagement_rate: number;
+  last_fetched_at: string | null;
+  fetch_status: 'pending' | 'success' | 'failed';
+}
+
+export interface ROISummary {
+  total_posts: number;
+  total_reach: number;
+  prev_week_reach: number;
+  total_impressions: number;
+  avg_engagement_rate: number;
+  best_performing_post: { post_id: string; reach: number; engagement_rate: number } | null;
+  worst_performing_post: { post_id: string; reach: number; engagement_rate: number } | null;
+  posts_pending: number;
+  posts_failed: number;
+}
 
 class InstagramService {
     /**
@@ -24,6 +61,24 @@ class InstagramService {
      */
     async createPost(request: InstagramPostRequest): Promise<InstagramPostResponse> {
         return apiClient.post<InstagramPostResponse>('/instagram/posting/post', request);
+    }
+
+    /**
+     * Alias for createPost to support legacy deployment naming
+     * Accepts imageUrl, caption, and optional mode/time
+     */
+    async publishPost(params: {
+        imageUrl: string;
+        caption?: string;
+        mode?: PostMode;
+        scheduledTime?: string;
+    }): Promise<InstagramPostResponse> {
+        return this.createPost({
+            media_url: params.imageUrl,
+            caption: params.caption,
+            mode: params.mode || PostMode.POST_NOW,
+            scheduled_time: params.scheduledTime
+        });
     }
 
     /**
@@ -36,18 +91,8 @@ class InstagramService {
         caption?: string;
         scheduled_time?: string;
         facebook_page_id?: string;
-    }): Promise<{
-        success: boolean;
-        results: Array<{
-            platform: string;
-            status: string;
-            post_id?: string;
-            external_id?: string;
-            error?: string;
-        }>;
-        message: string;
-    }> {
-        return apiClient.post('/social/post', request);
+    }): Promise<UnifiedPostResponse> {
+        return apiClient.post<UnifiedPostResponse>('/social/post', request);
     }
 
     /**
@@ -205,10 +250,15 @@ class InstagramService {
         formData.append('file', file);
 
         // Use fetch directly for FormData upload with credentials to include cookies
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/assets/upload`, {
+        // Use configured base URL (with /api prefix for proxy)
+        const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, "");
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${baseUrl}/assets/upload`, {
             method: 'POST',
-            credentials: 'include', // This sends cookies automatically
-            body: formData,
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
         });
 
         if (!response.ok) {
@@ -217,6 +267,34 @@ class InstagramService {
         }
 
         return response.json();
+    }
+
+    /**
+     * Get ROI metrics for a specific post
+     */
+    async getPostROI(postId: string): Promise<ROIMetrics> {
+        return apiClient.get<ROIMetrics>(`/instagram/roi/${postId}`);
+    }
+
+    /**
+     * Manually refresh ROI metrics for a specific post
+     */
+    async refreshPostROI(postId: string): Promise<ROIMetrics> {
+        return apiClient.post<ROIMetrics>(`/instagram/roi/refresh/${postId}`, {});
+    }
+
+    /**
+     * Get aggregate ROI summary for a business
+     */
+    async getROISummary(businessId: string): Promise<ROISummary> {
+        return apiClient.get<ROISummary>(`/instagram/roi/summary/${businessId}`);
+    }
+
+    /**
+     * Get ROI timeseries for a business
+     */
+    async getROITimeseries(businessId: string, days: number = 30): Promise<Array<{date: string, reach: number, impressions: number}>> {
+        return apiClient.get<Array<{date: string, reach: number, impressions: number}>>(`/instagram/roi/timeseries/${businessId}?days=${days}`);
     }
 }
 

@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
 import logging
+import asyncio
+from presentation.routers.activity_router import log_activity
 
 from presentation.routers.auth_router import get_current_user_email
 from presentation.schemas.instagram_posting_schemas import (
@@ -137,6 +139,16 @@ async def create_instagram_post(
                 media_type=MediaType.IMAGE  # Could be enhanced to detect from URL
             )
             logger.info(f"Instagram Post Now Result: {result}")
+            
+            # Log Activity (Non-blocking)
+            if result.get("status") == "published":
+                asyncio.create_task(log_activity(
+                    business_id=ig_business_id,
+                    event_type="post_published",
+                    title="Instagram Post Published",
+                    subtitle="Feed post is now live"
+                ))
+            
             return InstagramPostResponse(**result)
         
         elif request.mode == PostModeEnum.SCHEDULE_POST:
@@ -157,6 +169,16 @@ async def create_instagram_post(
                 media_type=MediaType.IMAGE
             )
             logger.info(f"Instagram Schedule Result: {result}")
+            
+            # Log Activity (Non-blocking)
+            if result.get("status") == "scheduled":
+                asyncio.create_task(log_activity(
+                    business_id=ig_business_id,
+                    event_type="post_published",
+                    title="Instagram Post Scheduled",
+                    subtitle=f"Queued for {request.scheduled_time}"
+                ))
+            
             return InstagramPostResponse(
                 status=result["status"],
                 post_id=result.get("scheduled_post_id"),
@@ -174,6 +196,16 @@ async def create_instagram_post(
                 media_type=MediaType.STORIES
             )
             logger.info(f"Instagram Story Result: {result}")
+            
+            # Log Activity (Non-blocking)
+            if result.get("status") == "published":
+                asyncio.create_task(log_activity(
+                    business_id=ig_business_id,
+                    event_type="post_published",
+                    title="Instagram Story Published",
+                    subtitle="Story is now live"
+                ))
+            
             return InstagramPostResponse(
                 status=result["status"],
                 post_id=result.get("story_id"),

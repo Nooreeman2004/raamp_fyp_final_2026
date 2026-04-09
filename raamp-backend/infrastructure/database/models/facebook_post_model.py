@@ -22,6 +22,9 @@ class FacebookPostModel(Document):
     error: Optional[str] = Field(None, description="Error message if posting failed")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+
+    # Trend attribution (optional)
+    trend_signal_id: Optional[str] = Field(None, description="Associated TrendSignal id for attribution")
     
     class Settings:
         name = "facebook_posts"
@@ -49,6 +52,9 @@ class ScheduledFacebookPostModel(Document):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     published_at: Optional[datetime] = Field(None, description="When the post was published")
+
+    # Trend attribution (optional)
+    trend_signal_id: Optional[str] = Field(None, description="Associated TrendSignal id for attribution")
     
     class Settings:
         name = "scheduled_facebook_posts"

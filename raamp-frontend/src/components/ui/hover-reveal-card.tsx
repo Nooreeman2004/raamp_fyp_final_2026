@@ -52,7 +52,7 @@ export const HoverRevealCard = ({ title, description, icon: Icon, index, classNa
         <motion.div
             ref={ref}
             className={cn(
-                "relative h-full w-full rounded-xl bg-card/40 border border-white/10 backdrop-blur-sm overflow-hidden transition-colors duration-500",
+                "relative h-full w-full rounded-xl bg-card/40 border border-border/50 backdrop-blur-sm overflow-hidden transition-colors duration-500",
                 isHovered ? "border-primary/50 bg-card/60" : "",
                 className
             )}
@@ -84,7 +84,7 @@ export const HoverRevealCard = ({ title, description, icon: Icon, index, classNa
                     <Icon className="w-6 h-6" />
                 </div>
 
-                <h3 className="text-xl font-bold mb-2 font-bebas tracking-wide text-white group-hover:text-primary transition-colors">
+                <h3 className="text-xl font-bold mb-2 font-heading font-semibold text-foreground group-hover:text-primary transition-colors">
                     {title}
                 </h3>
 

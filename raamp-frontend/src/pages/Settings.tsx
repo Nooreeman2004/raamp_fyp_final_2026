@@ -42,7 +42,7 @@ const SettingsCard = ({ title, description, icon, href }: SettingsCardProps) => 
               {icon}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold group-hover:text-primary transition-colors font-bebas tracking-wide text-lg">{title}</h3>
+              <h3 className="font-semibold group-hover:text-primary transition-colors font-heading font-semibold text-lg">{title}</h3>
               <p className="text-sm text-muted-foreground truncate font-mono">{description}</p>
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
@@ -66,6 +66,12 @@ const Settings = () => {
       description: "Business location and targeting parameters",
       icon: <Building2 className="w-5 h-5 text-primary" />,
       href: "/profile/business-setup",
+    },
+    {
+      title: "Edit Billing Profile",
+      description: "Company invoicing address and tax details",
+      icon: <Building2 className="w-5 h-5 text-primary" />,
+      href: "/settings/billing-profile",
     },
     {
       title: "Business Specialties",
@@ -114,7 +120,7 @@ const Settings = () => {
               <SettingsIcon className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold font-bebas tracking-wide">
+              <h1 className="text-3xl font-bold font-heading font-semibold">
                 <BlurText text="Settings" />
               </h1>
               <p className="text-muted-foreground font-mono text-sm">
@@ -139,7 +145,7 @@ const Settings = () => {
         {/* Quick Actions */}
         <Reveal variant="fadeInUp" delay={0.4}>
           <Card className="p-6 bg-muted/30 border-dashed">
-            <h3 className="font-semibold mb-4 font-bebas tracking-wide">Quick Actions</h3>
+            <h3 className="font-semibold mb-4 font-heading font-semibold">Quick Actions</h3>
             <div className="flex flex-wrap gap-3">
               <Link to="/billing">
                 <Button variant="outline" size="sm" className="font-mono text-xs">

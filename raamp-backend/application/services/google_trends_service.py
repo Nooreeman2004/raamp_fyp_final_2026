@@ -1,7 +1,7 @@
 # Application Layer - Google Trends Service
 import logging
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from pytrends.request import TrendReq
 import asyncio
 from functools import partial
@@ -11,14 +11,11 @@ import json
 from domain.entities.trend_signal import TrendSignal
 from domain.repositories.trend_signal_repository import ITrendSignalRepository
 from infrastructure.repositories.trend_signal_repository import TrendSignalRepository
+from application.services.trends_providers.selector import TrendsProviderSelector
+from infrastructure.database.models.trend_cache_model import TrendCacheModel
 
 
 logger = logging.getLogger(__name__)
-
-# Global cache for Google Trends data
-# Key: hash of (keywords, location, timeframe)
-# Value: {"data": <trends_data>, "timestamp": <datetime>, "ttl": <minutes>}
-_TRENDS_CACHE = {}
 
 
 class GoogleTrendsService:
@@ -57,10 +54,25 @@ class GoogleTrendsService:
         "global": "",
     }
     
-    # Niche-to-keywords mapping (reduced to 2 keywords to minimize rate limiting)
+    # Niche-to-keywords mapping (keep as general topics, not "X trends" phrases).
     NICHE_KEYWORDS = {
-        "fashion": ["fashion trends", "clothing styles"],
-        "food": ["food trends", "recipes"],
+        # Fashion needs broader seeds to reliably yield related/rising queries.
+        # Keep these as high-level topics people actually search (not "X trends" phrases).
+        "fashion": [
+            "outfit ideas",
+            "streetwear",
+            "modest fashion",
+            "summer outfits",
+            "winter outfits",
+            "mens fashion",
+            "womens fashion",
+            "capsule wardrobe",
+            "sneakers",
+            "fashion accessories",
+            "fashion brands",
+            "online shopping",
+        ],
+        "food": ["recipes", "restaurant near me"],
         "tech": ["technology", "AI"],
         "crypto": ["cryptocurrency", "bitcoin"],
         "fitness": ["fitness", "workout"],
@@ -77,6 +89,7 @@ class GoogleTrendsService:
         self.cache_ttl_minutes = 60  # Cache for 1 hour
         self.last_request_time = datetime.min
         self.min_request_interval = 2.0  # Minimum 2 seconds between requests
+        self._provider_selector = TrendsProviderSelector()
     
     def _get_pytrends(self) -> TrendReq:
         """Get or create PyTrends instance with resilient settings and urllib3 v2 fix"""
@@ -120,11 +133,18 @@ class GoogleTrendsService:
         """Get relevant keywords based on niche and category"""
         base_keywords = self.NICHE_KEYWORDS.get(niche.lower(), [niche])
         
+        # Treat "all" as a UI filter value, not a keyword.
+        category_norm = (category or "").strip()
+        if category_norm.lower() == "all":
+            category_norm = ""
+
         # Add category-specific keyword
-        if category and category.lower() not in [kw.lower() for kw in base_keywords]:
-            keywords = [category] + base_keywords[:2]  # Limit to 3 keywords total (1 category + 2 niche)
+        if category_norm and category_norm.lower() not in [kw.lower() for kw in base_keywords]:
+            # For industry discovery we want a slightly larger seed list.
+            keywords = [category_norm] + base_keywords[:5]  # cap to 6 total
         else:
-            keywords = base_keywords[:3]  # Max 3 keywords
+            # Return up to 6 seeds (industry_trends endpoint will cap again).
+            keywords = base_keywords[:6]
         
         return keywords
     
@@ -182,33 +202,51 @@ class GoogleTrendsService:
         }
         key_string = json.dumps(key_data, sort_keys=True)
         return hashlib.md5(key_string.encode()).hexdigest()
-    
-    def _get_from_cache(self, cache_key: str) -> Optional[Dict]:
-        """Get data from cache if valid"""
-        if cache_key in _TRENDS_CACHE:
-            cache_entry = _TRENDS_CACHE[cache_key]
-            age_minutes = (datetime.now() - cache_entry["timestamp"]).total_seconds() / 60
-            
-            if age_minutes < cache_entry["ttl"]:
-                logger.info("Cache HIT for %s... (age: %.1fm, ttl: %dm)",
-                          cache_key[:8], age_minutes, cache_entry['ttl'])
-                return cache_entry["data"]
-            else:
-                logger.info("Cache EXPIRED for %s... (age: %.1fm)",
-                          cache_key[:8], age_minutes)
-                del _TRENDS_CACHE[cache_key]
-        
-        return None
-    
-    def _save_to_cache(self, cache_key: str, data: Dict, ttl_minutes: Optional[int] = None):
-        """Save data to cache"""
-        ttl = ttl_minutes or self.cache_ttl_minutes
-        _TRENDS_CACHE[cache_key] = {
-            "data": data,
-            "timestamp": datetime.now(),
-            "ttl": ttl
-        }
-        logger.info("Cached trends data %s... (ttl: %dm)", cache_key[:8], ttl)
+
+    async def _get_from_cache(self, cache_key: str) -> Optional[Dict]:
+        """Get cached trends data from MongoDB if present and unexpired."""
+        now = datetime.utcnow()
+        doc = await TrendCacheModel.find_one(
+            TrendCacheModel.namespace == "google_trends",
+            TrendCacheModel.key == cache_key,
+            TrendCacheModel.expires_at > now,
+        )
+        if not doc:
+            return None
+        try:
+            return doc.value if isinstance(doc.value, dict) else None
+        except Exception:
+            return None
+
+    async def _save_to_cache(self, cache_key: str, data: Dict, ttl_minutes: Optional[int] = None) -> None:
+        """Upsert cached trends data into MongoDB with TTL expiry."""
+        ttl = int(ttl_minutes or self.cache_ttl_minutes)
+        ttl = max(1, min(ttl, 24 * 60))
+        now = datetime.utcnow()
+        expires_at = now + timedelta(minutes=ttl)
+        try:
+            await TrendCacheModel.find_one(
+                TrendCacheModel.namespace == "google_trends",
+                TrendCacheModel.key == cache_key,
+            ).upsert(
+                {"$set": {
+                    "value": data,
+                    "meta": {"ttl_minutes": ttl},
+                    "expires_at": expires_at,
+                    "created_at": now,
+                }},
+                on_insert=TrendCacheModel(
+                    namespace="google_trends",
+                    key=cache_key,
+                    value=data,
+                    meta={"ttl_minutes": ttl},
+                    expires_at=expires_at,
+                    created_at=now,
+                ),
+            )
+        except Exception as e:
+            # Cache failures must never break the pipeline.
+            logger.warning("Trends DB cache write failed (non-fatal): %s", str(e))
     
     async def _rate_limit_delay(self):
         """Enforce minimum delay between requests"""
@@ -232,145 +270,75 @@ class GoogleTrendsService:
         # Check cache first
         if use_cache:
             cache_key = self._get_cache_key(keywords, location, timeframe)
-            cached_data = self._get_from_cache(cache_key)
+            cached_data = await self._get_from_cache(cache_key)
             if cached_data:
                 return cached_data
-        
-        # Enforce rate limiting between requests
-        await self._rate_limit_delay()
-        
-        max_retries = 3
-        base_retry_delay = 5  # Start with 5s instead of 30s
-        
-        for attempt in range(max_retries):
-            try:
-                # Run blocking PyTrends calls in thread pool to avoid blocking the event loop
-                loop = asyncio.get_event_loop()
-                pytrends = self._get_pytrends()
-                
-                # Build payload with error handling for empty niches
-                if not keywords:
-                    return {"success": False, "error": "No keywords provided for analysis"}
 
-                await loop.run_in_executor(
-                    None,
-                    partial(
-                        pytrends.build_payload,
-                        keywords,
-                        cat=0,
-                        timeframe=timeframe,
-                        geo=location if location.upper() != "GLOBAL" else "",
-                        gprop=''
-                    )
-                )
-                
-                # Fetch interest over time - ensure we handle empty dataframes gracefully
-                interest_over_time_df = await loop.run_in_executor(
-                    None,
-                    pytrends.interest_over_time
-                )
-                
-                # Fetch interest by region
-                interest_by_region_df = await loop.run_in_executor(
-                    None,
-                    partial(
-                        pytrends.interest_by_region,
-                        resolution='COUNTRY',
-                        inc_low_vol=True,
-                        inc_geo_code=False
-                    )
-                )
-                
-                # Fetch related queries
-                related_queries_dict = await loop.run_in_executor(
-                    None,
-                    pytrends.related_queries
-                )
-                
-                # Convert DataFrames to dictionaries with safety checks
-                search_interest = {}
-                if interest_over_time_df is not None and not interest_over_time_df.empty:
-                    # Remove 'isPartial' column if exists
-                    if 'isPartial' in interest_over_time_df.columns:
-                        interest_over_time_df = interest_over_time_df.drop('isPartial', axis=1)
-                    
-                    search_interest = {
-                        "dates": interest_over_time_df.index.strftime('%Y-%m-%d').tolist(),
-                        "data": interest_over_time_df.to_dict(orient='list')
-                    }
-                
-                geo_data = {}
-                if interest_by_region_df is not None and not interest_by_region_df.empty:
-                    geo_data = interest_by_region_df.to_dict(orient='index')
-                
-                # Process related queries with dictionary defensive logic
-                related_queries = {}
-                rising_queries = {}
-                
-                if related_queries_dict:
-                    for keyword, queries in related_queries_dict.items():
-                        if queries.get('top') is not None and not queries['top'].empty:
-                            related_queries[keyword] = queries['top'].to_dict(orient='records')
-                        
-                        if queries.get('rising') is not None and not queries['rising'].empty:
-                            rising_queries[keyword] = queries['rising'].to_dict(orient='records')
-                
-                result = {
-                    "keywords": keywords,
-                    "search_interest": search_interest,
-                    "geo_data": geo_data,
-                    "related_queries": related_queries,
-                    "rising_queries": rising_queries,
-                    "success": True,
-                    "error": None
-                }
-                
-                # Cache the successful result
-                if use_cache:
-                    self._save_to_cache(cache_key, result)
-                
-                return result
-                
-            except Exception as e:
-                error_msg = str(e)
-                if ("429" in error_msg or "Too Many Requests" in error_msg) and attempt < max_retries - 1:
-                    import random
-                    # Progressive backoff: 5s, 15s, 45s (much faster than before)
-                    wait_time = (base_retry_delay * (3 ** attempt)) + random.uniform(1, 3)
-                    logger.warning("Google Trends rate limited (429). Backoff: %.1fs... (Attempt %d/%d)",
-                                 wait_time, attempt+1, max_retries)
-                    await asyncio.sleep(wait_time)
-                    # Force reset pytrends instance to break any sticky sessions
-                    self.pytrends = None
-                elif "429" in error_msg or "Too Many Requests" in error_msg:
-                    # On final retry failure for 429, return cached mock data if available
-                    logger.error("Max retries exceeded due to rate limiting. Returning fallback data.")
-                    return {
-                        "keywords": keywords,
-                        "search_interest": {},
-                        "geo_data": {},
-                        "related_queries": {},
-                        "rising_queries": {},
-                        "success": False,
-                        "error": "Rate limit exceeded. Please try again in a few minutes."
-                    }
-                else:
-                    logger.error("Critical error in Google Trends pipeline: %s", error_msg)
-                    return {
-                        "keywords": keywords,
-                        "search_interest": {},
-                        "geo_data": {},
-                        "related_queries": {},
-                        "rising_queries": {},
-                        "success": False,
-                        "error": error_msg
-                    }
-        
-        return {
-            "keywords": keywords,
-            "success": False,
-            "error": "Max retries exceeded for Google Trends"
+        # Delegate provider choice + fallback to selector (SerpAPI primary, pytrends fallback).
+        res = await self._provider_selector.fetch_trends_data(
+            keywords=keywords,
+            location=location,
+            timeframe=timeframe,
+        )
+
+        result = {
+            "provider": res.provider,
+            "fallback_from": getattr(res, "fallback_from", None),
+            "geo_relaxed": bool(getattr(res, "geo_relaxed", False)),
+            "keywords": res.keywords,
+            "search_interest": res.search_interest,
+            "geo_data": res.geo_data,
+            "related_queries": res.related_queries,
+            "rising_queries": res.rising_queries,
+            "success": res.success,
+            "error": res.error,
+            "retryable": res.retryable,
         }
+
+        # Service-level safety validation (defense-in-depth). Selector should already validate,
+        # but we keep this to avoid persisting/caching malformed payloads.
+        if result.get("success"):
+            ok, err = self._validate_provider_payload(result)
+            if not ok:
+                result["success"] = False
+                result["retryable"] = True
+                result["error"] = err or "invalid_provider_payload"
+
+        if res.success and use_cache:
+            await self._save_to_cache(cache_key, result)
+
+        return result
+
+    def _validate_provider_payload(self, result: Dict) -> tuple[bool, Optional[str]]:
+        """
+        Validate provider payload shape + usefulness:
+        - dates non-empty
+        - every series length equals dates length
+        - no series is entirely zero/None
+        """
+        si = result.get("search_interest") or {}
+        dates = si.get("dates") if isinstance(si, dict) else None
+        data = si.get("data") if isinstance(si, dict) else None
+        if not isinstance(dates, list) or len(dates) == 0:
+            return False, "invalid_payload_empty_dates"
+        if not isinstance(data, dict) or len(data) == 0:
+            return False, "invalid_payload_empty_data"
+
+        n = len(dates)
+        for k, values in data.items():
+            if not isinstance(values, list) or len(values) != n:
+                return False, f"invalid_payload_length_mismatch:{k}"
+            cleaned = [v for v in values if v is not None]
+            if not cleaned:
+                return False, f"invalid_payload_all_null:{k}"
+            # treat "all zeros" as non-useful
+            try:
+                if all(float(v) == 0.0 for v in cleaned):
+                    return False, f"invalid_payload_all_zero:{k}"
+            except Exception:
+                # if parsing fails, consider it invalid
+                return False, f"invalid_payload_non_numeric:{k}"
+        return True, None
     
     async def create_trend_signal(
         self,
@@ -378,6 +346,7 @@ class GoogleTrendsService:
         niche: str,
         category: str,
         location: str,
+        keywords: Optional[List[str]] = None,
         radius: Optional[str] = None,
         timeframe: str = "30d"
     ) -> TrendSignal:
@@ -402,6 +371,7 @@ class GoogleTrendsService:
             category=category,
             location=location,
             radius=radius,
+            keywords=list(keywords or []),
             fetch_status="pending"
         )
         
@@ -428,8 +398,15 @@ class GoogleTrendsService:
             # Update status to processing
             await self.repository.update_status(trend_id, "processing")
             
-            # Get keywords for the niche
-            keywords = self._get_keywords_for_niche(trend_signal.niche, trend_signal.category)
+            # Get keywords for the niche, but prefer seeded keywords (e.g., specialties) if present.
+            keywords = list(getattr(trend_signal, "keywords", None) or [])
+            # If discovery ran, it should have prepended trending-now terms. Keep that priority
+            # and ensure we keep only a small "top of funnel" set for time-series.
+            # This reduces SerpAPI empty timelines when niche/specialty terms are off-signal.
+            if len(keywords) > 8:
+                keywords = keywords[:8]
+            if not keywords:
+                keywords = self._get_keywords_for_niche(trend_signal.niche, trend_signal.category)
             
             # Convert location to ISO code & timeframe to Google format
             location_code = self.convert_location_to_code(trend_signal.location)
@@ -461,7 +438,10 @@ class GoogleTrendsService:
                 search_interest=trends_data["search_interest"],
                 geo_data=trends_data["geo_data"],
                 related_queries=trends_data["related_queries"],
-                rising_queries=trends_data["rising_queries"]
+                rising_queries=trends_data["rising_queries"],
+                provider=trends_data.get("provider"),
+                fallback_from=trends_data.get("fallback_from"),
+                geo_relaxed=trends_data.get("geo_relaxed"),
             )
             
             return success

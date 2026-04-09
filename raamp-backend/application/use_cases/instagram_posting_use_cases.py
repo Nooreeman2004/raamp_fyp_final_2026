@@ -23,6 +23,8 @@ from application.services.instagram_graph_api_service import (
     InstagramAPIError
 )
 from application.utils.url_validator import URLValidator
+from infrastructure.database.models.posting_log_model import PostingLogModel
+
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +173,22 @@ class PostNowUseCase:
                 status=PostStatus.PUBLISHED,
                 instagram_post_id=instagram_post_id
             )
+
+            # Persistent Posting Log (New)
+            try:
+                await PostingLogModel(
+                    user_id=user_id,
+                    platform="instagram",
+                    post_id=str(instagram_post_id),
+                    internal_id=str(post_id),
+                    media_url=media_url,
+                    caption=caption,
+                    status="PUBLISHED",
+                    published_at=datetime.utcnow()
+                ).insert()
+            except Exception as log_err:
+                logger.warning(f"Failed to save persistent posting log: {log_err}")
+
             
             logger.info(f"Post published successfully: {instagram_post_id}")
             
@@ -203,12 +221,28 @@ class PostNowUseCase:
             
         except InstagramAPIError as e:
             logger.error(f"Instagram API error: {e.message}")
+            # Update status to failed
             await self.post_repository.update_status(
                 post_id=post_id,
                 status=PostStatus.FAILED,
                 error_message=e.message
             )
             await self.post_repository.increment_retry_count(post_id)
+
+            # Persistent Posting Log - Failure (New)
+            try:
+                await PostingLogModel(
+                    user_id=user_id,
+                    platform="instagram",
+                    internal_id=str(post_id),
+                    media_url=media_url,
+                    caption=caption,
+                    status="FAILED",
+                    error_message=e.message
+                ).insert()
+            except Exception as log_err:
+                logger.warning(f"Failed to save persistent failure log: {log_err}")
+
             
             # Send failure notification
             if self.notification_service:
@@ -469,8 +503,21 @@ class PostStoryUseCase:
                     status=PostStatus.PUBLISHED,
                     instagram_story_id=instagram_story_id
                 )
-            except Exception as db_err:
-                logger.error(f"Post succeeded ({instagram_story_id}) but database update failed for {story_id}: {db_err}")
+                
+                # Persistent Posting Log (New)
+                await PostingLogModel(
+                    user_id=user_id,
+                    platform="instagram",
+                    post_id=str(instagram_story_id),
+                    internal_id=str(story_id),
+                    media_url=media_url,
+                    caption="[Story - No Caption]",
+                    status="PUBLISHED",
+                    published_at=datetime.utcnow()
+                ).insert()
+            except Exception as log_err:
+                logger.error(f"Post succeeded but logging/db failed for story {story_id}: {log_err}")
+
             
             logger.info(f"Story published successfully: {instagram_story_id}")
             

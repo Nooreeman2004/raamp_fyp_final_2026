@@ -55,7 +55,7 @@ export const PricingCard3D = ({ title, price, features, buttonText, isPopular, i
         <motion.div
             ref={ref}
             className={cn(
-                "relative h-full w-full rounded-xl bg-card/40 border border-white/10 backdrop-blur-sm transition-all duration-500 cursor-pointer",
+                "relative h-full w-full rounded-xl bg-card/40 border border-border/50 backdrop-blur-sm transition-all duration-500 cursor-pointer",
                 isHovered ? "border-primary/50 bg-card/60 shadow-[0_0_50px_rgba(0,224,208,0.15)]" : "",
                 className
             )}
@@ -102,12 +102,12 @@ export const PricingCard3D = ({ title, price, features, buttonText, isPopular, i
 
             <div className="relative z-10 p-8 h-full flex flex-col" style={{ transform: "translateZ(30px)" }}>
 
-                <h3 className="text-3xl font-bold mb-2 font-bebas tracking-wide text-white group-hover:text-primary transition-colors">
+                <h3 className="text-3xl font-bold mb-2 font-heading font-semibold text-foreground group-hover:text-primary transition-colors">
                     {title}
                 </h3>
 
                 {price && (
-                    <div className="mb-6 flex items-baseline text-white">
+                    <div className="mb-6 flex items-baseline text-foreground">
                         <span className="text-5xl font-extrabold tracking-tight">{price}</span>
                         <span className="ml-1 text-xl font-medium text-muted-foreground">/mo</span>
                     </div>
@@ -130,7 +130,7 @@ export const PricingCard3D = ({ title, price, features, buttonText, isPopular, i
                         "mt-auto flex items-center justify-center border py-3 rounded text-sm font-bold tracking-wider uppercase transition-all duration-300",
                         isCurrentPlan
                             ? "border-primary bg-primary/20 text-primary cursor-default"
-                            : cn("border-primary/50 text-white", isHovered ? "bg-primary" : "bg-transparent")
+                            : cn("border-primary/50 text-foreground", isHovered ? "bg-primary" : "bg-transparent")
                     )}>
                         {buttonText}
                     </div>

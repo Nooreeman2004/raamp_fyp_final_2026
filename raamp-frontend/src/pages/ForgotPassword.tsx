@@ -121,7 +121,7 @@ const ForgotPassword = () => {
                             </Reveal>
                             <Reveal variant="fadeInUp" delay={0.4}>
                                 <div className="space-y-2">
-                                    <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                    <h1 className="text-3xl font-bold font-heading font-semibold">
                                         <BlurText text="Password Reset!" />
                                     </h1>
                                     <p className="text-muted-foreground font-mono text-sm">
@@ -133,7 +133,7 @@ const ForgotPassword = () => {
                                 <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                                     <Button
                                         onClick={() => navigate("/login")}
-                                        className="bg-gradient-to-r from-primary to-accent hover:opacity-90 w-full font-bebas tracking-wide text-lg"
+                                        className="bg-gradient-to-r from-primary to-accent hover:opacity-90 w-full font-heading font-semibold text-lg"
                                     >
                                         Go to Login
                                     </Button>
@@ -185,7 +185,7 @@ const ForgotPassword = () => {
 
                             <Reveal variant="blurInUp" delay={0.4}>
                                 <div className="space-y-1">
-                                    <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                    <h1 className="text-3xl font-bold font-heading font-semibold">
                                         <BlurText text={
                                             step === "email" ? "Forgot Password?" :
                                                 step === "otp" ? "Enter Your OTP" :
@@ -219,7 +219,7 @@ const ForgotPassword = () => {
                                 <motion.div variants={fadeInUp}>
                                     <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                                         <Button type="submit" disabled={isLoading}
-                                            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 font-bebas tracking-wide text-lg">
+                                            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 font-heading font-semibold text-lg">
                                             {isLoading ? (
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
@@ -255,7 +255,7 @@ const ForgotPassword = () => {
                                     </Button>
                                     <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap" className="flex-1">
                                         <Button type="submit"
-                                            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 font-bebas tracking-wide text-lg">
+                                            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 font-heading font-semibold text-lg">
                                             Verify Code
                                         </Button>
                                     </motion.div>
@@ -341,7 +341,7 @@ const ForgotPassword = () => {
                                     </Button>
                                     <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap" className="flex-1">
                                         <Button type="submit" disabled={!isPasswordFormValid || isLoading}
-                                            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 font-bebas tracking-wide text-lg">
+                                            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 font-heading font-semibold text-lg">
                                             {isLoading ? (
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />

@@ -28,7 +28,7 @@ const Pricing = () => {
           <Reveal variant="blurInUp">
             <MaskedTextReveal
               text="Flexible Pricing for RAAMP"
-              className="text-4xl md:text-5xl font-bold mb-4 font-bebas tracking-wide justify-center"
+              className="text-4xl md:text-5xl font-bold mb-4 font-heading font-semibold justify-center"
               tag="h2"
             />
           </Reveal>

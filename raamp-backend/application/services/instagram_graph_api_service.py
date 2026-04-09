@@ -475,7 +475,8 @@ class InstagramGraphAPIClient:
             url = f"{self.BASE_URL}/{hashtag_id}/recent_media"
             params = {
                 "user_id": ig_business_id,
-                "fields": "id,media_type,comments_count,like_count,timestamp",
+                # Include username/permalink for downstream "influencer radar" proxy.
+                "fields": "id,media_type,comments_count,like_count,timestamp,permalink,username",
                 "access_token": access_token,
                 "limit": limit
             }
@@ -488,6 +489,86 @@ class InstagramGraphAPIClient:
         except Exception as e:
             logger.warning(f"Failed to fetch recent media for hashtag {hashtag_id}: {e}")
             return []
+
+    async def fetch_trending_hashtags(self, user_id: str, seed_keywords: List[str]) -> List[str]:
+        """
+        Discover real Instagram hashtags from seed keywords.
+
+        For each seed keyword (capped to 5), we:
+        - call ig_hashtag_search (q=keyword, user_id=ig_business_id) to get a hashtag id
+        - call /{hashtag_id}?fields=name,media_count to confirm it exists
+        - collect the returned `name`
+
+        Errors are handled silently: any failing keyword is skipped.
+        """
+        if not isinstance(seed_keywords, list) or len(seed_keywords) == 0:
+            return []
+
+        keywords = [k for k in seed_keywords if isinstance(k, str) and k.strip()][:5]
+        if not keywords:
+            return []
+
+        results: List[str] = []
+
+        try:
+            access_token, ig_business_id = await self.get_access_token(user_id)
+        except Exception:
+            # Silent failure: treat as "no IG available" for this scan
+            return []
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            for raw_kw in keywords:
+                kw = (raw_kw or "").strip().replace("#", "")
+                if not kw:
+                    continue
+                try:
+                    # 1) Search hashtag id
+                    search_url = f"{self.BASE_URL}/ig_hashtag_search"
+                    search_params = {
+                        "user_id": ig_business_id,
+                        "q": kw,
+                        "access_token": access_token,
+                    }
+                    r = await client.get(search_url, params=search_params)
+                    if r.status_code != 200:
+                        continue
+                    data = (r.json() or {}).get("data", []) or []
+                    if not data or not isinstance(data, list):
+                        continue
+                    hashtag_id = (data[0] or {}).get("id")
+                    if not hashtag_id:
+                        continue
+
+                    # 2) Confirm hashtag exists (name/media_count)
+                    detail_url = f"{self.BASE_URL}/{hashtag_id}"
+                    detail_params = {
+                        "fields": "name,media_count",
+                        "access_token": access_token,
+                    }
+                    r2 = await client.get(detail_url, params=detail_params)
+                    if r2.status_code != 200:
+                        continue
+                    detail = r2.json() or {}
+                    name = (detail.get("name") or "").strip()
+                    if not name:
+                        continue
+
+                    results.append(name)
+                except Exception:
+                    # Silent skip per requirements
+                    continue
+
+        # Deduplicate (case-insensitive) while preserving order
+        seen = set()
+        deduped: List[str] = []
+        for n in results:
+            ln = n.lower()
+            if ln in seen:
+                continue
+            seen.add(ln)
+            deduped.append(n)
+
+        return deduped
     
     async def compute_keyword_engagement_score(self, user_id: str, keyword: str) -> Optional[Dict[str, Any]]:
         """

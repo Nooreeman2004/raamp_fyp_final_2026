@@ -16,10 +16,17 @@ class TrendWatchlistModel(Document):
     last_velocity: float = Field(default=0.0)
     last_saturation: float = Field(default=0.0)
     last_arbitrage_score: float = Field(default=0.0)
+    last_profit_score: float = Field(default=0.0)
     
     # Alert settings
     alert_on_spike: bool = Field(default=True, description="Whether to notify on velocity spikes")
     velocity_threshold: float = Field(default=5.0, description="σ threshold to trigger an alert")
+
+    alert_on_profit_score: bool = Field(default=True, description="Notify when profit/opportunity score crosses threshold")
+    profit_score_threshold: float = Field(default=75.0, description="Profit score threshold (0-100) to trigger alert")
+
+    alert_on_saturation_drop: bool = Field(default=False, description="Notify when saturation drops meaningfully (less competition)")
+    saturation_drop_threshold: float = Field(default=10.0, description="Drop amount (points) vs last_saturation to trigger alert")
     
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)

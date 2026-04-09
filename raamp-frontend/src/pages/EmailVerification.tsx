@@ -226,7 +226,7 @@ const EmailVerification = () => {
                             </div>
                             <Reveal variant="fadeInUp" delay={0.3}>
                                 <div className="space-y-2">
-                                    <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                    <h1 className="text-3xl font-bold font-heading font-semibold">
                                         <BlurText text="Email Verified!" />
                                     </h1>
                                     <p className="text-muted-foreground font-mono text-sm">
@@ -262,7 +262,7 @@ const EmailVerification = () => {
                             </Reveal>
                             <Reveal variant="blurInUp" delay={0.4}>
                                 <div className="space-y-2">
-                                    <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                    <h1 className="text-3xl font-bold font-heading font-semibold">
                                         <BlurText text="Verify Your Email" />
                                     </h1>
                                     <p className="text-muted-foreground font-mono text-sm">
@@ -328,7 +328,7 @@ const EmailVerification = () => {
                                 <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                                     <Button
                                         onClick={() => handleVerify(code.join(""))}
-                                        className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity font-bebas tracking-wide text-lg"
+                                        className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity font-heading font-semibold text-lg"
                                         disabled={isLoading || codeExpiry <= 0}
                                     >
                                         {isLoading ? (

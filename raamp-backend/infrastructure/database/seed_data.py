@@ -35,10 +35,10 @@ async def seed_business_domains():
     existing_count = await BusinessDomainModel.count()
     
     if existing_count == 0:
-        print("🌱 Seeding business domains...")
+        print("[INFO] Seeding business domains...")
         for domain_data in BUSINESS_DOMAINS:
             domain = BusinessDomainModel(**domain_data)
             await domain.insert()
-        print(f"✅ Seeded {len(BUSINESS_DOMAINS)} business domains")
+        print(f"[OK] Seeded {len(BUSINESS_DOMAINS)} business domains")
     else:
-        print(f"✓ Business domains already seeded ({existing_count} categories)")
+        print(f"[OK] Business domains already seeded ({existing_count} categories)")

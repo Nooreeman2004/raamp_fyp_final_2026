@@ -11,7 +11,7 @@ const statusBadgeVariants = cva(
                 success: "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
                 pending: "bg-amber-500/10 text-amber-500 border border-amber-500/20",
                 failed: "bg-red-500/10 text-red-500 border border-red-500/20",
-                processing: "bg-blue-500/10 text-blue-500 border border-blue-500/20",
+                processing: "bg-teal-500/10 text-teal-500 border border-teal-500/20",
                 neutral: "bg-gray-500/10 text-gray-500 border border-gray-500/20",
             },
         },

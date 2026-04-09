@@ -214,7 +214,7 @@ const BusinessSetup = () => {
                                 <Building2 className="w-7 h-7 text-primary" />
                             </div>
                             <div>
-                                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                <h1 className="text-3xl font-bold font-heading font-semibold">
                                     <BlurText text="Business Setup" />
                                 </h1>
                                 <p className="text-muted-foreground font-mono text-sm">
@@ -373,7 +373,7 @@ const BusinessSetup = () => {
                                         type="submit"
                                         disabled={isLoading || !isFormValid() || !isEditing}
                                         className={cn(
-                                            "font-bebas tracking-wide text-lg min-w-[150px]",
+                                            "font-heading font-semibold text-lg min-w-[150px]",
                                             (!isFormValid() || !isEditing) && "opacity-50 cursor-not-allowed grayscale"
                                         )}
                                     >

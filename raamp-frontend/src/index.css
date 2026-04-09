@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,44 +6,73 @@
 
 @layer base {
   :root {
-    /* Deep Teal Theme - Based on Reference */
-    --background: 210 40% 4%;
-    /* #020B14 - Very dark slate/teal */
-    --foreground: 210 20% 98%;
-    /* White/Off-white */
+    /* Light Mode Theme - Professional High Contrast */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
 
-    --card: 208 30% 8%;
-    /* #09151E - Slightly lighter dark teal */
-    --card-foreground: 210 20% 98%;
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 9%;
 
-    --popover: 208 30% 8%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
 
-    --primary: 176 100% 44%;
-    /* #00E0D0 - Neon Teal Accent */
-    --primary-foreground: 210 40% 4%;
-    /* Dark text on teal */
+    --primary: 176 67% 31%; /* Professional Teal - better contrast than before */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 20% 15%;
-    /* Muted dark blue */
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 0 0% 92%; /* Slightly cooler gray */
+    --secondary-foreground: 0 0% 20%;
 
-    --muted: 210 20% 15%;
-    --muted-foreground: 210 15% 60%;
-    /* Slate grey text */
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 35%;
 
-    --accent: 176 100% 44%;
-    --accent-foreground: 210 40% 4%;
+    --accent: 176 100% 38%; /* Slightly darker neon teal for better readability */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 210 20% 12%;
-    /* Subtle border */
-    --input: 210 20% 12%;
-    --ring: 176 100% 44%;
+    --border: 0 0% 82%;
+    --input: 0 0% 88%;
+    --ring: 176 67% 31%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
+    
+    /* Custom Shadows for Light Mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.08);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.12), 0 2px 4px -2px rgb(0 0 0 / 0.08);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.12), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.12), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+  }
+
+  .dark {
+    /* Professional Dark Theme */
+    --background: 0 0% 3%; /* Pure Black (darker) */
+    --foreground: 0 0% 97%; /* White/Off-white */
+
+    --card: 0 0% 8%; /* Subtle card background */
+    --card-foreground: 0 0% 97%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 97%;
+
+    --primary: 176 85% 38%; /* Consistent Teal Accent */
+    --primary-foreground: 0 0% 3%; /* Dark text on teal */
+
+    --secondary: 0 0% 14%; /* Neutral dark */
+    --secondary-foreground: 0 0% 97%;
+
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 65%; /* Neutral gray text */
+
+    --accent: 176 100% 44%; /* Neon Teal */
+    --accent-foreground: 0 0% 3%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 18%; /* More visible border */
+    --input: 0 0% 18%;
+    --ring: 176 85% 38%;
   }
 }
 
@@ -77,21 +106,7 @@
   background: hsl(var(--primary));
 }
 
-/* Lightweight Noise Overlay - Improved Performance */
-.noise-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.03;
-  /* Using a static noise image is significantly faster for the GPU than SVG feTurbulence */
-  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
-  background-size: 200px 200px;
-  mix-blend-mode: overlay;
-}
+/* Noise overlay removed (external URL caused 403) */
 
 @layer utilities {
   .animate-meteor-effect {
@@ -100,6 +115,19 @@
 
   .animate-aurora {
     animation: aurora 60s linear infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 

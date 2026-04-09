@@ -283,6 +283,19 @@ async def upload_media(
             detail=f"File upload failed: {str(e)}"
         )
 
+def _public_asset_url(asset: AssetModel) -> str:
+    """Prefer CDN URLs; resolve relative API paths against BACKEND_URL."""
+    raw = asset.cloudinary_url or asset.firebase_url or asset.storage_url or ""
+    if not raw:
+        return ""
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+    if raw.startswith("/"):
+        base = settings.BACKEND_URL.rstrip("/")
+        return f"{base}{raw}"
+    return raw
+
+
 @router.get("/media", response_model=MediaAssetsResponse)
 async def get_media_assets(
     current_user_email: str = Depends(get_current_user_email),
@@ -290,26 +303,60 @@ async def get_media_assets(
     asset_type: Optional[str] = Query(None, regex="^(image|video)$")
 ):
     """
-    Get media assets from Creative Studio.
-    Returns generated images/videos that can be used for posting.
-    
-    TODO: This is a placeholder. Implement actual storage/retrieval from:
-    - uploaded_files/content_generated/ directory
-    - Or a proper asset management system
+    List media assets for the current user from the assets collection (AI-generated and uploads).
+    URLs prefer Cloudinary/Firebase; local `storage_url` paths are prefixed with BACKEND_URL.
     """
     try:
-        # TODO: Implement actual asset retrieval
-        # For now, return empty list as placeholder
-        logger.info(f"Fetching media assets for user: {current_user_email}, type: {asset_type}")
-        
-        # Placeholder response - implement actual storage integration
-        return MediaAssetsResponse(
-            assets=[],
-            total=0
+        logger.info("Fetching media assets for user: %s, type: %s", current_user_email, asset_type)
+
+        if asset_type == "image":
+            type_filter = [AssetType.GENERATED_IMAGE, AssetType.UPLOADED_IMAGE]
+        elif asset_type == "video":
+            type_filter = [AssetType.GENERATED_VIDEO, AssetType.GENERATED_REEL, AssetType.UPLOADED_VIDEO]
+        else:
+            type_filter = [
+                AssetType.GENERATED_IMAGE,
+                AssetType.UPLOADED_IMAGE,
+                AssetType.GENERATED_VIDEO,
+                AssetType.GENERATED_REEL,
+                AssetType.UPLOADED_VIDEO,
+            ]
+
+        rows = await asset_repository.get_by_user_id(
+            user_id=current_user_email,
+            limit=limit,
+            asset_types=type_filter,
         )
-    
+
+        assets: List[MediaAsset] = []
+        for a in rows:
+            url = _public_asset_url(a)
+            if not url:
+                continue
+            kind = "video" if a.asset_type in (
+                AssetType.GENERATED_VIDEO,
+                AssetType.GENERATED_REEL,
+                AssetType.UPLOADED_VIDEO,
+            ) else "image"
+            gp = (a.generation_prompt or "")[:80] if a.generation_prompt else ""
+            title = a.file_name or gp or "Media"
+            assets.append(
+                MediaAsset(
+                    id=a.asset_id,
+                    url=url,
+                    type=kind,
+                    title=title,
+                    created_at=a.created_at.isoformat() if a.created_at else datetime.utcnow().isoformat(),
+                    width=a.width,
+                    height=a.height,
+                    size_bytes=a.file_size_bytes,
+                )
+            )
+
+        return MediaAssetsResponse(assets=assets, total=len(assets))
+
     except Exception as e:
-        logger.exception(f"Error fetching media assets: {e}")
+        logger.exception("Error fetching media assets: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve media assets"

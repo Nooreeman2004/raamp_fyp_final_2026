@@ -11,6 +11,14 @@ const getAuthToken = (): string | null => {
 };
 
 // TypeScript interfaces matching backend schemas
+export interface MLScore {
+    engagement_rate: number;
+    score_label: string;
+    confidence: string;
+    feature_importances: Record<string, number>;
+    model_available: boolean;
+}
+
 export interface ContentVariant {
     id: number;
     caption_id?: string;  // Caption ID for usage tracking
@@ -18,6 +26,8 @@ export interface ContentVariant {
     caption: string;
     hashtags: string[];
     predicted_performance?: string;
+    ml_score?: MLScore;
+    hashtag_source?: string;
 }
 
 export interface MessageVariant {
@@ -26,6 +36,7 @@ export interface MessageVariant {
     tone: string;
     message: string;
     predicted_performance?: string;
+    ml_score?: MLScore;
 }
 
 export interface BrandContext {

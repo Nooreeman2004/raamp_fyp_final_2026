@@ -45,7 +45,7 @@ const HowItWorks = () => {
                 {/* Header with Blur Effect */}
                 <div className="text-center mb-16 flex flex-col items-center">
                     <Reveal variant="blurInUp">
-                        <h2 className="text-4xl md:text-5xl font-bold mb-4 font-bebas tracking-wide flex flex-col items-center gap-2">
+                        <h2 className="text-4xl md:text-5xl font-bold mb-4 font-heading font-semibold flex flex-col items-center gap-2">
                             <span>How RAAMP Works:</span>
                             <span className="text-primary">The Autonomous Optimization Loop</span>
                         </h2>
@@ -59,7 +59,7 @@ const HowItWorks = () => {
                     <div className="absolute top-1/2 left-0 w-full -translate-y-1/2 pointer-events-none z-20 hidden md:block h-24">
                         <div className="relative w-full h-full flex items-center">
                             {/* Static Track (Dashed Line) - Visible between start and end points */}
-                            <div className="absolute left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-white/10 to-transparent border-t border-dashed border-white/20" />
+                            <div className="absolute left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-white/10 to-transparent border-t border-dashed border-border/80" />
 
                             {/* Moving Arrow Projectile */}
                             <motion.div
@@ -67,7 +67,7 @@ const HowItWorks = () => {
                                 style={{ left: x, opacity }}
                             >
                                 {/* The Head (Arrow) */}
-                                <div className="relative z-10 bg-black p-3 rounded-full border border-primary shadow-[0_0_30px_#00E0D0] -translate-x-1/2">
+                                <div className="relative z-10 bg-background p-3 rounded-full border border-primary shadow-[0_0_30px_#00E0D0] -translate-x-1/2">
                                     <ArrowRight className="w-6 h-6 text-primary" />
                                 </div>
 
@@ -87,7 +87,7 @@ const HowItWorks = () => {
                         {steps.map((step, index) => (
                             <div key={index} className="h-[400px] relative group">
                                 {/* Card Background */}
-                                <div className="absolute inset-0 bg-black/40 backdrop-blur-md rounded-xl border border-white/5 z-0" />
+                                <div className="absolute inset-0 bg-card backdrop-blur-md rounded-xl border border-border z-0" />
 
                                 {/* The Card Content */}
                                 <Ultra3DCard

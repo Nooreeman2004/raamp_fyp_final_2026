@@ -28,9 +28,9 @@ export function CommandMenu() {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="p-0 overflow-hidden bg-black/80 backdrop-blur-xl border-white/10 shadow-2xl max-w-2xl">
-                <Command className="bg-transparent text-white">
-                    <div className="flex items-center border-b border-white/10 px-4" cmdk-input-wrapper="">
+            <DialogContent className="p-0 overflow-hidden bg-background/80 backdrop-blur-xl border-border/50 shadow-2xl max-w-2xl">
+                <Command className="bg-transparent text-foreground">
+                    <div className="flex items-center border-b border-border/50 px-4" cmdk-input-wrapper="">
                         <Search className="mr-2 h-5 w-5 shrink-0 opacity-50" />
                         <Command.Input
                             placeholder="Type a command or search..."
@@ -45,47 +45,47 @@ export function CommandMenu() {
                         <Command.Group heading="Navigation" className="text-xs font-medium text-muted-foreground px-2 py-1.5">
                             <Command.Item
                                 onSelect={() => runCommand(() => navigate("/dashboard"))}
-                                className="flex items-center px-2 py-2 rounded-md hover:bg-white/10 cursor-pointer transition-colors text-sm text-white"
+                                className="flex items-center px-2 py-2 rounded-md hover:bg-foreground/10 cursor-pointer transition-colors text-sm text-foreground"
                             >
                                 <LayoutDashboard className="mr-2 h-4 w-4" />
                                 <span>Dashboard</span>
                             </Command.Item>
                             <Command.Item
                                 onSelect={() => runCommand(() => navigate("/profile/user"))}
-                                className="flex items-center px-2 py-2 rounded-md hover:bg-white/10 cursor-pointer transition-colors text-sm text-white"
+                                className="flex items-center px-2 py-2 rounded-md hover:bg-foreground/10 cursor-pointer transition-colors text-sm text-foreground"
                             >
                                 <User className="mr-2 h-4 w-4" />
                                 <span>Profile</span>
                             </Command.Item>
                             <Command.Item
                                 onSelect={() => runCommand(() => navigate("/brand-settings"))}
-                                className="flex items-center px-2 py-2 rounded-md hover:bg-white/10 cursor-pointer transition-colors text-sm text-white"
+                                className="flex items-center px-2 py-2 rounded-md hover:bg-foreground/10 cursor-pointer transition-colors text-sm text-foreground"
                             >
                                 <Briefcase className="mr-2 h-4 w-4" />
                                 <span>Brand Settings</span>
                             </Command.Item>
                             <Command.Item
                                 onSelect={() => runCommand(() => navigate("/pricing"))}
-                                className="flex items-center px-2 py-2 rounded-md hover:bg-white/10 cursor-pointer transition-colors text-sm text-white"
+                                className="flex items-center px-2 py-2 rounded-md hover:bg-foreground/10 cursor-pointer transition-colors text-sm text-foreground"
                             >
                                 <CreditCard className="mr-2 h-4 w-4" />
                                 <span>Pricing</span>
                             </Command.Item>
                         </Command.Group>
 
-                        <Command.Separator className="my-1 h-px bg-white/10" />
+                        <Command.Separator className="my-1 h-px bg-foreground/10" />
 
                         <Command.Group heading="System" className="text-xs font-medium text-muted-foreground px-2 py-1.5">
                             <Command.Item
                                 onSelect={() => runCommand(() => navigate("/settings"))}
-                                className="flex items-center px-2 py-2 rounded-md hover:bg-white/10 cursor-pointer transition-colors text-sm text-white"
+                                className="flex items-center px-2 py-2 rounded-md hover:bg-foreground/10 cursor-pointer transition-colors text-sm text-foreground"
                             >
                                 <Settings className="mr-2 h-4 w-4" />
                                 <span>Settings</span>
                             </Command.Item>
                             <Command.Item
                                 onSelect={() => runCommand(() => console.log("Logout"))}
-                                className="flex items-center px-2 py-2 rounded-md hover:bg-white/10 cursor-pointer transition-colors text-sm text-white"
+                                className="flex items-center px-2 py-2 rounded-md hover:bg-foreground/10 cursor-pointer transition-colors text-sm text-foreground"
                             >
                                 <LogOut className="mr-2 h-4 w-4" />
                                 <span>Sign Out</span>
@@ -93,14 +93,14 @@ export function CommandMenu() {
                         </Command.Group>
                     </Command.List>
 
-                    <div className="border-t border-white/10 px-4 py-2 text-xs text-muted-foreground flex justify-between items-center bg-white/5">
+                    <div className="border-t border-border/50 px-4 py-2 text-xs text-muted-foreground flex justify-between items-center bg-foreground/5">
                         <span>Search for anything...</span>
                         <div className="flex gap-2">
-                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-white/10 bg-white/5 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-foreground/5 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                                 <span className="text-xs">↑</span>
                                 <span className="text-xs">↓</span>
                             </kbd>
-                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-white/10 bg-white/5 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-foreground/5 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                                 <span className="text-xs">↵</span>
                             </kbd>
                         </div>

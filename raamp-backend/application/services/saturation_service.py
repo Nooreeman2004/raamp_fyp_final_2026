@@ -220,14 +220,24 @@ class SaturationService:
                     # Fallback if all retries failed
                     is_real = status == "success" and count > 0
                     if not is_real:
-                        import random
-                        base_competition = interest * 10000 
-                        noise = random.uniform(0.5, 2.0)
-                        count = int(base_competition * noise)
-                        ads = random.randint(0, 3)
-                        logger.warning("🔄 BATCH: Using simulation fallback for '%s' after %d failed attempts", 
-                                     keyword, max_retries)
-                
+                        # Fail-closed: do not fabricate SERP counts or ad estimates.
+                        logger.warning(
+                            "Saturation scrape failed for '%s' after %d attempts; returning unavailable saturation.",
+                            keyword,
+                            max_retries,
+                        )
+                        results.append(
+                            {
+                                "keyword": keyword,
+                                "serp_count": 0,
+                                "ad_count": 0,
+                                "saturation_score": None,
+                                "ad_density": "UNKNOWN",
+                                "is_real_data": False,
+                            }
+                        )
+                        continue
+
                     score = self.calculate_saturation_score(interest, count, ads)
                     
                     results.append({
@@ -246,35 +256,21 @@ class SaturationService:
             
         except (NotImplementedError, RuntimeError, Exception) as e:
             # Playwright failed (common on Windows with certain async loops)
-            logger.warning("Playwright initialization failed: %s. Using proxy saturation scores.", str(e))
-            
-            # Fallback: Generate proxy scores based on search interest
+            logger.warning("Playwright initialization failed: %s. Returning unavailable saturation scores.", str(e))
+            # Fail-closed: do not generate proxy saturation based on interest.
             for trend in trends:
                 keyword = trend.get("keyword")
-                interest = trend.get("interest", 50)
                 
                 if not keyword:
                     continue
-                
-                # Proxy saturation: Higher interest suggests higher saturation
-                # Interest 0-30 = Low saturation (20-40)
-                # Interest 30-70 = Medium saturation (40-70)
-                # Interest 70-100 = High saturation (70-90)
-                if interest < 30:
-                    proxy_score = 20 + (interest * 0.67)  # 20-40 range
-                elif interest < 70:
-                    proxy_score = 40 + ((interest - 30) * 0.75)  # 40-70 range
-                else:
-                    proxy_score = 70 + ((interest - 70) * 0.67)  # 70-90 range
-                
+
                 results.append({
                     "keyword": keyword,
                     "serp_count": 0,
                     "ad_count": 0,
-                    "saturation_score": round(proxy_score, 2),
+                    "saturation_score": None,
                     "ad_density": "UNKNOWN",
                     "is_real_data": False
                 })
-                
-            logger.info("BATCH COMPLETE (PROXY): Generated %d proxy saturation scores.", len(results))
+            logger.info("BATCH COMPLETE (UNAVAILABLE): Returned %d unavailable saturation scores.", len(results))
             return results

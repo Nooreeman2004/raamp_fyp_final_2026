@@ -50,6 +50,7 @@ class UserModel(Document):
     subscriptionEndDate: Optional[datetime] = None
     stripeCustomerId: Optional[str] = None
     stripeSubscriptionId: Optional[str] = None
+    last_credit_reset_at: Optional[datetime] = None
     subscriptionStatus: str = "inactive"  # inactive, active, canceled, past_due
     cancelAtPeriodEnd: bool = False
     currentPeriodEnd: Optional[datetime] = None

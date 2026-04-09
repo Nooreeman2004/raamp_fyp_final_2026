@@ -1,3 +1,5 @@
+__test__ = False  # pytest: this is a manual smoke script (imports full app)
+
 from fastapi.testclient import TestClient
 from main import app
 from presentation.routers.auth_router import get_current_user_email

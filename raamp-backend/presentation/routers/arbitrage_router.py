@@ -34,7 +34,11 @@ async def get_recommendations(
     Generate top 3 marketing campaign recommendations based on provided trend signals.
     """
     try:
-        recommendations = await service.generate_recommendations(trend_signals, user_profile)
+        recommendations = await service.generate_recommendations(
+            trend_signals,
+            user_profile,
+            user_email=current_user_email,
+        )
         return recommendations
     except Exception as e:
         logger.error(f"Error in arbitrage recommendations API: {str(e)}")

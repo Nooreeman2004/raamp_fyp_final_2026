@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useAuth } from './useAuth';
 
 export interface OnboardingStep {
@@ -53,7 +53,20 @@ export const useOnboardingStatus = () => {
 
     // Find the first incomplete step
     const nextStep = steps.find((step) => !step.isCompleted);
-    const isFullyOnboarded = !nextStep;
+    
+    // BACK-BUTTON RESISTANT: Cache completion status in localStorage
+    const isCompletedInCache = localStorage.getItem('raamp_onboarded') === 'true';
+    const isFullyOnboarded = isCompletedInCache || !nextStep;
+
+    useEffect(() => {
+        if (!nextStep && !isCompletedInCache) {
+            localStorage.setItem('raamp_onboarded', 'true');
+        }
+        // If user logged out or profile removed, clear cache (handled in useAuth typically, but can check user here)
+        if (!user && isCompletedInCache) {
+            localStorage.removeItem('raamp_onboarded');
+        }
+    }, [nextStep, user, isCompletedInCache]);
 
     return {
         status: currentStatus,

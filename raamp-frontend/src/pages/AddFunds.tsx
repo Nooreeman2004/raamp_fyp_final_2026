@@ -80,7 +80,7 @@ const AddFunds = () => {
                 {/* Header */}
                 <Reveal variant="blurInUp">
                     <div>
-                        <h1 className="text-4xl font-bold mb-2 font-bebas tracking-wide">
+                        <h1 className="text-4xl font-bold mb-2 font-heading font-semibold">
                             <BlurText text="Add Funds to Wallet" />
                         </h1>
                         <p className="text-muted-foreground font-mono text-sm">
@@ -92,7 +92,7 @@ const AddFunds = () => {
                 {/* Current Wallet Balance */}
                 <Reveal variant="fadeInUp" delay={0.2}>
                     <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10">
-                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-bebas tracking-wide">
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-heading font-semibold">
                             <TrendingUp className="w-5 h-5 text-primary" />
                             Current Wallet Balance
                         </h2>
@@ -110,7 +110,7 @@ const AddFunds = () => {
                 {/* Select or Enter Amount */}
                 <Reveal variant="fadeInUp" delay={0.3}>
                     <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10">
-                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-bebas tracking-wide">
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-heading font-semibold">
                             <DollarSign className="w-5 h-5 text-primary" />
                             Select or Enter Amount
                         </h2>
@@ -179,7 +179,7 @@ const AddFunds = () => {
                 {/* Checkout */}
                 <Reveal variant="fadeInUp" delay={0.4}>
                     <Card className="p-6 card-shadow bg-card/70 backdrop-blur-sm border-primary/10">
-                        <h2 className="text-xl font-bold mb-4 font-bebas tracking-wide">Proceed to Payment</h2>
+                        <h2 className="text-xl font-bold mb-4 font-heading font-semibold">Proceed to Payment</h2>
                         <p className="text-sm text-muted-foreground mb-6 font-mono">
                             You'll be redirected to Stripe's secure checkout to complete the payment
                         </p>
@@ -205,7 +205,7 @@ const AddFunds = () => {
                             <Button
                                 variant="hero"
                                 size="lg"
-                                className="w-full font-bebas tracking-wide text-lg"
+                                className="w-full font-heading font-semibold text-lg"
                                 onClick={handleProcessPayment}
                                 disabled={processing || (selectedAmount || customAmount[0]) <= 0}
                             >

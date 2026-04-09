@@ -28,16 +28,20 @@ export const NumberTicker = ({
         }
     }, [motionValue, isInView, delay, value, direction]);
 
-    useEffect(() => {
-        springValue.on("change", (latest) => {
-            if (ref.current) {
-                ref.current.textContent = Intl.NumberFormat("en-US", {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                }).format(Number(latest.toFixed(0)));
-            }
-        });
-    }, [springValue]);
+  useEffect(() => {
+    return springValue.on("change", (latest) => {
+      if (ref.current) {
+        if (typeof value === "number" && !isNaN(value)) {
+          ref.current.textContent = Intl.NumberFormat("en-US", {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(Number(latest.toFixed(0)));
+        } else {
+          ref.current.textContent = "-";
+        }
+      }
+    });
+  }, [springValue, value]);
 
-    return <span className={className} ref={ref} />;
+  return <span className={className} ref={ref}>{typeof value === "number" && !isNaN(value) ? "0" : "-"}</span>;
 };

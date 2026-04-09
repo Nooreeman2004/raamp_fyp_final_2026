@@ -126,7 +126,7 @@ const NotificationPreferences = () => {
                 <Bell className="w-7 h-7 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                <h1 className="text-3xl font-bold font-heading font-semibold">
                   <BlurText text="Notification Preferences" />
                 </h1>
                 <p className="text-muted-foreground font-mono text-sm">Choose how you want to be notified</p>
@@ -155,7 +155,7 @@ const NotificationPreferences = () => {
           <>
             <Reveal variant="fadeInUp" delay={0.1}>
               <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10">
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-bebas tracking-wide">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-heading font-semibold">
                   <Mail className="w-5 h-5 text-primary" />
                   Communication Channels
                 </h2>
@@ -214,7 +214,7 @@ const NotificationPreferences = () => {
 
             <Reveal variant="fadeInUp" delay={0.2}>
               <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10">
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-bebas tracking-wide">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-heading font-semibold">
                   <MessageSquare className="w-5 h-5 text-primary" />
                   Alert Types
                 </h2>

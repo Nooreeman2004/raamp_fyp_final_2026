@@ -70,3 +70,16 @@ class ChatRepository(IChatRepository):
             await session.save()
             return True
         return False
+
+    async def link_trend(self, session_id: str, trend_id: str) -> bool:
+        """Link a trend ID to the session"""
+        session = await ChatSessionModel.find_one(ChatSessionModel.session_id == session_id)
+        if session:
+            if not hasattr(session, 'trend_ids'):
+                session.trend_ids = []
+            if trend_id not in session.trend_ids:
+                session.trend_ids.append(trend_id)
+                session.last_activity = datetime.utcnow()
+                await session.save()
+            return True
+        return False

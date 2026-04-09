@@ -123,3 +123,5 @@ settings.local.py
 ehthumbs.db
 Thumbs.db
 
+tasks/todo.md
+tasks/lessons.md

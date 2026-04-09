@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
@@ -16,42 +16,43 @@ import {
   PieChart,
   ArrowRight,
   RefreshCw,
+  ShieldCheck,
+  AlertTriangle,
+  Radio,
   DollarSign as DollarSignIcon
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { HolographicCard } from "@/components/ui/holographic-card";
-import { BlurText } from "@/components/ui/text-reveal";
 import { MaskedTextReveal } from "@/components/ui/masked-text-reveal";
 import { MagneticButton } from "@/components/ui/magnetic-button";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { authService } from "@/services/authService";
 import { businessService } from "@/services/businessService";
+import { dashboardService, type DashboardSummary, type ConversionPing } from "@/services/dashboardService";
 import type { UserResponse } from "@/types";
 import GoogleMap from "@/components/GoogleMap";
 import { CardSkeleton, ChartSkeleton } from "@/components/ui/card-skeleton";
-
-// Mock Data
-const performanceData = [
-  { name: "Mon", value: 4000 },
-  { name: "Tue", value: 3000 },
-  { name: "Wed", value: 5000 },
-  { name: "Thu", value: 2780 },
-  { name: "Fri", value: 1890 },
-  { name: "Sat", value: 2390 },
-  { name: "Sun", value: 3490 },
-];
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
+import { ActionableIntelligence } from "@/components/dashboard/ActionableIntelligence";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { instagramService } from "@/services/instagramService";
 
 type MapLocation = {
   lat: number;
   lng: number;
   name?: string;
   address?: string;
+  type?: 'home' | 'ping';
+  revenue?: number;
 };
 
 const Dashboard = () => {
   const [user, setUser] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<DashboardSummary | null>(null);
+  const [livePings, setLivePings] = useState<MapLocation[]>([]);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({
     lat: 24.8607,
     lng: 67.0011,
@@ -61,312 +62,370 @@ const Dashboard = () => {
     return localStorage.getItem("dashboard_time_range") || "Last 7 Days";
   });
 
+  const [revenueFlash, setRevenueFlash] = useState(false);
+  const [igBusinessId, setIgBusinessId] = useState<string | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+
   useEffect(() => {
     localStorage.setItem("dashboard_time_range", timeRange);
   }, [timeRange]);
 
+  // Initial Data Fetch
   useEffect(() => {
-    const fetchUser = async () => {
+    const initDashboard = async () => {
       try {
-        const userData = await authService.getProfile();
+        const [userData, summaryDataResult, hyperlocalData] = await Promise.all([
+          authService.getProfile(),
+          dashboardService.getSummary().catch(err => {
+            console.warn("Dashboard: Summary fetch failed, using zero-state fallback.", err);
+            return null;
+          }),
+          businessService.getHyperlocalSetup().catch(() => null)
+        ]);
+
         setUser(userData);
+
+        // Use default Zero-State if summary fetch fails
+        const defaultSummary: DashboardSummary = {
+          kpis: [
+            { label: "Total Revenue", value: 0, prefix: "$", change: "STARTING", trend: "neutral", icon_type: "revenue" },
+            { label: "Social Footprint", value: 0, suffix: " Posts", change: "WAITING", trend: "neutral", icon_type: "social" },
+            { label: "Market Intelligence", value: 0, change: "SCANNING", trend: "neutral", icon_type: "trends" },
+            { label: "Asset Storage", value: 0, suffix: " Files", change: "SYNCED", trend: "up", icon_type: "assets" }
+          ],
+          recent_pings: [],
+          campaign_health: [],
+          strategic_insights: [
+            { id: "s-1", type: "suggestion", title: "Strategy Setup", message: "Initialize your first Regional Heat Signal to see live causal insights.", impact: "Initialization", color: "emerald" }
+          ],
+          top_regions: [],
+          deployment_timeline: [],
+          posting_cadence: [
+            { day: "Mon", posts: 0 }, { day: "Tue", posts: 0 }, { day: "Wed", posts: 0 },
+            { day: "Thu", posts: 0 }, { day: "Fri", posts: 0 }, { day: "Sat", posts: 0 }, { day: "Sun", posts: 0 }
+          ],
+          last_updated: new Date().toISOString()
+        };
+
+        setAnalytics(summaryDataResult || defaultSummary);
+
+        if (hyperlocalData && hyperlocalData.latitude && hyperlocalData.longitude) {
+          const base = { lat: hyperlocalData.latitude, lng: hyperlocalData.longitude };
+          setMapCenter(base);
+          setMapLocations([
+            {
+              lat: base.lat,
+              lng: base.lng,
+              name: hyperlocalData.business_name || "Headquarters",
+              address: hyperlocalData.formatted_address,
+              type: 'home'
+            }
+          ]);
+        }
       } catch (error) {
-        console.error("Failed to fetch user", error);
+        console.error("Dashboard: Initialization failed", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchUser();
+    initDashboard();
   }, []);
 
+  // Fetch IG Business ID for analytics
   useEffect(() => {
-    const fetchHyperlocalLocation = async () => {
-      try {
-        const data = await businessService.getHyperlocalSetup();
-        console.log('Dashboard: Fetched hyperlocal setup:', data);
-
-        if (data && typeof data.latitude === "number" && typeof data.longitude === "number" && data.latitude !== 0 && data.longitude !== 0) {
-          const base = { lat: data.latitude, lng: data.longitude };
-          console.log('Dashboard: Setting map center to:', base);
-          setMapCenter(base);
-
-          const businessName = data.business_name || "Your Business Location";
-          const address = data.formatted_address || undefined;
-
-          // Single red pin at the saved business location
-          setMapLocations([
-            { lat: base.lat, lng: base.lng, name: businessName, address },
-          ]);
-          console.log('Dashboard: Set map location with marker');
-        } else {
-          console.log('Dashboard: No valid location data found');
-        }
-      } catch (error: any) {
-        // 404 is expected when no location setup exists yet
-        if (error?.status !== 404 && error?.response?.status !== 404) {
-          console.error("Failed to fetch hyperlocal setup", error);
-        } else {
-          console.log('Dashboard: No hyperlocal setup found (404 - this is expected for new users)');
-        }
+    instagramService.getConnectionStatus().then(status => {
+      if (status.connected && status.ig_business_id) {
+        setIgBusinessId(status.ig_business_id);
       }
+    });
+  }, []);
+
+  const activeBusinessId = igBusinessId || user?.email || "";
+
+  // WebSocket for Real-time Updates
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const connectSocket = () => {
+      const ws = dashboardService.getRealtimeSocket(token);
+      socketRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+
+          if (payload.type === "CONVERSION_PING") {
+            const data: ConversionPing = payload.data;
+
+            setRevenueFlash(true);
+            setTimeout(() => setRevenueFlash(false), 1000);
+
+            setAnalytics(prev => {
+              if (!prev) return prev;
+              const newKpis = [...prev.kpis];
+              // First KPI is usually Revenue
+              if (newKpis[0]) {
+                newKpis[0] = { ...newKpis[0], value: newKpis[0].value + data.revenue };
+              }
+              return { ...prev, kpis: newKpis };
+            });
+
+            // 3. Add temporary map ping
+            const newPing: MapLocation = {
+              lat: data.latitude,
+              lng: data.longitude,
+              name: `Conversion: $${data.revenue}`,
+              type: 'ping',
+              revenue: data.revenue
+            };
+
+            setLivePings(prev => [newPing, ...prev].slice(0, 10)); // Keep last 10
+          }
+        } catch (e) {
+          console.error("Dashboard WS: Error processing message", e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("Dashboard WS: Closed. Reconnecting in 5s...");
+        setTimeout(connectSocket, 5000);
+      };
     };
 
-    fetchHyperlocalLocation();
+    connectSocket();
+
+    return () => {
+      if (socketRef.current) socketRef.current.close();
+    };
   }, []);
+
+  const combinedLocations = [...mapLocations, ...livePings];
 
   const container = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.05 // Tightened from 0.1
+        staggerChildren: 0.1
       }
     }
   };
 
   const item = {
-    hidden: { opacity: 0, y: 10 }, // Reduced y offset for snappier feel
-    show: { opacity: 1, y: 0 }
+    hidden: { opacity: 0, scale: 0.95 },
+    show: { opacity: 1, scale: 1 }
   };
 
   return (
     <Layout>
-      <div className="space-y-8">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <MaskedTextReveal
-              text={`Welcome back, ${user?.first_name || "Commander"}`}
-              className="text-3xl font-bold tracking-tight text-white"
-              tag="h1"
-            />
-            <p className="text-muted-foreground mt-1">
-              Here's what's happening with your campaigns today.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="relative min-h-screen bg-background overflow-hidden -m-6 p-6">
+        {/* Advanced Mesh Background */}
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/15 dark:bg-primary/10 rounded-full blur-[160px] animate-pulse" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] bg-teal-500/10 dark:bg-indigo-500/10 rounded-full blur-[180px]" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-teal-600/15 dark:bg-teal-600/10 rounded-full blur-[160px] animate-pulse [animation-delay:2s]" />
+        </div>
+
+        <div className="relative z-10 space-y-8 max-w-[1700px] mx-auto">
+          {/* Refined Header Area */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-1">
+              <h1 className="text-4xl md:text-6xl font-black text-foreground tracking-tighter font-heading leading-tight translate-x-[-2px]">
+                Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-cyan-400 to-indigo-500">{user?.first_name || "Agent"}</span>
+              </h1>
+
+              <div className="flex flex-wrap items-center gap-4 mt-4">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 dark:bg-muted/30 border border-primary/20 dark:border-border rounded-full backdrop-blur-xl shadow-inner">
+                  <span className="relative flex h-2 w-2">
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary shadow-[0_0_8px_hsl(var(--primary))]"></span>
+                  </span>
+                  <p className="text-primary dark:text-muted-foreground text-[10px] font-mono uppercase tracking-[0.2em] font-bold">
+                    Intelligence Stream Active
+                  </p>
+                </div>
+                <div className="hidden sm:block h-4 w-[1px] bg-border/50" />
+                <p className="text-muted-foreground dark:text-muted-foreground/40 text-[9px] font-mono uppercase tracking-[0.3em] font-medium italic">
+                  Analyzing Real-Time Market Signals
+                </p>
+              </div>
+            </div>
+
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => {
                 setLoading(true);
-                // Trigger re-fetches
-                authService.getProfile().then(setUser);
-                businessService.getHyperlocalSetup().then(data => {
-                  if (data && typeof data.latitude === "number" && typeof data.longitude === "number" && data.latitude !== 0 && data.longitude !== 0) {
-                    const base = { lat: data.latitude, lng: data.longitude };
-                    setMapCenter(base);
-                    setMapLocations([{ lat: base.lat, lng: base.lng, name: data.business_name || "Business", address: data.formatted_address }]);
-                  }
-                }).finally(() => setLoading(false));
+                dashboardService.getSummary().then(setAnalytics).finally(() => setLoading(false));
               }}
-              className="bg-black/40 border-white/10 hover:border-primary/50 text-white gap-2 font-mono h-11"
+              className="bg-background dark:bg-card/20 border-border/50 hover:border-primary/50 text-foreground w-14 h-14 rounded-2xl group transition-all relative overflow-hidden backdrop-blur-3xl shadow-lg dark:shadow-xl"
+              title="Refresh Dashboard"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">REFRESH</span>
+              <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <RefreshCw className={`w-5 h-5 transition-transform group-hover:rotate-180 relative z-10 ${loading ? 'animate-spin' : ''}`} />
             </Button>
-
-            <MagneticButton
-              onClick={() => {
-                const nextRange = timeRange === "Last 7 Days" ? "Last 30 Days" : "Last 7 Days";
-                setTimeRange(nextRange);
-              }}
-              className="px-4 py-2 border border-white/10 text-white hover:bg-white/5 bg-transparent h-11 font-mono text-sm"
-            >
-              {timeRange}
-            </MagneticButton>
-
-            <MagneticButton className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(0,224,208,0.3)] h-11 font-bebas text-lg tracking-wide">
-              <Zap className="w-4 h-4 mr-2" />
-              Quick Action
-            </MagneticButton>
           </div>
-        </div>
 
-        {/* Metrics Grid */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
-        >
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <motion.div key={i} variants={item}>
-                <CardSkeleton />
-              </motion.div>
-            ))
-          ) : (
-            [
-              { title: "Total Revenue", value: 45231, prefix: "$", change: "+20.1%", icon: DollarSignIcon, trend: "up" },
-              { title: "Active Campaigns", value: 12, change: "+3", icon: Activity, trend: "up" },
-              { title: "Total Leads", value: 573, change: "+12.5%", icon: Users, trend: "up" },
-              { title: "Avg. CPC", value: 1.24, prefix: "$", change: "-4.3%", icon: Target, trend: "down" },
-            ].map((metric, i) => (
-              <motion.div key={i} variants={item}>
-                <HolographicCard className="p-6">
-                  <div className="flex items-center justify-between space-y-0 pb-2">
-                    <p className="text-sm font-medium text-muted-foreground">{metric.title}</p>
-                    <metric.icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex items-baseline justify-between pt-2">
-                    <div className="text-2xl font-bold text-white flex items-center">
-                      {metric.prefix && <span>{metric.prefix}</span>}
-                      <NumberTicker value={metric.value} />
+          {/* 1. Real-time KPI Strip */}
+          <KPIStrip businessId={activeBusinessId} />
+
+          {/* 2. Intelligence & Activity Surface */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <PerformanceCharts businessId={activeBusinessId} />
+            </div>
+            <div>
+              <ActivityFeed businessId={activeBusinessId} />
+            </div>
+          </div>
+
+          {/* Deployment Lifecycle Timeline (Next 24h) */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-primary" />
+                <h2 className="text-sm font-bold text-foreground/70 font-heading uppercase tracking-[0.4em]">Deployment Lifecycle // Next 24H</h2>
+              </div>
+              <Badge variant="outline" className="border-primary/20 text-primary font-mono text-[10px] uppercase">
+                Synchronized: {analytics?.deployment_timeline.length || 0} Events
+              </Badge>
+            </div>
+
+            <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="min-w-[280px] h-32 rounded-xl bg-secondary/30 dark:bg-card/40 animate-pulse border border-border/10" />
+                ))
+              ) : (
+                analytics?.deployment_timeline.map((post) => (
+                  <HolographicCard key={post.id} className="min-w-[280px] p-3 border-primary/10 bg-secondary/20 dark:bg-card/20 group">
+                    <div className="flex gap-4 h-full">
+                      <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-border/50">
+                        <img src={post.media_url} alt="Post" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      </div>
+                      <div className="flex flex-col justify-between overflow-hidden">
+                        <div>
+                          <p className="text-[10px] font-mono font-bold text-primary uppercase">{post.platform}</p>
+                          <p className="text-[11px] text-muted-foreground truncate w-full font-mono mt-1">{post.caption || "No caption"}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-foreground/5 text-muted-foreground border-0 text-[10px] font-mono px-0">
+                            {new Date(post.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </Badge>
+                          <div className="w-1 h-1 rounded-full bg-primary" />
+                          <span className="text-[10px] font-mono text-primary/80 uppercase tracking-tighter">Ready</span>
+                        </div>
+                      </div>
                     </div>
-                    <Badge variant="outline" className={`border-0 ${metric.trend === 'up' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                      {metric.trend === 'up' ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
-                      {metric.change}
-                    </Badge>
-                  </div>
-                </HolographicCard>
-              </motion.div>
-            ))
-          )}
-        </motion.div>
-
-        {/* Main Content Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-
-          {/* Chart Section - Now Full Width */}
-          <div className="col-span-7">
-            {loading ? (
-              <ChartSkeleton />
-            ) : (
-              <HolographicCard className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">Revenue Overview</h3>
-                    <p className="text-sm text-muted-foreground">Compare against previous period</p>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
-                    View Report
-                  </Button>
+                  </HolographicCard>
+                ))
+              )}
+              {!loading && analytics?.deployment_timeline.length === 0 && (
+                <div className="w-full py-10 rounded-xl bg-foreground/5 border border-dashed border-border/30 flex items-center justify-center">
+                  <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-muted-foreground">No deployments pending for next 24H</p>
                 </div>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={performanceData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis
-                        dataKey="name"
-                        stroke="#64748b"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        stroke="#64748b"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `$${value}`}
-                      />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#09151E', borderColor: '#1e293b', color: '#fff' }}
-                        itemStyle={{ color: '#00E0D0' }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="value"
-                        stroke="#00E0D0"
-                        strokeWidth={3}
-                        dot={{ r: 4, fill: "#09151E", strokeWidth: 2 }}
-                        activeDot={{ r: 6, fill: "#00E0D0" }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+
+          {/* Visual & Strategic Analysis Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Radio className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-bold text-foreground/70 font-heading uppercase tracking-[0.4em]">Live Attribution & Strategic Decisions</h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+
+              {/* Lead Heatmap (Map) */}
+              <HolographicCard
+                className="md:col-span-2 lg:col-span-4 p-0 overflow-hidden h-[450px] border-primary/20 shadow-lg dark:shadow-2xl"
+                contentClassName="h-full flex flex-col"
+              >
+                <div className="p-6 pb-2 z-10 flex justify-between items-center bg-secondary/50 dark:bg-black/20 backdrop-blur-sm">
+                  <h3 className="text-lg font-bold text-foreground font-heading uppercase tracking-wide">Live Attribution Radar</h3>
+                  <Badge className="bg-primary/10 text-primary border-primary/20 font-mono text-[9px] px-2 h-4">SIGNAL_SYNC: OK</Badge>
+                </div>
+                <div className="flex-1 relative w-full min-h-0 overflow-hidden rounded-b-xl border border-border">
+                  <GoogleMap center={mapCenter} zoom={12} locations={combinedLocations} height="100%" />
+
+                  {/* Custom Legend Overlay */}
+                  <div className="absolute bottom-6 left-6 bg-card/90 backdrop-blur-md border border-border/50 p-4 rounded-xl flex flex-col gap-3 text-[10px] z-10 shadow-2xl">
+                    <div className="flex items-center gap-3">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                      </span>
+                      <span className="text-foreground font-mono font-bold tracking-tight">HQ: {user?.first_name}'s Base</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                      </span>
+                      <span className="text-foreground font-mono font-bold tracking-tight uppercase">Active Conversion Ping</span>
+                    </div>
+                  </div>
                 </div>
               </HolographicCard>
-            )}
+
+              {/* Strategic Decisions */}
+              <HolographicCard
+                className="md:col-span-2 lg:col-span-3 p-6 h-[450px] border-primary/10 bg-black/10"
+                contentClassName="h-full flex flex-col"
+              >
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-lg font-bold text-foreground font-heading uppercase tracking-widest">Strategic Decisions</h3>
+                  <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                </div>
+
+                <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1 min-h-0">
+                  <AnimatePresence initial={false}>
+                    {(analytics?.strategic_insights || []).length > 0 ? (
+                      analytics?.strategic_insights.map((insight) => (
+                        <motion.div
+                          key={insight.id}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="p-5 rounded-xl bg-foreground/5 border border-border/40 hover:border-primary/50 transition-all group relative cursor-pointer"
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex gap-3">
+                              <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 shadow-lg ${insight.color === 'emerald' ? 'bg-emerald-500 shadow-emerald-500/50' :
+                                  insight.color === 'yellow' ? 'bg-yellow-500 shadow-yellow-500/50' : 'bg-red-500 shadow-red-500/50'
+                                }`} />
+                              <div>
+                                <p className="text-[11px] font-bold text-foreground uppercase tracking-widest font-mono mb-1">{insight.type}: {insight.title}</p>
+                                <p className="text-[11px] text-muted-foreground font-mono leading-relaxed">{insight.message}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-border/40 flex justify-between items-center text-[10px] font-mono">
+                            <span className="text-muted-foreground uppercase opacity-80">IMPACT: <span className="text-primary font-bold">{insight.impact}</span></span>
+                            <ArrowRight className="w-3 h-3 text-primary opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0" />
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full opacity-40 py-10 space-y-2">
+                        <BarChart3 className="w-10 h-10 mb-2" />
+                        <p className="text-[9px] font-mono uppercase tracking-[0.4em] text-center">Awaiting signal inference...</p>
+                      </div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </HolographicCard>
+            </div>
           </div>
-        </div>
 
-        {/* Visual & Strategic Analysis Section */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-white/90 tracking-wide uppercase text-sm">Visual & Strategic Analysis</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-
-            {/* Lead Heatmap & Demographics (Map) */}
-            <HolographicCard
-              className="md:col-span-2 lg:col-span-4 p-0 overflow-hidden h-[400px]"
-              contentClassName="h-full flex flex-col"
-            >
-              <div className="p-6 pb-2 z-10">
-                <h3 className="text-lg font-semibold text-white">Lead Heatmap & Demographics</h3>
-              </div>
-              <div className="flex-1 relative w-full min-h-0 overflow-hidden rounded-b-xl border border-white/5">
-                <GoogleMap
-                  center={mapCenter}
-                  zoom={12}
-                  locations={mapLocations}
-                  height="100%"
-                />
-                {/* Custom Legend Overlay */}
-                <div className="absolute bottom-4 left-4 bg-[#09151E]/90 backdrop-blur-md border border-white/10 p-3 rounded-lg flex gap-4 text-xs z-10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <span className="text-white">Pinned Business Location</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-primary cursor-pointer hover:underline ml-2">
-                    <span>Explore Geo-Intent Module</span>
-                    <ArrowUpRight className="w-3 h-3" />
-                  </div>
-                </div>
-              </div>
-            </HolographicCard>
-
-            {/* Causal Insights & Actions */}
-            <HolographicCard
-              className="md:col-span-2 lg:col-span-3 p-6 h-[400px]"
-              contentClassName="h-full flex flex-col"
-            >
-              <h3 className="text-lg font-semibold text-white mb-6">Causal Insights & Actions</h3>
-              <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1 min-h-0">
-
-                {/* Insight 1: Action */}
-                <div className="p-4 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                  <div className="flex gap-3">
-                    <div className="mt-1.5 w-2 h-2 rounded-full bg-yellow-400 shrink-0 shadow-[0_0_8px_rgba(250,204,21,0.5)]" />
-                    <div>
-                      <p className="text-sm text-white leading-relaxed">
-                        <span className="font-bold text-white">Action:</span> Increase Budget for Social Media Ads <span className="text-muted-foreground">(highest positive impact on ROAS this week)</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Insight 2: Caution */}
-                <div className="p-4 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                  <div className="flex gap-3">
-                    <div className="mt-1.5 w-2 h-2 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-                    <div>
-                      <p className="text-sm text-white leading-relaxed">
-                        <span className="font-bold text-white">Caution:</span> Review Legacy Ad Spend <span className="text-muted-foreground">(showing a -.8% negative influence on Conversion Rate)</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Insight 3: Suggestion */}
-                <div className="p-4 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                  <div className="flex gap-3">
-                    <div className="mt-1.5 w-2 h-2 rounded-full bg-emerald-500 shrink-0 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                    <div>
-                      <p className="text-sm text-white leading-relaxed">
-                        <span className="font-bold text-white">Suggestion:</span> Explore better performing age <span className="text-muted-foreground">aligned with the "Early Adopter" segment for maximum reach.</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <Button variant="link" className="text-primary p-0 h-auto text-sm hover:text-primary/80">
-                    View Complete Insights Log <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
-
-              </div>
-            </HolographicCard>
+          {/* 4. Actionable Intelligence Strip */}
+          <div className="pt-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-bold text-foreground/70 font-heading uppercase tracking-[0.4em]">Recommended Operations</h2>
+            </div>
+            <ActionableIntelligence businessId={activeBusinessId} />
           </div>
         </div>
       </div>

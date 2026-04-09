@@ -48,7 +48,7 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
                     )}
                 </div>
                 {caption && (
-                    <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
+                    <div className="mt-4 p-4 bg-foreground/5 rounded-lg border border-border/50">
                         <p className="text-sm text-muted-foreground mb-1">Caption:</p>
                         <p className="text-sm">{caption}</p>
                     </div>

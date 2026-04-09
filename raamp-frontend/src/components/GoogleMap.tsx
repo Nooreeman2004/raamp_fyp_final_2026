@@ -36,19 +36,25 @@ export default function GoogleMap({
     if (!GOOGLE_KEY || !mapRef.current) return;
 
     // Load Google Maps script if not already loaded
-    if (!window.google) {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeMap;
-      document.head.appendChild(script);
+    if (typeof window.google === 'undefined') {
+      const existingScript = document.getElementById('google-maps-script');
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.id = 'google-maps-script';
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        script.onload = initializeMap;
+        document.head.appendChild(script);
+      } else {
+        existingScript.addEventListener('load', initializeMap);
+      }
     } else {
       initializeMap();
     }
 
     function initializeMap() {
-      if (!mapRef.current || !window.google) {
+      if (!mapRef.current || typeof window.google === 'undefined') {
         setIsLoading(false);
         return;
       }

@@ -64,7 +64,7 @@ const FloatingTeam = () => {
                 {/* Header */}
                 <div className="text-center mb-20">
                     <Reveal variant="blurInUp">
-                        <h2 className="text-4xl md:text-5xl font-bold mb-4 font-bebas tracking-wide">
+                        <h2 className="text-4xl md:text-5xl font-bold mb-4 font-heading font-semibold">
                             Visionaries & <span className="text-primary">Builders</span>
                         </h2>
                     </Reveal>
@@ -95,7 +95,7 @@ const FloatingTeam = () => {
                             >
                                 {/* Section Divider for Advisors (Visual separation if needed, but grid handles it) */}
                                 {index === 2 && (
-                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-primary font-bebas tracking-widest text-xl opacity-80 md:hidden">
+                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-primary font-heading font-semiboldst text-xl opacity-80 md:hidden">
                                         ADVISORS
                                     </div>
                                 )}
@@ -120,7 +120,7 @@ const FloatingTeam = () => {
 
                                         {/* Text Content */}
                                         <div>
-                                            <h4 className="text-2xl font-bold font-bebas tracking-wide text-white group-hover:text-primary transition-colors">
+                                            <h4 className="text-2xl font-bold font-heading font-semibold text-foreground group-hover:text-primary transition-colors">
                                                 {member.name.toUpperCase()}
                                             </h4>
                                             <p className="text-primary/80 text-sm mt-2 font-mono tracking-tight">

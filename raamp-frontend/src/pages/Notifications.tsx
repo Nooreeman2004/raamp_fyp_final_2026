@@ -2,28 +2,33 @@ import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Bell, Check, Trash2, TrendingUp, DollarSign, AlertTriangle, Sparkles, CheckCheck, Search } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast as sonner } from "sonner";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { LaunchCampaignDialog, LaunchCampaignPrefill } from "@/components/LaunchCampaignDialog";
 
 // Animation Imports
 import { motion, AnimatePresence } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { fadeInUp } from "@/utils/animations";
 
-interface Notification {
-  id: string;
-  type: "trend" | "billing" | "alert" | "campaign";
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
-
 const Notifications = () => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, loading } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, clearAllNotifications, loading } = useNotifications();
   const [searchQuery, setSearchQuery] = useState("");
+  const [launchOpen, setLaunchOpen] = useState(false);
+  const [launchPrefill, setLaunchPrefill] = useState<LaunchCampaignPrefill | undefined>(undefined);
 
   // Filter notifications based on search query
   const filteredNotifications = useMemo(() => {
@@ -41,6 +46,8 @@ const Notifications = () => {
   const getIcon = (type: string) => {
     switch (type) {
       case "trend":
+      case "trend_spike":
+      case "trend_discovered":
         return <TrendingUp className="w-5 h-5" />;
       case "billing":
         return <DollarSign className="w-5 h-5" />;
@@ -58,7 +65,9 @@ const Notifications = () => {
   const getTypeColor = (type: string) => {
     switch (type) {
       case "trend":
-        return "text-blue-500 bg-blue-500/10";
+      case "trend_spike":
+      case "trend_discovered":
+        return "text-teal-500 bg-teal-500/10";
       case "billing":
         return "text-green-500 bg-green-500/10";
       case "alert":
@@ -72,9 +81,18 @@ const Notifications = () => {
     }
   };
 
-  const clearAll = () => {
-    // Optional: implement bulk delete in backend if needed
-    sonner.info("Clearing all logic not implemented (bulk delete)");
+  const [clearingAll, setClearingAll] = useState(false);
+
+  const handleClearAll = async () => {
+    setClearingAll(true);
+    try {
+      await clearAllNotifications();
+      sonner.success("All notifications cleared");
+    } catch {
+      sonner.error("Could not clear notifications");
+    } finally {
+      setClearingAll(false);
+    }
   };
 
   return (
@@ -105,14 +123,40 @@ const Notifications = () => {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-end">
               {unreadCount > 0 && (
                 <Button variant="outline" size="sm" onClick={() => markAllAsRead()}>
                   <CheckCheck className="w-4 h-4 mr-2" />
                   Mark All Read
                 </Button>
               )}
-              {/* Clear All is tricky with pagination, skipping for now unless specifically requested */}
+              {notifications.length > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={clearingAll || loading}>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Clear All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Clear all notifications?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This permanently removes every notification in your inbox. This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={handleClearAll}
+                      >
+                        Clear all
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </div>
         </Reveal>
@@ -125,7 +169,7 @@ const Notifications = () => {
               placeholder="Search notifications by title, message, or type..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-white/5 border-white/10"
+              className="pl-9 bg-foreground/5 border-border/50"
             />
           </div>
         </Reveal>
@@ -182,6 +226,31 @@ const Notifications = () => {
                             <p className="text-xs text-muted-foreground mt-2">
                               {new Date(notification.created_at).toLocaleString()}
                             </p>
+
+                            {(notification.type === "trend_spike" || notification.metadata?.action === "launch_campaign") && (
+                              <div className="mt-3">
+                                <Button
+                                  size="sm"
+                                  className="bg-primary/20 hover:bg-primary text-primary hover:text-black border border-primary/50"
+                                  onClick={() => {
+                                    const md = notification.metadata || {};
+                                    const pre = (md.campaign_prefill || {}) as any;
+                                    setLaunchPrefill({
+                                      trend_id: md.trend_id ?? md.related_entity_id ?? md.trend_signal_id ?? null,
+                                      keyword: pre.keyword ?? md.keyword ?? null,
+                                      niche: pre.niche ?? md.niche ?? null,
+                                      location: pre.location ?? md.location ?? null,
+                                      suggested_platforms: pre.suggested_platforms ?? [],
+                                      hashtags: pre.hashtags ?? md.hashtags ?? [],
+                                      lifecycle_stage: pre.lifecycle_stage ?? md.lifecycle_stage ?? null,
+                                    });
+                                    setLaunchOpen(true);
+                                  }}
+                                >
+                                  Launch Campaign
+                                </Button>
+                              </div>
+                            )}
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
                             {!notification.read && (
@@ -213,6 +282,8 @@ const Notifications = () => {
           </AnimatePresence>
         </div>
       </motion.div>
+
+      <LaunchCampaignDialog open={launchOpen} onOpenChange={setLaunchOpen} prefill={launchPrefill} />
     </Layout>
   );
 };

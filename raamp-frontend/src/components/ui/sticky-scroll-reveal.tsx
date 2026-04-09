@@ -55,7 +55,7 @@ const StickyScrollReveal = ({
                                     style={{ opacity }}
                                     className="absolute top-0 left-0 w-full h-full flex flex-col justify-center pointer-events-none"
                                 >
-                                    <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 font-bebas tracking-wide">
+                                    <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6 font-heading font-semibold">
                                         {item.title}
                                     </h2>
                                     <p className="text-lg text-muted-foreground max-w-md font-mono">
@@ -71,7 +71,7 @@ const StickyScrollReveal = ({
                     {/* Visual Content (Cards/Images) */}
                     <div
                         className={cn(
-                            "hidden lg:block h-[60vh] w-full rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md overflow-hidden sticky top-[20vh]",
+                            "hidden lg:block h-[60vh] w-full rounded-2xl bg-foreground/5 border border-border/50 backdrop-blur-md overflow-hidden sticky top-[20vh]",
                             contentClassName
                         )}
                     >

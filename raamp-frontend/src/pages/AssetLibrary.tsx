@@ -40,6 +40,10 @@ import Reveal from "@/components/ui/Reveal";
 import { fadeInUp } from "@/utils/animations";
 import { BlurText } from "@/components/ui/text-reveal";
 import { ThemeEmoji } from "@/components/ui/emoji";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { instagramService, type ROIMetrics, type ROISummary } from "@/services/instagramService";
+import { BarChart3, TrendingUp, Users, Activity, Clock, AlertCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 const AssetLibrary = () => {
     // Image assets state
@@ -62,6 +66,36 @@ const AssetLibrary = () => {
     const [activeTab, setActiveTab] = useState("images");
     const [isRescanning, setIsRescanning] = useState(false);
     const [viewAsset, setViewAsset] = useState<Asset | null>(null);
+    const queryClient = useQueryClient();
+
+    // Fetch Connection for Business ID
+    const { data: connection } = useQuery({
+        queryKey: ['instagram-connection'],
+        queryFn: () => instagramService.getConnectionStatus(),
+        staleTime: 60 * 60 * 1000 // 1 hour
+    });
+
+    const businessId = connection?.ig_business_id;
+
+    // ROI Summary Query
+    const { data: roiSummary } = useQuery<ROISummary>({
+        queryKey: ['roi-summary', businessId],
+        queryFn: () => instagramService.getROISummary(businessId!),
+        enabled: !!businessId,
+        staleTime: 30 * 60 * 1000 // 30 minutes
+    });
+
+    // Refresh Individual Post ROI
+    const refreshROIMutation = useMutation({
+        mutationFn: (postId: string) => instagramService.refreshPostROI(postId),
+        onSuccess: (_, postId) => {
+            queryClient.invalidateQueries({ queryKey: ['post-roi', postId] });
+            toast.success("Metrics Refreshed");
+        },
+        onError: (err: any) => {
+            toast.error("Refresh Failed", { description: err.message });
+        }
+    });
 
     const handleRescan = async () => {
         setIsRescanning(true);
@@ -270,7 +304,7 @@ const AssetLibrary = () => {
                                 <Sparkles className="w-7 h-7 text-primary" />
                             </div>
                             <div>
-                                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                <h1 className="text-3xl font-bold font-heading font-semibold">
                                     <BlurText text="Asset Library" />
                                 </h1>
                                 <p className="text-muted-foreground font-mono text-sm">
@@ -417,7 +451,7 @@ const AssetLibrary = () => {
                                                     const v = e.target as HTMLVideoElement;
                                                     v.style.display = 'none';
                                                     const fb = document.createElement('div');
-                                                    fb.className = 'w-full h-full flex items-center justify-center bg-black text-primary';
+                                                    fb.className = 'w-full h-full flex items-center justify-center bg-background text-primary';
                                                     fb.innerHTML = '<span class="text-sm font-mono">Video Not Found</span>';
                                                     v.parentElement?.appendChild(fb);
                                                 }}
@@ -436,7 +470,7 @@ const AssetLibrary = () => {
                                         {/* Top-left: Video/Reel badge (always visible) */}
                                         {isVideoAsset(asset) && (
                                             <div className="absolute top-2 left-2">
-                                                <Badge className="bg-purple-600/90 text-white gap-1 text-[10px] px-1.5 py-0.5">
+                                                <Badge className="bg-purple-600/90 text-foreground gap-1 text-[10px] px-1.5 py-0.5">
                                                     <Video className="w-2.5 h-2.5" />
                                                     {asset.asset_type === 'generated_reel' ? 'Reel' : 'Video'}
                                                 </Badge>
@@ -463,13 +497,28 @@ const AssetLibrary = () => {
                                             onClick={(e) => handleToggleAssetFavorite(asset, e)}
                                             title={asset.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
                                         >
-                                            <Heart className={`w-3.5 h-3.5 ${asset.is_favorite ? 'fill-white text-white' : 'text-white'}`} />
+                                            <Heart className={`w-3.5 h-3.5 ${asset.is_favorite ? 'fill-white text-foreground' : 'text-foreground'}`} />
                                         </button>
+
+                                        {/* ROI Badge (Top-left if top post) */}
+                                        {roiSummary?.best_performing_post?.post_id === asset.instagram_post_id && (
+                                            <div className="absolute top-8 left-2">
+                                                <Badge className="bg-amber-500/90 text-foreground gap-1 text-[10px] px-1.5 py-0.5 animate-pulse">
+                                                    <TrendingUp className="w-2.5 h-2.5" />
+                                                    Top Post
+                                                </Badge>
+                                            </div>
+                                        )}
+
+                                        {/* ROI Metrics Row (Compact Overlay) */}
+                                        {asset.instagram_post_id && (
+                                            <ROIMetricsOverlay postId={asset.instagram_post_id} onRefresh={refreshROIMutation.mutate} isRefreshing={refreshROIMutation.isPending} />
+                                        )}
 
                                         {/* Bottom: always-visible info bar */}
                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2.5 pt-6">
-                                            <p className="text-white text-xs font-mono truncate leading-tight">{asset.file_name}</p>
-                                            <p className="text-white/60 text-[10px] font-mono mt-0.5">
+                                            <p className="text-foreground text-xs font-mono truncate leading-tight">{asset.file_name}</p>
+                                            <p className="text-muted-foreground/80 text-[10px] font-mono mt-0.5">
                                                 {formatDate(asset.created_at)} · {formatFileSize(asset.file_size_bytes)}
                                             </p>
                                         </div>
@@ -481,21 +530,21 @@ const AssetLibrary = () => {
                                                 onClick={(e) => { e.stopPropagation(); setViewAsset(asset); }}
                                                 title="View fullscreen"
                                             >
-                                                <Maximize2 className="w-3.5 h-3.5 text-white" />
+                                                <Maximize2 className="w-3.5 h-3.5 text-foreground" />
                                             </button>
                                             <button
                                                 className="p-1.5 bg-white/20 hover:bg-primary/80 backdrop-blur rounded-md transition-colors"
                                                 onClick={(e) => { e.stopPropagation(); handleDownload(asset); }}
                                                 title="Download"
                                             >
-                                                <Download className="w-3.5 h-3.5 text-white" />
+                                                <Download className="w-3.5 h-3.5 text-foreground" />
                                             </button>
                                             <button
                                                 className="p-1.5 bg-white/20 hover:bg-red-600/80 backdrop-blur rounded-md transition-colors"
                                                 onClick={(e) => { e.stopPropagation(); handleDelete(asset.asset_id); }}
                                                 title="Delete"
                                             >
-                                                <Trash2 className="w-3.5 h-3.5 text-white" />
+                                                <Trash2 className="w-3.5 h-3.5 text-foreground" />
                                             </button>
                                         </div>
                                     </motion.div>
@@ -531,7 +580,54 @@ const AssetLibrary = () => {
 
                     {/* Captions Tab */}
                     <TabsContent value="captions" className="space-y-6 mt-6">
-                        {/* Caption Filters */}
+                        {/* ROI Summary Banner */}
+                        {roiSummary && (roiSummary.total_posts > 0) && (
+                            <Reveal>
+                                <motion.div 
+                                    className="mb-8 p-4 bg-primary/5 border border-primary/20 backdrop-blur rounded-xl flex flex-wrap items-center justify-between gap-6"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-primary/10 rounded-lg">
+                                            <TrendingUp className="w-5 h-5 text-primary" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-semibold">Total Performance</h4>
+                                            <p className="text-xs text-muted-foreground">Across {roiSummary.total_posts} posts</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex flex-wrap gap-8">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                                                <Users className="w-3 h-3" /> Total Reach
+                                            </span>
+                                            <span className="text-xl font-bold font-mono text-primary">{roiSummary.total_reach.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                                                <Eye className="w-3 h-3" /> Impressions
+                                            </span>
+                                            <span className="text-xl font-bold font-mono text-purple-400">{roiSummary.total_impressions.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                                                <Activity className="w-3 h-3" /> Avg Engagement
+                                            </span>
+                                            <span className="text-xl font-bold font-mono text-teal-400">{roiSummary.avg_engagement_rate}%</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20">
+                                        <Sparkles className="w-3.5 h-3.5 text-primary" />
+                                        <span className="text-xs font-semibold">Campaign Loop Optimized</span>
+                                    </div>
+                                </motion.div>
+                            </Reveal>
+                        )}
+
+                        {/* Search and Filters */}
                         <Card className="p-4">
                             <div className="flex flex-col md:flex-row gap-4">
                                 <Select value={captionTypeFilter} onValueChange={setCaptionTypeFilter}>
@@ -682,16 +778,16 @@ const AssetLibrary = () => {
 
             {/* Fullscreen Asset Viewer Modal */}
             <Dialog open={!!viewAsset} onOpenChange={(open) => !open && setViewAsset(null)}>
-                <DialogContent className="max-w-5xl w-full p-0 overflow-hidden bg-black border-border">
+                <DialogContent className="max-w-5xl w-full p-0 overflow-hidden bg-background border-border">
                     <DialogHeader className="absolute top-0 left-0 right-0 z-10 flex flex-row items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
-                        <DialogTitle className="text-white font-mono text-sm truncate max-w-md">
+                        <DialogTitle className="text-foreground font-mono text-sm truncate max-w-md">
                             {viewAsset?.file_name}
                         </DialogTitle>
                         <div className="flex items-center gap-2">
                             {viewAsset && (
                                 <button
                                     className={`p-2 rounded-full transition-colors ${
-                                        viewAsset.is_favorite ? 'bg-red-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'
+                                        viewAsset.is_favorite ? 'bg-red-500 text-foreground' : 'bg-foreground/10 hover:bg-white/20 text-foreground'
                                     }`}
                                     onClick={(e) => viewAsset && handleToggleAssetFavorite(viewAsset, e)}
                                     title={viewAsset.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
@@ -701,7 +797,7 @@ const AssetLibrary = () => {
                             )}
                             {viewAsset && (
                                 <button
-                                    className="p-2 rounded-full bg-white/10 hover:bg-primary/80 text-white transition-colors"
+                                    className="p-2 rounded-full bg-foreground/10 hover:bg-primary/80 text-foreground transition-colors"
                                     onClick={() => viewAsset && handleDownload(viewAsset)}
                                     title="Download"
                                 >
@@ -712,7 +808,7 @@ const AssetLibrary = () => {
                     </DialogHeader>
 
                     {/* Media */}
-                    <div className="flex items-center justify-center min-h-[60vh] max-h-[80vh] bg-black">
+                    <div className="flex items-center justify-center min-h-[60vh] max-h-[80vh] bg-background">
                         {viewAsset && isVideoAsset(viewAsset) ? (
                             <video
                                 src={getMediaUrl(viewAsset.storage_url)}
@@ -749,5 +845,91 @@ const AssetLibrary = () => {
         </Layout>
     );
 };
+
+// --- HELPER COMPONENTS ---
+
+const ROIMetricsOverlay = ({ postId, onRefresh, isRefreshing }: { postId: string, onRefresh: (id: string) => void, isRefreshing: boolean }) => {
+    const { data: metrics, isLoading } = useQuery<ROIMetrics>({
+        queryKey: ['post-roi', postId],
+        queryFn: () => instagramService.getPostROI(postId),
+        staleTime: 30 * 60 * 1000
+    });
+
+    if (isLoading) {
+        return (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-black/60 backdrop-blur rounded-full flex items-center gap-2">
+                <RefreshCw className="w-2.5 h-2.5 animate-spin text-primary" />
+                <span className="text-[10px] text-foreground font-mono">Fetching ROI...</span>
+            </div>
+        );
+    }
+
+    if (!metrics) return null;
+
+    return (
+        <div className="absolute top-0 left-0 right-0 p-2 bg-gradient-to-b from-black/80 to-transparent flex flex-col gap-1 transition-transform translate-y-[-100%] group-hover:translate-y-0">
+            {metrics.fetch_status === 'pending' ? (
+                <div className="flex items-center gap-1.5 text-amber-400 px-1 py-0.5 rounded bg-amber-400/10">
+                    <Clock className="w-3 h-3" />
+                    <span className="text-[9px] font-semibold uppercase font-mono">Insights ready in 24h</span>
+                </div>
+            ) : metrics.fetch_status === 'failed' ? (
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-1 text-red-400">
+                        <AlertCircle className="w-3 h-3" />
+                        <span className="text-[9px] font-semibold">Sync Failed</span>
+                    </div>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onRefresh(postId); }}
+                        className="text-[9px] text-primary hover:underline"
+                    >
+                        Retry
+                    </button>
+                </div>
+            ) : (
+                <div className="w-full flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                        <div className="flex gap-2">
+                            <MetricStat label="Reach" value={metrics.reach} color="text-primary" />
+                            <MetricStat label="ER" value={`${metrics.engagement_rate}%`} color="text-teal-400" />
+                        </div>
+                        <button 
+                            disabled={isRefreshing}
+                            onClick={(e) => { e.stopPropagation(); onRefresh(postId); }}
+                            className={`p-1 rounded bg-black/40 hover:bg-black/60 transition-colors ${isRefreshing ? 'animate-spin' : ''}`}
+                        >
+                            <RefreshCw className="w-2.5 h-2.5" />
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1 border-t border-white/10 pt-1">
+                        <SmallMetric label="Likes" val={metrics.likes} />
+                        <SmallMetric label="Comm" val={metrics.comments} />
+                        <SmallMetric label="Share" val={metrics.shares} />
+                        <SmallMetric label="Saved" val={metrics.saved} />
+                    </div>
+                    {metrics.last_fetched_at && (
+                        <p className="text-[8px] text-muted-foreground/60 font-mono text-right">
+                            Updated {formatDistanceToNow(new Date(metrics.last_fetched_at))} ago
+                        </p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const MetricStat = ({ label, value, color }: { label: string, value: string | number, color: string }) => (
+    <div className="flex flex-col">
+        <span className="text-[7px] uppercase tracking-tighter text-muted-foreground/80 leading-none">{label}</span>
+        <span className={`text-[11px] font-bold font-mono ${color} leading-tight`}>{value}</span>
+    </div>
+);
+
+const SmallMetric = ({ label, val }: { label: string, val: number }) => (
+    <div className="flex flex-col items-center">
+        <span className="text-[6px] uppercase tracking-tighter text-muted-foreground/60">{label}</span>
+        <span className="text-[9px] font-mono text-foreground/90">{val > 999 ? `${(val/1000).toFixed(1)}k` : val}</span>
+    </div>
+);
 
 export default AssetLibrary;

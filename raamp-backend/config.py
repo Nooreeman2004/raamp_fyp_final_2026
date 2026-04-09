@@ -87,6 +87,32 @@ class Config:
     
     # Google Maps API Key (used for server-side Places requests if needed)
     GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
+
+    # Geo-Intent Marketing Engine
+    # Tomorrow.io Weather API key — https://app.tomorrow.io/
+    TOMORROW_API_KEY: str = os.getenv("TOMORROW_API_KEY", "")
+    # ISO 3166-1 alpha-2 country code scoping Google Trends geo (e.g. "PK", "US", ""=global)
+    GOOGLE_TRENDS_GEO: str = os.getenv("GOOGLE_TRENDS_GEO", "PK")
+
+    # SerpAPI (https://serpapi.com/) — optional; for SERP/saturation or Trends alternatives
+    SERPAPI_API_KEY: str = os.getenv("SERPAPI_API_KEY", "")
+    # Trends provider selection: auto|serpapi|pytrends
+    TRENDS_PROVIDER: str = os.getenv("TRENDS_PROVIDER", "auto")
+
+    # Spotify API Configuration - for Viral Audio Intelligence
+    SPOTIFY_CLIENT_ID: str = os.getenv("SPOTIFY_CLIENT_ID", "")
+    SPOTIFY_CLIENT_SECRET: str = os.getenv("SPOTIFY_CLIENT_SECRET", "")
+    SPOTIFY_REDIRECT_URI: str = os.getenv("SPOTIFY_REDIRECT_URI", "http://localhost:8000/callback")
+
+    # Trend detection parameters (configurable; defaults preserve existing behavior)
+    # Z-score threshold for spike detection (higher = fewer spikes)
+    TREND_Z_THRESHOLD: float = float(os.getenv("TREND_Z_THRESHOLD", "2.0"))
+    # Rolling window size for rolling mean/std in Z-score calculation
+    TREND_ROLLING_WINDOW_DAYS: int = int(os.getenv("TREND_ROLLING_WINDOW_DAYS", "14"))
+    # EWMA smoothing factor (0..1)
+    TREND_EWMA_ALPHA: float = float(os.getenv("TREND_EWMA_ALPHA", "0.3"))
+    # Minimum points required to run detection
+    TREND_MIN_DATA_POINTS: int = int(os.getenv("TREND_MIN_DATA_POINTS", "5"))
     
     # OpenAI API Configuration - Can use Google's Generative Language API endpoint
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -119,6 +145,25 @@ class Config:
     def is_development(cls) -> bool:
         """Check if running in development"""
         return cls.ENVIRONMENT == "development"
+
+    @classmethod
+    def validate_geo_intent_keys(cls) -> None:
+        """
+        Validate that the Geo-Intent Marketing Engine environment variables are set.
+        Raises RuntimeError with a descriptive message if any required key is missing.
+        Call this once during application startup.
+        """
+        missing: list[str] = []
+        if not cls.GOOGLE_MAPS_API_KEY:
+            missing.append("GOOGLE_MAPS_API_KEY")
+        if not cls.TOMORROW_API_KEY:
+            missing.append("TOMORROW_API_KEY")
+        if missing:
+            raise RuntimeError(
+                f"Geo-Intent Marketing Engine is missing required environment variables: "
+                f"{', '.join(missing)}. "
+                "Add them to your .env file. See .env.example for details."
+            )
 
 
 # Singleton instance

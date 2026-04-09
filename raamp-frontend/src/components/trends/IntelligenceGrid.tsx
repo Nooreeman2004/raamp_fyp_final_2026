@@ -187,17 +187,30 @@ export function IntelligenceGrid({ trendId, aiAnalysisStatus, aiAnalysisData, lo
              <div className="text-sm text-muted-foreground py-4 text-center">No charting audio data available for this region.</div>
           ) : (
              <div className="space-y-3">
-               {audioData.slice(0, 2).map((audio, idx) => (
-                 <div key={idx} className="flex items-center justify-between bg-white/[0.03] p-3 rounded-lg border border-white/5">
-                   <div className="flex items-center gap-3 overflow-hidden">
-                     <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                        <Play className="w-3 h-3 text-white/60 ml-0.5" />
-                     </div>
-                     <div className="min-w-0">
-                       <p className="text-sm font-medium text-white/90 truncate">{audio.track_name || audio.title || "Unknown Audio"}</p>
-                       <p className="text-xs text-muted-foreground truncate">{audio.artist || "Unknown Artist"}</p>
-                     </div>
-                   </div>
+                {audioData.slice(0, 3).map((audio, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-white/[0.03] p-3 rounded-lg border border-white/5">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      {audio.image ? (
+                        <img 
+                          src={audio.image} 
+                          alt={audio.track_name} 
+                          className="w-10 h-10 rounded-md object-cover bg-white/10 shrink-0" 
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-md bg-white/10 flex items-center justify-center shrink-0">
+                          <Music className="w-4 h-4 text-white/40" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-white/90 truncate" title={audio.track_name}>{audio.track_name || audio.title || "Unknown Audio"}</p>
+                        <p className="text-xs text-muted-foreground truncate font-medium">{audio.artist || "Unknown Artist"}</p>
+                        {audio.source === "spotify_web_api" && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[8px] text-green-400 font-mono uppercase tracking-tighter">Spotify Verified</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                    <button 
                      onClick={() => copyToClipboard(audio.track_name || audio.title)}
                      className="shrink-0 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-medium transition-colors"

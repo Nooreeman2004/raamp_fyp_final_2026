@@ -43,7 +43,8 @@ from infrastructure.database.models.trend_cache_model import TrendCacheModel
 from infrastructure.database.models.trend_ai_analysis_model import TrendAIAnalysisModel
 from application.services.trend_ai_analysis_service import TrendAIAnalysisService
 from application.services.viral_audio_provider import ViralAudioProvider
-from application.services.instagram_graph_api_service import InstagramGraphAPIClient
+import httpx
+import re
 
 
 logger = logging.getLogger(__name__)
@@ -1335,7 +1336,12 @@ async def get_viral_audio(
         limit=2,
     )
     await _cached_set(namespace, key, tracks, ttl_seconds=6 * 60 * 60)
-    return {"source": "apple_music_rss", "label": "Trending Audio (charting)", "tracks": tracks}
+    return {
+        "source": "spotify_or_apple", 
+        "label": "Trending Audio (charting)", 
+        "recommended_tracks": tracks,
+        "tracks": tracks # Backwards compatibility
+    }
 
 
 @router.get(
@@ -1355,62 +1361,67 @@ async def competitor_radar(
     """
     namespace = "competitor_radar"
     search_term = (keyword or niche).replace("#", "").replace(" ", "")
-    key = f"v2:{geo.upper()}:{search_term.lower()}"
-    
+    key = f"v3:{geo.upper()}:{search_term.lower()}"
+
     cached = await _cached_get(namespace, key)
     if cached is not None:
-        return {"source": "instagram_benchmarking", "influencers": cached}
+        return {"source": "serpapi_benchmarking", "influencers": cached}
 
-    client = InstagramGraphAPIClient()
-    # Use keyword if provided (more specific for benchmarking), else niche
-    hashtag_id = await client.search_hashtag_id(current_user_email, search_term)
-    
+    # Use config for consistency
+    from config import config
+    serp_key = config.SERPAPI_API_KEY
     competitors: List[Dict[str, Any]] = []
-    if hashtag_id:
+
+    if serp_key:
         try:
-            # Fetch recent media for this trend
-            media = await client.get_hashtag_recent_media_info(current_user_email, hashtag_id, limit=20)
-            seen = set()
-            
-            for m in media:
-                username = str(m.get("username") or "").strip()
-                if not username or username.lower() == "null" or username.lower() == "undefined":
-                    continue
-                    
-                key_u = username.lower()
-                if key_u in seen:
-                    continue
-                seen.add(key_u)
-                
-                # Calculate "Heat" (Engagement)
-                likes = m.get("like_count", 0) or 0
-                comments = m.get("comments_count", 0) or 0
-                total_interaction = likes + comments
-                
-                # Benchmarking logic: extract clear competitors
-                competitors.append(
-                    {
-                        "handle": username,
-                        # Formatting for UI
-                        "follower_count_formatted": f"{total_interaction}+ interactions",
-                        "engagement_rate": min(99, int((total_interaction / 500) * 100)) if total_interaction > 0 else 5,
-                        "niche_tags": [niche],
-                        "url": m.get("permalink"), # Proof of trend usage
-                        "last_post_type": m.get("media_type")
-                    }
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(
+                    "https://serpapi.com/search",
+                    params={
+                        "engine": "google",
+                        "q": f"site:instagram.com \"#{search_term}\" or \"{search_term}\" niche",
+                        "api_key": serp_key,
+                        "num": 10,
+                        "gl": geo.lower(),
+                    },
                 )
-                if len(competitors) >= 4: # Show top 4
-                    break
-                    
-            # Sort by heat
-            competitors.sort(key=lambda x: x.get("engagement_rate", 0), reverse=True)
-            
+                results = r.json().get("organic_results") or []
+                seen = set()
+
+                for item in results:
+                    link = str(item.get("link") or "")
+                    snippet = str(item.get("snippet") or "")
+
+                    # Extract Instagram handle from URL
+                    match = re.search(r"instagram\.com/([^/?#]+)", link)
+                    if not match:
+                        continue
+                    handle = match.group(1).strip("/")
+                    if not handle or handle in ("p", "reel", "explore", "tv", "stories"):
+                        continue
+                    if handle.lower() in seen:
+                        continue
+                    seen.add(handle.lower())
+
+                    competitors.append({
+                        "handle": handle,
+                        "follower_count_formatted": "Recently active",
+                        "engagement_rate": 85,
+                        "niche_tags": [niche],
+                        "url": link,
+                        "snippet": snippet[:120],
+                        "last_post_type": "IMAGE",
+                    })
+
+                    if len(competitors) >= 4:
+                        break
+
         except Exception as e:
-            logger.warning("Competitor Radar failed for %s: %s", search_term, str(e))
+            logger.warning("SerpAPI competitor radar failed for %s: %s", search_term, str(e))
             competitors = []
 
-    await _cached_set(namespace, key, competitors, ttl_seconds=12 * 60 * 60) # 12h cache
-    return {"source": "instagram_benchmarking", "influencers": competitors}
+    await _cached_set(namespace, key, competitors, ttl_seconds=12 * 60 * 60)
+    return {"source": "serpapi_benchmarking", "influencers": competitors}
 
 @router.post(
     "/suggest",

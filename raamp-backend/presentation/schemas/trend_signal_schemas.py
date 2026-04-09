@@ -1,7 +1,19 @@
 # Presentation Layer - Trend Signal Schemas
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Literal, Any
 from datetime import datetime
+
+from config import config
+from application.services.trends_providers.schemas import TrendsRelatedQueries, TrendsRisingQueries, TrendsSearchInterest
+from presentation.schemas.trend_analytics_schemas import DataQuality
+
+
+class TrendsQueryItem(BaseModel):
+    query: str
+    value: int = 0
+
+
+TrendsQueriesMap = Dict[str, List[TrendsQueryItem]]
 
 
 class TrendFetchRequest(BaseModel):
@@ -11,6 +23,16 @@ class TrendFetchRequest(BaseModel):
     # Location removed - enforced from user's onboarding_location
     radius: Optional[str] = Field(None, description="Optional radius for geo-specific searches", example="50km")
     timeframe: Optional[str] = Field("30d", description="Analysis timeframe: 24h, 7d, 30d, 90d", example="30d")
+    discovery_mode: bool = Field(
+        default=False,
+        description="If true, seed keywords using SerpAPI trending-now discovery (persisted per scan) before time-series fetch.",
+        example=False,
+    )
+    custom_keywords: List[str] = Field(
+        default_factory=list,
+        description="Optional user-defined keywords to include in this scan (deduped/merged with seeded/discovered keywords).",
+        example=["ramadan sale", "eid outfits"],
+    )
     
     model_config = {
         "json_schema_extra": {
@@ -18,7 +40,9 @@ class TrendFetchRequest(BaseModel):
                 "niche": "fashion",
                 "category": "streetwear",
                 "radius": "50km",
-                "timeframe": "30d"
+                "timeframe": "30d",
+                "discovery_mode": False,
+                "custom_keywords": ["ramadan sale", "eid outfits"],
             }
         }
     }
@@ -33,11 +57,26 @@ class TrendSignalResponse(BaseModel):
     location: str
     radius: Optional[str] = None
     keywords: List[str] = []
-    search_interest: Dict = {}
-    geo_data: Dict = {}
-    related_queries: Dict = {}
-    rising_queries: Dict = {}
+    search_interest: TrendsSearchInterest = Field(default_factory=TrendsSearchInterest)
+    geo_data: Dict[str, Any] = Field(default_factory=dict)
+    related_queries: TrendsRelatedQueries = Field(default_factory=lambda: TrendsRelatedQueries({}))
+    rising_queries: TrendsRisingQueries = Field(default_factory=lambda: TrendsRisingQueries({}))
+
+    # Provider metadata (observability)
+    provider: Optional[str] = None
+    fallback_from: Optional[str] = None
+    geo_relaxed: bool = False
     
+    # Detection parameters
+    detection_parameters: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "threshold": float(getattr(config, "TREND_Z_THRESHOLD", 2.0)),
+            "rolling_window": int(getattr(config, "TREND_ROLLING_WINDOW_DAYS", 14)),
+            "alpha": float(getattr(config, "TREND_EWMA_ALPHA", 0.3)),
+            "min_data_points": int(getattr(config, "TREND_MIN_DATA_POINTS", 5))
+        }
+    )
+
     # Computed metrics
     arbitrage_score: Optional[float] = None
     saturation_score: Optional[float] = None
@@ -52,6 +91,7 @@ class TrendSignalResponse(BaseModel):
     profit_score: Optional[float] = None
     forecast_series: Optional[List[float]] = None
     timeframe: Optional[str] = "30d"
+    ai_analysis_status: Optional[Literal["pending", "ready", "failed"]] = None
     
     fetch_status: str
     error_message: Optional[str] = None
@@ -96,6 +136,7 @@ class TrendStatusResponse(BaseModel):
     trend_id: str
     status: str
     error_message: Optional[str] = None
+    ai_analysis_status: Optional[Literal["pending", "ready", "failed"]] = None
     
     model_config = {
         "json_schema_extra": {
@@ -180,6 +221,12 @@ class TrendExplainResponse(BaseModel):
     explanation: str = Field(..., description="2-3 sentence plain English summary")
     why_now: str = Field(..., description="One sentence: why act on this today")
     content_prompt: str = Field(..., description="Ready-to-use campaign idea for CreativeStudio")
+    # Deterministic context metadata for UI + safety against hallucinations
+    category: Optional[str] = Field(None, description="Broad classifier label (sports/news/product/entertainment/generic)")
+    category_confidence: Optional[float] = Field(None, description="Classifier confidence 0..1")
+    entities: List[str] = Field(default_factory=list, description="Resolved entities if applicable (e.g., matchup teams)")
+    matchup_hint: Optional[str] = Field(None, description="Resolved matchup hint for vs keywords (if confidently resolved)")
+    data_quality: Optional[DataQuality] = Field(default=None, description="Provenance metadata for this explanation payload")
 
 
 class ForecastResponse(BaseModel):

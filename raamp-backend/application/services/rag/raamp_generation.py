@@ -48,11 +48,16 @@ RAAMP_SYSTEM_PROMPT = """You are the **RAAMP Assistant**, a highly knowledgeable
 
 ## Special Handling:
 - **Greetings**: Respond warmly and offer to help with RAAMP or marketing questions
+- **Technical Issues/Complaints**: If a user has a technical issue, complaint, or needs formal support, sympathetically guide them to the Support Center: [link to complaints page](/dashboard/complaints).
 - **Typos/Partial queries**: Understand intent even with imperfect spelling
 - **Multi-part questions**: Address each part systematically
 
 Context from RAAMP Knowledge Base:
 {context}
+
+{business_context}
+
+{trend_context}
 """
 
 
@@ -139,7 +144,9 @@ class RAAMPGenerator:
     def generate_response(self, 
                           query: str, 
                           n_context: int = None,
-                          chat_history: List = None) -> RAGResponse:
+                          chat_history: List = None,
+                          business_context: str = "",
+                          trend_context: str = "") -> RAGResponse:
         """
         Generate a response for a user query using RAG.
         
@@ -147,6 +154,8 @@ class RAAMPGenerator:
             query: User's question
             n_context: Number of context documents to retrieve
             chat_history: Previous messages in conversation
+            business_context: Dynamically injected business details
+            trend_context: Dynamically injected trend analysis details
             
         Returns:
             RAGResponse object containing the answer and metadata
@@ -159,7 +168,11 @@ class RAAMPGenerator:
         messages = []
         
         # System message with context
-        system_content = RAAMP_SYSTEM_PROMPT.format(context=context_text)
+        system_content = RAAMP_SYSTEM_PROMPT.format(
+            context=context_text,
+            business_context=business_context,
+            trend_context=trend_context
+        )
         messages.append(SystemMessage(content=system_content))
         
         # Add conversation history if provided
@@ -213,7 +226,9 @@ class RAAMPGenerator:
     def generate_response_stream(self,
                                  query: str,
                                  n_context: int = None,
-                                 chat_history: List = None):
+                                 chat_history: List = None,
+                                 business_context: str = "",
+                                 trend_context: str = ""):
         """
         Generate a streaming response for a user query using RAG.
         Yields tokens as they arrive from OpenAI.
@@ -222,6 +237,8 @@ class RAAMPGenerator:
             query: User's question
             n_context: Number of context documents to retrieve
             chat_history: Previous messages in conversation
+            business_context: Dynamically injected business details
+            trend_context: Dynamically injected trend analysis details
             
         Yields:
             Token strings as they arrive from the LLM
@@ -233,7 +250,11 @@ class RAAMPGenerator:
         messages = []
         
         # System message with context
-        system_content = RAAMP_SYSTEM_PROMPT.format(context=context_text)
+        system_content = RAAMP_SYSTEM_PROMPT.format(
+            context=context_text,
+            business_context=business_context,
+            trend_context=trend_context
+        )
         messages.append(SystemMessage(content=system_content))
         
         # Add conversation history if provided
@@ -276,7 +297,9 @@ class RAAMPGenerator:
     def chat(self, 
              query: str, 
              conversation_history: List[Dict[str, str]] = None,
-             n_context: int = None) -> Dict[str, Any]:
+             n_context: int = None,
+             business_context: str = "",
+             trend_context: str = "") -> Dict[str, Any]:
         """
         Chat interface with conversation history support.
         Maintains context across multiple turns.
@@ -285,6 +308,8 @@ class RAAMPGenerator:
             query: User's current question
             conversation_history: Previous messages in the conversation
             n_context: Number of context documents to retrieve
+            business_context: Business context string
+            trend_context: Trend context string
             
         Returns:
             Dictionary with response and updated history
@@ -292,7 +317,9 @@ class RAAMPGenerator:
         response = self.generate_response(
             query=query,
             n_context=n_context,
-            chat_history=conversation_history
+            chat_history=conversation_history,
+            business_context=business_context,
+            trend_context=trend_context
         )
         
         # Update conversation history
@@ -309,7 +336,9 @@ class RAAMPGenerator:
     def chat_stream(self,
                     query: str,
                     conversation_history: List[Dict[str, str]] = None,
-                    n_context: int = None):
+                    n_context: int = None,
+                    business_context: str = "",
+                    trend_context: str = ""):
         """
         Streaming chat interface with conversation history support.
         Yields tokens as they arrive.
@@ -318,12 +347,14 @@ class RAAMPGenerator:
             query: User's current question
             conversation_history: Previous messages in the conversation
             n_context: Number of context documents to retrieve
+            business_context: Business context string
+            trend_context: Trend context string
             
         Yields:
             Tokens as they arrive
         """
         # Stream the response
-        for token in self.generate_response_stream(query, n_context, conversation_history):
+        for token in self.generate_response_stream(query, n_context, conversation_history, business_context, trend_context):
             yield token
     
     def health_check(self) -> Dict[str, Any]:

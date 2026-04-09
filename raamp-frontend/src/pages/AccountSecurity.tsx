@@ -169,7 +169,7 @@ const AccountSecurity = () => {
                 <Shield className="w-7 h-7 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                <h1 className="text-3xl font-bold font-heading font-semibold">
                   <BlurText text="Account & Security" />
                 </h1>
                 <p className="text-muted-foreground font-mono text-sm">Manage your account security settings</p>
@@ -190,7 +190,7 @@ const AccountSecurity = () => {
 
         <Reveal variant="fadeInUp" delay={0.1}>
           <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-bebas tracking-wide">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-heading font-semibold">
               <Key className="w-5 h-5 text-primary" />
               Password
             </h2>
@@ -207,7 +207,7 @@ const AccountSecurity = () => {
 
         <Reveal variant="fadeInUp" delay={0.2}>
           <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-bebas tracking-wide">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-heading font-semibold">
               <Clock className="w-5 h-5 text-primary" />
               Last Login
             </h2>
@@ -232,7 +232,7 @@ const AccountSecurity = () => {
 
         <Reveal variant="fadeInUp" delay={0.3}>
           <Card className="p-6 bg-card/70 backdrop-blur-sm border-destructive/20">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-bebas tracking-wide">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 font-heading font-semibold">
               <AlertTriangle className="w-5 h-5 text-destructive" />
               Danger Zone
             </h2>
@@ -265,7 +265,7 @@ const AccountSecurity = () => {
       <Dialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive font-bebas tracking-wide">
+            <DialogTitle className="flex items-center gap-2 text-destructive font-heading font-semibold">
               <AlertTriangle className="w-5 h-5" />
               Delete Account?
             </DialogTitle>

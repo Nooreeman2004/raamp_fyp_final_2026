@@ -80,6 +80,16 @@ async def mark_all_as_read(
     count = await service.mark_all_read(current_user_email)
     return {"success": True, "count": count}
 
+
+@router.delete("/all")
+async def delete_all_notifications(
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """Delete all notifications for the current user."""
+    deleted = await service.delete_all(current_user_email)
+    return {"success": True, "deleted": deleted}
+
+
 @router.delete("/{notification_id}")
 async def delete_notification(
     notification_id: str,

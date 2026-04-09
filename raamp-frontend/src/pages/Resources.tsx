@@ -53,7 +53,7 @@ const Resources = () => {
 
           {/* Title Blur In */}
           <Reveal variant="blurInUp" delay={0.2}>
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent font-bebas tracking-wide">
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent font-heading font-semibold">
               <BlurText text="RAAMP Knowledge Base" />
             </h1>
           </Reveal>
@@ -73,12 +73,12 @@ const Resources = () => {
             <Card className="p-8 md:p-10 bg-card/50 backdrop-blur-sm border-primary/10">
               <div className="flex items-center gap-3 mb-6">
                 <Lightbulb className="w-6 h-6 text-primary" />
-                <h2 className="text-3xl font-bold font-bebas tracking-wide">Getting Started</h2>
+                <h2 className="text-3xl font-bold font-heading font-semibold">Getting Started</h2>
               </div>
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-primary font-bebas tracking-wide">How RAAMP Works</h3>
+                  <h3 className="text-xl font-bold mb-3 text-primary font-heading font-semibold">How RAAMP Works</h3>
                   <p className="text-muted-foreground leading-relaxed font-mono">
                     RAAMP integrates real-time data from Google Maps, Instagram, and web events to identify
                     high-demand areas. Our Intelligent Geo-Intent Marketing Engine helps you target the right
@@ -87,7 +87,7 @@ const Resources = () => {
                 </div>
 
                 <div className="border-t border-primary/10 pt-6">
-                  <h3 className="text-xl font-bold mb-3 text-primary font-bebas tracking-wide">Setting Up</h3>
+                  <h3 className="text-xl font-bold mb-3 text-primary font-heading font-semibold">Setting Up</h3>
                   <p className="text-muted-foreground leading-relaxed font-mono">
                     Simply register with your email and business details. Once logged in, connect your Instagram
                     handle via our secure OAuth integration to start generating hyper-personalized campaigns.
@@ -105,7 +105,7 @@ const Resources = () => {
           <Reveal variant="fadeInLeft">
             <div className="flex items-center gap-3 mb-8">
               <HelpCircle className="w-6 h-6 text-primary" />
-              <h2 className="text-3xl font-bold font-bebas tracking-wide">Frequently Asked Questions</h2>
+              <h2 className="text-3xl font-bold font-heading font-semibold">Frequently Asked Questions</h2>
             </div>
           </Reveal>
 
@@ -124,7 +124,7 @@ const Resources = () => {
               >
                 <motion.div variants={hoverLift} initial="rest" whileHover="hover">
                   <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/10 hover:border-primary/30 transition-all cursor-default">
-                    <h3 className="text-lg font-bold mb-3 text-foreground font-bebas tracking-wide">
+                    <h3 className="text-lg font-bold mb-3 text-foreground font-heading font-semibold">
                       Q: {faq.question}
                     </h3>
                     <p className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-primary/30 font-mono">

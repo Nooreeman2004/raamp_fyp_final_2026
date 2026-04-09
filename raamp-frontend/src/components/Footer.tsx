@@ -3,7 +3,7 @@ import raampIcon from "@/assets/raamp-logo-v6.png";
 
 const Footer = () => {
   return (
-    <footer className="border-t border-primary/10 py-12 bg-black/20 backdrop-blur-sm">
+    <footer className="border-t border-primary/10 py-12 bg-card/50 backdrop-blur-sm">
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">

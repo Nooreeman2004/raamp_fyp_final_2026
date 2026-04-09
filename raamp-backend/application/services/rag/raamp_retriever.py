@@ -20,6 +20,8 @@ from .query_preprocessor import QueryPreprocessor, ProcessedQuery
 load_dotenv()
 
 
+from cachetools import TTLCache
+
 @dataclass
 class RetrievedDocument:
     """Represents a retrieved document with metadata."""
@@ -39,6 +41,9 @@ class RAAMPRetriever:
     Includes intelligent query preprocessing for better results.
     """
     
+    # Simple LRU cache for embeddings to speed up repeated queries
+    _embedding_cache = TTLCache(maxsize=100, ttl=3600)  # Cache 100 queries for 1 hour
+    
     def __init__(self, 
                  use_preprocessing: bool = True):
         """
@@ -50,7 +55,7 @@ class RAAMPRetriever:
         self.use_preprocessing = use_preprocessing
         
         # Configuration
-        self.n_results = int(os.getenv("DEFAULT_N_RESULTS", "5"))
+        self.n_results = int(os.getenv("DEFAULT_N_RESULTS", "4")) # Default to 4 for better speed
         self.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))
         
         # Initialize query preprocessor
@@ -62,7 +67,7 @@ class RAAMPRetriever:
         # Initialize Pinecone vector store
         self.vector_store = PineconeVectorStore()
         
-        print("✅ RAAMP Retriever initialized with Pinecone")
+        print("✅ RAAMP Retriever initialized with Pinecone (Caching enabled)")
         print(f"   Top K: {self.n_results}, Threshold: {self.similarity_threshold}")
     
     def retrieve(self, 
@@ -92,8 +97,12 @@ class RAAMPRetriever:
             processed = self.preprocessor.preprocess(query)
             search_query = processed.expanded
         
-        # Generate embedding
-        query_embedding = self.embedding_generator.generate_embedding(search_query)
+        # Generate embedding (check cache first)
+        if search_query in self._embedding_cache:
+            query_embedding = self._embedding_cache[search_query]
+        else:
+            query_embedding = self.embedding_generator.generate_embedding(search_query)
+            self._embedding_cache[search_query] = query_embedding
         
         # Build filter
         filter_dict = {}
@@ -176,21 +185,19 @@ class RAAMPRetriever:
     
     def get_langchain_retriever(self):
         """
-        Get the underlying LangChain retriever for use in chains.
-        
-        Returns:
-            LangChain VectorStoreRetriever
+        Get a LangChain-compatible retriever interface.
+        Note: Currently returns self since we implement retrieve_documents.
         """
-        return self.retriever
+        return self
     
     def get_collection_stats(self) -> Dict[str, Any]:
-        """Get statistics about the vector store collection."""
+        """Get statistics about the vector store index."""
         try:
-            collection = self.vector_store._collection
+            stats = self.vector_store.get_index_stats()
             return {
-                "name": self.collection_name,
-                "count": collection.count(),
-                "persist_directory": self.persist_directory
+                "name": self.vector_store.index_name,
+                "vector_count": stats.get("total_vector_count", 0),
+                "dimension": stats.get("dimension", 0)
             }
         except Exception as e:
             return {"error": str(e)}

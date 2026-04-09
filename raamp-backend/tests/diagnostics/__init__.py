@@ -1,0 +1,2 @@
+"""Diagnostics scripts package."""
+

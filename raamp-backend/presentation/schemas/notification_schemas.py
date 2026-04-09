@@ -12,6 +12,7 @@ class NotificationResponse(BaseModel):
     title: str
     message: str
     read: bool
+    priority: int = 0
     created_at: datetime
     related_entity_id: Optional[str] = None
     metadata: Dict[str, Any] = {}
@@ -33,6 +34,7 @@ class NotificationCreateRequest(BaseModel):
     type: NotificationType
     title: str
     message: str
+    priority: int = 0
     related_entity_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = {}
 

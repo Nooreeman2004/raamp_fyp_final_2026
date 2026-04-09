@@ -9,23 +9,21 @@ interface ProfileGuardProps {
 }
 
 export default function ProfileGuard({ children }: ProfileGuardProps) {
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading, user } = useAuth();
   const { isFullyOnboarded, nextStep, steps, isLoading: statusLoading } = useOnboardingStatus();
   const location = useLocation();
 
-  if (authLoading || statusLoading) {
+  if (authLoading || (statusLoading && !user)) {
     return null; // Or a loading spinner
   }
 
-  // If fully onboarded, allow everything
+  // 1. If already completed (via API or Cache), allow everything immediately
   if (isFullyOnboarded) {
     return <>{children}</>;
   }
 
-  // --- Strict Onboarding Gating Logic ---
-
-  // Allow access to the onboarding steps themselves regardless of completion status
-  // (though usually nextStep logic handles the flow, we shouldn't block these routes if they are in ProfileGuard)
+  // 2. Allow access to the onboarding steps themselves regardless of completion status
+  // This prevents the back button from getting stuck if we navigate between steps.
   const currentPath = location.pathname;
   const isOnboardingRoute = steps.some(step => currentPath === step.route);
 
@@ -33,7 +31,7 @@ export default function ProfileGuard({ children }: ProfileGuardProps) {
     return <>{children}</>;
   }
 
-  // For any other "Protected" route (like /dashboard), if not fully onboarded,
-  // show the intentional gating UI instead of a silent redirect.
+  // 3. For any other "Protected" route (like /dashboard or /settings), 
+  // show the gating UI if not onboarded.
   return <OnboardingGating steps={steps} nextStep={nextStep} />;
 }

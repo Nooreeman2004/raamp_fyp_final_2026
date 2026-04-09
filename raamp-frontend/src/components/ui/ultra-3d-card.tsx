@@ -67,8 +67,8 @@ export const Ultra3DCard = ({ children, className, title, description, icon: Ico
             onMouseEnter={() => !disableHoverEffects && setHovered(true)}
             onMouseLeave={onMouseLeave}
             className={cn(
-                "group relative h-full rounded-xl border border-white/10 bg-gray-900/40 transition-all duration-300 will-change-transform",
-                !disableHoverEffects && "hover:border-white/20",
+                "group relative h-full rounded-xl border border-border/50 bg-gray-900/40 transition-all duration-300 will-change-transform",
+                !disableHoverEffects && "hover:border-border/80",
                 className
             )}
             style={{
@@ -114,7 +114,7 @@ export const Ultra3DCard = ({ children, className, title, description, icon: Ico
                     {title && (
                         <h3
                             className={cn(
-                                "text-xl font-bold mb-2 font-bebas tracking-wide text-white transition-colors duration-300",
+                                "text-xl font-bold mb-2 font-heading font-semibold text-foreground transition-colors duration-300",
                                 !disableHoverEffects && "group-hover:text-primary"
                             )}
                             style={{ transform: "translateZ(25px)" }}

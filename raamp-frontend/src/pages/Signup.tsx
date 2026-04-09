@@ -27,7 +27,7 @@ const PasswordRequirementItem = ({ label, isMet, showError }: { label: string, i
       "w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-all duration-300",
       isMet
         ? "bg-emerald-500/20 border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
-        : (showError ? "bg-red-500/10 border-red-500/50" : "bg-white/5 border-white/10")
+        : (showError ? "bg-red-500/10 border-red-500/50" : "bg-foreground/5 border-border/50")
     )}>
       {isMet && <Check className="w-2.5 h-2.5 text-emerald-500" strokeWidth={3} />}
     </div>
@@ -348,7 +348,7 @@ const Signup = () => {
       <BackgroundBeams className="opacity-40" />
 
       <div className="relative z-10 w-full max-w-lg p-4">
-        <Ultra3DCard className="w-full backdrop-blur-3xl bg-black/40 border-white/10 shadow-2xl" disableHoverEffects={true}>
+        <Ultra3DCard className="w-full backdrop-blur-3xl bg-card border-border/50 shadow-2xl" disableHoverEffects={true}>
           <div className="p-8">
             <div className="text-center mb-8">
               <motion.div
@@ -363,7 +363,7 @@ const Signup = () => {
                   logoClassName="w-12 h-12"
                 />
               </motion.div>
-              <h1 className="text-4xl font-bold text-white font-bebas tracking-wide mb-2">
+              <h1 className="text-4xl font-bold text-foreground font-heading font-semibold mb-2">
                 <BlurText text="CREATE ACCOUNT" />
               </h1>
               <p className="text-muted-foreground text-sm font-mono">
@@ -388,7 +388,7 @@ const Signup = () => {
                     onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
                     onBlur={() => handleBlur('username')}
                     className={cn(
-                      "pl-10 bg-white/5 backdrop-blur-sm border-white/10 font-mono focus:border-white/20 transition-colors",
+                      "pl-10 bg-foreground/5 backdrop-blur-sm border-border/50 font-mono focus:border-border/80 transition-colors",
                       touched.username && !validations.username.isValid ? "border-red-500/50" :
                         touched.username && validations.username.isValid ? "border-emerald-500/50" : ""
                     )}
@@ -420,7 +420,7 @@ const Signup = () => {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
                     onBlur={() => handleBlur('email')}
                     className={cn(
-                      "pl-10 bg-white/5 backdrop-blur-sm border-white/10 font-mono focus:border-white/20 transition-colors",
+                      "pl-10 bg-foreground/5 backdrop-blur-sm border-border/50 font-mono focus:border-border/80 transition-colors",
                       touched.email && !validations.email.isValid ? "border-red-500/50" :
                         touched.email && validations.email.isValid ? "border-emerald-500/50" : ""
                     )}
@@ -449,7 +449,7 @@ const Signup = () => {
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     onBlur={() => handleBlur('password')}
                     className={cn(
-                      "pl-10 pr-10 bg-white/5 backdrop-blur-sm border-white/10 font-mono focus:border-white/20 transition-colors",
+                      "pl-10 pr-10 bg-foreground/5 backdrop-blur-sm border-border/50 font-mono focus:border-border/80 transition-colors",
                       touched.password && !validations.password.isValid ? "border-red-500/50" :
                         touched.password && validations.password.isValid ? "border-emerald-500/50" : ""
                     )}
@@ -475,7 +475,7 @@ const Signup = () => {
                             "h-full flex-1 rounded-full transition-colors duration-300",
                             validations.password.strength >= step
                               ? (validations.password.strength < 60 ? "bg-red-500" : validations.password.strength < 100 ? "bg-yellow-500" : "bg-emerald-500")
-                              : "bg-white/5"
+                              : "bg-foreground/5"
                           )}
                           initial={{ scaleX: 0 }}
                           animate={{ scaleX: 1 }}
@@ -531,7 +531,7 @@ const Signup = () => {
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                     onBlur={() => handleBlur('confirmPassword')}
                     className={cn(
-                      "pl-10 pr-10 bg-white/5 backdrop-blur-sm border-white/10 font-mono focus:border-white/20 transition-colors",
+                      "pl-10 pr-10 bg-foreground/5 backdrop-blur-sm border-border/50 font-mono focus:border-border/80 transition-colors",
                       touched.confirmPassword && !validations.confirmPassword.isValid ? "border-red-500/50" :
                         touched.confirmPassword && validations.confirmPassword.isValid ? "border-emerald-500/50" : ""
                     )}
@@ -546,7 +546,7 @@ const Signup = () => {
               <div className="flex items-center space-x-2 pt-2">
                 <Checkbox
                   id="terms"
-                  className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:text-black"
+                  className="border-border/80 data-[state=checked]:bg-primary data-[state=checked]:text-black"
                   required
                   checked={formData.agreed_to_terms}
                   onCheckedChange={(checked) => setFormData({ ...formData, agreed_to_terms: checked as boolean })}
@@ -576,7 +576,7 @@ const Signup = () => {
 
             <div className="relative py-6">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-white/10" />
+                <span className="w-full border-t border-border/50" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-black/50 px-2 text-muted-foreground backdrop-blur-sm">Or continue with</span>
@@ -585,7 +585,7 @@ const Signup = () => {
 
             <MagneticButton
               type="button"
-              className="w-full border border-white/10 bg-white/5 hover:bg-white/10 text-white font-mono text-xs h-10"
+              className="w-full border border-border/50 bg-foreground/5 hover:bg-foreground/10 text-foreground font-mono text-xs h-10"
               onClick={handleGoogleSignup}
               disabled={loading}
             >

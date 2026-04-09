@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { toast } from 'sonner';
-import { useAuth } from '../hooks/useAuth';
-import { apiClient } from '../services/api';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/services/api';
 
 export interface Notification {
     id: string;
@@ -9,6 +9,7 @@ export interface Notification {
     title: string;
     message: string;
     read: boolean;
+    priority?: number;
     created_at: string;
     metadata?: any;
 }
@@ -20,6 +21,7 @@ interface NotificationContextType {
     markAsRead: (id: string) => Promise<void>;
     markAllAsRead: () => Promise<void>;
     deleteNotification: (id: string) => Promise<void>;
+    clearAllNotifications: () => Promise<void>;
     fetchNotifications: () => Promise<void>;
 }
 
@@ -32,6 +34,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(false);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
     const wsRef = useRef<WebSocket | null>(null);
+    const pingIntervalRef = useRef<number | null>(null);
+    const shouldReconnectRef = useRef(true);
+    const intentionalCloseRef = useRef(false);
 
     // Fetch initial notifications
     const fetchNotifications = async () => {
@@ -54,7 +59,16 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
         // Close existing connection if any
         if (wsRef.current) {
+            intentionalCloseRef.current = true;
             wsRef.current.close();
+        }
+        if (pingIntervalRef.current) {
+            window.clearInterval(pingIntervalRef.current);
+            pingIntervalRef.current = null;
+        }
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = undefined;
         }
 
         // Attempt to get token (from cookie usually, but here we depend on auth context or browser handling cookies)
@@ -77,13 +91,24 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         const token = localStorage.getItem('token');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host; // includes port if dev
-        const wsUrl = `${protocol}//${host}/api/notifications/ws${token ? `?token=${token}` : ''}`;
+        // In dev, the frontend runs on :8080 but the backend runs on :8000.
+        // Use hostname + backend port to avoid accidentally connecting to the frontend port.
+        const backendHost = `${window.location.hostname}:8000`;
+        const wsUrl = `${protocol}//${backendHost}/api/notifications/ws${token ? `?token=${token}` : ''}`;
 
         const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
             console.log('Notification WebSocket connected');
+            intentionalCloseRef.current = false;
+            // Keepalive: backend waits on receive_text(); this prevents idle proxy timeouts.
+            pingIntervalRef.current = window.setInterval(() => {
+                try {
+                    if (ws.readyState === WebSocket.OPEN) ws.send("ping");
+                } catch {
+                    // ignore
+                }
+            }, 25000);
         };
 
         ws.onmessage = (event) => {
@@ -91,11 +116,23 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 const msg = JSON.parse(event.data);
                 if (msg.event === 'new_notification' && msg.data) {
                     const newNotif = msg.data;
-                    setNotifications(prev => [newNotif, ...prev]);
+                    setNotifications(prev => {
+                        const merged = [newNotif, ...prev];
+                        // Keep UI ordering stable: priority desc, then created_at desc.
+                        return merged.sort((a: any, b: any) => {
+                            const ap = Number(a?.priority ?? 0);
+                            const bp = Number(b?.priority ?? 0);
+                            if (bp !== ap) return bp - ap;
+                            const at = new Date(a?.created_at ?? 0).getTime();
+                            const bt = new Date(b?.created_at ?? 0).getTime();
+                            return bt - at;
+                        });
+                    });
                     setUnreadCount(prev => prev + 1);
 
                     // Show toast - hide 'View' for trends as requested
-                    const isTrend = newNotif.metadata?.sub_type === 'trend';
+                    const subType = newNotif.metadata?.sub_type;
+                    const isTrend = subType === 'trend' || subType === 'trend_discovered';
 
                     toast(newNotif.title, {
                         description: newNotif.message,
@@ -110,9 +147,25 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             }
         };
 
-        ws.onclose = () => {
-            console.log('Notification WebSocket disconnected. Reconnecting in 5s...');
+        ws.onerror = (err) => {
+            console.warn('Notification WebSocket error', err);
+        };
+
+        ws.onclose = (ev) => {
+            console.log('Notification WebSocket disconnected. Reconnecting in 5s...', {
+                code: ev.code,
+                reason: ev.reason,
+                wasClean: ev.wasClean,
+            });
             wsRef.current = null;
+            if (pingIntervalRef.current) {
+                window.clearInterval(pingIntervalRef.current);
+                pingIntervalRef.current = null;
+            }
+            // In React 18 dev StrictMode, effects mount->cleanup->mount, which can
+            // intentionally close the socket once right after connecting.
+            // Also avoid reconnecting when we explicitly closed the socket (switch user, unmount, etc.).
+            if (!shouldReconnectRef.current || intentionalCloseRef.current) return;
             reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
         };
 
@@ -121,12 +174,15 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         if (user) {
+            shouldReconnectRef.current = true;
             fetchNotifications();
             connectWebSocket();
         }
         return () => {
+            shouldReconnectRef.current = false;
             if (wsRef.current) wsRef.current.close();
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+            if (pingIntervalRef.current) window.clearInterval(pingIntervalRef.current);
         };
     }, [user]);
 
@@ -166,6 +222,18 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const clearAllNotifications = async () => {
+        try {
+            setNotifications([]);
+            setUnreadCount(0);
+            await apiClient.delete<{ success: boolean; deleted: number }>('/notifications/all');
+        } catch (error) {
+            console.error('Failed to clear notifications:', error);
+            await fetchNotifications();
+            throw error;
+        }
+    };
+
     return (
         <NotificationContext.Provider value={{
             notifications,
@@ -174,6 +242,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             markAsRead,
             markAllAsRead,
             deleteNotification,
+            clearAllNotifications,
             fetchNotifications
         }}>
             {children}

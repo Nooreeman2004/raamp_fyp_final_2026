@@ -5,7 +5,6 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
 import {
   Menu,
   LayoutDashboard,
@@ -27,6 +26,7 @@ import {
   BookOpen,
   Scale,
   Images,
+  LifeBuoy,
   type LucideIcon
 } from "lucide-react";
 import type { UserResponse } from "@/types";
@@ -35,6 +35,7 @@ import { toast as sonner } from "sonner";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { staggerContainer } from "@/utils/animations";
 import { springSlide } from "@/utils/motion";
+import { BrandMark } from "@/components/BrandMark";
 
 interface AppDrawerProps {
   user: UserResponse | null;
@@ -78,7 +79,6 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Asset Library", icon: Images, href: "/dashboard/assets" },
     { label: "Trend Arbitrage", icon: TrendIcon, href: "/dashboard/trends" },
     { label: "A/B Testing", icon: Flask, href: "/dashboard/ab-testing" },
-    { label: "Performance", icon: BarChart3, href: "/dashboard/performance" },
     { label: "Billing & Finance", icon: CreditCard, href: "/billing" },
   ];
 
@@ -103,6 +103,9 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
   // Marketing pages (About, Resources, Legal) are intentionally excluded for logged-in users
   const navSections: NavSection[] = user ? [
     { title: "Module Status & Quick Actions", items: moduleItems },
+    { title: "Help & Support", items: [
+      { label: "Complaints & Support", icon: LifeBuoy, href: "/dashboard/complaints" },
+    ]},
     { title: "Settings", items: settingsItems },
   ] : [];
 
@@ -144,7 +147,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="text-white/70 hover:text-primary hover:bg-white/5 transition-all"
+            className="text-muted-foreground hover:text-primary hover:bg-foreground/5 transition-all"
             aria-label="Open menu"
           >
             <Menu className="w-6 h-6" />
@@ -152,7 +155,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
         </SheetTrigger>
         <SheetContent
           side="left"
-          className="w-[300px] sm:w-[340px] p-0 flex flex-col bg-background/95 backdrop-blur-2xl border-r border-white/10 text-white"
+          className="w-[300px] sm:w-[340px] p-0 flex flex-col bg-background/95 backdrop-blur-2xl border-r border-border/50 text-foreground"
         >
           {/* Glow Slide Effect Container */}
           <div
@@ -165,36 +168,36 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
           />
 
           {/* Header */}
-          <SheetHeader className="p-6 pb-4 border-b border-white/10 relative z-10">
+          <SheetHeader className="p-6 pb-4 border-b border-border/50 relative z-10">
             <div className="flex items-center justify-between">
               <Link
                 to={user ? "/dashboard" : "/"}
                 className="flex items-center gap-3 group"
                 onClick={() => setOpen(false)}
               >
-                <img src={raampIcon} alt="RAAMP" className="h-10 w-10" />
-                <SheetTitle className="text-2xl font-bold text-white tracking-wider font-bebas group-hover:text-primary transition-colors">RAAMP</SheetTitle>
+                <BrandMark variant="drawer" size={40} />
+                <SheetTitle className="text-2xl font-bold text-foreground tracking-wider font-heading font-semibold group-hover:text-primary transition-colors">RAAMP</SheetTitle>
               </Link>
             </div>
           </SheetHeader>
 
           {/* User Profile Section - Only for logged in users */}
           {user && (
-            <div className="px-6 py-4 bg-white/5 border-b border-white/10 relative z-10">
+            <div className="px-6 py-4 bg-foreground/5 border-b border-border/50 relative z-10">
               <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12 border border-white/20 ring-2 ring-transparent group-hover:ring-primary/50 transition-all">
+                <Avatar className="h-12 w-12 border border-border/80 ring-2 ring-transparent group-hover:ring-primary/50 transition-all">
                   <AvatarImage src={user.profile_picture || undefined} alt={user.username} />
-                  <AvatarFallback className="bg-card text-primary font-bold border border-white/10">
+                  <AvatarFallback className="bg-card text-primary font-bold border border-border/50">
                     {getUserInitials()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate text-white">
+                  <p className="font-semibold text-sm truncate text-foreground">
                     {user.first_name && user.last_name
                       ? `${user.first_name} ${user.last_name}`
                       : user.username || user.email}
                   </p>
-                  <p className="text-xs text-white/50 truncate">{user.email}</p>
+                  <p className="text-xs text-muted-foreground/80 truncate">{user.email}</p>
                 </div>
               </div>
             </div>
@@ -238,11 +241,11 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                                 group flex items-center gap-3 px-3 py-2.5 rounded-r-lg transition-all duration-300 relative overflow-hidden
                                 ${active
                                   ? 'bg-primary/10 text-primary border-l-2 border-primary'
-                                  : 'text-white/60 hover:text-white hover:bg-white/5 border-l-2 border-transparent'
+                                  : 'text-muted-foreground/80 hover:text-foreground hover:bg-foreground/5 border-l-2 border-transparent'
                                 }
                               `}
                             >
-                              <Icon className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 ${active ? 'text-primary' : 'text-white/40 group-hover:text-primary'}`} />
+                              <Icon className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 ${active ? 'text-primary' : 'text-muted-foreground/60 group-hover:text-primary'}`} />
                               <span className="text-sm flex-1 font-medium tracking-wide">{item.label}</span>
                               {item.badge && (
                                 <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-primary/20 text-primary border border-primary/30">
@@ -261,7 +264,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                       })}
                     </motion.nav>
                     {sectionIdx < navSections.length - 1 && (
-                      <Separator className="mt-4 mx-6 bg-white/10" />
+                      <Separator className="mt-4 mx-6 bg-foreground/10" />
                     )}
                   </motion.div>
                 ))
@@ -276,9 +279,9 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                   <Link
                     to="/login"
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 text-white/80 hover:text-white transition-all"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/5 text-white/80 hover:text-foreground transition-all"
                   >
-                    <User className="w-4 h-4 text-white/50" />
+                    <User className="w-4 h-4 text-muted-foreground/80" />
                     <span className="text-sm">Login</span>
                   </Link>
                   <Link
@@ -290,7 +293,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                     <span className="text-sm font-medium">Create Account</span>
                   </Link>
 
-                  <Separator className="my-4 bg-white/10" />
+                  <Separator className="my-4 bg-foreground/10" />
 
                   <div className="space-y-1">
                     {infoItems.map((item) => {
@@ -300,7 +303,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                           key={item.href}
                           to={item.href}
                           onClick={() => setOpen(false)}
-                          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 text-white/60 hover:text-white transition-all"
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/5 text-muted-foreground/80 hover:text-foreground transition-all"
                         >
                           <Icon className="w-4 h-4 text-white/30" />
                           <span className="text-sm">{item.label}</span>
@@ -315,7 +318,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
 
           {/* Footer Actions */}
           {user && (
-            <div className="p-4 border-t border-white/10 bg-black/20 relative z-10">
+            <div className="p-4 border-t border-border/50 bg-card/50 relative z-10">
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"

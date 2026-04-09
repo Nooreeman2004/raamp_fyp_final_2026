@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link2, Check, ArrowRight, RefreshCw, MapPin, Search, Building2, Globe, Phone, Save, X, Tag, Sparkles } from "lucide-react";
+import { Link2, Check, ArrowRight, RefreshCw, MapPin, Search, Building2, Globe, Phone, Save, X, Tag, Sparkles, Target } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "@/services/api";
 import { businessService } from "@/services/businessService";
@@ -32,13 +32,13 @@ import { BlurText } from "@/components/ui/text-reveal";
 
 // Social Logos
 const FacebookLogo = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-white">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-foreground">
         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
     </svg>
 );
 
 const InstagramLogo = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground">
         <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
         <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
         <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
@@ -92,12 +92,6 @@ const Onboarding = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     const [showLocationForm, setShowLocationForm] = useState(false);
-
-    // Specialties States
-    const [specialties, setSpecialties] = useState<string[]>([]);
-    const [specialtyInput, setSpecialtyInput] = useState("");
-    const [savingSpecialties, setSavingSpecialties] = useState(false);
-    const [showSpecialtiesForm, setShowSpecialtiesForm] = useState(false);
 
     interface LocationSuggestion {
         place_id: string;
@@ -345,73 +339,6 @@ const Onboarding = () => {
         }
     };
 
-    // Specialty Handlers
-    const handleAddSpecialty = () => {
-        const trimmed = specialtyInput.trim();
-
-        if (!trimmed) {
-            return;
-        }
-
-        if (specialties.length >= 10) {
-            toast.error("Maximum specialties reached", {
-                description: "You can add up to 10 specialties.",
-            });
-            return;
-        }
-
-        if (trimmed.length > 50) {
-            toast.error("Specialty too long", {
-                description: "Each specialty must be 50 characters or less.",
-            });
-            return;
-        }
-
-        if (specialties.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
-            toast.error("Duplicate specialty", {
-                description: "This specialty is already added.",
-            });
-            return;
-        }
-
-        setSpecialties([...specialties, trimmed]);
-        setSpecialtyInput("");
-
-        toast.success("Specialty added", {
-            description: `Added "${trimmed}" to your specialties.`,
-        });
-    };
-
-    const handleRemoveSpecialty = (index: number) => {
-        setSpecialties(specialties.filter((_, i) => i !== index));
-    };
-
-    const handleSaveSpecialties = async () => {
-        setSavingSpecialties(true);
-        try {
-            await trendService.updateBusinessSpecialties(specialties);
-
-            toast.success("Specialties Saved", {
-                description: "Your specialties will help us show more relevant trends.",
-            });
-
-            setShowSpecialtiesForm(false);
-        } catch (error) {
-            console.error("Failed to save specialties:", error);
-            toast.error("Save Failed", {
-                description: "Unable to save specialties. Please try again.",
-            });
-        } finally {
-            setSavingSpecialties(false);
-        }
-    };
-
-    const handleSkipSpecialties = () => {
-        setShowSpecialtiesForm(false);
-        toast("Specialties Skipped", {
-            description: "You can always add specialties later in Settings.",
-        });
-    };
 
     return (
         <Layout breadcrumbItems={[{ label: "Profile", href: "/profile/user" }, { label: "Integrations" }]}>
@@ -428,7 +355,7 @@ const Onboarding = () => {
                                 <Link2 className="w-7 h-7 text-primary" />
                             </div>
                             <div>
-                                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                <h1 className="text-3xl font-bold font-heading font-semibold">
                                     <BlurText text="Integrations & Onboarding" />
                                 </h1>
                                 <p className="text-muted-foreground font-mono text-sm">
@@ -456,13 +383,13 @@ const Onboarding = () => {
                                     variants={fadeInUp}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                 >
-                                    <div className="h-[96px] w-full bg-card/40 rounded-xl border border-white/5 animate-pulse flex items-center px-6 gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-white/5" />
+                                    <div className="h-[96px] w-full bg-card/40 rounded-xl border border-border animate-pulse flex items-center px-6 gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-foreground/5" />
                                         <div className="flex-1 space-y-2">
-                                            <div className="h-4 w-32 bg-white/5 rounded" />
-                                            <div className="h-3 w-48 bg-white/5 rounded" />
+                                            <div className="h-4 w-32 bg-foreground/5 rounded" />
+                                            <div className="h-3 w-48 bg-foreground/5 rounded" />
                                         </div>
-                                        <div className="h-10 w-24 bg-white/5 rounded" />
+                                        <div className="h-10 w-24 bg-foreground/5 rounded" />
                                     </div>
                                 </motion.div>
                             ))
@@ -474,12 +401,12 @@ const Onboarding = () => {
                                         <div className="flex items-center gap-4">
                                             <div className={cn(
                                                 "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500",
-                                                connecting === 'facebook' ? "bg-blue-600/40 animate-pulse scale-110" : "bg-blue-600"
+                                                connecting === 'facebook' ? "bg-teal-600/40 animate-pulse scale-110" : "bg-teal-600"
                                             )}>
                                                 <FacebookLogo />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold font-bebas tracking-wide text-lg text-white">Facebook Ads</h3>
+                                                <h3 className="font-bold font-heading font-semibold text-lg text-foreground">Facebook Ads</h3>
                                                 <p className="text-sm text-muted-foreground font-mono">Connect your ad account</p>
                                             </div>
                                         </div>
@@ -526,7 +453,7 @@ const Onboarding = () => {
                                                 <InstagramLogo />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold font-bebas tracking-wide text-lg text-white">Instagram</h3>
+                                                <h3 className="font-bold font-heading font-semibold text-lg text-foreground">Instagram</h3>
                                                 <div className="flex flex-col">
                                                     <p className="text-sm text-muted-foreground font-mono">Connect for organic insights</p>
                                                     {!status.facebook_connected && (
@@ -579,8 +506,8 @@ const Onboarding = () => {
                                                     <GoogleLogo />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold font-bebas tracking-wide text-lg text-white">Google Business</h3>
-                                                    <p className="text-sm text-white/60 font-mono">Connect for search intent</p>
+                                                    <h3 className="font-bold font-heading font-semibold text-lg text-foreground">Google Business</h3>
+                                                    <p className="text-sm text-muted-foreground/80 font-mono">Connect for search intent</p>
                                                 </div>
                                             </div>
                                             <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
@@ -640,7 +567,7 @@ const Onboarding = () => {
                                                                         className="w-full text-left px-4 py-2 hover:bg-primary/10 transition-colors text-sm border-b border-primary/10 last:border-0"
                                                                         onClick={() => handleSuggestionSelect(s)}
                                                                     >
-                                                                        <div className="font-medium text-white">{s.name}</div>
+                                                                        <div className="font-medium text-foreground">{s.name}</div>
                                                                         <div className="text-xs text-muted-foreground truncate">{s.formatted_address}</div>
                                                                     </button>
                                                                 ))}
@@ -684,7 +611,7 @@ const Onboarding = () => {
                                                         <Button
                                                             onClick={handleSaveLocation}
                                                             disabled={isSavingLocation || !locationData.address || locationData.latitude === 0}
-                                                            className="font-bebas tracking-wide"
+                                                            className="font-heading font-semibold"
                                                         >
                                                             {isSavingLocation ? (
                                                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -700,132 +627,27 @@ const Onboarding = () => {
                                     </Card>
                                 </motion.div>
 
-                                {/* Business Specialties (Optional) */}
-                                <motion.div variants={fadeInUp} key="specialties">
-                                    <Card className="p-6 bg-card/70 backdrop-blur-sm border-primary/10">
-                                        <button
-                                            onClick={() => setShowSpecialtiesForm(!showSpecialtiesForm)}
-                                            className="w-full flex items-center justify-between group"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-full bg-purple-600/20 flex items-center justify-center">
-                                                    <Tag className="w-6 h-6 text-purple-500" />
+                                {/* Pro-Tip Link to Specialties */}
+                                <motion.div variants={fadeInUp} key="specialties-link">
+                                    <Link to="/settings/business-specialties">
+                                        <Card className="p-6 bg-purple-500/5 hover:bg-purple-500/10 backdrop-blur-sm border-dashed border-purple-500/30 transition-all duration-300 group cursor-pointer">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <Target className="w-5 h-5 text-purple-400" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-heading font-semibold text-lg text-foreground flex items-center gap-2">
+                                                            Refine Targeting
+                                                            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                                                        </h3>
+                                                        <p className="text-xs text-muted-foreground font-mono">Set your niche keywords for AI trend focus</p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-left">
-                                                    <h3 className="font-bold font-bebas tracking-wide text-lg flex items-center gap-2">
-                                                        Business Specialties
-                                                        <span className="text-xs font-mono px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded">OPTIONAL</span>
-                                                    </h3>
-                                                    <p className="text-sm text-muted-foreground font-mono">
-                                                        {specialties.length > 0
-                                                            ? `${specialties.length} specialt${specialties.length === 1 ? 'y' : 'ies'} added`
-                                                            : "Add keywords to see more relevant trends"
-                                                        }
-                                                    </p>
-                                                </div>
+                                                <ArrowRight className="w-4 h-4 text-purple-400 group-hover:translate-x-1 transition-transform" />
                                             </div>
-                                            <Sparkles className={cn(
-                                                "w-5 h-5 transition-transform text-purple-500",
-                                                showSpecialtiesForm && "rotate-90"
-                                            )} />
-                                        </button>
-
-                                        <AnimatePresence>
-                                            {showSpecialtiesForm && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: "auto" }}
-                                                    exit={{ opacity: 0, height: 0 }}
-                                                    transition={{ duration: 0.3 }}
-                                                    className="mt-6 pt-6 border-t border-primary/20 space-y-4"
-                                                >
-                                                    <div className="space-y-2">
-                                                        <Label className="font-mono text-xs">Add Specialty Keywords</Label>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            Examples: "vegan", "sustainable", "handmade", "luxury", "artisan"
-                                                        </p>
-                                                        <div className="flex gap-2">
-                                                            <Input
-                                                                className="bg-background/50 font-mono"
-                                                                placeholder="e.g., organic"
-                                                                value={specialtyInput}
-                                                                onChange={(e) => setSpecialtyInput(e.target.value)}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.preventDefault();
-                                                                        handleAddSpecialty();
-                                                                    }
-                                                                }}
-                                                                maxLength={50}
-                                                            />
-                                                            <Button
-                                                                onClick={handleAddSpecialty}
-                                                                disabled={!specialtyInput.trim() || specialties.length >= 10}
-                                                                className="font-bebas tracking-wide"
-                                                            >
-                                                                Add
-                                                            </Button>
-                                                        </div>
-                                                        <p className="text-xs text-muted-foreground text-right">
-                                                            {specialties.length}/10 specialties
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Specialty Tags */}
-                                                    {specialties.length > 0 && (
-                                                        <div className="space-y-2">
-                                                            <Label className="font-mono text-xs">Your Specialties</Label>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {specialties.map((specialty, index) => (
-                                                                    <div
-                                                                        key={index}
-                                                                        className="group inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-full text-sm hover:bg-purple-500/20 transition-colors"
-                                                                    >
-                                                                        <span className="font-mono">{specialty}</span>
-                                                                        <button
-                                                                            onClick={() => handleRemoveSpecialty(index)}
-                                                                            className="opacity-60 hover:opacity-100 transition-opacity"
-                                                                        >
-                                                                            <X className="w-3 h-3" />
-                                                                        </button>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Action Buttons */}
-                                                    <div className="flex justify-between items-center pt-4">
-                                                        <Button
-                                                            variant="ghost"
-                                                            onClick={handleSkipSpecialties}
-                                                            disabled={savingSpecialties}
-                                                            className="text-muted-foreground hover:text-white"
-                                                        >
-                                                            Skip for Now
-                                                        </Button>
-                                                        <Button
-                                                            onClick={handleSaveSpecialties}
-                                                            disabled={savingSpecialties || specialties.length === 0}
-                                                            className="font-bebas tracking-wide"
-                                                        >
-                                                            {savingSpecialties ? (
-                                                                <>
-                                                                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                                                    Saving...
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Save className="w-4 h-4 mr-2" />
-                                                                    Save Specialties
-                                                                </>
-                                                            )}
-                                                        </Button>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </Card>
+                                        </Card>
+                                    </Link>
                                 </motion.div>
                             </>
                         )}
@@ -836,7 +658,7 @@ const Onboarding = () => {
                     <div className="flex justify-end">
                         <Button
                             variant="default"
-                            className="gap-2 font-bebas text-xl bg-primary text-black hover:bg-primary/90 px-8 py-6 h-auto tracking-wider"
+                            className="gap-2 font-heading font-semibold text-xl bg-primary text-black hover:bg-primary/90 px-8 py-6 h-auto tracking-wider"
                             disabled={!status.facebook_connected || !status.instagram_connected || !status.google_maps_connected}
                             onClick={async () => {
                                 try {

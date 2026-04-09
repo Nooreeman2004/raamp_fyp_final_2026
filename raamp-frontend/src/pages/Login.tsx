@@ -154,7 +154,7 @@ const Login = () => {
                 logoClassName="w-12 h-12"
               />
             </motion.div>
-            <h1 className="text-4xl font-bold text-white font-bebas tracking-wide mb-2">
+            <h1 className="text-4xl font-bold text-foreground font-heading font-semibold mb-2">
               <BlurText text="LOGIN" />
             </h1>
             <p className="text-muted-foreground text-sm">
@@ -205,7 +205,7 @@ const Login = () => {
             </div>
 
             <div className="flex items-center space-x-2">
-              <Checkbox id="remember" className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:text-black" />
+              <Checkbox id="remember" className="border-border/80 data-[state=checked]:bg-primary data-[state=checked]:text-black" />
               <Label htmlFor="remember" className="text-sm font-normal text-muted-foreground">
                 Keep me logged in
               </Label>
@@ -231,7 +231,7 @@ const Login = () => {
 
           <div className="relative py-6">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-white/10" />
+              <span className="w-full border-t border-border/50" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
@@ -240,7 +240,7 @@ const Login = () => {
 
           <MagneticButton
             type="button"
-            className="w-full border border-white/10 bg-white/5 hover:bg-white/10 text-white font-mono text-xs h-10"
+            className="w-full border border-border/50 bg-foreground/5 hover:bg-foreground/10 text-foreground font-mono text-xs h-10"
             onClick={handleGoogleLogin}
             disabled={loading}
           >
@@ -265,7 +265,7 @@ const Login = () => {
       </div>
 
       {/* Right Side - Visuals */}
-      <div className="hidden lg:flex w-1/2 bg-black relative overflow-hidden items-center justify-center">
+      <div className="hidden lg:flex w-1/2 bg-background relative overflow-hidden items-center justify-center">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,224,208,0.1),transparent_70%)]" />
         <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
 
@@ -283,7 +283,7 @@ const Login = () => {
             />
           </motion.div>
 
-          <h2 className="text-3xl font-bold text-white font-bebas tracking-wide mb-4">
+          <h2 className="text-3xl font-bold text-foreground font-heading font-semibold mb-4">
             Global Intelligence Network
           </h2>
           <p className="text-muted-foreground max-w-md mx-auto">

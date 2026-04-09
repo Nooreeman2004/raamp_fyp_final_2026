@@ -99,7 +99,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden bg-[#0A0A0B] border-white/10 text-white">
+            <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden bg-[#0A0A0B] border-border/50 text-foreground">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-bold flex items-center gap-2">
                         <ImageIcon className="w-5 h-5 text-primary" />
@@ -119,7 +119,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                 placeholder="Search assets..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="pl-10 bg-[#141416] border-white/10"
+                                className="pl-10 bg-[#141416] border-border/50"
                             />
                         </div>
                         <Select
@@ -131,11 +131,11 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                 }))
                             }
                         >
-                            <SelectTrigger className="w-[180px] bg-[#141416] border-white/10">
+                            <SelectTrigger className="w-[180px] bg-[#141416] border-border/50">
                                 <Filter className="w-4 h-4 mr-2" />
                                 <SelectValue placeholder="All Sources" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#141416] border-white/10 text-white">
+                            <SelectContent className="bg-[#141416] border-border/50 text-foreground">
                                 <SelectItem value="all">All Sources</SelectItem>
                                 <SelectItem value="AI">AI Generated</SelectItem>
                                 <SelectItem value="user_upload">User Uploaded</SelectItem>
@@ -182,7 +182,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                             className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                                                 selectedAssetId === asset.asset_id
                                                     ? "border-primary ring-2 ring-primary/20"
-                                                    : "border-white/10 hover:border-primary/50"
+                                                    : "border-border/50 hover:border-primary/50"
                                             }`}
                                         >
                                             <img
@@ -202,7 +202,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                                             </Badge>
                                                         )}
                                                         {asset.times_used > 0 && (
-                                                            <Badge variant="outline" className="border-white/20 text-white text-[10px] px-1.5 py-0.5">
+                                                            <Badge variant="outline" className="border-border/80 text-foreground text-[10px] px-1.5 py-0.5">
                                                                 Used {asset.times_used}x
                                                             </Badge>
                                                         )}
@@ -229,7 +229,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
 
                 {/* Pagination */}
                 {pagination.total_pages > 1 && (
-                    <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                    <div className="flex items-center justify-between pt-3 border-t border-border/50">
                         <p className="text-xs text-gray-500">
                             Page {pagination.page} of {pagination.total_pages} ({pagination.total} assets)
                         </p>
@@ -239,7 +239,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                 size="sm"
                                 onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
                                 disabled={pagination.page === 1}
-                                className="bg-[#141416] border-white/10"
+                                className="bg-[#141416] border-border/50"
                             >
                                 Previous
                             </Button>
@@ -248,7 +248,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                 size="sm"
                                 onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
                                 disabled={pagination.page >= pagination.total_pages}
-                                className="bg-[#141416] border-white/10"
+                                className="bg-[#141416] border-border/50"
                             >
                                 Next
                             </Button>

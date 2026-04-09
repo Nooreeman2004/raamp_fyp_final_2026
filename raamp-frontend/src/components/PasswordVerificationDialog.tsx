@@ -64,13 +64,13 @@ export const PasswordVerificationDialog = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="bg-black/90 border-primary/30 text-white backdrop-blur-xl sm:max-w-md">
+            <DialogContent className="bg-background/90 border-primary/30 text-foreground backdrop-blur-xl sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="font-bebas tracking-wider text-2xl text-primary flex items-center gap-2">
+                    <DialogTitle className="font-heading font-semibold text-2xl text-primary flex items-center gap-2">
                         <Lock className="w-5 h-5" />
                         {title}
                     </DialogTitle>
-                    <DialogDescription className="font-mono text-xs text-white/70">
+                    <DialogDescription className="font-mono text-xs text-muted-foreground">
                         {description.toUpperCase()}
                     </DialogDescription>
                 </DialogHeader>
@@ -88,7 +88,7 @@ export const PasswordVerificationDialog = ({
                                     setError("");
                                 }}
                                 className={cn(
-                                    "bg-black/50 border-white/10 font-mono focus:border-primary/50 focus:ring-primary/20 pr-10",
+                                    "bg-black/50 border-border/50 font-mono focus:border-primary/50 focus:ring-primary/20 pr-10",
                                     error && "border-destructive focus:border-destructive"
                                 )}
                                 placeholder="••••••••"
@@ -115,14 +115,14 @@ export const PasswordVerificationDialog = ({
                             type="button"
                             variant="ghost"
                             onClick={onClose}
-                            className="font-mono text-xs text-white/50 hover:text-white"
+                            className="font-mono text-xs text-muted-foreground/80 hover:text-foreground"
                             disabled={isVerifying}
                         >
                             CANCEL
                         </Button>
                         <Button
                             type="submit"
-                            className="bg-primary text-primary-foreground hover:bg-primary/90 font-bebas tracking-wider min-w-[120px]"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 font-heading font-semibold min-w-[120px]"
                             disabled={!password || isVerifying}
                         >
                             {isVerifying ? (

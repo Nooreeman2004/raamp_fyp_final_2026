@@ -9,7 +9,7 @@ interface LiquidLogoProps {
 
 export const LiquidLogo = ({ className, src, logoClassName }: LiquidLogoProps) => {
     return (
-        <div className={cn("relative rounded-full overflow-hidden bg-black/40 border border-primary/20 backdrop-blur-sm group", className)}>
+        <div className={cn("relative rounded-full overflow-hidden bg-card border border-primary/20 backdrop-blur-sm group", className)}>
 
             {/* Liquid Wave Animation Background */}
             <div className="absolute inset-0 z-0 opacity-50 group-hover:opacity-80 transition-opacity duration-500">

@@ -179,7 +179,7 @@ const SmartScheduling = () => {
                             variant="outline"
                             size="icon"
                             onClick={handleRefreshAll}
-                            className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors"
+                            className="bg-foreground/5 border-border/50 hover:bg-foreground/10 transition-colors"
                             title="Refresh Page"
                         >
                             <RefreshCw className="w-4 h-4 shadow-[0_0_10px_rgba(255,255,255,0.1)]" />
@@ -195,21 +195,21 @@ const SmartScheduling = () => {
                 </div>
 
                 {/* Global Filters Section */}
-                <div className="flex flex-col md:flex-row items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
+                <div className="flex flex-col md:flex-row items-center gap-4 bg-foreground/5 p-4 rounded-xl border border-border/50">
                     <div className="relative flex-1 w-full">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                         <Input
                             placeholder="Search logs and scheduled content..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 h-10 w-full bg-black/20 border-white/10 text-sm focus:ring-[#00E0D0]/50"
+                            className="pl-9 h-10 w-full bg-card/50 border-border/50 text-sm focus:ring-[#00E0D0]/50"
                         />
                     </div>
                     <Select value={platformFilter} onValueChange={setPlatformFilter}>
-                        <SelectTrigger className="h-10 w-full md:w-[180px] bg-black/20 border-white/10 text-xs font-bold uppercase tracking-widest">
+                        <SelectTrigger className="h-10 w-full md:w-[180px] bg-card/50 border-border/50 text-xs font-bold uppercase tracking-widest">
                             <SelectValue placeholder="All Platforms" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#0A0A0B] border-white/10">
+                        <SelectContent className="bg-[#0A0A0B] border-border/50">
                             <SelectItem value="all">All Platforms</SelectItem>
                             <SelectItem value="instagram">Instagram</SelectItem>
                             <SelectItem value="facebook">Facebook</SelectItem>

@@ -33,7 +33,7 @@ export const GlobalConnectionBanner: React.FC<GlobalConnectionBannerProps> = ({
                     </div>
                     <div>
                         <h4 className="font-bold text-white/90 tracking-tight">Accounts Disconnected</h4>
-                        <p className="text-sm text-white/50 mt-0.5 max-w-lg">
+                        <p className="text-sm text-muted-foreground/80 mt-0.5 max-w-lg">
                             Some of your social accounts are not connected or their session has expired.
                             This will prevent automated posting and scheduling.
                         </p>

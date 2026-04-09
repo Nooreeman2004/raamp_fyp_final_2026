@@ -80,7 +80,7 @@ const LocationPicker = ({ initialLat = 51.505, initialLng = -0.09, onLocationSel
                 <LocationMarker onLocationSelect={handleLocationSelect} position={position} />
             </MapContainer>
             {position && (
-                <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-md px-3 py-1 rounded text-xs text-white font-mono z-[1000] border border-white/10">
+                <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-md px-3 py-1 rounded text-xs text-foreground font-mono z-[1000] border border-border/50">
                     LAT: {position.lat.toFixed(6)} | LNG: {position.lng.toFixed(6)}
                 </div>
             )}

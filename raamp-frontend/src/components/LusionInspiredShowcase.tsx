@@ -52,7 +52,7 @@ const LusionInspiredShowcase = () => {
                         className="mb-8"
                     >
                         <span className="inline-block px-6 py-3 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-mono backdrop-blur-sm">
-                            🚀 NEXT-GENERATION PLATFORM
+                            NEXT-GENERATION PLATFORM
                         </span>
                     </motion.div>
 
@@ -89,7 +89,7 @@ const LusionInspiredShowcase = () => {
                         </motion.button>
 
                         <motion.button
-                            className="px-8 py-4 rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10 backdrop-blur-sm font-medium text-lg transition-all duration-300"
+                            className="px-8 py-4 rounded-full border border-border/50 bg-foreground/5 text-foreground hover:bg-foreground/10 backdrop-blur-sm font-medium text-lg transition-all duration-300"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                         >
@@ -104,7 +104,7 @@ const LusionInspiredShowcase = () => {
                     animate={{ y: [0, 10, 0] }}
                     transition={{ duration: 2, repeat: Infinity }}
                 >
-                    <div className="flex flex-col items-center gap-2 text-white/50">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground/80">
                         <span className="text-[10px] uppercase tracking-[0.2em]">Scroll</span>
                         <div className="w-[1px] h-12 bg-gradient-to-b from-primary to-transparent" />
                     </div>
@@ -120,7 +120,7 @@ const LusionInspiredShowcase = () => {
 
                 <div className="max-w-7xl mx-auto relative z-10">
                     <ScrollReveal className="text-center mb-20">
-                        <h2 className="text-5xl md:text-7xl font-bold text-white mb-6">
+                        <h2 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
                             Intelligent Features
                         </h2>
                         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -181,7 +181,7 @@ const LusionInspiredShowcase = () => {
                                                 {feature.icon}
                                             </div>
 
-                                            <h3 className="text-2xl font-bold text-white mb-3">
+                                            <h3 className="text-2xl font-bold text-foreground mb-3">
                                                 {feature.title}
                                             </h3>
 
@@ -189,7 +189,7 @@ const LusionInspiredShowcase = () => {
                                                 {feature.description}
                                             </p>
 
-                                            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                                            <div className="p-4 rounded-xl bg-foreground/5 border border-border/50">
                                                 <div className="text-3xl font-bold text-primary mb-1">
                                                     {feature.stat}
                                                 </div>
@@ -212,17 +212,17 @@ const LusionInspiredShowcase = () => {
             {/* Horizontal Scroll Section */}
             <HorizontalScrollSection className="bg-background">
                 {[
-                    { title: 'Strategy', color: 'from-blue-500/20' },
+                    { title: 'Strategy', color: 'from-teal-500/20' },
                     { title: 'Execute', color: 'from-purple-500/20' },
                     { title: 'Optimize', color: 'from-pink-500/20' },
                     { title: 'Scale', color: 'from-primary/20' },
                 ].map((item, index) => (
                     <div
                         key={index}
-                        className="min-w-[80vw] h-[80vh] rounded-3xl border border-white/10 bg-card/50 backdrop-blur-sm p-12 flex items-center justify-center"
+                        className="min-w-[80vw] h-[80vh] rounded-3xl border border-border/50 bg-card/50 backdrop-blur-sm p-12 flex items-center justify-center"
                     >
                         <div className={`w-full h-full rounded-2xl bg-gradient-to-br ${item.color} to-transparent flex items-center justify-center`}>
-                            <h3 className="text-6xl md:text-8xl font-bold text-white">
+                            <h3 className="text-6xl md:text-8xl font-bold text-foreground">
                                 {item.title}
                             </h3>
                         </div>
@@ -234,7 +234,7 @@ const LusionInspiredShowcase = () => {
             <section className="relative py-32 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-7xl mx-auto">
                     <ScrollReveal className="text-center mb-20">
-                        <h2 className="text-5xl md:text-7xl font-bold text-white mb-6">
+                        <h2 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
                             Platform Preview
                         </h2>
                         <p className="text-xl text-muted-foreground">
@@ -245,10 +245,10 @@ const LusionInspiredShowcase = () => {
                     <div className="grid md:grid-cols-2 gap-8">
                         <ParallaxScroll offset={100}>
                             <DepthParallaxCard>
-                                <div className="aspect-video rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-white/10 p-8 flex items-center justify-center">
+                                <div className="aspect-video rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-border/50 p-8 flex items-center justify-center">
                                     <div className="text-center">
                                         <BarChart3 className="w-16 h-16 text-primary mx-auto mb-4" />
-                                        <h3 className="text-2xl font-bold text-white">Analytics Dashboard</h3>
+                                        <h3 className="text-2xl font-bold text-foreground">Analytics Dashboard</h3>
                                     </div>
                                 </div>
                             </DepthParallaxCard>
@@ -256,10 +256,10 @@ const LusionInspiredShowcase = () => {
 
                         <ParallaxScroll offset={-100}>
                             <DepthParallaxCard>
-                                <div className="aspect-video rounded-2xl bg-gradient-to-br from-blue-500/20 to-primary/20 border border-white/10 p-8 flex items-center justify-center">
+                                <div className="aspect-video rounded-2xl bg-gradient-to-br from-teal-500/20 to-primary/20 border border-border/50 p-8 flex items-center justify-center">
                                     <div className="text-center">
                                         <Globe className="w-16 h-16 text-primary mx-auto mb-4" />
-                                        <h3 className="text-2xl font-bold text-white">Geo-Targeting Map</h3>
+                                        <h3 className="text-2xl font-bold text-foreground">Geo-Targeting Map</h3>
                                     </div>
                                 </div>
                             </DepthParallaxCard>
@@ -272,7 +272,7 @@ const LusionInspiredShowcase = () => {
             <section className="relative py-32 px-4 text-center">
                 <ScrollReveal>
                     <div className="max-w-4xl mx-auto">
-                        <h2 className="text-5xl md:text-7xl font-bold text-white mb-6">
+                        <h2 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
                             Ready to Transform Your Marketing?
                         </h2>
                         <p className="text-xl text-muted-foreground mb-12">

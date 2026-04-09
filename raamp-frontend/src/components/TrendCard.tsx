@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ThemeEmoji } from "@/components/ui/emoji";
-import { TrendSpike, trendService, TrendExplainResponse } from "@/services/trendService";
+import { TrendSpike } from "@/services/trendService";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -12,23 +11,50 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  TrendingUp, Flame, Zap, Target, Activity, Sparkles,
-  TrendingDown, AlertCircle, CheckCircle, Clock, MapPin, ChevronDown, ChevronUp, Loader2, ArrowRight
+  TrendingUp, Flame, Zap, Target, Activity, Sparkles, Rocket,
+  TrendingDown, AlertCircle, MapPin, ArrowRight, Star
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
-interface TrendCardProps {
+export interface TrendCardProps {
   trend: TrendSpike;
   onClick?: () => void;
-  onGenerateContent?: (keyword: string) => void;
+  onMagicBridge?: (keyword: string) => void;
+  onToggleWatchlist?: (keyword: string) => void;
+  onToggleCompare?: (trend: TrendSpike) => void;
+  isWatchlisted?: boolean;
+  isActive?: boolean;
+  isCompared?: boolean;
+  // Strategy should be rendered on the Trends page (sections), not inside the card.
+  strategy?: unknown;
 }
+
+const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+const fmtFixed = (v: unknown, digits = 0): string => {
+  if (!isFiniteNumber(v)) return "—";
+  try {
+    return v.toFixed(digits);
+  } catch {
+    return "—";
+  }
+};
+
+const DataQualityPill = ({ live, labelLive = "Live", labelEst = "Est" }: { live: boolean; labelLive?: string; labelEst?: string }) => {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
+      <span className={`inline-block h-1 w-1 rounded-full ${live ? "bg-emerald-400" : "bg-white/20"}`} />
+      {live ? labelLive : labelEst}
+    </span>
+  );
+};
 
 // Lifecycle Badge Component with plain-language labels
 const LifecycleBadge = ({ stage }: { stage: string }) => {
   const stageConfig = {
     "Emerging": { color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/50", icon: Sparkles, label: <><ThemeEmoji name="emerging" className="mr-1" /> Just Starting</>, tip: "This topic is new — great time to get in early before everyone else." },
     "Breakout": { color: "bg-orange-500/20 text-orange-400 border-orange-500/50", icon: Flame, label: <><ThemeEmoji name="breakout" className="mr-1" /> Taking Off</>, tip: "This topic is growing fast right now. Post about it soon!" },
-    "Mainstream": { color: "bg-blue-500/20 text-blue-400 border-blue-500/50", icon: TrendingUp, label: <><ThemeEmoji name="mainstream" className="mr-1" /> Popular Now</>, tip: "Lots of people are interested. Good reach but more competition." },
+    "Mainstream": { color: "bg-teal-500/20 text-teal-400 border-teal-500/50", icon: TrendingUp, label: <><ThemeEmoji name="mainstream" className="mr-1" /> Popular Now</>, tip: "Lots of people are interested. Good reach but more competition." },
     "Saturated": { color: "bg-amber-500/20 text-amber-400 border-amber-500/50", icon: AlertCircle, label: <><ThemeEmoji name="warning" className="mr-1" /> Very Crowded</>, tip: "Many brands are already posting about this. Hard to stand out." },
     "Declining": { color: "bg-red-500/20 text-red-400 border-red-500/50", icon: TrendingDown, label: <><ThemeEmoji name="declining" className="mr-1" /> Fading Out</>, tip: "Interest in this topic is dropping. Better to skip it." }
   };
@@ -45,7 +71,7 @@ const LifecycleBadge = ({ stage }: { stage: string }) => {
             {config.label}
           </Badge>
         </TooltipTrigger>
-        <TooltipContent className="max-w-[200px]">
+        <TooltipContent className="max-w-[200px] bg-zinc-900 border-white/10 text-white">
           <p className="text-xs">{config.tip}</p>
         </TooltipContent>
       </Tooltip>
@@ -56,34 +82,33 @@ const LifecycleBadge = ({ stage }: { stage: string }) => {
 // Opportunity Score Gauge Component
 const ProfitScoreGauge = ({ score }: { score: number }) => {
   const getScoreColor = (val: number) => {
-    if (val >= 80) return { bg: "bg-emerald-500", text: "text-emerald-400", label: "🔥 Act Now" };
-    if (val >= 60) return { bg: "bg-blue-500", text: "text-blue-400", label: "👍 Worth It" };
-    if (val >= 40) return { bg: "bg-amber-500", text: "text-amber-400", label: "🤔 Maybe" };
-    return { bg: "bg-red-500", text: "text-red-400", label: "⏭ Skip" };
+    if (val >= 80) return { bg: "bg-emerald-500", text: "text-emerald-400", label: "Act Now", emoji: "🚀" };
+    if (val >= 60) return { bg: "bg-teal-500", text: "text-teal-400", label: "Worth It", emoji: "💎" };
+    if (val >= 40) return { bg: "bg-amber-500", text: "text-amber-400", label: "Potential", emoji: "🤔" };
+    return { bg: "bg-red-500", text: "text-red-400", label: "Skip", emoji: "⏭" };
   };
 
   const colorConfig = getScoreColor(score);
+  const scoreInt = Math.round(score);
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground font-mono">Opportunity Score</span>
-              <span className={`font-bold ${colorConfig.text}`}>{score}/100</span>
-            </div>
-            <Progress value={score} className="h-2 bg-deep-teal-700">
-              <div className={`h-full ${colorConfig.bg} rounded-full transition-all duration-500`} style={{ width: `${score}%` }} />
-            </Progress>
-            <p className={`text-[10px] ${colorConfig.text} font-medium text-right`}>{colorConfig.label}</p>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-[200px]">
-          <p className="text-xs">How much potential this trend has for your business right now.</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-mono font-black text-white/20 uppercase tracking-[0.2em]">Opportunity Gap</span>
+        <div className={`flex items-center gap-1.5 ${colorConfig.text} font-bold text-xs`}>
+          <span>{colorConfig.emoji}</span>
+          <span className="font-mono uppercase tracking-widest">{colorConfig.label}</span>
+          <span className="opacity-40 ml-1">{scoreInt}/100</span>
+        </div>
+      </div>
+      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: `${scoreInt}%` }}
+          className={`h-full ${colorConfig.bg} shadow-[0_0_8px_rgba(0,224,208,0.2)] rounded-full transition-all duration-1000`} 
+        />
+      </div>
+    </div>
   );
 };
 
@@ -93,11 +118,11 @@ const GrowthSparkline = ({ forecast, predicted_growth }: { forecast?: number[], 
 
   const max = Math.max(...forecast);
   const min = Math.min(...forecast);
-  const range = max - min;
+  const range = (max - min) || 1;
 
   const points = forecast.map((value, index) => {
     const x = (index / (forecast.length - 1)) * 100;
-    const y = 100 - ((value - min) / range) * 100;
+    const y = 100 - ((value - min) / range) * 80 - 10; // Padding top/bottom
     return `${x},${y}`;
   }).join(' ');
 
@@ -107,36 +132,48 @@ const GrowthSparkline = ({ forecast, predicted_growth }: { forecast?: number[], 
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground font-mono">Next 7 Days</span>
+              <span className="text-muted-foreground font-mono uppercase tracking-widest text-[9px]">Growth Outlook</span>
               {predicted_growth !== undefined && (
-                <span className={`font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'} flex items-center gap-1`}>
-                  {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                <span className={`font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'} flex items-center gap-1 text-[10px]`}>
+                  {isPositive ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
                   {predicted_growth > 0 ? '+' : ''}{predicted_growth.toFixed(1)}%
                 </span>
               )}
             </div>
-            <div className="relative h-10 bg-deep-teal-700 rounded-md overflow-hidden">
+            <div className="relative h-10 bg-white/[0.02] border border-white/5 rounded-lg overflow-hidden p-1">
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
                 <polyline
                   points={points}
                   fill="none"
                   stroke={isPositive ? "#10b981" : "#ef4444"}
-                  strokeWidth="3"
-                  className="drop-shadow-lg"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="drop-shadow-[0_0_5px_rgba(16,185,129,0.5)]"
                 />
-                <polyline
-                  points={points}
-                  fill={isPositive ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)"}
-                  stroke="none"
+                <path
+                  d={`M 0 100 L ${points} L 100 100 Z`}
+                  fill={isPositive ? "url(#gradient-positive)" : "url(#gradient-negative)"}
+                  fillOpacity="0.2"
                 />
+                <defs>
+                  <linearGradient id="gradient-positive" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                  </linearGradient>
+                  <linearGradient id="gradient-negative" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
               </svg>
             </div>
           </div>
         </TooltipTrigger>
-        <TooltipContent className="max-w-[200px]">
-          <p className="text-xs">Predicted interest level over the next 7 days.</p>
+        <TooltipContent className="max-w-[200px] bg-zinc-900 border-white/10 text-white">
+          <p className="text-xs">Machine learning projection for interest over the next 7 days.</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -144,304 +181,192 @@ const GrowthSparkline = ({ forecast, predicted_growth }: { forecast?: number[], 
 };
 
 // Main Trend Card Component
-export const TrendCard = ({ trend, onClick, onGenerateContent }: TrendCardProps) => {
+export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, onToggleCompare, isWatchlisted, isActive, isCompared }: TrendCardProps) => {
   const navigate = useNavigate();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
-  const [explanation, setExplanation] = useState<TrendExplainResponse | null>(null);
 
-  const handleViewDetails = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onClick) onClick();
+  const displayTitle = useMemo(() => {
+    // Always show the discovered trend keyword as the primary title.
+    // Use rising queries only as supplemental context (subtitle).
+    return trend.keyword;
+  }, [trend]);
 
-    if (isExpanded) {
-      setIsExpanded(false);
-      return;
-    }
+  const displaySubtitle = useMemo(() => {
+    const rq = Array.isArray(trend.rising_queries) ? trend.rising_queries : [];
+    const first = (rq[0] || "").toString().trim();
+    if (!first) return null;
+    if (first.toLowerCase() === (trend.keyword || "").toLowerCase()) return null;
+    return first;
+  }, [trend.keyword, trend.rising_queries]);
 
-    setIsExpanded(true);
+  const hasScore = (val?: number) => isFiniteNumber(val) && val > 0;
 
-    if (!explanation) {
-      setIsLoadingExplanation(true);
-      try {
-        const result = await trendService.getTrendExplanation({
-          keyword: trend.keyword,
-          niche: trend.niche,
-          location: trend.location || "PK",
-          lifecycle_stage: trend.lifecycle_stage,
-          breakout_probability: trend.breakout_probability,
-          profit_score: trend.profit_score,
-          competition: trend.saturation_score,
-          buzz: trend.social_score,
-        });
-        setExplanation(result);
-      } catch {
-        setExplanation({
-          keyword: trend.keyword,
-          explanation: "Could not load AI explanation at this time.",
-          why_now: "",
-          content_prompt: "",
-        });
-      } finally {
-        setIsLoadingExplanation(false);
-      }
-    }
-  };
-
-  const handleUsePrompt = () => {
-    if (!explanation?.content_prompt) return;
-    navigate("/dashboard/creative", {
-      state: { prefillPrompt: explanation.content_prompt },
-    });
-  };
-
-  // Determine if this is trending or a steady topic
   const isSpike = trend.is_spike === true;
-  const cardBorderClass = isSpike
-    ? "border-primary/50 hover:border-primary"
-    : "border-blue-500/30 hover:border-blue-500/50";
+  const isSimulated = trend.is_simulated === true;
+  const isRateLimited = (trend.error_message || "").toLowerCase().includes("rate_limited");
+  const isFailed = (trend.fetch_status || "").toLowerCase() === "failed";
+  // Keep card compact: related/rising queries are shown in the modal/strategy sections instead.
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      whileHover={{ scale: 1.02, boxShadow: isSpike ? "0 0 25px rgba(0, 224, 208, 0.15)" : "0 0 15px rgba(59, 130, 246, 0.1)" }}
-      className={`bg-deep-teal-800 border rounded-lg p-5 space-y-4 transition-all ${cardBorderClass}`}
+      className={`relative group rounded-3xl p-6 flex flex-col gap-6 transition-all overflow-hidden ${
+        isSpike ? "shadow-[0_30px_90px_rgba(0,224,208,0.08)]" : "shadow-[0_30px_90px_rgba(0,0,0,0.55)]"
+      } ${isActive ? "ring-2 ring-primary/40" : "ring-1 ring-white/5 hover:ring-white/10"}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onClick?.()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onClick?.();
+      }}
     >
-      {/* Spike/Baseline Badge */}
-      <div className="flex items-center justify-between">
-        {isSpike ? (
-          <Badge className="bg-primary/20 text-primary border-primary/30 font-mono text-xs flex items-center gap-1.5 px-2 py-1">
-            <Flame className="w-3 h-3" />
-            TRENDING NOW
-          </Badge>
-        ) : (
-          <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30 font-mono text-xs flex items-center gap-1.5 px-2 py-1">
-            <Activity className="w-3 h-3" />
-            {trend.label || 'RISING'}
-          </Badge>
-        )}
-      </div>
+      {/* Premium glass background */}
+      <div
+        className={`absolute inset-0 rounded-3xl border backdrop-blur-3xl ${
+          isSpike ? "border-primary/25 bg-gradient-to-br from-primary/10 via-white/[0.03] to-transparent" : "border-white/10 bg-white/[0.03]"
+        }`}
+      />
+      <div className={`absolute -top-24 -right-24 h-56 w-56 rounded-full blur-[70px] ${isSpike ? "bg-primary/25" : "bg-white/10"}`} />
+      <div className="absolute -bottom-28 -left-28 h-64 w-64 rounded-full blur-[90px] bg-teal-500/10" />
+      <div className="absolute inset-0 rounded-3xl ring-1 ring-white/5 pointer-events-none" />
 
+      <div className="relative z-10 flex flex-col gap-6">
       {/* Header Section */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 space-y-2">
-          <h3 className="text-lg font-semibold text-white font-bebas tracking-wide">{trend.keyword}</h3>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className="text-xs text-muted-foreground border-deep-teal-700">
-              {trend.niche}
-            </Badge>
-            {trend.location && (
-              <Badge variant="outline" className="text-xs text-muted-foreground border-deep-teal-700 flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                {trend.location}
-              </Badge>
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            {isSpike ? (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/20 text-[9px] font-black font-mono text-primary tracking-tighter uppercase">
+                <Flame className="w-2.5 h-2.5 fill-primary" />
+                Live Spike
+              </div>
+            ) : (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/5 text-[9px] font-black font-mono text-white/30 tracking-tighter uppercase">
+                <Activity className="w-2.5 h-2.5" />
+                Pulse Signal
+              </div>
             )}
-            {trend.timeframe && (
-              <Badge variant="outline" className="text-xs text-muted-foreground border-deep-teal-700 flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {trend.timeframe}
-              </Badge>
-            )}
+            <DataQualityPill live={trend.is_real_social === true} />
+          </div>
+          <h3 className="text-2xl font-bold font-heading text-white tracking-tight capitalize leading-tight">
+            {displayTitle}
+          </h3>
+          {displaySubtitle && (
+            <p className="text-[11px] font-mono text-white/40 italic line-clamp-1">
+              Related: {displaySubtitle}
+            </p>
+          )}
+          <div className="flex items-center gap-2 flex-wrap pt-0.5">
+             <span className="text-[10px] font-mono font-black text-primary/40 uppercase tracking-widest">{trend.niche}</span>
+             <span className="w-1 h-1 rounded-full bg-white/10" />
+             <span className="text-[10px] font-mono font-black text-white/20 uppercase tracking-widest flex items-center gap-1">
+                <MapPin className="w-2.5 h-2.5" /> {trend.location}
+             </span>
           </div>
         </div>
 
-        {/* Lifecycle Badge */}
-        {trend.lifecycle_stage && <LifecycleBadge stage={trend.lifecycle_stage} />}
-      </div>
-
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Trend Speed (was Z-Score Spike) */}
-        {trend.z_score_spike !== undefined && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground font-mono">Trend Speed</p>
-                  <div className="flex items-center gap-2">
-                    <Zap className={`w-4 h-4 ${trend.z_score_spike > 7 ? 'text-orange-400' : 'text-yellow-400'}`} />
-                    <span className="text-xl font-bold text-white">{trend.z_score_spike.toFixed(1)}x</span>
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[200px]">
-                <p className="text-xs">How much faster this topic is growing compared to normal. Higher = moving faster.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {/* Viral Potential (was Breakout Probability) */}
-        {trend.breakout_probability !== undefined && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground font-mono">Viral Potential</p>
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xl font-bold text-emerald-400">{trend.breakout_probability}%</span>
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[200px]">
-                <p className="text-xs">Chance this topic goes viral in the next few days. Above 70% is a strong signal to post now.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
-
-      {/* Opportunity Score Progress */}
-      {trend.profit_score !== undefined && <ProfitScoreGauge score={trend.profit_score} />}
-
-      {/* Growth Prediction Sparkline */}
-      {trend.forecast_series && trend.forecast_series.length > 0 && (
-        <GrowthSparkline forecast={trend.forecast_series} predicted_growth={trend.predicted_growth_pct} />
-      )}
-
-      {/* Secondary Scores Row */}
-      <div className="grid grid-cols-3 gap-2 pt-3 border-t border-deep-teal-700">
-        {/* Gap Score (was Arbitrage) */}
-        {trend.arbitrage_score !== undefined && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="text-center space-y-1">
-                  <p className="text-[10px] text-muted-foreground font-mono uppercase">Gap Score</p>
-                  <p className="text-sm font-bold text-blue-400">{trend.arbitrage_score.toFixed(0)}</p>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[200px]">
-                <p className="text-xs">How much demand exists vs. how little content is out there. Higher = less competition for a hot topic.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {/* Competition (was Saturation) */}
-        {trend.saturation_score !== undefined && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="text-center space-y-1">
-                  <p className="text-[10px] text-muted-foreground font-mono uppercase">Competition</p>
-                  <p className="text-sm font-bold text-amber-400">{trend.saturation_score.toFixed(0)}%</p>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[200px]">
-                <p className="text-xs">How many other brands are already posting about this. Lower % = easier to stand out.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {/* Buzz (was Social Score) */}
-        {trend.social_score !== undefined && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="text-center space-y-1">
-                  <p className="text-[10px] text-muted-foreground font-mono uppercase">Buzz</p>
-                  <p className="text-sm font-bold text-purple-400">{trend.social_score.toFixed(0)}</p>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[200px]">
-                <p className="text-xs">How much people are talking about this on social media right now.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
-
-      {/* Rising Queries */}
-      {trend.rising_queries && trend.rising_queries.length > 0 && (
-        <div className="pt-3 border-t border-deep-teal-700 space-y-2">
-          <p className="text-xs text-muted-foreground font-mono">People are searching for</p>
-          <div className="flex flex-wrap gap-1.5">
-            {trend.rising_queries.slice(0, 3).map((query, idx) => (
-              <Badge key={idx} variant="secondary" className="text-[10px] bg-deep-teal-700/50 text-neon-teal border-neon-teal/20">
-                #{query}
-              </Badge>
-            ))}
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-2xl transition-all ${isCompared ? "bg-primary/10 text-primary" : "text-white/10 hover:text-white/40 hover:bg-white/5"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCompare?.(trend);
+              }}
+              title={isCompared ? "Remove from compare" : "Add to compare"}
+            >
+              <Zap className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-2xl transition-all ${isWatchlisted ? 'bg-amber-500/10 text-amber-400' : 'text-white/10 hover:text-white/40 hover:bg-white/5'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onToggleWatchlist) onToggleWatchlist(trend.keyword);
+              }}
+              title={isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
+            >
+              <Star className={`w-5 h-5 ${isWatchlisted ? 'fill-amber-400' : ''}`} />
+            </Button>
           </div>
+            {trend.lifecycle_stage && <LifecycleBadge stage={trend.lifecycle_stage} />}
+        </div>
+      </div>
+
+      {/* Secondary metrics (collapsed by default) */}
+      {(hasScore(trend.z_score_spike) || hasScore(trend.breakout_probability)) && (
+        <div className={`grid grid-cols-2 gap-4 transition-all ${isActive ? "" : "hidden md:grid md:opacity-0 md:group-hover:opacity-100 md:group-hover:block"}`}>
+          {hasScore(trend.z_score_spike) && (
+            <div className="p-3.5 bg-white/[0.03] border border-white/5 rounded-2xl space-y-1">
+              <span className="text-[8px] font-mono font-black text-white/20 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                <Zap className="w-2.5 h-2.5 text-orange-400" /> Velocity
+              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-white">{fmtFixed(trend.z_score_spike, 1)}</span>
+                <span className="text-[9px] font-mono text-white/10">σ-VEL</span>
+              </div>
+            </div>
+          )}
+          {hasScore(trend.breakout_probability) && (
+            <div className="p-3.5 bg-white/[0.03] border border-white/5 rounded-2xl space-y-1">
+              <span className="text-[8px] font-mono font-black text-white/20 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                <Target className="w-2.5 h-2.5 text-emerald-400" /> Confidence
+              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-emerald-400">{trend.breakout_probability}%</span>
+                <span className="text-[9px] font-mono text-emerald-400/20">ACC</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="pt-3 border-t border-deep-teal-700 grid grid-cols-2 gap-2">
+      {/* Analytics Visualizers */}
+      <div className="space-y-5">
+        {hasScore(trend.profit_score) && <ProfitScoreGauge score={trend.profit_score!} />}
+        {trend.forecast_series && trend.forecast_series.length > 0 && (
+          <GrowthSparkline forecast={trend.forecast_series} predicted_growth={trend.predicted_growth_pct} />
+        )}
+      </div>
+
+      {/* Footer (single primary action) */}
+      <div className="pt-2 border-t border-white/5" />
+
+      {/* Interaction Rail */}
+      <div className="flex items-center justify-end">
         <Button
-          variant="outline"
-          size="sm"
-          onClick={handleViewDetails}
-          className="border-deep-teal-700 hover:bg-deep-teal-700 text-white/80 hover:text-white font-mono text-xs"
-        >
-          {isExpanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
-          {isExpanded ? "Hide Details" : "View Details"}
-        </Button>
-        <Button
-          variant="default"
-          size="sm"
           onClick={(e) => {
             e.stopPropagation();
-            if (onGenerateContent) onGenerateContent(trend.keyword);
+            if (onMagicBridge) onMagicBridge(trend.keyword);
           }}
-          className="bg-neon-teal/20 hover:bg-neon-teal text-neon-teal hover:text-black border border-neon-teal/50 font-mono text-xs"
+          className="px-5 h-12 bg-primary hover:bg-primary/90 text-black rounded-2xl font-black font-heading text-[10px] uppercase tracking-[0.2em] shadow-[0_14px_50px_rgba(0,224,208,0.32)] hover:shadow-[0_18px_70px_rgba(0,224,208,0.45)] transition-all transform hover:-translate-y-1 active:translate-y-0 group"
         >
-          <Sparkles className="w-3 h-3 mr-1" />
-          AI Content
+          <Rocket className="w-4 h-4 mr-2 group-hover:scale-110 group-hover:-rotate-12 transition-transform" />
+          Create
         </Button>
       </div>
 
-      {/* Inline AI Explanation Panel */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            key="explanation-panel"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden"
-          >
-            <div className="pt-3 border-t border-deep-teal-700 space-y-3">
-              {isLoadingExplanation ? (
-                <div className="flex items-center gap-2 py-4 justify-center text-white/50 font-mono text-xs">
-                  <Loader2 className="w-4 h-4 animate-spin text-neon-teal" />
-                  AI is analysing this trend for you...
-                </div>
-              ) : explanation ? (
-                <>
-                  <p className="text-sm text-white/80 leading-relaxed">{explanation.explanation}</p>
-                  {explanation.why_now && (
-                    <p className="text-xs text-neon-teal font-mono border-l-2 border-neon-teal/50 pl-3">
-                      {explanation.why_now}
-                    </p>
-                  )}
-                  {explanation.content_prompt && (
-                    <div className="space-y-2">
-                      <p className="text-[10px] text-muted-foreground font-mono uppercase">Campaign Idea</p>
-                      <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/30 text-xs font-mono text-purple-100">
-                        {explanation.content_prompt}
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={handleUsePrompt}
-                        className="w-full bg-primary/20 hover:bg-primary text-primary hover:text-black border border-primary/50 font-mono text-xs"
-                      >
-                        Use This Prompt
-                        <ArrowRight className="w-3 h-3 ml-1" />
-                      </Button>
-                    </div>
-                  )}
-                </>
-              ) : null}
+      {/* Status Messages */}
+      {(isRateLimited || (isFailed && trend.error_message)) && (
+        <div className="pt-2">
+          {isRateLimited ? (
+            <div className="text-[9px] font-mono font-bold text-primary/40 flex items-center gap-2 uppercase tracking-widest animate-pulse">
+              <ArrowRight className="w-2.5 h-2.5" />
+              Signal reconnecting...
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          ) : (
+            <div className="text-[9px] font-mono font-black text-red-500/50 flex items-center gap-2 uppercase tracking-widest">
+              <AlertCircle className="w-2.5 h-2.5" />
+              Divergence: {trend.error_message?.toString().slice(0, 30)}
+            </div>
+          )}
+        </div>
+      )}
+      </div>
     </motion.div>
   );
 };

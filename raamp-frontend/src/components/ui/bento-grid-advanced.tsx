@@ -46,7 +46,7 @@ export const BentoCardAdvanced = ({
     return (
         <motion.div
             className={cn(
-                'group relative overflow-hidden rounded-2xl border border-white/10 bg-card/50 backdrop-blur-sm',
+                'group relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm',
                 'hover:border-primary/50 transition-all duration-500 cursor-pointer',
                 'border-b-2 border-b-primary/30', // Added explicit bottom border
                 colSpan,
@@ -86,7 +86,7 @@ export const BentoCardAdvanced = ({
                                 {icon}
                             </motion.div>
                         )}
-                        <h3 className="text-xl md:text-2xl font-bold text-white group-hover:text-primary transition-colors duration-300">
+                        <h3 className="text-xl md:text-2xl font-bold text-foreground group-hover:text-primary transition-colors duration-300">
                             {title}
                         </h3>
                     </div>
@@ -154,7 +154,7 @@ export const BentoFeatureCard = ({
                     {stats.map((stat, index) => (
                         <motion.div
                             key={index}
-                            className="p-3 rounded-lg bg-white/5 border border-white/10"
+                            className="p-3 rounded-lg bg-foreground/5 border border-border/50"
                             whileHover={{ scale: 1.05 }}
                         >
                             <div className="text-2xl font-bold text-primary">{stat.value}</div>
@@ -187,7 +187,7 @@ export const BentoImageCard = ({
     return (
         <motion.div
             className={cn(
-                'group relative overflow-hidden rounded-2xl border border-white/10',
+                'group relative overflow-hidden rounded-2xl border border-border/50',
                 'hover:border-primary/50 transition-all duration-500 cursor-pointer',
                 colSpan,
                 rowSpan,
@@ -208,7 +208,7 @@ export const BentoImageCard = ({
 
             {/* Content */}
             <div className="relative h-full p-6 flex flex-col justify-end z-10">
-                <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-primary transition-colors duration-300">
+                <h3 className="text-xl md:text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors duration-300">
                     {title}
                 </h3>
                 {description && (

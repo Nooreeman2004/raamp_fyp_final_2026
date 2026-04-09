@@ -64,8 +64,9 @@ class TrendContentSuggestionService:
         
         # Cache miss - generate new suggestions
         if not self.llm_client.client:
-            logger.warning("LLM client not available, returning fallback suggestions")
-            return self._generate_fallback_suggestions(keyword, niche)
+            # Fail-closed: do not return templated suggestions that look "real".
+            # The router will translate this into a user-friendly 503.
+            raise RuntimeError("llm_unavailable")
         
         # Determine primary platform
         primary_platform = max(platform_bias, key=platform_bias.get) if platform_bias else "instagram"
@@ -121,7 +122,7 @@ Make everything specific to "{keyword}" in the {niche} niche with {lifecycle_sta
             result = await self.llm_client.generate_structured_json(system_prompt, user_prompt)
             
             if not result:
-                return self._generate_fallback_suggestions(keyword, niche)
+                raise RuntimeError("llm_empty_result")
             
             # Validate structure
             required_keys = ["video_ideas", "hooks", "hashtags", "campaign_angle", "influencer_strategy"]
@@ -146,11 +147,11 @@ Make everything specific to "{keyword}" in the {niche} niche with {lifecycle_sta
                 return result
             else:
                 logger.warning("LLM response missing required keys, using fallback")
-                return self._generate_fallback_suggestions(keyword, niche)
+                raise RuntimeError("llm_invalid_shape")
                 
         except Exception as e:
             logger.error("Failed to generate AI suggestions: %s", str(e))
-            return self._generate_fallback_suggestions(keyword, niche)
+            raise
 
     def _generate_fallback_suggestions(self, keyword: str, niche: str) -> Dict:
         """

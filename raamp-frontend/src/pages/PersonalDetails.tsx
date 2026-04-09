@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { useAuth } from "@/hooks/useAuth";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { apiClient } from "@/services/api";
 
 interface BusinessDomain {
   id: string;
@@ -74,8 +75,7 @@ const PersonalDetails = () => {
   useEffect(() => {
     const fetchBusinessDomains = async () => {
       try {
-        const response = await fetch("http://localhost:8000/api/business-domains");
-        const data = await response.json();
+        const data = await apiClient.get<{ domains: BusinessDomain[] }>("/business-domains");
         setBusinessDomains(data.domains || []);
       } catch (error) {
         console.error("Failed to fetch business domains:", error);
@@ -243,7 +243,7 @@ const PersonalDetails = () => {
               <div className="flex justify-center mb-4">
                 <img src={raampIcon} alt="RAAMP" className="h-24 w-24" />
               </div>
-              <h1 className="text-3xl font-bold font-bebas tracking-wide">
+              <h1 className="text-3xl font-bold font-heading font-semibold">
                 <BlurText text="CREATE PROFILE" />
               </h1>
               <p className="text-muted-foreground">

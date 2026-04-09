@@ -40,7 +40,7 @@ const RAAMPAssistant = () => {
   const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>([
     { id: "ad_account_health", name: "AD ACCOUNT HEALTH CHECK", status: "PENDING", variant: "secondary" as const, color: "text-amber-400", border: "border-amber-400/50" },
     { id: "budget_discrepancy", name: "BUDGET ALLOCATION DISCREPANCIES", status: "PENDING", variant: "default" as const, color: "text-primary", border: "border-primary/50" },
-    { id: "pixel_verification", name: "PIXEL IMPLEMENTATION VERIFICATION", status: "PENDING", variant: "secondary" as const, color: "text-white/60", border: "border-white/20" },
+    { id: "pixel_verification", name: "PIXEL IMPLEMENTATION VERIFICATION", status: "PENDING", variant: "secondary" as const, color: "text-muted-foreground/80", border: "border-border/80" },
     { id: "creative_compliance", name: "CREATIVE ASSET COMPLIANCE", status: "PENDING", variant: "destructive" as const, color: "text-red-500", border: "border-red-500/50" }
   ]);
 
@@ -289,7 +289,7 @@ const RAAMPAssistant = () => {
               <Cpu className="w-8 h-8 text-primary animate-pulse" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold mb-1 font-bebas tracking-wider text-white">
+              <h1 className="text-4xl font-bold mb-1 font-heading font-semibold text-foreground">
                 <BlurText text="RAAMP ORACLE INTERFACE" />
               </h1>
               <p className="text-muted-foreground font-mono text-sm">
@@ -303,7 +303,7 @@ const RAAMPAssistant = () => {
           {/* Interactive Chat Window - Terminal Style */}
           <Reveal variant="fadeInUp" delay={0.2} className="lg:col-span-2">
             <HolographicCard className="p-0 h-[600px] flex flex-col overflow-hidden border-primary/30">
-              <div className="p-4 border-b border-white/10 bg-black/60 flex items-center justify-between">
+              <div className="p-4 border-b border-border/50 bg-background/60 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-primary" />
                   <span className="text-xs font-mono text-primary tracking-widest">
@@ -311,7 +311,7 @@ const RAAMPAssistant = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:text-white" onClick={handleReset} title="Reset Session">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground/80 hover:text-foreground" onClick={handleReset} title="Reset Session">
                     <RefreshCw className="w-3 h-3" />
                   </Button>
                   <div className="flex gap-1.5">
@@ -322,7 +322,7 @@ const RAAMPAssistant = () => {
                 </div>
               </div>
 
-              <div ref={scrollRef} className="flex-1 bg-black/80 p-6 overflow-y-auto space-y-6 font-mono relative scroller-hide">
+              <div ref={scrollRef} className="flex-1 bg-background/80 p-6 overflow-y-auto space-y-6 font-mono relative scroller-hide">
                 {/* Scanline Overlay */}
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,255,0,0.06))] z-0 pointer-events-none bg-[length:100%_4px,3px_100%]" />
 
@@ -352,12 +352,12 @@ const RAAMPAssistant = () => {
                       )}
 
                       <div className={`flex-1 max-w-[85%]`}>
-                        <div className={`text-[10px] mb-1 opacity-70 ${msg.role === 'user' ? 'text-white/50 text-right' : 'text-primary'}`}>
+                        <div className={`text-[10px] mb-1 opacity-70 ${msg.role === 'user' ? 'text-muted-foreground/80 text-right' : 'text-primary'}`}>
                           {msg.role === 'assistant' ? 'SYSTEM_AI' : 'USER_COMMAND'}
                         </div>
                         <div className={`p-4 text-sm shadow-[0_0_15px_rgba(0,224,208,0.05)] ${msg.role === 'assistant'
                           ? 'bg-primary/5 border border-primary/20 rounded-tr-lg rounded-br-lg rounded-bl-lg text-white/90'
-                          : 'bg-white/10 border border-white/20 rounded-tl-lg rounded-bl-lg rounded-br-lg text-white'
+                          : 'bg-foreground/10 border border-border/80 rounded-tl-lg rounded-bl-lg rounded-br-lg text-foreground'
                           }`}>
                           <p className="whitespace-pre-wrap">{msg.content}</p>
                         </div>
@@ -406,12 +406,12 @@ const RAAMPAssistant = () => {
                 )}
               </div>
 
-              <div className="p-4 bg-black/60 border-t border-white/10 flex gap-2 relative z-20">
+              <div className="p-4 bg-background/60 border-t border-border/50 flex gap-2 relative z-20">
                 <Button
                   onClick={toggleSpeechRecognition}
                   disabled={isLoading}
                   variant="ghost"
-                  className={`h-10 w-10 p-0 rounded-full border border-white/10 ${isListening ? 'text-red-500 bg-red-500/10' : 'text-primary hover:bg-primary/10'}`}
+                  className={`h-10 w-10 p-0 rounded-full border border-border/50 ${isListening ? 'text-red-500 bg-red-500/10' : 'text-primary hover:bg-primary/10'}`}
                 >
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </Button>
@@ -423,7 +423,7 @@ const RAAMPAssistant = () => {
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyDown={handleKeyPress}
                     disabled={isLoading}
-                    className="bg-black/40 border-white/10 pl-8 font-mono text-sm focus:border-primary/50 focus:ring-primary/20 h-10"
+                    className="bg-card border-border/50 pl-8 font-mono text-sm focus:border-primary/50 focus:ring-primary/20 h-10"
                   />
                 </div>
                 <Button onClick={handleSendMessage} disabled={isLoading || !message.trim()} className="bg-primary text-primary-foreground hover:bg-primary/80 font-bold h-10 w-10 p-0">
@@ -439,7 +439,7 @@ const RAAMPAssistant = () => {
           {/* Contextual Guidance */}
           <Reveal variant="fadeInUp" delay={0.3}>
             <HolographicCard className="p-6">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 font-bebas tracking-wide text-white">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 font-heading font-semibold text-foreground">
                 <Lightbulb className="w-5 h-5 text-primary" />
                 CONTEXTUAL GUIDANCE
               </h3>
@@ -453,19 +453,19 @@ const RAAMPAssistant = () => {
                 initial="hidden"
                 animate="visible"
               >
-                <motion.div variants={fadeInUp} className="p-3 bg-white/5 rounded border border-white/10 hover:border-primary/30 transition-colors">
+                <motion.div variants={fadeInUp} className="p-3 bg-foreground/5 rounded border border-border/50 hover:border-primary/30 transition-colors">
                   <h4 className="font-bold text-xs mb-2 text-primary font-mono uppercase">Current Context: {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}</h4>
-                  <p className="text-[10px] text-white/70 font-mono leading-relaxed">
+                  <p className="text-[10px] text-muted-foreground font-mono leading-relaxed">
                     SYSTEM ACTIVE. ANALYZING REAL-TIME DATA FROM THIS MODULE.
                   </p>
                 </motion.div>
 
-                <motion.div variants={fadeInUp} className="p-3 bg-white/5 rounded border border-white/10 hover:border-primary/30 transition-colors">
+                <motion.div variants={fadeInUp} className="p-3 bg-foreground/5 rounded border border-border/50 hover:border-primary/30 transition-colors">
                   <h4 className="font-bold text-xs mb-2 flex items-center gap-2 text-amber-400 font-mono uppercase">
                     <Lightbulb className="w-3 h-3" />
                     AI Optimization Tip
                   </h4>
-                  <p className="text-[10px] text-white/70 font-mono leading-relaxed">
+                  <p className="text-[10px] text-muted-foreground font-mono leading-relaxed">
                     ASK RAAMP ASSISTANT TO "ANALYZE PERFORMANCE" FOR DEEPER INSIGHTS INTO THIS MODULE.
                   </p>
                 </motion.div>
@@ -476,7 +476,7 @@ const RAAMPAssistant = () => {
           {/* Quick Actions */}
           <Reveal variant="fadeInUp" delay={0.4}>
             <HolographicCard className="p-6">
-              <h3 className="text-lg font-bold mb-4 font-bebas tracking-wide text-white">QUICK ACTIONS</h3>
+              <h3 className="text-lg font-bold mb-4 font-heading font-semibold text-foreground">QUICK ACTIONS</h3>
               <div className="space-y-2">
                 {[
                   { icon: Activity, text: "CAMPAIGN HEALTH SUMMARY" },
@@ -484,7 +484,7 @@ const RAAMPAssistant = () => {
                   { icon: ShieldCheck, text: "BEST PRACTICES PROTOCOL" }
                 ].map((action, idx) => (
                   <motion.div key={idx} variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                    <Button variant="outline" className="w-full justify-start border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 font-mono text-xs h-9" size="sm">
+                    <Button variant="outline" className="w-full justify-start border-border/50 hover:bg-primary/10 hover:text-primary hover:border-primary/30 font-mono text-xs h-9" size="sm">
                       <action.icon className="w-3 h-3 mr-2" />
                       {action.text}
                     </Button>
@@ -499,7 +499,7 @@ const RAAMPAssistant = () => {
       {/* Troubleshooting & Diagnostics */}
       <Reveal variant="fadeInUp" delay={0.5}>
         <HolographicCard className="p-6 mt-6">
-          <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 font-bebas tracking-wide text-white">
+          <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 font-heading font-semibold text-foreground">
             <AlertCircle className="w-6 h-6 text-primary" />
             SYSTEM DIAGNOSTICS & REPAIR
           </h2>
@@ -520,7 +520,7 @@ const RAAMPAssistant = () => {
                   variants={hoverLift}
                   initial="rest"
                   whileHover="hover"
-                  className={`p-4 bg-black/40 rounded border ${item.border} hover:bg-white/5 transition-all group`}
+                  className={`p-4 bg-card rounded border ${item.border} hover:bg-foreground/5 transition-all group`}
                 >
                   <div className="flex items-center justify-between mb-4">
                     <h3 className={`font-bold text-xs font-mono uppercase ${item.color}`}>{item.name}</h3>
@@ -529,7 +529,7 @@ const RAAMPAssistant = () => {
                     </Badge>
                   </div>
                   {item.message && (
-                    <div className="mb-3 text-[10px] font-mono text-white/60 bg-white/5 p-2 rounded">
+                    <div className="mb-3 text-[10px] font-mono text-muted-foreground/80 bg-foreground/5 p-2 rounded">
                       {item.status === 'SUCCESS' && <CheckCircle className="w-3 h-3 inline mr-1 text-green-500" />}
                       {item.status === 'FAILED' && <XCircle className="w-3 h-3 inline mr-1 text-red-500" />}
                       {item.message}
@@ -542,7 +542,7 @@ const RAAMPAssistant = () => {
                         size="sm"
                         disabled={runningCheckId !== null}
                         onClick={() => handleRunDiagnostic(item.id)}
-                        className="w-full border-white/10 text-[10px] font-mono h-8 hover:bg-white/10"
+                        className="w-full border-border/50 text-[10px] font-mono h-8 hover:bg-foreground/10"
                       >
                         {runningCheckId === item.id ? (
                           <RefreshCw className="w-3 h-3 mr-1 animate-spin" />

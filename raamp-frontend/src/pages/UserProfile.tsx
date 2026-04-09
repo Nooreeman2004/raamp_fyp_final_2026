@@ -330,7 +330,7 @@ const UserProfile = () => {
                 <User className="w-8 h-8 text-primary animate-pulse" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold mb-1 font-bebas tracking-wider text-white">
+                <h1 className="text-4xl font-bold mb-1 font-heading font-semibold text-foreground">
                   <BlurText text="USER PROFILE" />
                 </h1>
                 <p className="text-muted-foreground font-mono text-sm">
@@ -342,12 +342,12 @@ const UserProfile = () => {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button onClick={handleEdit} className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-bebas tracking-wider border border-primary/50 shadow-[0_0_15px_rgba(0,224,208,0.3)]">
+                    <Button onClick={handleEdit} className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-heading font-semibold border border-primary/50 shadow-[0_0_15px_rgba(0,224,208,0.3)]">
                       <Shield className="w-4 h-4 mr-2" />
                       EDIT PROFILE
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-black border border-white/10 text-white font-mono text-xs">
+                  <TooltipContent className="bg-background border border-border/50 text-foreground font-mono text-xs">
                     <p>VERIFICATION REQUIRED FOR EDIT ACCESS</p>
                   </TooltipContent>
                 </Tooltip>
@@ -371,7 +371,7 @@ const UserProfile = () => {
                 <div className="relative group">
                   <Avatar className="w-24 h-24 border-2 border-primary/50 ring-4 ring-primary/10 shadow-[0_0_20px_rgba(0,224,208,0.2)]">
                     <AvatarImage src={userData.profilePicture} />
-                    <AvatarFallback className="text-2xl bg-black text-primary font-bebas tracking-widest">
+                    <AvatarFallback className="text-2xl bg-background text-primary font-heading font-semiboldst">
                       {userData.firstName && userData.lastName
                         ? (userData.firstName.charAt(0) + userData.lastName.charAt(0)).toUpperCase()
                         : userData.firstName
@@ -386,7 +386,7 @@ const UserProfile = () => {
                   {isEditing && (
                     <label
                       htmlFor="profile-upload"
-                      className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-2 border-primary"
+                      className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-2 border-primary"
                     >
                       <Upload className="w-6 h-6 text-primary" />
                     </label>
@@ -401,7 +401,7 @@ const UserProfile = () => {
                   />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold flex items-center gap-2 font-bebas tracking-wide text-white">
+                  <h2 className="text-xl font-bold flex items-center gap-2 font-heading font-semibold text-foreground">
                     <Cpu className="w-5 h-5 text-primary" />
                     PERSONAL INFORMATION
                   </h2>
@@ -422,7 +422,7 @@ const UserProfile = () => {
                     value={userData.firstName}
                     onChange={(e) => setUserData({ ...userData, firstName: e.target.value })}
                     disabled={!isEditing}
-                    className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
+                    className="bg-card border-border/50 text-foreground focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
                   />
                 </div>
                 <div className="space-y-2">
@@ -432,7 +432,7 @@ const UserProfile = () => {
                     value={userData.lastName}
                     onChange={(e) => setUserData({ ...userData, lastName: e.target.value })}
                     disabled={!isEditing}
-                    className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
+                    className="bg-card border-border/50 text-foreground focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
                   />
                 </div>
               </div>
@@ -445,7 +445,7 @@ const UserProfile = () => {
                   value={userData.email}
                   onChange={(e) => setUserData({ ...userData, email: e.target.value })}
                   disabled={!isEditing}
-                  className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
+                  className="bg-card border-border/50 text-foreground focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
                 />
               </div>
 
@@ -456,7 +456,7 @@ const UserProfile = () => {
                   value={userData.phone}
                   onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
                   disabled={!isEditing}
-                  className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
+                  className="bg-card border-border/50 text-foreground focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
                   placeholder="+1 (555) 000-0000"
                 />
               </div>
@@ -469,7 +469,7 @@ const UserProfile = () => {
                     value={userData.company}
                     onChange={(e) => setUserData({ ...userData, company: e.target.value })}
                     disabled={!isEditing}
-                    className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
+                    className="bg-card border-border/50 text-foreground focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
                     placeholder="Your company name"
                   />
                 </div>
@@ -480,7 +480,7 @@ const UserProfile = () => {
                     value={userData.role}
                     onChange={(e) => setUserData({ ...userData, role: e.target.value })}
                     disabled={!isEditing}
-                    className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
+                    className="bg-card border-border/50 text-foreground focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
                     placeholder="Your job title"
                   />
                 </div>
@@ -493,7 +493,7 @@ const UserProfile = () => {
                   value={userData.bio}
                   onChange={(e) => setUserData({ ...userData, bio: e.target.value })}
                   disabled={!isEditing}
-                  className="bg-black/40 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
+                  className="bg-card border-border/50 text-foreground focus:border-primary/50 focus:ring-primary/20 font-mono h-10"
                   placeholder="Tell us about yourself"
                 />
               </div>
@@ -501,10 +501,10 @@ const UserProfile = () => {
               {/* Action Buttons */}
               {isEditing && (
                 <div className="flex gap-3 pt-4">
-                  <Button onClick={handleSave} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-bebas tracking-wider">
+                  <Button onClick={handleSave} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-heading font-semibold">
                     SAVE CHANGES
                   </Button>
-                  <Button onClick={handleCancel} variant="outline" className="flex-1 border-white/10 text-white hover:bg-white/10 font-mono">
+                  <Button onClick={handleCancel} variant="outline" className="flex-1 border-border/50 text-foreground hover:bg-foreground/10 font-mono">
                     CANCEL
                   </Button>
                 </div>
@@ -516,7 +516,7 @@ const UserProfile = () => {
         {/* Security Section */}
         <Reveal variant="fadeInUp" delay={0.3}>
           <HolographicCard className="p-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-bebas tracking-wide text-white">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-heading font-semibold text-foreground">
               <Lock className="w-5 h-5 text-primary" />
               SECURITY SETTINGS
             </h2>
@@ -544,7 +544,7 @@ const UserProfile = () => {
                 }
               }}
               variant="outline"
-              className="w-full border-white/10 text-white hover:bg-white/10 hover:text-primary hover:border-primary/50 transition-all font-mono"
+              className="w-full border-border/50 text-foreground hover:bg-foreground/10 hover:text-primary hover:border-primary/50 transition-all font-mono"
             >
               CHANGE PASSWORD
             </Button>
@@ -561,10 +561,10 @@ const UserProfile = () => {
 
       {/* OTP Dialog for Password Change */}
       <Dialog open={showPasswordOtpDialog} onOpenChange={setShowPasswordOtpDialog}>
-        <DialogContent className="bg-black/90 border-primary/30 text-white backdrop-blur-xl">
+        <DialogContent className="bg-background/90 border-primary/30 text-foreground backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle className="font-bebas tracking-wider text-2xl text-primary">PASSWORD RESET AUTHORIZATION</DialogTitle>
-            <DialogDescription className="font-mono text-xs text-white/70">
+            <DialogTitle className="font-heading font-semibold text-2xl text-primary">PASSWORD RESET AUTHORIZATION</DialogTitle>
+            <DialogDescription className="font-mono text-xs text-muted-foreground">
               ENTER THE 6-DIGIT CODE SENT TO YOUR EMAIL TO PROCEED WITH PASSWORD CHANGE.
             </DialogDescription>
           </DialogHeader>
@@ -575,7 +575,7 @@ const UserProfile = () => {
                 id="passwordOtp"
                 value={passwordOtp}
                 onChange={(e) => setPasswordOtp(e.target.value)}
-                className="bg-black/50 border-white/10 text-center text-2xl tracking-[0.5em] font-mono focus:border-primary/50 focus:ring-primary/20"
+                className="bg-black/50 border-border/50 text-center text-2xl tracking-[0.5em] font-mono focus:border-primary/50 focus:ring-primary/20"
                 maxLength={6}
                 placeholder="000000"
               />
@@ -583,18 +583,18 @@ const UserProfile = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowPasswordOtpDialog(false)} className="font-mono text-xs text-white/50 hover:text-white">CANCEL</Button>
-            <Button onClick={handleVerifyPasswordOtp} className="bg-primary text-primary-foreground hover:bg-primary/90 font-bebas tracking-wider">VERIFY & PROCEED</Button>
+            <Button variant="ghost" onClick={() => setShowPasswordOtpDialog(false)} className="font-mono text-xs text-muted-foreground/80 hover:text-foreground">CANCEL</Button>
+            <Button onClick={handleVerifyPasswordOtp} className="bg-primary text-primary-foreground hover:bg-primary/90 font-heading font-semibold">VERIFY & PROCEED</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Change Password Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className="bg-black/90 border-primary/30 text-white backdrop-blur-xl">
+        <DialogContent className="bg-background/90 border-primary/30 text-foreground backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle className="font-bebas tracking-wider text-2xl text-primary">UPDATE CREDENTIALS</DialogTitle>
-            <DialogDescription className="font-mono text-xs text-white/70">
+            <DialogTitle className="font-heading font-semibold text-2xl text-primary">UPDATE CREDENTIALS</DialogTitle>
+            <DialogDescription className="font-mono text-xs text-muted-foreground">
               ESTABLISH NEW SECURITY PROTOCOLS.
             </DialogDescription>
           </DialogHeader>
@@ -607,7 +607,7 @@ const UserProfile = () => {
                   type={showNewPassword ? "text" : "password"}
                   value={passwordData.newPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                  className="bg-black/50 border-white/10 font-mono focus:border-primary/50 focus:ring-primary/20 pr-10"
+                  className="bg-black/50 border-border/50 font-mono focus:border-primary/50 focus:ring-primary/20 pr-10"
                 />
                 <button
                   type="button"
@@ -626,7 +626,7 @@ const UserProfile = () => {
                   type={showConfirmPassword ? "text" : "password"}
                   value={passwordData.confirmPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                  className="bg-black/50 border-white/10 font-mono focus:border-primary/50 focus:ring-primary/20 pr-10"
+                  className="bg-black/50 border-border/50 font-mono focus:border-primary/50 focus:ring-primary/20 pr-10"
                 />
                 <button
                   type="button"
@@ -639,8 +639,8 @@ const UserProfile = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowPasswordDialog(false)} className="font-mono text-xs text-white/50 hover:text-white">CANCEL</Button>
-            <Button onClick={handleChangePassword} className="bg-primary text-primary-foreground hover:bg-primary/90 font-bebas tracking-wider">UPDATE PASSWORD</Button>
+            <Button variant="ghost" onClick={() => setShowPasswordDialog(false)} className="font-mono text-xs text-muted-foreground/80 hover:text-foreground">CANCEL</Button>
+            <Button onClick={handleChangePassword} className="bg-primary text-primary-foreground hover:bg-primary/90 font-heading font-semibold">UPDATE PASSWORD</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -26,7 +26,7 @@ interface CommandDialogProps extends DialogProps { }
 const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
   return (
     <Dialog {...props}>
-      <DialogContent className="overflow-hidden p-0 shadow-[0_0_50px_rgba(0,229,255,0.2)] bg-black/80 backdrop-blur-xl border border-neon-teal/30">
+      <DialogContent className="overflow-hidden p-0 shadow-[0_0_50px_rgba(0,229,255,0.2)] bg-background/80 backdrop-blur-xl border border-neon-teal/30">
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 bg-transparent">
           {children}
         </Command>
@@ -39,12 +39,12 @@ const CommandInput = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Input>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => (
-  <div className="flex items-center border-b border-white/10 px-3" cmdk-input-wrapper="">
+  <div className="flex items-center border-b border-border/50 px-3" cmdk-input-wrapper="">
     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50 text-neon-teal" />
     <CommandPrimitive.Input
       ref={ref}
       className={cn(
-        "flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-white/30 disabled:cursor-not-allowed disabled:opacity-50 text-white font-mono tracking-wide",
+        "flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-white/30 disabled:cursor-not-allowed disabled:opacity-50 text-foreground font-mono tracking-wide",
         className,
       )}
       {...props}

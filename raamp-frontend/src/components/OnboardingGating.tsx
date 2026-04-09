@@ -27,7 +27,7 @@ const OnboardingGating = ({ steps, nextStep }: OnboardingGatingProps) => {
                     <Card className="relative overflow-hidden border-primary/20 bg-card/80 backdrop-blur-xl p-8 md:p-12 shadow-2xl">
                         {/* Background Decor */}
                         <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
-                        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" />
+                        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl" />
 
                         <div className="relative z-10 flex flex-col items-center text-center space-y-6">
                             <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-2">
@@ -35,7 +35,7 @@ const OnboardingGating = ({ steps, nextStep }: OnboardingGatingProps) => {
                             </div>
 
                             <div className="space-y-2">
-                                <h1 className="text-4xl font-bold font-bebas tracking-wide text-foreground">
+                                <h1 className="text-4xl font-bold font-heading font-semibold text-foreground">
                                     <BlurText text="Almost there!" />
                                 </h1>
                                 <p className="text-muted-foreground font-mono text-sm max-w-sm mx-auto">
@@ -75,14 +75,14 @@ const OnboardingGating = ({ steps, nextStep }: OnboardingGatingProps) => {
                                 <Button
                                     asChild
                                     size="lg"
-                                    className="w-full py-7 text-xl font-bebas tracking-widest group relative overflow-hidden"
+                                    className="w-full py-7 text-xl font-heading font-semiboldst group relative overflow-hidden"
                                 >
-                                    <Link to={nextStep?.route || "#"}>
+                                    <Link to={nextStep?.route || "#"} replace>
                                         <span className="relative z-10 flex items-center justify-center gap-2">
                                             {nextStep?.id === 'personal_details' ? 'Finish Onboarding' : 'Complete Setup'}
                                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                         </span>
-                                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-teal-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </Link>
                                 </Button>
                             </div>

@@ -24,7 +24,11 @@ class NotificationRepository:
         if unread_only:
             query = query.find(NotificationModel.read == False)
             
-        return await query.sort(-NotificationModel.created_at).skip(offset).limit(limit).to_list()
+        # Order by priority first (desc), then recency (desc).
+        return await query.sort(
+            -NotificationModel.priority,
+            -NotificationModel.created_at,
+        ).skip(offset).limit(limit).to_list()
     
     async def get_unread_count(self, user_id: str) -> int:
         """Get count of unread notifications"""
@@ -53,13 +57,21 @@ class NotificationRepository:
     async def create(
         self,
         user_id: str,
-        notification_type: NotificationType,
         title: str,
         message: str,
+        notification_type: Optional[NotificationType] = None,
+        # Backward compatible alias used by some tests
+        type: Optional[NotificationType] = None,  # noqa: A002
         related_entity_id: Optional[str] = None,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
+        priority: int = 0,
     ) -> NotificationModel:
         """Create a new notification"""
+        # Backwards-compatible alias: callers may pass `type=` instead of `notification_type=`.
+        if notification_type is None and type is not None:
+            notification_type = type
+        if notification_type is None:
+            raise ValueError("notification_type is required")
         # Extract social post specific fields from metadata if present
         platform = metadata.get("platform") if metadata else None
         post_id = metadata.get("post_id") if metadata else None
@@ -73,6 +85,7 @@ class NotificationRepository:
             title=title,
             message=message,
             read=False,
+            priority=int(priority or 0),
             platform=platform,
             post_id=post_id,
             status=status,
@@ -96,3 +109,8 @@ class NotificationRepository:
             await notification.delete()
             return True
         return False
+
+    async def delete_all_for_user(self, user_id: str) -> int:
+        """Delete all notifications for a user. Returns deleted count."""
+        result = await NotificationModel.find(NotificationModel.user_id == user_id).delete()
+        return int(getattr(result, "deleted_count", 0) or 0)

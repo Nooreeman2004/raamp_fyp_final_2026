@@ -31,6 +31,7 @@ export interface Asset {
     model_used?: string;
     times_used: number;
     last_used_at?: string;
+    instagram_post_id?: string;
     tags: string[];
     is_favorite: boolean;
     created_at: string;

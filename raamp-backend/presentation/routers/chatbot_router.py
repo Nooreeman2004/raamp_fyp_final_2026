@@ -36,8 +36,16 @@ from application.services.rag.conversation_manager import (
     ConversationManager
 )
 from application.services.diagnostics_service import DiagnosticsService
+from infrastructure.repositories.business_repository import BusinessRepository
+from infrastructure.database.models.trend_ai_analysis_model import TrendAIAnalysisModel
+from infrastructure.database.models.chat_interaction_model import ChatInteractionModel
+
+from cachetools import TTLCache
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
+
+# Business profile cache (10 min TTL)
+_business_cache = TTLCache(maxsize=100, ttl=600)
 
 # Lazy initialization of generator (singleton)
 _generator: Optional[RAAMPGenerator] = None
@@ -92,7 +100,19 @@ QUICK_RESPONSES = {
     "whatisraamp": {
         "patterns": [r"^(what is raamp|what's raamp|whats raamp)[\s!?.]*$"],
         "responses": [
-            "RAAMP stands for **Revolutionary AI-Powered Autonomous Marketing Platform**! 🚀\n\nIt's an intelligent marketing platform that helps SMBs automate their digital marketing using AI-driven insights, geo-intent targeting, and hyperlocal strategies.\n\nWant to know more about any specific feature?"
+            "RAAMP stands for **Revolutionary AI-Powered Autonomous Marketing Platform!** 🚀\n\nIt's an intelligent marketing platform that helps SMBs automate their digital marketing using AI-driven insights, geo-intent targeting, and hyperlocal strategies.\n\nWant to know more about any specific feature?"
+        ]
+    },
+    # Complaints & Support
+    "complaints": {
+        "patterns": [
+            r".*(file complaint|report issue|submit complaint|make a complaint).*",
+            r".*(view complaint|check status|track complaint|complaint status).*",
+            r".*(technical issue|problem|bug|it's not working|broken).*",
+            r".*(contact support|call support|email support).*"
+        ],
+        "responses": [
+            "It looks like you have an issue — you can file a formal complaint or track your existing support requests here: [**Support Center**](/dashboard/complaints) 🛠️\n\nYou can also reach our team directly at **support@raamp.ai** or call us at **+1 (800) RAAMP-AI**."
         ]
     }
 }
@@ -133,6 +153,74 @@ def get_diagnostics() -> DiagnosticsService:
         _diagnostics_service = DiagnosticsService()
     return _diagnostics_service
 
+async def get_business_context(user_id: Optional[str]) -> str:
+    """Prepare context about the user's business (with caching)."""
+    if not user_id:
+        return ""
+    
+    # Check cache first
+    if user_id in _business_cache:
+        return _business_cache[user_id]
+        
+    try:
+        repo = BusinessRepository()
+        business = await repo.get_by_user_id(user_id)
+        if business:
+            ctx = f"""
+[BUSINESS PROFILE]
+You are assisting {business.business_name}, a {business.business_type or 'local'} business based in {business.city or 'your location'}.
+Specialties: {', '.join(business.specialties) if business.specialties else 'General marketing'}
+Description: {business.description or 'No description provided.'}
+Target Audience Tone: {business.tone_of_voice or 'Professional and helpful'}
+Always tailor your advice and examples to this specific business context.
+"""
+            # Store in cache
+            _business_cache[user_id] = ctx
+            return ctx
+    except Exception as e:
+        print(f"⚠️ Error fetching business context: {e}")
+    return ""
+
+
+async def get_trend_context(session_id: str, manager: ConversationManager) -> str:
+    """Prepare context about trends discussed in this session (Capped at last 3)."""
+    try:
+        session = await manager.get_session(session_id)
+        if not session:
+            return ""
+            
+        # Handle both Beanie document and dictionary return types
+        trend_ids = session.trend_ids if hasattr(session, 'trend_ids') else session.get('trend_ids', [])
+        
+        if not trend_ids:
+            return ""
+            
+        # CAP TRENDS: Only take the last 3 to keep prompt lean
+        active_trend_ids = trend_ids[-3:]
+            
+        # Get latest analyses for linked trends
+        trend_analyses = await TrendAIAnalysisModel.find(
+            {"trend_id": {"$in": active_trend_ids}}
+        ).sort("-generated_at").to_list()
+        
+        if not trend_analyses:
+            return ""
+            
+        # Use a dict to only keep the latest analysis per trend_id
+        latest_analyses = {}
+        for analysis in trend_analyses:
+            if analysis.trend_id not in latest_analyses:
+                latest_analyses[analysis.trend_id] = analysis
+        
+        summaries = []
+        for analysis in latest_analyses.values():
+            summaries.append(f"- Trend: '{analysis.trend_keyword}'. Window: {analysis.opportunity_window}. Summary: {analysis.executive_summary[:150]}...")
+            
+        return f"\n[TREND CONTEXT - DISCUSSED IN THIS SESSION]\n" + "\n".join(summaries)
+    except Exception as e:
+        print(f"⚠️ Error fetching trend context: {e}")
+    return ""
+
 
 def generate_session_id() -> str:
     """Generate a unique session ID."""
@@ -151,6 +239,11 @@ async def chat(
     try:
         # Get or create session ID
         session_id = request.session_id or generate_session_id()
+        await manager.get_or_create_session(session_id, x_user_id)
+
+        # Link trend ID if provided
+        if request.trend_id:
+            await manager.link_trend(session_id, request.trend_id)
 
         # Check for quick response first (no AI needed for greetings)
         quick_answer = get_quick_response(request.message)
@@ -196,6 +289,10 @@ async def chat(
         # For complex questions, use RAG pipeline
         generator = get_generator()
 
+        # Fetch Business and Trend Context
+        business_context = await get_business_context(x_user_id)
+        trend_context = await get_trend_context(session_id, manager)
+
         # PROMPT ENGINEERING WITH CONTEXT
         query = request.message
         if request.context:
@@ -206,15 +303,28 @@ async def chat(
         response = generator.chat(
             query=query,
             conversation_history=history,
-            n_context=5
+            n_context=5,
+            business_context=business_context,
+            trend_context=trend_context
         )
 
-        # Store messages in session (best-effort only)
+        # Store messages in session & interactions log
         try:
             await manager.add_message(session_id, "user", request.message, x_user_id)
             await manager.add_message(session_id, "assistant", response["answer"], x_user_id)
-        except Exception as store_err:
-            print(f"⚠️ Failed to store messages for session {session_id}: {store_err}")
+            
+            # 📝 Log flat interaction for analytics/audit
+            interaction = ChatInteractionModel(
+                session_id=session_id,
+                user_id=x_user_id,
+                query=request.message,
+                response=response["answer"],
+                trend_ids=response.get("trend_ids", []),
+                sources=response.get("sources", [])
+            )
+            await interaction.insert()
+        except Exception as log_err:
+            print(f"⚠️ Interaction logging failed: {log_err}")
         
         # Build response
         sources = None
@@ -279,7 +389,12 @@ async def chat_stream(
         try:
             # Get or create session ID
             session_id = request.session_id or generate_session_id()
-            
+            await manager.get_or_create_session(session_id, x_user_id)
+
+            # Link trend ID if provided
+            if request.trend_id:
+                await manager.link_trend(session_id, request.trend_id)
+
             # Check for quick response first (no AI needed for greetings)
             quick_answer = get_quick_response(request.message)
             
@@ -311,6 +426,10 @@ async def chat_stream(
             # For complex questions, use RAG pipeline with streaming
             generator = get_generator()
             
+            # Fetch Business and Trend Context
+            business_context = await get_business_context(x_user_id)
+            trend_context = await get_trend_context(session_id, manager)
+
             # PROMPT ENGINEERING WITH CONTEXT
             query = request.message
             if request.context:
@@ -322,17 +441,33 @@ async def chat_stream(
             
             # Stream tokens
             full_answer = ""
-            for token in generator.generate_response_stream(query, n_context=5, chat_history=history):
+            for token in generator.generate_response_stream(
+                query=query, 
+                n_context=5, 
+                chat_history=history,
+                business_context=business_context,
+                trend_context=trend_context
+            ):
                 full_answer += token
                 # Send token to client
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
             
-            # Store messages in DB after streaming completes
+            # Store messages in session & interactions log
             try:
                 await manager.add_message(session_id, "user", request.message, x_user_id)
                 await manager.add_message(session_id, "assistant", full_answer, x_user_id)
-            except Exception as store_err:
-                print(f"⚠️ Failed to store messages for session {session_id}: {store_err}")
+                
+                # 📝 Log flat interaction for analytics/audit
+                interaction = ChatInteractionModel(
+                    session_id=session_id,
+                    user_id=x_user_id,
+                    query=request.message,
+                    response=full_answer,
+                    sources=sources_data if 'sources_data' in locals() else []
+                )
+                await interaction.insert()
+            except Exception as log_err:
+                print(f"⚠️ Interaction logging failed in stream: {log_err}")
             
             # Build sources for response
             sources_data = []

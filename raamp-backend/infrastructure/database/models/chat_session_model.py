@@ -21,6 +21,7 @@ class ChatSessionModel(Document):
     title: Optional[str] = "New Conversation"
     
     messages: List[Dict] = Field(default_factory=list)  # List of {role, content, timestamp}
+    trend_ids: List[str] = Field(default_factory=list) # IDs of trends discussed in this session
     metadata: Dict = Field(default_factory=dict)
     
     is_active: bool = True
@@ -32,5 +33,6 @@ class ChatSessionModel(Document):
         indexes = [
             "session_id",
             "user_id",
-            "last_activity"
+            "last_activity",
+            "trend_ids"
         ]

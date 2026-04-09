@@ -22,6 +22,11 @@ class TrendSignal:
     geo_data: Dict = None  # Geographic distribution of interest
     related_queries: Dict = None  # Related queries from Google Trends
     rising_queries: Dict = None  # Rising queries from Google Trends
+
+    # Provider metadata (observability)
+    provider: Optional[str] = None
+    fallback_from: Optional[str] = None
+    geo_relaxed: bool = False
     
     # Computed metrics
     arbitrage_score: Optional[float] = None
@@ -42,6 +47,7 @@ class TrendSignal:
     
     # Metadata
     fetch_status: str = "pending"  # pending, processing, completed, failed
+    progress_step: str = "Initializing..."  # Current step in the detection pipeline
     error_message: Optional[str] = None
     fetched_at: Optional[datetime] = None
     created_at: Optional[datetime] = None

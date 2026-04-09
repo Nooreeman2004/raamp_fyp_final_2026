@@ -7,12 +7,13 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProfileGuard from "./components/ProfileGuard";
-import { AuthProvider } from "./hooks/useAuth";
+import { AuthProvider } from "@/hooks/useAuth";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { SmoothScroll } from "@/components/ui/smooth-scroll";
 import { CustomCursor } from "@/components/ui/custom-cursor";
 import { CommandMenu } from "@/components/ui/command-menu";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { ThemeProvider } from "./components/ThemeProvider";
 
 // Lazy Loaded Pages
 const Index = lazy(() => import("./pages/Index"));
@@ -26,7 +27,6 @@ const GeoIntent = lazy(() => import("./pages/GeoIntent"));
 const CreativeStudio = lazy(() => import("./pages/CreativeStudio"));
 const TrendArbitrage = lazy(() => import("./pages/TrendArbitrage"));
 const ABTesting = lazy(() => import("./pages/ABTesting"));
-const Performance = lazy(() => import("./pages/Performance"));
 const PersonalDetails = lazy(() => import("./pages/PersonalDetails"));
 const BusinessSetup = lazy(() => import("./pages/BusinessSetup"));
 const BrandSettings = lazy(() => import("./pages/BrandSettings"));
@@ -51,6 +51,9 @@ const LusionDemo = lazy(() => import("./pages/LusionDemo"));
 const RAAMPAssistant = lazy(() => import("./pages/RAAMPAssistant"));
 const SmartScheduling = lazy(() => import("./pages/SmartScheduling"));
 const AssetLibrary = lazy(() => import("./pages/AssetLibrary"));
+const BillingProfile = lazy(() => import("./pages/BillingProfile"));
+const CampaignApprovals = lazy(() => import("./pages/CampaignApprovals"));
+const Complaints = lazy(() => import("./pages/Complaints"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,14 +66,19 @@ const queryClient = new QueryClient({
 
 
 const App = () => (
-  <BrowserRouter>
+  <BrowserRouter
+    future={{
+      v7_startTransition: true,
+      v7_relativeSplatPath: true,
+    }}
+  >
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
           <NotificationProvider>
             <TooltipProvider>
               <SmoothScroll>
-                <div className="noise-overlay" />
                 <CustomCursor />
                 <CommandMenu />
                 <Toaster />
@@ -154,16 +162,6 @@ const App = () => (
                       }
                     />
                     <Route
-                      path="/dashboard/performance"
-                      element={
-                        <ProtectedRoute>
-                          <ProfileGuard>
-                            <Performance />
-                          </ProfileGuard>
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
                       path="/dashboard/smart-scheduling"
                       element={
                         <ProtectedRoute>
@@ -179,6 +177,26 @@ const App = () => (
                         <ProtectedRoute>
                           <ProfileGuard>
                             <AssetLibrary />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/approvals"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <CampaignApprovals />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/complaints"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <Complaints />
                           </ProfileGuard>
                         </ProtectedRoute>
                       }
@@ -317,6 +335,16 @@ const App = () => (
                         </ProtectedRoute>
                       }
                     />
+                    <Route
+                      path="/settings/billing-profile"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <BillingProfile />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
                     {/* 404 - Must be last */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
@@ -325,6 +353,7 @@ const App = () => (
             </TooltipProvider>
           </NotificationProvider>
         </AuthProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </BrowserRouter>

@@ -62,6 +62,7 @@ import { SignalsCarousel } from "@/components/trends/SignalsCarousel";
 import { TrendHistoryTable } from "@/components/trends/TrendHistoryTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LaunchCampaignDialog } from "@/components/LaunchCampaignDialog";
+import { UrgencyWidget } from "@/components/trends/UrgencyWidget";
 
 const TrendArbitrage = () => {
   const { user } = useAuth();
@@ -1466,19 +1467,11 @@ const TrendArbitrage = () => {
                       ? "Generating strategy…"
                       : (aiAnalysisData?.executive_summary || aiNextStep || execAnalysis?.explanation || "Open Full Strategy to view detailed AI guidance.")}
                   </div>
-                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg border border-border/60 bg-background/40 p-2">
-                      <div className="text-xs text-muted-foreground">Urgency</div>
-                      <div className="text-sm font-semibold">{aiAnalysisData?.opportunity_score?.urgency ?? "—"}</div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/40 p-2">
-                      <div className="text-xs text-muted-foreground">Relevance</div>
-                      <div className="text-sm font-semibold">{aiAnalysisData?.opportunity_score?.relevance ?? "—"}</div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/40 p-2">
-                      <div className="text-xs text-muted-foreground">Competition</div>
-                      <div className="text-sm font-semibold">{aiAnalysisData?.opportunity_score?.competition ?? "—"}</div>
-                    </div>
+                  <div className="mt-4">
+                     <UrgencyWidget 
+                        urgency={aiAnalysisData?.opportunity_score?.urgency ?? (effectiveTrend as any)?.score ?? 0}
+                        windowStatus={aiAnalysisData?.opportunity_window || (effectiveTrend as any)?.lifecycle_stage || "Checking Window..."}
+                     />
                   </div>
 
                   <div className="mt-auto pt-4 grid grid-cols-1 gap-2">

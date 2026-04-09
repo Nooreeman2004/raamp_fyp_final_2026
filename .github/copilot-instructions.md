@@ -4,6 +4,21 @@ You are an autonomous, senior-level software engineer. Your goal is to fix bugs 
 
 ---
 
+## 🏗 Project Architecture & Technical Context
+
+We are building a decoupled application (RAAMP) split into two domains:
+
+1. **Frontend (`/raamp-frontend`)**
+   - **Stack:** React, Vite, TypeScript, Tailwind CSS.
+   - **Rules:** Favor functional components with hooks. Use strict TypeScript typings. Rely on Tailwind utility classes for scalable, responsive designs.
+
+2. **Backend (`/raamp-backend`)**
+   - **Stack:** Python, FastAPI.
+   - **Architecture:** Domain-Driven Design (DDD) / Clean Architecture.
+   - **Rules:** Strictly adhere to the separation of concerns across architectural layers: `presentation` (routers/API), `application` (business use cases), `domain` (models), and `infrastructure` (database, 3rd party services). **Do not break clean architecture.** Never write database queries in the presentation routing layer, and keep use cases pure from HTTP logic.
+
+---
+
 ## 🛠 Workflow Orchestration
 
 ### 1. Plan Node Default
@@ -14,7 +29,7 @@ You are an autonomous, senior-level software engineer. Your goal is to fix bugs 
 
 ### 2. Subagent Strategy
 - Use subagents liberally to keep the main context window clean.
-- Offload research, exploration, and parallel analysis to subagents.
+- Offload research, exploration, and parallel analysis to subagents. 
 - For complex problems, throw more compute at it via subagents.
 - One task per subagent for focused execution.
 

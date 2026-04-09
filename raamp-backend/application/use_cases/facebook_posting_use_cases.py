@@ -13,6 +13,8 @@ from infrastructure.repositories.facebook_post_repository import (
 )
 from infrastructure.repositories.facebook_repository import FacebookRepository
 from infrastructure.database.models.facebook_post_model import FacebookPostModel, ScheduledFacebookPostModel
+from infrastructure.database.models.posting_log_model import PostingLogModel
+
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +125,22 @@ class PostNowToPageUseCase:
                 status="PUBLISHED",
                 facebook_post_id=facebook_post_id
             )
+
+            # Persistent Posting Log (New)
+            try:
+                await PostingLogModel(
+                    user_id=user_id,
+                    platform="facebook",
+                    post_id=str(facebook_post_id),
+                    internal_id=str(post.id),
+                    media_url=media_url,
+                    caption=message,
+                    status="PUBLISHED",
+                    published_at=datetime.utcnow()
+                ).insert()
+            except Exception as log_err:
+                logger.warning(f"Failed to save persistent Facebook posting log: {log_err}")
+
             
             logger.info(f"Successfully posted to Facebook Page {page_id}: {facebook_post_id}")
             
@@ -139,6 +157,21 @@ class PostNowToPageUseCase:
                 status="FAILED",
                 error=str(e)
             )
+
+            # Persistent Posting Log - Failure (New)
+            try:
+                await PostingLogModel(
+                    user_id=user_id,
+                    platform="facebook",
+                    internal_id=str(post.id),
+                    media_url=media_url,
+                    caption=message,
+                    status="FAILED",
+                    error_message=str(e)
+                ).insert()
+            except Exception as log_err:
+                logger.warning(f"Failed to save persistent Facebook failure log: {log_err}")
+
             
             # Refresh post
             post = await self.post_repository.get_post_by_id(str(post.id))

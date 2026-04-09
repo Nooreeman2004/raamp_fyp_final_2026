@@ -8,6 +8,7 @@ Orchestrates between the service layer and repositories.
 from typing import Dict, Any, Optional
 from infrastructure.repositories.business_repository import BusinessRepository
 from application.services.content_generation_service import get_content_generation_service
+from application.services.credit_service import get_credit_service
 
 
 class ContentGenerationUseCase:
@@ -25,6 +26,7 @@ class ContentGenerationUseCase:
         """Initialize use case with required dependencies."""
         self.business_repo = BusinessRepository()
         self.content_service = get_content_generation_service()
+        self.credit_service = get_credit_service()
     
     async def get_brand_context(self, user_id: str) -> Dict[str, Any]:
         """
@@ -106,6 +108,9 @@ class ContentGenerationUseCase:
         # Fetch brand context from database
         brand_context = await self.get_brand_context(user_id)
         
+        # Check Credits and Enforce Tier Limits (1 credit for captions/ads)
+        await self.credit_service.check_and_deduct(user_id, "caption_generation")
+
         # Generate all content using AI service
         result = await self.content_service.generate_content(
             campaign_idea=campaign_idea.strip(),

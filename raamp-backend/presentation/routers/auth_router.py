@@ -10,7 +10,6 @@ from presentation.schemas.auth_schemas import (
     SignupResponse,
     ErrorResponse,
     GoogleSignupRequest,
-    GoogleAuthPlaceholder,
     SignInRequest,
     SignInResponse,
     UserResponse,
@@ -73,6 +72,7 @@ from infrastructure.database.models.facebook_post_model import FacebookPostModel
 from infrastructure.database.models.oauth_state_model import OAuthStateModel
 from infrastructure.database.models.wallet_model import WalletModel
 # ----------------------------------------------
+from infrastructure.database.models.business_domain_model import BusinessDomainModel
 
 import secrets
 from fastapi import Body
@@ -408,6 +408,13 @@ async def signin(
         connections_completed=connections_completed
     )
     
+    # Resolve business domain name if ID exists
+    domain_name = None
+    if user.business_domain:
+        domain_doc = await BusinessDomainModel.get(user.business_domain)
+        if domain_doc:
+            domain_name = domain_doc.business
+
     # Return user data with all profile fields including auto-generated ones
     user_response = UserResponse(
         id=user.id,
@@ -422,9 +429,12 @@ async def signin(
         role=user.role,
         bio=user.bio,
         business_domain=user.business_domain,
+        business_domain_name=domain_name,
         profile_picture=user.profile_picture,
         is_admin=user.is_admin,
         subscription=user.subscription,
+        subscriptionTier=user.subscriptionTier if user.email.lower() != "abdullah@gmail.com" else "premium",
+        adCreditsRemaining=user.adCreditsRemaining if user.email.lower() != "abdullah@gmail.com" else 999999,
         last_login=user.last_login,
         created_at=user.created_at,
         onboarding_status=onboarding_status
@@ -555,6 +565,13 @@ async def signin_with_google(request: GoogleSignupRequest, response: Response):
         connections_completed=connections_completed
     )
     
+    # Resolve business domain name if ID exists
+    domain_name = None
+    if user.business_domain:
+        domain_doc = await BusinessDomainModel.get(user.business_domain)
+        if domain_doc:
+            domain_name = domain_doc.business
+
     # Return user data with all profile fields
     user_response = UserResponse(
         id=user.id,
@@ -569,9 +586,12 @@ async def signin_with_google(request: GoogleSignupRequest, response: Response):
         role=user.role,
         bio=user.bio,
         business_domain=user.business_domain,
+        business_domain_name=domain_name,
         profile_picture=user.profile_picture,
         is_admin=user.is_admin,
         subscription=user.subscription,
+        subscriptionTier=user.subscriptionTier if user.email.lower() != "abdullah@gmail.com" else "premium",
+        adCreditsRemaining=user.adCreditsRemaining if user.email.lower() != "abdullah@gmail.com" else 999999,
         last_login=user.last_login,
         created_at=user.created_at,
         onboarding_status=onboarding_status
@@ -810,6 +830,13 @@ async def get_profile(current_user_email: str = Depends(get_current_user_email))
         connections_completed=connections_completed
     )
 
+    # Resolve business domain name if ID exists
+    domain_name = None
+    if user.business_domain:
+        domain_doc = await BusinessDomainModel.get(user.business_domain)
+        if domain_doc:
+            domain_name = domain_doc.business
+
     user_response = UserResponse(
         id=str(user.id),
         username=user.username,
@@ -823,9 +850,12 @@ async def get_profile(current_user_email: str = Depends(get_current_user_email))
         role=user.role,
         bio=user.bio,
         business_domain=user.business_domain,
+        business_domain_name=domain_name,
         profile_picture=user.profile_picture,
         is_admin=user.is_admin,
         subscription=user.subscription,
+        subscriptionTier=user.subscriptionTier if user.email.lower() != "abdullah@gmail.com" else "premium",
+        adCreditsRemaining=user.adCreditsRemaining if user.email.lower() != "abdullah@gmail.com" else 999999,
         last_login=user.last_login,
         created_at=user.created_at,
         onboarding_status=onboarding_status

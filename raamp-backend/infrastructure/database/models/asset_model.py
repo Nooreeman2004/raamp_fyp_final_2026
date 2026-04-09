@@ -56,6 +56,7 @@ class AssetModel(Document):
     # Usage Tracking
     times_used: int = Field(default=0, description="Number of times asset was used in posts")
     last_used_at: Optional[datetime] = Field(None, description="Last time asset was used")
+    instagram_post_id: Optional[str] = Field(None, description="Internal ID of the last Instagram post using this asset")
     
     # Tags and Organization
     tags: list[str] = Field(default_factory=list, description="User-defined tags for organization")

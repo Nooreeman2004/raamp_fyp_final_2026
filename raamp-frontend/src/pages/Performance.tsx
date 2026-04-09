@@ -30,7 +30,7 @@ const Performance = () => {
               <Activity className="w-8 h-8 text-primary animate-pulse" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold mb-1 font-bebas tracking-wider text-white">
+              <h1 className="text-4xl font-bold mb-1 font-heading font-semibold text-foreground">
                 <BlurText text="PERFORMANCE ATTRIBUTION ENGINE" />
               </h1>
               <p className="text-muted-foreground font-mono text-sm">
@@ -43,7 +43,7 @@ const Performance = () => {
         {/* Campaign Selection - Staggered Grid */}
         <Reveal variant="fadeInUp" delay={0.2}>
           <HolographicCard className="p-6 border-primary/30">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-bebas tracking-wide text-white">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-heading font-semibold text-foreground">
               <Target className="w-5 h-5 text-primary" />
               CAMPAIGN SELECTION
             </h2>
@@ -63,20 +63,20 @@ const Performance = () => {
                     variants={hoverLift}
                     initial="rest"
                     whileHover="hover"
-                    className="p-4 bg-white/5 rounded border border-white/10 hover:border-primary/50 transition-all group cursor-pointer h-full flex flex-col justify-between relative overflow-hidden"
+                    className="p-4 bg-foreground/5 rounded border border-border/50 hover:border-primary/50 transition-all group cursor-pointer h-full flex flex-col justify-between relative overflow-hidden"
                   >
                     {/* Hover Glow */}
                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
                     <div className="relative z-10">
                       <div className="mb-3">
-                        <h3 className="font-bold mb-1 text-white group-hover:text-primary transition-colors font-bebas tracking-wide text-lg">{campaign.name.toUpperCase()}</h3>
+                        <h3 className="font-bold mb-1 text-foreground group-hover:text-primary transition-colors font-heading font-semibold text-lg">{campaign.name.toUpperCase()}</h3>
                         <p className="text-[10px] text-muted-foreground font-mono">{campaign.period}</p>
                       </div>
                       <Badge variant="outline" className="mb-3 border-primary/30 text-primary bg-primary/5 font-mono text-[10px] rounded-sm">{campaign.status}</Badge>
                     </div>
                     <motion.div variants={hoverScale} whileTap="tap" className="relative z-10">
-                      <Button size="sm" className="w-full bg-white/10 hover:bg-primary hover:text-primary-foreground text-white border border-white/20 hover:border-primary font-mono font-bold text-xs h-8">
+                      <Button size="sm" className="w-full bg-foreground/10 hover:bg-primary hover:text-primary-foreground text-foreground border border-border/80 hover:border-primary font-mono font-bold text-xs h-8">
                         ANALYZE DRIVERS
                       </Button>
                     </motion.div>
@@ -90,7 +90,7 @@ const Performance = () => {
         {/* Strategic Recommendations - Staggered List */}
         <Reveal variant="fadeInUp" delay={0.3}>
           <HolographicCard className="p-6">
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 font-bebas tracking-wide text-white">
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 font-heading font-semibold text-foreground">
               <TrendingUp className="w-5 h-5 text-primary" />
               STRATEGIC RECOMMENDATIONS
             </h2>
@@ -130,7 +130,7 @@ const Performance = () => {
                 <motion.div key={idx} variants={fadeInUp}>
                   <motion.div
                     whileHover={{ scale: 1.01, backgroundColor: "rgba(0, 224, 208, 0.05)" }}
-                    className="p-4 bg-black/40 rounded border border-white/10 hover:border-primary/30 transition-colors"
+                    className="p-4 bg-card rounded border border-border/50 hover:border-primary/30 transition-colors"
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-10 h-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
@@ -138,8 +138,8 @@ const Performance = () => {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-white font-bebas tracking-wide">{rec.title}</h3>
-                          <Badge variant={rec.impact === "HIGH" ? "default" : "secondary"} className={`font-mono text-[10px] rounded-sm ${rec.impact === "HIGH" ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-white/10 text-white hover:bg-white/20"}`}>
+                          <h3 className="font-bold text-foreground font-heading font-semibold">{rec.title}</h3>
+                          <Badge variant={rec.impact === "HIGH" ? "default" : "secondary"} className={`font-mono text-[10px] rounded-sm ${rec.impact === "HIGH" ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-foreground/10 text-foreground hover:bg-white/20"}`}>
                             {rec.impact} IMPACT
                           </Badge>
                         </div>
@@ -150,7 +150,7 @@ const Performance = () => {
                 </motion.div>
               ))}
             </motion.div>
-            <Button variant="outline" className="w-full mt-4 border-white/10 text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 font-mono text-xs">
+            <Button variant="outline" className="w-full mt-4 border-border/50 text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 font-mono text-xs">
               VIEW COMPLETE INSIGHTS LOG →
             </Button>
           </HolographicCard>
@@ -159,7 +159,7 @@ const Performance = () => {
         {/* Performance Dashboard */}
         <Reveal variant="fadeInUp" delay={0.4}>
           <HolographicCard className="p-6">
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 font-bebas tracking-wide text-white">
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 font-heading font-semibold text-foreground">
               <BarChart3 className="w-5 h-5 text-primary" />
               CAMPAIGN PERFORMANCE DASHBOARD
             </h2>
@@ -175,10 +175,10 @@ const Performance = () => {
                 <motion.div
                   key={idx}
                   whileHover={{ y: -5 }}
-                  className="p-4 bg-white/5 rounded border border-white/10 hover:border-primary/30 transition-colors"
+                  className="p-4 bg-foreground/5 rounded border border-border/50 hover:border-primary/30 transition-colors"
                 >
                   <p className="text-[10px] text-muted-foreground font-mono mb-1">{metric.label}</p>
-                  <p className="text-2xl font-bold mb-1 text-white font-bebas tracking-wider">{metric.value}</p>
+                  <p className="text-2xl font-bold mb-1 text-foreground font-heading font-semibold">{metric.value}</p>
                   <p className={`text-xs font-mono font-bold ${metric.trend.startsWith('+') ? 'text-primary' : 'text-red-400'}`}>{metric.trend}</p>
                 </motion.div>
               ))}
@@ -186,9 +186,9 @@ const Performance = () => {
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <h3 className="font-bold mb-3 text-white font-bebas tracking-wide text-lg">LEAD GENERATION HEATMAP</h3>
+                <h3 className="font-bold mb-3 text-foreground font-heading font-semibold text-lg">LEAD GENERATION HEATMAP</h3>
                 <Reveal variant="zoomIn" delay={0.5}>
-                  <div className="aspect-square bg-black/40 rounded border border-white/10 flex items-center justify-center relative overflow-hidden group">
+                  <div className="aspect-square bg-card rounded border border-border/50 flex items-center justify-center relative overflow-hidden group">
                     {/* Grid Overlay */}
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(0,224,208,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,224,208,0.05)_1px,transparent_1px)] bg-[size:20px_20px]" />
 
@@ -203,7 +203,7 @@ const Performance = () => {
               </div>
 
               <div>
-                <h3 className="font-bold mb-3 text-white font-bebas tracking-wide text-lg">CHANNEL ATTRIBUTION</h3>
+                <h3 className="font-bold mb-3 text-foreground font-heading font-semibold text-lg">CHANNEL ATTRIBUTION</h3>
                 <div className="space-y-4">
                   {[
                     { channel: "SOCIAL MEDIA", contribution: 42, color: "bg-primary" },
@@ -216,7 +216,7 @@ const Performance = () => {
                         <span className="text-xs font-mono text-muted-foreground">{item.channel}</span>
                         <span className="text-xs font-mono font-bold text-primary">{item.contribution}%</span>
                       </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-2 bg-foreground/10 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           whileInView={{ width: `${item.contribution}%` }}

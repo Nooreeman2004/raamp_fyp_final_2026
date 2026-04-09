@@ -93,6 +93,18 @@ class ConversationManager:
         """
         return await self.repository.delete_session(session_id)
 
+    async def link_trend(self, session_id: str, trend_id: str) -> bool:
+        """
+        Link a trend ID to a session.
+        """
+        return await self.repository.link_trend(session_id, trend_id)
+
+    async def get_session(self, session_id: str):
+        """
+        Get the session document from the repository.
+        """
+        return await self.repository.get_session(session_id)
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Get stats (simplified for now since counting all DB records is expensive).

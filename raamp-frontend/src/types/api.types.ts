@@ -46,3 +46,56 @@ export interface NotificationSettingsResponse {
   billing_alerts?: boolean;
   updated_at: string;
 }
+
+export interface BillingProfileRequest {
+  full_name: string;
+  company_name: string;
+  email: string;
+  phone: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  tax_id: string;
+  payment_method_type: 'credit_card' | 'debit_card' | 'bank_transfer' | 'paypal';
+  card_last_four: string;
+  card_expiry_month: number;
+  card_expiry_year: number;
+}
+
+export interface BillingProfileGetResponse {
+  success: boolean;
+  full_name: string;
+  company_name: string;
+  email: string;
+  phone: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  tax_id: string;
+  payment_method_type: string;
+  card_last_four: string;
+  card_expiry_month: number;
+  card_expiry_year: number;
+  updated_at: string;
+}
+
+export interface BillingProfileResponse {
+  success: boolean;
+  message: string;
+  data: {
+    full_name: string;
+    company_name: string;
+    email: string;
+    phone: string;
+    address: string;
+    payment_method: string;
+    card_expiry: string;
+  };
+  updated_at: string;
+}

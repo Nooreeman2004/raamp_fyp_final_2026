@@ -37,13 +37,13 @@ export const ContentSuggestionsModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-deep-teal-800 border-deep-teal-700 text-white max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="bg-deep-teal-800 border-deep-teal-700 text-foreground max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bebas tracking-wide flex items-center gap-2">
+          <DialogTitle className="text-2xl font-heading font-semibold flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-neon-teal animate-pulse" />
             AI Content Suggestions
           </DialogTitle>
-          <DialogDescription className="text-white/60 font-mono text-sm">
+          <DialogDescription className="text-muted-foreground/80 font-mono text-sm">
             {suggestions ? `for "${suggestions.keyword}"` : "Generating ideas..."}
           </DialogDescription>
         </DialogHeader>
@@ -51,7 +51,7 @@ export const ContentSuggestionsModal = ({
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12 space-y-4">
             <div className="w-16 h-16 border-4 border-neon-teal border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm font-mono text-white/60 animate-pulse">
+            <p className="text-sm font-mono text-muted-foreground/80 animate-pulse">
               AI analyzing trend patterns...
             </p>
           </div>
@@ -64,7 +64,7 @@ export const ContentSuggestionsModal = ({
                 <Badge className={`
                   ${suggestions.lifecycle_stage === 'Emerging' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' :
                     suggestions.lifecycle_stage === 'Breakout' ? 'bg-orange-500/20 text-orange-400 border-orange-500/50' :
-                    suggestions.lifecycle_stage === 'Mainstream' ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' :
+                    suggestions.lifecycle_stage === 'Mainstream' ? 'bg-teal-500/20 text-teal-400 border-teal-500/50' :
                     suggestions.lifecycle_stage === 'Saturated' ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' :
                     'bg-red-500/20 text-red-400 border-red-500/50'
                   } border font-mono text-xs`}>
@@ -75,7 +75,7 @@ export const ContentSuggestionsModal = ({
                 <p className="text-xs text-muted-foreground font-mono uppercase mb-1">Profit Score</p>
                 <p className={`text-2xl font-bold ${
                   suggestions.profit_score >= 80 ? 'text-emerald-400' :
-                  suggestions.profit_score >= 60 ? 'text-blue-400' :
+                  suggestions.profit_score >= 60 ? 'text-teal-400' :
                   suggestions.profit_score >= 40 ? 'text-amber-400' :
                   'text-red-400'
                 }`}>
@@ -92,7 +92,7 @@ export const ContentSuggestionsModal = ({
             >
               <div className="flex items-center gap-2">
                 <Video className="w-5 h-5 text-neon-teal" />
-                <h3 className="font-bebas text-lg tracking-wide">Video Content Ideas</h3>
+                <h3 className="font-heading font-semibold text-lg tracking-wide">Video Content Ideas</h3>
               </div>
               <div className="grid gap-2">
                 {suggestions.video_ideas.map((idea, idx) => (
@@ -115,7 +115,7 @@ export const ContentSuggestionsModal = ({
             >
               <div className="flex items-center gap-2">
                 <Lightbulb className="w-5 h-5 text-amber-400" />
-                <h3 className="font-bebas text-lg tracking-wide">Attention Hooks</h3>
+                <h3 className="font-heading font-semibold text-lg tracking-wide">Attention Hooks</h3>
               </div>
               <div className="grid gap-2">
                 {suggestions.hooks.map((hook, idx) => (
@@ -137,15 +137,15 @@ export const ContentSuggestionsModal = ({
               className="space-y-3"
             >
               <div className="flex items-center gap-2">
-                <Hash className="w-5 h-5 text-blue-400" />
-                <h3 className="font-bebas text-lg tracking-wide">Hashtag Strategy</h3>
+                <Hash className="w-5 h-5 text-teal-400" />
+                <h3 className="font-heading font-semibold text-lg tracking-wide">Hashtag Strategy</h3>
               </div>
               <div className="flex flex-wrap gap-2">
                 {suggestions.hashtags.map((tag, idx) => (
                   <Badge 
                     key={idx}
                     variant="secondary"
-                    className="bg-blue-500/20 text-blue-300 border-blue-500/30 font-mono text-xs"
+                    className="bg-teal-500/20 text-teal-300 border-teal-500/30 font-mono text-xs"
                   >
                     #{tag}
                   </Badge>
@@ -162,7 +162,7 @@ export const ContentSuggestionsModal = ({
             >
               <div className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-purple-400" />
-                <h3 className="font-bebas text-lg tracking-wide">Campaign Angle</h3>
+                <h3 className="font-heading font-semibold text-lg tracking-wide">Campaign Angle</h3>
               </div>
               <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/30">
                 <p className="text-sm font-mono text-purple-100">{suggestions.campaign_angle}</p>
@@ -178,7 +178,7 @@ export const ContentSuggestionsModal = ({
             >
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-bebas text-lg tracking-wide">Influencer Strategy</h3>
+                <h3 className="font-heading font-semibold text-lg tracking-wide">Influencer Strategy</h3>
               </div>
               <div className="p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
                 <p className="text-sm font-mono text-emerald-100">{suggestions.influencer_strategy}</p>
@@ -203,7 +203,7 @@ export const ContentSuggestionsModal = ({
             </motion.div>
           </div>
         ) : (
-          <div className="text-center py-8 text-white/60 font-mono text-sm">
+          <div className="text-center py-8 text-muted-foreground/80 font-mono text-sm">
             No suggestions available
           </div>
         )}

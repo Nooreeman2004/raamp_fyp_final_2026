@@ -62,7 +62,8 @@ class NotificationService:
         title: str,
         message: str,
         related_entity_id: Optional[str] = None,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
+        priority: Optional[int] = None,
     ):
         """
         Main entry point:
@@ -93,10 +94,22 @@ class NotificationService:
                 allowed = False
             elif metadata and metadata.get("sub_type") == "performance" and not getattr(settings, "performance_alerts", True):
                  allowed = False
+            # Trend explicit types (frontend action notifications)
+            elif type in (NotificationType.TREND_SPIKE, NotificationType.TREND_DISCOVERED) and not getattr(settings, "trend_alerts", True):
+                allowed = False
 
         if not allowed:
             logging.info(f"Notification suppressed by preferences: User={user_id}, Type={type}")
             return None
+
+        # Default priority conventions (can be overridden by caller)
+        if priority is None:
+            if type == NotificationType.TREND_SPIKE:
+                priority = 10
+            elif type == NotificationType.TREND_DISCOVERED:
+                priority = 1
+            else:
+                priority = 0
 
         # 2. Persist to Database
         notification = await self.repo.create(
@@ -106,7 +119,8 @@ class NotificationService:
             title=title,
             message=message,
             related_entity_id=related_entity_id,
-            metadata=metadata
+            metadata=metadata,
+            priority=int(priority or 0),
         )
         
         # 3. Real-time Push
@@ -129,6 +143,7 @@ class NotificationService:
                 title=notification.title,
                 message=notification.message,
                 read=notification.read,
+                priority=getattr(notification, "priority", 0),
                 created_at=notification.created_at,
                 related_entity_id=notification.related_entity_id,
                 metadata=notification.metadata
@@ -156,7 +171,10 @@ class NotificationService:
         return await self.repo.mark_all_as_read(user_id)
     
     async def delete(self, notification_id: str, user_id: str):
-        return await self.repo.delete_notification(notification_id, user_id)    
+        return await self.repo.delete_notification(notification_id, user_id)
+
+    async def delete_all(self, user_id: str) -> int:
+        return await self.repo.delete_all_for_user(user_id)
     # ===============================================
     # SOCIAL POST LIFECYCLE NOTIFICATIONS
     # ===============================================

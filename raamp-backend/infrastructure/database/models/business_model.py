@@ -39,6 +39,9 @@ class BusinessModel(Document):
 
     # Hyperlocal Business Setup
     business_type: Optional[str] = Field(None, description="Business type/category for hyperlocal campaigns")
+    targeting_radius_m: Optional[float] = Field(5000.0, description="Targeting radius in meters for geo-intent campaigns")
+    is_indoor: Optional[bool] = Field(True, description="Whether the business primarily operates indoors (for weather adjustments)")
+    tracking_keywords: list[str] = Field(default_factory=list, description="Keywords to track for local trends/intent")
     
     # Business Specialties - Optional for enhanced trend detection
     specialties: list[str] = Field(default_factory=list, description="Business specialties for precise trend detection (e.g., ['bubble tea', 'matcha drinks'])")

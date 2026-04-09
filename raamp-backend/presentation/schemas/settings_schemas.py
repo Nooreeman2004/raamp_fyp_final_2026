@@ -161,14 +161,17 @@ class AddFundsRequest(BaseModel):
 
 
 class AddFundsResponse(BaseModel):
-    """Response model for add funds operation"""
+    """
+    Response shape for a direct wallet-credit API (if exposed).
+    Production wallet top-ups use Stripe Checkout (`POST /api/stripe/create-addfunds-session`) and webhook-settled balances.
+    """
     success: bool = True
     message: str = "Funds added successfully"
-    transaction_id: str = Field(..., description="Mock transaction ID")
+    transaction_id: str = Field(..., description="Internal wallet ledger reference when a direct credit path is used")
     amount_added: float = Field(..., description="Amount that was added")
     previous_balance: float = Field(..., description="Balance before transaction")
     new_balance: float = Field(..., description="Updated wallet balance")
-    processing_time_ms: int = Field(..., description="Simulated processing time")
+    processing_time_ms: int = Field(..., description="Server-side processing time in milliseconds")
     breadcrumbs: list = Field(..., description="Transaction processing steps")
     timestamp: str = Field(..., description="Transaction timestamp")
 
@@ -179,30 +182,6 @@ class WalletBalanceResponse(BaseModel):
     balance: float = Field(..., description="Current wallet balance")
     currency: str = "USD"
     last_transaction_at: Optional[str] = Field(None, description="Timestamp of last transaction")
-
-
-# ============================================
-# GEO-INTENT SCHEMAS
-# ============================================
-
-class HotRegion(BaseModel):
-    """Model for a hot region with high ad intent"""
-    region_name: str = Field(..., description="Name of the region/area")
-    coordinates: dict = Field(..., description="Lat/lng coordinates")
-    heat_score: int = Field(..., ge=0, le=100, description="Heat score 0-100")
-    predicted_high_intent_customers: int = Field(..., description="Predicted number of high-intent customers")
-    peak_hours: list = Field(..., description="Peak activity hours")
-    dominant_demographics: list = Field(..., description="Top demographic groups")
-
-
-class GeoIntentResponse(BaseModel):
-    """Response model for geo-intent simulation"""
-    success: bool = True
-    request_id: str = Field(..., description="Unique request identifier")
-    timestamp: str = Field(..., description="Response timestamp")
-    total_regions: int = Field(..., description="Number of hot regions found")
-    hot_regions: list[HotRegion] = Field(..., description="List of hot regions for ads")
-    analysis_metadata: dict = Field(..., description="Additional analysis info")
 
 
 # ============================================

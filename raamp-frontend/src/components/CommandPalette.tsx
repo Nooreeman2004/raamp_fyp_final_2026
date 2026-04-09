@@ -12,7 +12,6 @@ import {
   LayoutDashboard, 
   MapPin, 
   Sparkles, 
-  BarChart3,
   MessageSquare,
   FlaskConical,
   TrendingUp,
@@ -77,14 +76,6 @@ const navigationItems: NavigationItem[] = [
     path: "/dashboard/ab-testing",
     icon: FlaskConical,
     keywords: ["ab", "testing", "experiments", "variants", "optimization"],
-    category: "Analytics"
-  },
-  {
-    id: "performance",
-    label: "Performance",
-    path: "/dashboard/performance",
-    icon: BarChart3,
-    keywords: ["performance", "attribution", "analytics", "metrics"],
     category: "Analytics"
   },
   {

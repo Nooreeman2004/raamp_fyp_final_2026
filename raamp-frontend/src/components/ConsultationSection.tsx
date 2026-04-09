@@ -102,7 +102,7 @@ const ConsultationSection = () => {
             <Card className="p-8 md:p-12 card-shadow bg-card/80 backdrop-blur-sm border-primary/20">
               <div className="text-center mb-8">
                 <Reveal variant="blurInUp" delay={0.2}>
-                  <h2 className="text-4xl md:text-5xl font-bold mb-4 font-bebas tracking-wide">
+                  <h2 className="text-4xl md:text-5xl font-bold mb-4 font-heading font-semibold">
                     <BlurText text="Book Your Free Consultation" />
                   </h2>
                 </Reveal>
@@ -199,7 +199,7 @@ const ConsultationSection = () => {
                 {/* Row 4: Submit Button */}
                 <motion.div variants={fadeInUp} className="flex justify-center pt-4">
                   <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                    <Button type="submit" variant="heroCta" size="lg" className="min-w-[200px] font-bebas tracking-wider">
+                    <Button type="submit" variant="heroCta" size="lg" className="min-w-[200px] font-heading font-semibold">
                       Submit
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>

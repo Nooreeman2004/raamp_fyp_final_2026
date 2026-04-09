@@ -3,9 +3,25 @@ Database model for Instagram posts.
 Maps domain entities to database persistence layer.
 """
 from beanie import Document, Indexed
-from pydantic import Field
+from pydantic import Field, BaseModel
 from typing import Optional
 from datetime import datetime
+
+
+class ROIMetrics(BaseModel):
+    """
+    Performance metrics for an Instagram post or story.
+    """
+    reach: int = 0
+    impressions: int = 0
+    engagement: int = 0
+    likes: int = 0
+    comments: int = 0
+    shares: int = 0
+    saved: int = 0
+    engagement_rate: float = 0.0
+    last_fetched_at: Optional[datetime] = None
+    fetch_status: str = "pending"  # pending, success, failed
 
 
 class InstagramPostModel(Document):
@@ -26,6 +42,10 @@ class InstagramPostModel(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     published_at: Optional[datetime]
+    roi_metrics: ROIMetrics = Field(default_factory=ROIMetrics)
+
+    # Trend attribution (optional)
+    trend_signal_id: Optional[str] = Field(None, description="Associated TrendSignal id for attribution")
 
     class Settings:
         name = "instagram_posts"
@@ -54,6 +74,10 @@ class ScheduledInstagramPostModel(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     executed_at: Optional[datetime]
+    roi_metrics: ROIMetrics = Field(default_factory=ROIMetrics)
+
+    # Trend attribution (optional)
+    trend_signal_id: Optional[str] = Field(None, description="Associated TrendSignal id for attribution")
 
     class Settings:
         name = "scheduled_instagram_posts"
@@ -80,6 +104,10 @@ class InstagramStoryModel(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     published_at: Optional[datetime]
+    roi_metrics: ROIMetrics = Field(default_factory=ROIMetrics)
+
+    # Trend attribution (optional)
+    trend_signal_id: Optional[str] = Field(None, description="Associated TrendSignal id for attribution")
 
     class Settings:
         name = "instagram_stories"

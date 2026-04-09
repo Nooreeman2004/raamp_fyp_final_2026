@@ -1,4 +1,4 @@
-﻿import { motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     Sparkles,
     Zap,
@@ -33,13 +33,13 @@ const IglooInspiredFeatures = () => {
                         transition={{ duration: 0.6 }}
                     >
                         <span className="inline-block px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-mono mb-6">
-                            ✨ NEXT-GEN FEATURES
+                            NEXT-GEN FEATURES
                         </span>
                     </motion.div>
 
                     <MorphingText
                         text="Advanced Marketing Intelligence"
-                        className="text-4xl md:text-6xl font-bold text-white"
+                        className="text-4xl md:text-6xl font-bold text-foreground"
                         delay={0.2}
                     />
 
@@ -71,7 +71,7 @@ const IglooInspiredFeatures = () => {
                         icon={<Globe className="w-6 h-6" />}
                         colSpan="md:col-span-3 lg:col-span-3"
                         rowSpan="row-span-1"
-                        gradient="from-blue-500/20 via-blue-500/5 to-transparent"
+                        gradient="from-teal-500/20 via-teal-500/5 to-transparent"
                     />
 
                     <BentoCardAdvanced
@@ -136,21 +136,21 @@ const IglooInspiredFeatures = () => {
                         gradient="from-yellow-500/20 via-yellow-500/5 to-transparent"
                     >
                         <div className="space-y-3 mt-4">
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-foreground/5 border border-border/50">
                                 <span className="text-sm">Auto-Bidding</span>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                                     <span className="text-xs text-green-500">Active</span>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-foreground/5 border border-border/50">
                                 <span className="text-sm">Creative Testing</span>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                                     <span className="text-xs text-green-500">Active</span>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-foreground/5 border border-border/50">
                                 <span className="text-sm">Audience Optimization</span>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -161,7 +161,8 @@ const IglooInspiredFeatures = () => {
                     </BentoCardAdvanced>
                 </BentoGridAdvanced>
 
-                {/* Bottom CTA with Wave Text */}
+                {/* Bottom CTA with Wave Text */}
+
             </div>
         </section>
     );

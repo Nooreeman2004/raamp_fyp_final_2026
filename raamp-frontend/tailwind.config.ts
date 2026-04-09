@@ -20,7 +20,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["Inter", "sans-serif"],
-        bebas: ["Bebas Neue", "sans-serif"],
+        heading: ["Poppins", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       colors: {

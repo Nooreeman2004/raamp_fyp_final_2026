@@ -52,7 +52,7 @@ const PALETTE_TEMPLATES = [
     { name: "Midnight Steel", colors: ["#111827", "#374151", "#9CA3AF", "#FFFFFF"], source: "template" },
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const BrandSettings = () => {
     const navigate = useNavigate();
@@ -351,7 +351,7 @@ const BrandSettings = () => {
                                 <Palette className="w-7 h-7 text-primary" />
                             </div>
                             <div>
-                                <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                                <h1 className="text-3xl font-bold font-heading font-semibold">
                                     <BlurText text="Brand Identity Matrix" />
                                 </h1>
                                 <p className="text-muted-foreground font-mono text-xs uppercase tracking-widest">
@@ -378,7 +378,7 @@ const BrandSettings = () => {
                     {/* Left Column: Assets & Colors */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Logo Management */}
-                        <Card className="p-6 bg-card/70 backdrop-blur-sm border-white/5 relative overflow-hidden group">
+                        <Card className="p-6 bg-card/70 backdrop-blur-sm border-border relative overflow-hidden group">
                             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                                 <ImageIcon size={80} />
                             </div>
@@ -388,7 +388,7 @@ const BrandSettings = () => {
                             </Label>
 
                             <div className="flex flex-col md:flex-row gap-6 items-center">
-                                <div className="relative w-full md:w-56 h-40 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center p-4 overflow-hidden group-hover:border-primary/30 transition-all duration-500">
+                                <div className="relative w-full md:w-56 h-40 rounded-xl bg-card border border-border/50 flex items-center justify-center p-4 overflow-hidden group-hover:border-primary/30 transition-all duration-500">
                                     {formData.brandLogoUrl ? (
                                         <img
                                             src={formData.brandLogoUrl.startsWith("/api") ? `${API_BASE_URL}${formData.brandLogoUrl}` : formData.brandLogoUrl}
@@ -419,7 +419,7 @@ const BrandSettings = () => {
                                             variant="outline"
                                             disabled={!isEditing}
                                             className={cn(
-                                                "font-mono text-[11px] uppercase tracking-tighter h-9 gap-2 border-white/10 hover:border-primary/50",
+                                                "font-mono text-[11px] uppercase tracking-tighter h-9 gap-2 border-border/50 hover:border-primary/50",
                                                 !isEditing && "opacity-50 cursor-not-allowed"
                                             )}
                                         >
@@ -450,14 +450,14 @@ const BrandSettings = () => {
                         </Card>
 
                         {/* Color Management */}
-                        <Card className="p-6 bg-card/70 backdrop-blur-sm border-white/5">
+                        <Card className="p-6 bg-card/70 backdrop-blur-sm border-border">
                             <div className="flex items-center justify-between mb-6">
                                 <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em]">Color Frequency Matrix</Label>
                                 <div className="flex items-center gap-2">
                                     <span className={cn(
                                         "text-[9px] font-mono px-2 py-0.5 rounded-full uppercase tracking-tighter",
                                         formData.palette_source === "logo" ? "bg-primary/20 text-primary border border-primary/20" :
-                                            formData.palette_source === "template" ? "bg-blue-500/20 text-blue-400 border border-blue-500/20" :
+                                            formData.palette_source === "template" ? "bg-teal-500/20 text-teal-400 border border-teal-500/20" :
                                                 "bg-neutral-800 text-neutral-400"
                                     )}>
                                         Source: {formData.palette_source}
@@ -479,7 +479,7 @@ const BrandSettings = () => {
                                                 className="group relative"
                                             >
                                                 <div
-                                                    className="w-16 h-16 rounded-2xl border border-white/5 shadow-xl cursor-crosshair relative overflow-hidden ring-offset-2 ring-primary/20 transition-all hover:ring-2"
+                                                    className="w-16 h-16 rounded-2xl border border-border shadow-xl cursor-crosshair relative overflow-hidden ring-offset-2 ring-primary/20 transition-all hover:ring-2"
                                                     style={{ backgroundColor: color }}
                                                 >
                                                     <Input
@@ -502,7 +502,7 @@ const BrandSettings = () => {
                                                         onChange={(e) => updateColor(index, e.target.value)}
                                                         readOnly={!isEditing}
                                                         className={cn(
-                                                            "h-6 w-16 text-[9px] font-mono text-center bg-black/40 border-white/5 p-0",
+                                                            "h-6 w-16 text-[9px] font-mono text-center bg-card border-border p-0",
                                                             !isEditing && "cursor-not-allowed opacity-60"
                                                         )}
                                                     />
@@ -510,7 +510,7 @@ const BrandSettings = () => {
                                                 {index > 1 && isEditing && (
                                                     <button
                                                         onClick={() => removeColor(index)}
-                                                        className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg"
+                                                        className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg"
                                                     >
                                                         <X size={10} />
                                                     </button>
@@ -522,7 +522,7 @@ const BrandSettings = () => {
                                             <motion.button
                                                 layout
                                                 onClick={addColor}
-                                                className="w-16 h-16 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary group"
+                                                className="w-16 h-16 rounded-2xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary group"
                                             >
                                                 <Plus size={16} />
                                                 <span className="text-[8px] font-mono uppercase tracking-tighter">Add</span>
@@ -532,7 +532,7 @@ const BrandSettings = () => {
                                 </div>
 
                                 {/* Templates */}
-                                <div className="pt-4 border-t border-white/5">
+                                <div className="pt-4 border-t border-border">
                                     <Label className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-[0.2em] mb-4 block">Engineered Presets</Label>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                                         {PALETTE_TEMPLATES.map((tmpl) => (
@@ -541,7 +541,7 @@ const BrandSettings = () => {
                                                 onClick={() => applyTemplate(tmpl)}
                                                 disabled={!isEditing}
                                                 className={cn(
-                                                    "group p-2 rounded-xl bg-black/20 border border-white/5 hover:border-white/10 transition-all text-left",
+                                                    "group p-2 rounded-xl bg-card/50 border border-border hover:border-border/50 transition-all text-left",
                                                     !isEditing && "opacity-50 cursor-not-allowed"
                                                 )}
                                             >
@@ -550,7 +550,7 @@ const BrandSettings = () => {
                                                         <div key={i} className="flex-1" style={{ backgroundColor: c }} />
                                                     ))}
                                                 </div>
-                                                <span className="text-[8px] font-mono text-muted-foreground uppercase truncate block group-hover:text-white transition-colors">{tmpl.name}</span>
+                                                <span className="text-[8px] font-mono text-muted-foreground uppercase truncate block group-hover:text-foreground transition-colors">{tmpl.name}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -561,7 +561,7 @@ const BrandSettings = () => {
 
                     {/* Right Column: AI Parameters */}
                     <div className="space-y-6">
-                        <Card className="p-6 bg-card/70 backdrop-blur-sm border-white/5 h-full">
+                        <Card className="p-6 bg-card/70 backdrop-blur-sm border-border h-full">
                             <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em] mb-6 block">Semantic Parameters</Label>
 
                             <form onSubmit={handleSubmit} className="space-y-6">
@@ -574,7 +574,7 @@ const BrandSettings = () => {
                                         readOnly={!isEditing}
                                         placeholder="Enter the catchphrase"
                                         className={cn(
-                                            "bg-black/40 h-10 text-xs font-mono",
+                                            "bg-card h-10 text-xs font-mono",
                                             !isEditing && "cursor-not-allowed opacity-60"
                                         )}
                                     />
@@ -592,7 +592,7 @@ const BrandSettings = () => {
                                         readOnly={!isEditing}
                                         placeholder="e.g. Minimalist Tokyo Street"
                                         className={cn(
-                                            "bg-black/40 h-10 text-xs font-mono",
+                                            "bg-card h-10 text-xs font-mono",
                                             touched.restaurant_theme && !formData.restaurant_theme && "border-destructive/50",
                                             !isEditing && "cursor-not-allowed opacity-60"
                                         )}
@@ -613,7 +613,7 @@ const BrandSettings = () => {
                                         onBlur={() => setTouched(prev => ({ ...prev, toneOfVoice: true }))}
                                         readOnly={!isEditing}
                                         className={cn(
-                                            "w-full h-40 bg-black/40 border-white/10 resize-none font-mono text-[11px] p-4 focus:border-primary/50 transition-colors scrollbar-none",
+                                            "w-full h-40 bg-card border-border/50 resize-none font-mono text-[11px] p-4 focus:border-primary/50 transition-colors scrollbar-none",
                                             touched.toneOfVoice && !formData.toneOfVoice && "border-destructive/50",
                                             !isEditing && "cursor-not-allowed opacity-60"
                                         )}
@@ -639,7 +639,7 @@ const BrandSettings = () => {
                                                     {isLoading ? (
                                                         <RefreshCcw className="w-5 h-5 animate-spin" />
                                                     ) : (
-                                                        <div className="flex items-center justify-center gap-2 font-bebas tracking-widest text-lg">
+                                                        <div className="flex items-center justify-center gap-2 font-heading font-semiboldst text-lg">
                                                             <Check size={20} strokeWidth={3} />
                                                             {isFullyOnboarded ? "Save Changes" : "Commit Matrix"}
                                                         </div>

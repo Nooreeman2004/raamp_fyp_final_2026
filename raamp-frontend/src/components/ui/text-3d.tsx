@@ -29,7 +29,7 @@ export const Text3DScroll = ({ text, className }: Text3DScrollProps) => {
                     opacity,
                     transformStyle: 'preserve-3d',
                 }}
-                className="text-6xl md:text-9xl font-bold text-white"
+                className="text-6xl md:text-9xl font-bold text-foreground"
             >
                 {text}
             </motion.h1>
@@ -149,7 +149,7 @@ export const FloatingText3D = ({ text, className }: FloatingText3DProps) => {
             }}
             style={{ transformStyle: 'preserve-3d' }}
         >
-            <h1 className="text-6xl md:text-9xl font-bold text-white">
+            <h1 className="text-6xl md:text-9xl font-bold text-foreground">
                 {text}
             </h1>
         </motion.div>
@@ -179,7 +179,7 @@ export const PerspectiveText = ({ text, className }: PerspectiveTextProps) => {
             >
                 <motion.h1
                     style={{ rotateX, transformStyle: 'preserve-3d' }}
-                    className="text-6xl md:text-9xl font-bold text-center text-white origin-center"
+                    className="text-6xl md:text-9xl font-bold text-center text-foreground origin-center"
                 >
                     {text}
                 </motion.h1>

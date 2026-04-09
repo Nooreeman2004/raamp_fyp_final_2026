@@ -146,7 +146,7 @@ export const MediaUploadZone: React.FC<MediaUploadZoneProps> = ({
                                 "border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer",
                                 isDragging
                                     ? "border-primary bg-primary/5"
-                                    : "border-white/10 hover:border-white/20 bg-white/5"
+                                    : "border-border/50 hover:border-border/80 bg-foreground/5"
                             )}
                             onClick={() => document.getElementById("file-input")?.click()}
                         >
@@ -166,7 +166,7 @@ export const MediaUploadZone: React.FC<MediaUploadZoneProps> = ({
                             </p>
                         </div>
                     ) : (
-                        <div className="relative rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                        <div className="relative rounded-lg overflow-hidden border border-border/50 bg-card/50">
                             {isVideo(preview) ? (
                                 <video src={preview} controls className="w-full max-h-64 object-contain" />
                             ) : (
@@ -190,10 +190,10 @@ export const MediaUploadZone: React.FC<MediaUploadZoneProps> = ({
                             placeholder="https://example.com/image.jpg"
                             value={mediaUrl}
                             onChange={(e) => handleUrlChange(e.target.value)}
-                            className="bg-white/5 border-white/10"
+                            className="bg-foreground/5 border-border/50"
                         />
                         {preview && (
-                            <div className="relative rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                            <div className="relative rounded-lg overflow-hidden border border-border/50 bg-card/50">
                                 {isVideo(preview) ? (
                                     <video src={preview} controls className="w-full max-h-64 object-contain" />
                                 ) : (

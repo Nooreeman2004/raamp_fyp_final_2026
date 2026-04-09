@@ -55,7 +55,7 @@ const RestaurantProfile = () => {
                             <Utensils className="w-7 h-7 text-primary" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold font-bebas tracking-wide">
+                            <h1 className="text-3xl font-bold font-heading font-semibold">
                                 <BlurText text="Restaurant Profile" />
                             </h1>
                             <p className="text-muted-foreground font-mono text-sm">
@@ -126,7 +126,7 @@ const RestaurantProfile = () => {
 
                             <div className="flex justify-end pt-4">
                                 <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                                    <Button type="submit" disabled={isLoading} className="font-bebas tracking-wide text-lg">
+                                    <Button type="submit" disabled={isLoading} className="font-heading font-semibold text-lg">
                                         {isLoading ? (
                                             <div className="flex items-center gap-2">
                                                 <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />

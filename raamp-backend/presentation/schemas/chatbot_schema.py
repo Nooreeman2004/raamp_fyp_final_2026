@@ -36,6 +36,10 @@ class ChatRequest(BaseModel):
         None,
         description="Client context (e.g., current page, user ID) to assist the AI."
     )
+    trend_id: Optional[str] = Field(
+        None,
+        description="Optional trend ID to link to this conversation session"
+    )
     
     class Config:
         json_schema_extra = {

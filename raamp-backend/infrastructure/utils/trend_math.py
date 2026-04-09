@@ -42,12 +42,12 @@ class TrendDetectionEngine:
         z_scores = (s - rolling_mean) / (rolling_std + eps)
         
         spikes = []
-        
-        # We typically look for spikes in the most recent data points (e.g., last 3 days)
-        # To avoid notifying on old spikes, we only check the tail
-        lookback = min(3, len(values))
-        
-        for i in range(len(values) - lookback, len(values)):
+
+        # Scan the full series for spike events. We'll tag the last 3 points as "recent"
+        # so downstream can decide whether to notify vs just persist for analytics.
+        recent_start = max(0, len(values) - 3)
+
+        for i in range(0, len(values)):
             z = z_scores.iloc[i]
             val = values[i]
             expected = ewma.iloc[i]
@@ -61,7 +61,8 @@ class TrendDetectionEngine:
                     expected_value=float(expected),
                     timestamp=pd.to_datetime(dates[i]),
                     niche=niche,
-                    location=location
+                    location=location,
+                    is_recent=bool(i >= recent_start),
                 ))
                 
         return spikes

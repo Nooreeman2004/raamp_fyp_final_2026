@@ -14,6 +14,7 @@ class TrendSpike:
     timestamp: datetime
     niche: str
     location: str
+    is_recent: bool = False
 
 
 @dataclass

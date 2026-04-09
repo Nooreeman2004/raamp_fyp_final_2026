@@ -38,7 +38,7 @@ const Legal = () => {
 
                     {/* Title with Premium Blur Effect */}
                     <Reveal variant="blurInUp" delay={0.2}>
-                        <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent font-bebas tracking-wide">
+                        <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent font-heading font-semibold">
                             <BlurText text="Legal & Compliance" />
                         </h1>
                     </Reveal>
@@ -60,12 +60,12 @@ const Legal = () => {
                             <Card className="p-8 md:p-10 bg-card/50 backdrop-blur-sm border-primary/10 shadow-sm transition-all">
                                 <div className="flex items-center gap-3 mb-6">
                                     <Shield className="w-6 h-6 text-primary" />
-                                    <h2 className="text-3xl font-bold font-bebas tracking-wide">Privacy Policy</h2>
+                                    <h2 className="text-3xl font-bold font-heading font-semibold">Privacy Policy</h2>
                                 </div>
 
                                 <div className="space-y-6">
                                     <div>
-                                        <h3 className="text-xl font-bold mb-3 text-primary font-bebas tracking-wide">Data Protection (GDPR)</h3>
+                                        <h3 className="text-xl font-bold mb-3 text-primary font-heading font-semibold">Data Protection (GDPR)</h3>
                                         <p className="text-muted-foreground leading-relaxed font-mono">
                                             RAAMP is committed to protecting your privacy. We comply with regulations such as the General
                                             Data Protection Regulation (GDPR) to ensure all user information is handled securely and ethically.
@@ -73,7 +73,7 @@ const Legal = () => {
                                     </div>
 
                                     <div className="border-t border-primary/10 pt-6">
-                                        <h3 className="text-xl font-bold mb-3 text-primary font-bebas tracking-wide">Data Usage</h3>
+                                        <h3 className="text-xl font-bold mb-3 text-primary font-heading font-semibold">Data Usage</h3>
                                         <p className="text-muted-foreground leading-relaxed font-mono">
                                             We collect location-based data and social engagement metrics solely to optimize your marketing
                                             campaigns. We do not sell your personal data to third parties.
@@ -94,12 +94,12 @@ const Legal = () => {
                             <Card className="p-8 md:p-10 bg-card/50 backdrop-blur-sm border-primary/10 shadow-sm transition-all">
                                 <div className="flex items-center gap-3 mb-6">
                                     <FileText className="w-6 h-6 text-primary" />
-                                    <h2 className="text-3xl font-bold font-bebas tracking-wide">Terms of Service</h2>
+                                    <h2 className="text-3xl font-bold font-heading font-semibold">Terms of Service</h2>
                                 </div>
 
                                 <div className="space-y-6">
                                     <div>
-                                        <h3 className="text-xl font-bold mb-3 text-primary font-bebas tracking-wide">Third-Party Integrations</h3>
+                                        <h3 className="text-xl font-bold mb-3 text-primary font-heading font-semibold">Third-Party Integrations</h3>
                                         <p className="text-muted-foreground leading-relaxed font-mono">
                                             RAAMP relies on external APIs, including Google Maps and Instagram. While we strive for 98%
                                             operational availability, service disruptions from these providers may temporarily affect
@@ -108,7 +108,7 @@ const Legal = () => {
                                     </div>
 
                                     <div className="border-t border-primary/10 pt-6">
-                                        <h3 className="text-xl font-bold mb-3 text-primary font-bebas tracking-wide">Account Security</h3>
+                                        <h3 className="text-xl font-bold mb-3 text-primary font-heading font-semibold">Account Security</h3>
                                         <p className="text-muted-foreground leading-relaxed font-mono">
                                             Users are responsible for maintaining the confidentiality of their login credentials. Sessions
                                             automatically expire after 30 minutes of inactivity to prevent unauthorized access.
@@ -116,7 +116,7 @@ const Legal = () => {
                                     </div>
 
                                     <div className="border-t border-primary/10 pt-6">
-                                        <h3 className="text-xl font-bold mb-3 text-primary font-bebas tracking-wide">Declaration</h3>
+                                        <h3 className="text-xl font-bold mb-3 text-primary font-heading font-semibold">Declaration</h3>
                                         <p className="text-muted-foreground leading-relaxed font-mono">
                                             This software is the result of independent development efforts and utilizes authorized API
                                             connections for all external data processing.

@@ -42,6 +42,8 @@ type Variant = {
   copy?: string;
   imagePrompt?: string;
   imagePath?: string | null;
+  ml_score?: any;
+  hashtag_source?: string;
 };
 
 type AssetType = "captions" | "hashtags" | "whatsapp" | "emails";
@@ -126,7 +128,9 @@ const CreativeStudio = () => {
         tone: variant.tone,
         caption: variant.caption,
         hashtags: variant.hashtags.join(" "),
-        imagePrompt: generatedContent.image_prompts[variant.id - 1] || ""
+        imagePrompt: generatedContent.image_prompts[variant.id - 1] || "",
+        ml_score: variant.ml_score,
+        hashtag_source: variant.hashtag_source
       }));
     }
 
@@ -151,7 +155,8 @@ const CreativeStudio = () => {
         message_id: variant.message_id,
         tone: variant.tone,
         copy: variant.message,
-        imagePath: (generatedContent.image_paths || [])[idx] || null
+        imagePath: (generatedContent.image_paths || [])[idx] || null,
+        ml_score: variant.ml_score
       }));
     }
 
@@ -203,6 +208,15 @@ const CreativeStudio = () => {
 
       setGeneratedContent(response);
       setHasGeneratedContent(true);
+
+      // Auto-set AI recommendation based on ML best variant
+      if (contentType === 'captions') {
+        setRecommendedVariantId(response.best_caption_id);
+      } else if (contentType === 'hashtags') {
+        setRecommendedVariantId(response.best_hashtag_set_id);
+      } else {
+        setRecommendedVariantId(response.best_message_id);
+      }
 
       // Store image_path -> asset_id mapping for campaign images too
       if (response.image_paths && response.asset_ids) {
@@ -566,7 +580,7 @@ const CreativeStudio = () => {
               <Sparkles className="w-8 h-8 text-primary animate-pulse" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold mb-1 font-bebas tracking-wider text-white">
+              <h1 className="text-4xl font-bold mb-1 font-heading font-semibold text-foreground">
                 <BlurText text="GENERATIVE CREATIVE STUDIO" />
               </h1>
               <p className="text-muted-foreground font-mono text-sm">
@@ -586,7 +600,7 @@ const CreativeStudio = () => {
           {/* Campaign Idea Input */}
           <motion.div variants={fadeInUp}>
             <HolographicCard className="p-6 h-full border-primary/30">
-              <h2 className="text-xl font-bold mb-2 flex items-center gap-2 font-bebas tracking-wide text-white">
+              <h2 className="text-xl font-bold mb-2 flex items-center gap-2 font-heading font-semibold text-foreground">
                 <Sparkles className="w-5 h-5 text-primary" />
                 CAMPAIGN IDEA INPUT
               </h2>
@@ -600,17 +614,17 @@ const CreativeStudio = () => {
                   CONTENT PARAMETERS
                 </label>
                 <div>
-                  <label className="text-[10px] font-mono text-white/50 mb-1 block">CONTENT TYPE</label>
+                  <label className="text-[10px] font-mono text-muted-foreground/80 mb-1 block">CONTENT TYPE</label>
                   <Select value={contentType} onValueChange={(value: 'captions' | 'hashtags' | 'whatsapp' | 'emails' | 'all') => setContentType(value)}>
-                    <SelectTrigger className="w-full bg-black/40 text-white border-white/10 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
+                    <SelectTrigger className="w-full bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0d1b26] border-white/10">
-                      <SelectItem value="all" className="font-mono text-sm text-white"><ThemeEmoji name="sparkles" className="mr-1" /> All Types</SelectItem>
-                      <SelectItem value="captions" className="font-mono text-sm text-white"><ThemeEmoji name="pencil" className="mr-1" /> Captions</SelectItem>
-                      <SelectItem value="hashtags" className="font-mono text-sm text-white"><ThemeEmoji name="tag" className="mr-1" /> Hashtags</SelectItem>
-                      <SelectItem value="whatsapp" className="font-mono text-sm text-white"><ThemeEmoji name="whatsapp" className="mr-1" /> WhatsApp / Images</SelectItem>
-                      <SelectItem value="emails" className="font-mono text-sm text-white"><ThemeEmoji name="email" className="mr-1" /> Emails</SelectItem>
+                    <SelectContent className="bg-[#0d1b26] border-border/50">
+                      <SelectItem value="all" className="font-mono text-sm text-foreground"><ThemeEmoji name="sparkles" className="mr-1" /> All Types</SelectItem>
+                      <SelectItem value="captions" className="font-mono text-sm text-foreground"><ThemeEmoji name="pencil" className="mr-1" /> Captions</SelectItem>
+                      <SelectItem value="hashtags" className="font-mono text-sm text-foreground"><ThemeEmoji name="tag" className="mr-1" /> Hashtags</SelectItem>
+                      <SelectItem value="whatsapp" className="font-mono text-sm text-foreground"><ThemeEmoji name="whatsapp" className="mr-1" /> WhatsApp / Images</SelectItem>
+                      <SelectItem value="emails" className="font-mono text-sm text-foreground"><ThemeEmoji name="email" className="mr-1" /> Emails</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -620,13 +634,13 @@ const CreativeStudio = () => {
                 placeholder={getPromptPlaceholder()}
                 value={campaignIdea}
                 onChange={(e) => setCampaignIdea(e.target.value)}
-                className="min-h-40 mb-4 bg-black/40 text-white border-white/10 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
+                className="min-h-40 mb-4 bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
               />
               <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                 <Button
                   onClick={handleGenerateContent}
                   disabled={isGenerating || !campaignIdea.trim()}
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-bebas tracking-wider h-12 shadow-[0_0_20px_rgba(0,224,208,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-heading font-semibold h-12 shadow-[0_0_20px_rgba(0,224,208,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isGenerating ? (
                     <>
@@ -647,7 +661,7 @@ const CreativeStudio = () => {
           {/* AI-Generated Assets */}
           <motion.div variants={fadeInUp}>
             <HolographicCard className="p-6 h-full">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-bebas tracking-wide text-white">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 font-heading font-semibold text-foreground">
                 <Zap className="w-5 h-5 text-primary" />
                 AI-GENERATED ASSETS
               </h2>
@@ -663,14 +677,14 @@ const CreativeStudio = () => {
                 {(contentType === 'captions' || contentType === 'all') && (
                   <motion.div variants={fadeInUp}>
                     <motion.div variants={hoverLift} initial="rest" whileHover="hover">
-                      <div className="p-4 bg-white/5 rounded border border-white/10 hover:border-primary/30 transition-colors group">
+                      <div className="p-4 bg-foreground/5 rounded border border-border/50 hover:border-primary/30 transition-colors group">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-3">
                             <div className="w-10 h-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
                               <FileText className="w-5 h-5 text-primary" />
                             </div>
                             <div>
-                              <p className="font-bold text-white font-mono text-sm">CAPTIONS</p>
+                              <p className="font-bold text-foreground font-mono text-sm">CAPTIONS</p>
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -702,14 +716,14 @@ const CreativeStudio = () => {
                 {(contentType === 'hashtags' || contentType === 'all') && (
                   <motion.div variants={fadeInUp}>
                     <motion.div variants={hoverLift} initial="rest" whileHover="hover">
-                      <div className="p-4 bg-white/5 rounded border border-white/10 hover:border-primary/30 transition-colors group">
+                      <div className="p-4 bg-foreground/5 rounded border border-border/50 hover:border-primary/30 transition-colors group">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-3">
                             <div className="w-10 h-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
                               <Hash className="w-5 h-5 text-primary" />
                             </div>
                             <div>
-                              <p className="font-bold text-white font-mono text-sm">HASHTAG SETS</p>
+                              <p className="font-bold text-foreground font-mono text-sm">HASHTAG SETS</p>
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -741,14 +755,14 @@ const CreativeStudio = () => {
                 {(contentType === 'whatsapp' || contentType === 'all') && (
                   <motion.div variants={fadeInUp}>
                     <motion.div variants={hoverLift} initial="rest" whileHover="hover">
-                      <div className="p-4 bg-white/5 rounded border border-white/10 hover:border-primary/30 transition-colors group">
+                      <div className="p-4 bg-foreground/5 rounded border border-border/50 hover:border-primary/30 transition-colors group">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-3">
                             <div className="w-10 h-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
                               <MessageSquare className="w-5 h-5 text-primary" />
                             </div>
                             <div>
-                              <p className="font-bold text-white font-mono text-sm">WHATSAPP CAMPAIGN</p>
+                              <p className="font-bold text-foreground font-mono text-sm">WHATSAPP CAMPAIGN</p>
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -780,14 +794,14 @@ const CreativeStudio = () => {
                 {(contentType === 'emails' || contentType === 'all') && (
                   <motion.div variants={fadeInUp}>
                     <motion.div variants={hoverLift} initial="rest" whileHover="hover">
-                      <div className="p-4 bg-white/5 rounded border border-white/10 hover:border-primary/30 transition-colors group">
+                      <div className="p-4 bg-foreground/5 rounded border border-border/50 hover:border-primary/30 transition-colors group">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-3">
                             <div className="w-10 h-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
                               <Mail className="w-5 h-5 text-primary" />
                             </div>
                             <div>
-                              <p className="font-bold text-white font-mono text-sm">EMAIL CAMPAIGN</p>
+                              <p className="font-bold text-foreground font-mono text-sm">EMAIL CAMPAIGN</p>
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -826,7 +840,7 @@ const CreativeStudio = () => {
           animate="visible"
         >
           <HolographicCard className="p-6 border-primary/30">
-            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 font-bebas tracking-wide text-white">
+            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 font-heading font-semibold text-foreground">
               <Image className="w-6 h-6 text-primary" />
               IMAGE GENERATION
             </h2>
@@ -844,9 +858,9 @@ const CreativeStudio = () => {
                     placeholder='E.g., "A vibrant flat-lay of our summer product lineup on a sandy beach with golden hour lighting — warm, aspirational, lifestyle aesthetic"'
                     value={imageIdea}
                     onChange={(e) => setImageIdea(e.target.value)}
-                    className="min-h-32 bg-black/40 text-white border-white/10 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
+                    className="min-h-32 bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
                   />
-                  <p className="text-[10px] text-white/40 font-mono mt-1">
+                  <p className="text-[10px] text-muted-foreground/60 font-mono mt-1">
                     Leave empty to use your campaign idea above
                   </p>
                 </div>
@@ -856,13 +870,13 @@ const CreativeStudio = () => {
                     ASPECT RATIO
                   </label>
                   <Select value={aspectRatio} onValueChange={(value: '1:1' | '9:16' | '4:5') => setAspectRatio(value)}>
-                    <SelectTrigger className="w-full bg-black/40 text-white border-white/10 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
+                    <SelectTrigger className="w-full bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0d1b26] border-white/10">
-                      <SelectItem value="1:1" className="font-mono text-sm text-white"><ThemeEmoji name="square" className="mr-1" /> 1:1 — Square</SelectItem>
-                      <SelectItem value="9:16" className="font-mono text-sm text-white"><ThemeEmoji name="ruler" className="mr-1" /> 9:16 — Vertical</SelectItem>
-                      <SelectItem value="4:5" className="font-mono text-sm text-white"><ThemeEmoji name="frame" className="mr-1" /> 4:5 — Portrait</SelectItem>
+                    <SelectContent className="bg-[#0d1b26] border-border/50">
+                      <SelectItem value="1:1" className="font-mono text-sm text-foreground"><ThemeEmoji name="square" className="mr-1" /> 1:1 — Square</SelectItem>
+                      <SelectItem value="9:16" className="font-mono text-sm text-foreground"><ThemeEmoji name="ruler" className="mr-1" /> 9:16 — Vertical</SelectItem>
+                      <SelectItem value="4:5" className="font-mono text-sm text-foreground"><ThemeEmoji name="frame" className="mr-1" /> 4:5 — Portrait</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -871,7 +885,7 @@ const CreativeStudio = () => {
                   <Button
                     onClick={() => handleGenerateImages(false)}
                     disabled={isGeneratingImages || (!imageIdea.trim() && !campaignIdea.trim())}
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-bebas tracking-wider h-12 shadow-[0_0_20px_rgba(0,224,208,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-heading font-semibold h-12 shadow-[0_0_20px_rgba(0,224,208,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isGeneratingImages ? (
                       <>
@@ -887,9 +901,9 @@ const CreativeStudio = () => {
                   </Button>
                 </motion.div>
 
-                <div className="mt-4 p-3 bg-black/40 border border-primary/20 rounded">
+                <div className="mt-4 p-3 bg-card border border-primary/20 rounded">
                   <p className="text-[10px] text-primary font-mono font-bold mb-1">⚡ IMAGE GENERATION INFO:</p>
-                  <ul className="text-[10px] text-white/70 font-mono space-y-1">
+                  <ul className="text-[10px] text-muted-foreground font-mono space-y-1">
                     <li>• Generates <span className="text-primary">3 image variations</span> per request</li>
                     <li>• Select aspect ratio to match your platform (Square, Vertical, Portrait)</li>
                     <li>• <span className="text-amber-400">Generation time: 10-20 seconds</span></li>
@@ -899,12 +913,12 @@ const CreativeStudio = () => {
 
               {/* Preview Section */}
               <div>
-                <div className="bg-black/40 border border-white/10 rounded p-4 min-h-[320px] flex flex-col">
+                <div className="bg-card border border-border/50 rounded p-4 min-h-[320px] flex flex-col">
                   {generatedImages.length > 0 ? (
                     <div className="w-full">
                       {/* Header */}
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-bold text-white font-bebas tracking-wide flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-foreground font-heading font-semibold flex items-center gap-2">
                           <Image className="w-4 h-4 text-primary" />
                           GENERATED IMAGES
                         </h3>
@@ -929,7 +943,7 @@ const CreativeStudio = () => {
                               animate="visible"
                               className={`relative rounded-xl border overflow-hidden group flex flex-col transition-all duration-300 ${isAiPick
                                 ? 'border-primary/60 shadow-[0_0_16px_rgba(0,245,212,0.2)]'
-                                : 'border-white/10 hover:border-white/30'
+                                : 'border-border/50 hover:border-border/90'
                                 }`}
                             >
                               {/* AI Recommended Badge */}
@@ -944,13 +958,13 @@ const CreativeStudio = () => {
 
                               {/* Variation Label top-right */}
                               <div className="absolute top-2 right-2 z-10">
-                                <span className="bg-black/70 text-white/60 text-[9px] font-mono px-1.5 py-0.5 rounded">
+                                <span className="bg-black/70 text-muted-foreground/80 text-[9px] font-mono px-1.5 py-0.5 rounded">
                                   VAR {idx + 1}
                                 </span>
                               </div>
 
                               {/* Image container — fixed height, image fits */}
-                              <div className="relative w-full h-52 bg-black/60 flex items-center justify-center overflow-hidden">
+                              <div className="relative w-full h-52 bg-background/60 flex items-center justify-center overflow-hidden">
                                 <img
                                   src={imageUrl}
                                   alt={`Generated image variation ${idx + 1}`}
@@ -972,7 +986,7 @@ const CreativeStudio = () => {
                                   {/* Expand / fullscreen */}
                                   <button
                                     onClick={() => { setLightboxIndex(idx); setLightboxImage(imageUrl); }}
-                                    className="bg-black/70 hover:bg-white/20 text-white rounded-full p-1.5 transition-all shadow-lg"
+                                    className="bg-black/70 hover:bg-white/20 text-foreground rounded-full p-1.5 transition-all shadow-lg"
                                     title="View fullscreen"
                                   >
                                     <Expand className="w-3 h-3" />
@@ -1004,8 +1018,8 @@ const CreativeStudio = () => {
                               </div>
 
                               {/* Footer label */}
-                              <div className={`px-2 py-1.5 text-center ${isAiPick ? 'bg-primary/10' : 'bg-black/40'}`}>
-                                <p className={`text-[10px] font-mono font-bold ${isAiPick ? 'text-primary' : 'text-white/50'}`}>
+                              <div className={`px-2 py-1.5 text-center ${isAiPick ? 'bg-primary/10' : 'bg-card'}`}>
+                                <p className={`text-[10px] font-mono font-bold ${isAiPick ? 'text-primary' : 'text-muted-foreground/80'}`}>
                                   {isAiPick ? '⭐ RECOMMENDED' : `VARIATION ${idx + 1}`}
                                 </p>
                               </div>
@@ -1017,7 +1031,7 @@ const CreativeStudio = () => {
                   ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-center">
                       <Image className="w-16 h-16 text-white/20 mx-auto mb-3" />
-                      <p className="text-white/40 font-mono text-sm mb-2">No images generated yet</p>
+                      <p className="text-muted-foreground/60 font-mono text-sm mb-2">No images generated yet</p>
                       <p className="text-[10px] text-white/30 font-mono">
                         Enter an image idea and click Generate Images
                       </p>
@@ -1037,7 +1051,7 @@ const CreativeStudio = () => {
           animate="visible"
         >
           <HolographicCard className="p-6 border-primary/30">
-            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 font-bebas tracking-wide text-white">
+            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 font-heading font-semibold text-foreground">
               <Video className="w-6 h-6 text-primary" />
               VIDEO & REEL GENERATION
             </h2>
@@ -1056,7 +1070,7 @@ const CreativeStudio = () => {
                     placeholder='E.g., "Show a person opening our new product box with excitement, revealing the contents in slow motion with dynamic camera movements"'
                     value={videoIdea}
                     onChange={(e) => setVideoIdea(e.target.value)}
-                    className="min-h-32 bg-black/40 text-white border-white/10 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
+                    className="min-h-32 bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
                   />
                 </div>
 
@@ -1068,15 +1082,15 @@ const CreativeStudio = () => {
                     value={videoDuration.toString()}
                     onValueChange={(value) => setVideoDuration(parseInt(value))}
                   >
-                    <SelectTrigger className="w-full bg-black/40 text-white border-white/10 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
+                    <SelectTrigger className="w-full bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0d1b26] border-white/10">
-                      <SelectItem value="4" className="font-mono text-sm text-white">4 seconds</SelectItem>
-                      <SelectItem value="5" className="font-mono text-sm text-white">5 seconds</SelectItem>
-                      <SelectItem value="6" className="font-mono text-sm text-white">6 seconds</SelectItem>
-                      <SelectItem value="7" className="font-mono text-sm text-white">7 seconds</SelectItem>
-                      <SelectItem value="8" className="font-mono text-sm text-white">8 seconds (recommended)</SelectItem>
+                    <SelectContent className="bg-[#0d1b26] border-border/50">
+                      <SelectItem value="4" className="font-mono text-sm text-foreground">4 seconds</SelectItem>
+                      <SelectItem value="5" className="font-mono text-sm text-foreground">5 seconds</SelectItem>
+                      <SelectItem value="6" className="font-mono text-sm text-foreground">6 seconds</SelectItem>
+                      <SelectItem value="7" className="font-mono text-sm text-foreground">7 seconds</SelectItem>
+                      <SelectItem value="8" className="font-mono text-sm text-foreground">8 seconds (recommended)</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-[10px] text-white/30 font-mono mt-1">
@@ -1089,7 +1103,7 @@ const CreativeStudio = () => {
                     <Button
                       onClick={handleGenerateReel}
                       disabled={isGeneratingVideo || !videoIdea.trim()}
-                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-bebas tracking-wider h-12 shadow-[0_0_20px_rgba(0,224,208,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold font-heading font-semibold h-12 shadow-[0_0_20px_rgba(0,224,208,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isGeneratingVideo ? (
                         <>
@@ -1109,7 +1123,7 @@ const CreativeStudio = () => {
                     <Button
                       onClick={handleGenerateVideo}
                       disabled={isGeneratingVideo || !videoIdea.trim()}
-                      className="w-full bg-primary/80 text-primary-foreground hover:bg-primary/70 font-bold font-bebas tracking-wider h-12 shadow-[0_0_20px_rgba(0,224,208,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-primary/80 text-primary-foreground hover:bg-primary/70 font-bold font-heading font-semibold h-12 shadow-[0_0_20px_rgba(0,224,208,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isGeneratingVideo ? (
                         <>
@@ -1126,9 +1140,9 @@ const CreativeStudio = () => {
                   </motion.div>
                 </div>
 
-                <div className="mt-4 p-3 bg-black/40 border border-primary/20 rounded">
+                <div className="mt-4 p-3 bg-card border border-primary/20 rounded">
                   <p className="text-[10px] text-primary font-mono font-bold mb-1">⚡ KEY DIFFERENCES:</p>
-                  <ul className="text-[10px] text-white/70 font-mono space-y-1">
+                  <ul className="text-[10px] text-muted-foreground font-mono space-y-1">
                     <li>• <span className="text-primary">REEL (9:16)</span>: Vertical format for Instagram Reels, TikTok, YouTube Shorts</li>
                     <li>• <span className="text-primary">VIDEO (16:9)</span>: Horizontal format for YouTube, Facebook, Instagram Feed</li>
                     <li>• <span className="text-amber-400">Duration limit: 4-8 seconds</span> (API constraint, cannot be changed)</li>
@@ -1139,11 +1153,11 @@ const CreativeStudio = () => {
 
               {/* Preview Section */}
               <div>
-                <div className="bg-black/40 border border-white/10 rounded p-4 min-h-[400px] flex flex-col items-center justify-center">
+                <div className="bg-card border border-border/50 rounded p-4 min-h-[400px] flex flex-col items-center justify-center">
                   {generatedVideos && generatedVideos.media_paths.length > 0 ? (
                     <div className="w-full space-y-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-bold text-white font-bebas tracking-wide">
+                        <h3 className="text-sm font-bold text-foreground font-heading font-semibold">
                           GENERATED MEDIA
                         </h3>
                         <Badge className="bg-emerald-500 text-black font-mono text-[10px]">
@@ -1155,7 +1169,7 @@ const CreativeStudio = () => {
                         <div key={idx} className="space-y-4 flex flex-col items-center">
                           <div
                             className={`
-                              relative rounded-xl overflow-hidden border border-white/10 bg-black/60 shadow-2xl
+                              relative rounded-xl overflow-hidden border border-border/50 bg-background/60 shadow-2xl
                               ${generatedVideos.aspect_ratio === '9:16' ? 'max-w-[280px]' : 'w-full max-w-[600px]'}
                               transition-all duration-500
                             `}
@@ -1216,7 +1230,7 @@ const CreativeStudio = () => {
                   ) : (
                     <div className="text-center">
                       <Film className="w-16 h-16 text-white/20 mx-auto mb-3" />
-                      <p className="text-white/40 font-mono text-sm mb-2">No videos generated yet</p>
+                      <p className="text-muted-foreground/60 font-mono text-sm mb-2">No videos generated yet</p>
                       <p className="text-[10px] text-white/30 font-mono">
                         Enter an idea and click a generation button
                       </p>
@@ -1230,15 +1244,15 @@ const CreativeStudio = () => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-[95vw] w-[95vw] h-fit max-h-[95vh] flex flex-col bg-black/90 backdrop-blur-xl border-white/10 p-0 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden transition-all duration-300">
+        <DialogContent className="max-w-[95vw] w-[95vw] h-fit max-h-[95vh] flex flex-col bg-background/90 backdrop-blur-xl border-border/50 p-0 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden transition-all duration-300">
 
-          <div className="p-6 pb-4 border-b border-white/10 shrink-0 relative bg-black/50 z-10">
+          <div className="p-6 pb-4 border-b border-border/50 shrink-0 relative bg-black/50 z-10">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold text-white font-bebas tracking-wider flex items-center gap-2 pr-8">
+              <DialogTitle className="text-2xl font-bold text-foreground font-heading font-semibold flex items-center gap-2 pr-8">
                 <Sparkles className="w-5 h-5 text-primary" />
                 {getDialogTitle()}
               </DialogTitle>
-              <DialogDescription className="text-white/50 font-mono text-xs mt-1">
+              <DialogDescription className="text-muted-foreground/80 font-mono text-xs mt-1">
                 // COMPARE GENERATED VARIANTS // SELECT OPTIMAL OUTPUT
               </DialogDescription>
             </DialogHeader>
@@ -1253,7 +1267,7 @@ const CreativeStudio = () => {
                 initial="hidden"
                 animate="visible"
               >
-                <h3 className="text-sm font-bold text-white font-bebas tracking-wide mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground font-heading font-semibold mb-3 flex items-center gap-2">
                   <Image className="w-4 h-4 text-primary" />
                   AI-GENERATED IMAGES
                 </h3>
@@ -1261,7 +1275,7 @@ const CreativeStudio = () => {
                   {generatedContent.image_paths.map((imagePath, idx) => (
                     <div
                       key={idx}
-                      className="relative rounded border border-white/10 overflow-hidden hover:border-primary/50 transition-all group"
+                      className="relative rounded border border-border/50 overflow-hidden hover:border-primary/50 transition-all group"
                     >
                       <img
                         src={getImageUrl(imagePath)}
@@ -1273,7 +1287,7 @@ const CreativeStudio = () => {
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3">
-                        <p className="text-[10px] text-white font-mono">Variation {idx + 1}</p>
+                        <p className="text-[10px] text-foreground font-mono">Variation {idx + 1}</p>
                         <button
                           onClick={async () => {
                             const link = document.createElement('a');
@@ -1305,9 +1319,9 @@ const CreativeStudio = () => {
                   ))}
                 </div>
                 {generatedContent.image_generation_prompt && (
-                  <div className="mt-3 p-3 bg-black/40 border border-white/10 rounded">
-                    <p className="text-[10px] text-white/40 font-mono uppercase mb-1">Image Generation Prompt:</p>
-                    <p className="text-xs text-white/70 font-mono leading-relaxed">{generatedContent.image_generation_prompt.replace(/\*\*/g, '')}</p>
+                  <div className="mt-3 p-3 bg-card border border-border/50 rounded">
+                    <p className="text-[10px] text-muted-foreground/60 font-mono uppercase mb-1">Image Generation Prompt:</p>
+                    <p className="text-xs text-muted-foreground font-mono leading-relaxed">{generatedContent.image_generation_prompt.replace(/\*\*/g, '')}</p>
                   </div>
                 )}
               </motion.div>
@@ -1330,7 +1344,7 @@ const CreativeStudio = () => {
                       "rounded-xl border p-5 flex flex-col h-full transition-all group relative overflow-hidden",
                       selectedVariantId === variant.id
                         ? "border-primary shadow-[0_0_30px_rgba(0,245,212,0.2)] bg-primary/10"
-                        : "border-white/5 bg-[#09151E] hover:border-primary/40 shadow-xl"
+                        : "border-border bg-[#09151E] hover:border-primary/40 shadow-xl"
                     )}
                   >
                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -1348,23 +1362,69 @@ const CreativeStudio = () => {
                       </Badge>
                     )}
 
+                    {variant.ml_score && (
+                      <Badge className="absolute bottom-20 right-4 bg-emerald-500/10 text-emerald-400 font-mono text-[8px] z-20 font-bold py-0.5 px-2 border border-emerald-500/20 backdrop-blur-sm">
+                        <Zap className="w-2.5 h-2.5 mr-1 inline" />
+                        OPTIMIZED PREDICTION
+                      </Badge>
+                    )}
+
+
+
                     <div className={cn("flex flex-col flex-1 relative z-10", recommendedVariantId === variant.id || selectedVariantId === variant.id ? "pt-10" : "")}>
                       <div className="flex flex-col gap-1 border-l-2 border-primary/20 pl-3 mb-4 shrink-0">
-                        <h3 className="font-bebas text-3xl text-white tracking-wider leading-none">VARIANT {variant.id}</h3>
+                        <h3 className="font-heading font-semibold text-3xl text-foreground tracking-wider leading-none">VARIANT {variant.id}</h3>
                         <p className="text-[11px] text-primary/80 font-mono tracking-widest bg-primary/20 px-2 py-0.5 rounded inline-block self-start">
                           {variant.tone}
                         </p>
                       </div>
 
+                      {/* ML PERFORMANCE METRIC - NEW */}
+                      {variant.ml_score && (
+                        <div className="mb-4 p-2.5 bg-black/40 border border-primary/10 rounded-lg flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-muted-foreground/60 font-mono uppercase tracking-tighter">Engagement Potential</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={cn(
+                                "text-lg font-bold font-mono tracking-tight",
+                                variant.ml_score.score_label === "Strong" ? "text-emerald-400" : 
+                                variant.ml_score.score_label === "Moderate" ? "text-amber-400" : "text-rose-400"
+                              )}>
+                                {(variant.ml_score.engagement_rate * 100).toFixed(1)}%
+                              </span>
+                              <Badge className={cn(
+                                "text-[10px] py-0 px-1.5 border-none font-mono font-bold",
+                                variant.ml_score.score_label === "Strong" ? "bg-emerald-400/20 text-emerald-400" : 
+                                variant.ml_score.score_label === "Moderate" ? "bg-amber-400/20 text-amber-400" : "bg-rose-400/20 text-rose-400"
+                              )}>
+                                {variant.ml_score.score_label.toUpperCase()}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right flex flex-col items-end">
+                            <span className="text-[9px] text-muted-foreground/60 font-mono uppercase tracking-tighter">AI Confidence</span>
+                            <span className={cn(
+                              "text-[10px] font-mono font-bold mt-0.5",
+                              variant.ml_score.confidence === "High" ? "text-primary" : 
+                              variant.ml_score.confidence === "Medium" ? "text-amber-400" : "text-white/40"
+                            )}>
+                              {variant.ml_score.confidence.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+
                       {variant.caption && (
                         <div className="flex-1 flex flex-col min-h-0">
-                          <p className="text-[10px] text-white/40 font-mono uppercase mb-2 tracking-widest shrink-0">Caption Output:</p>
-                          <div className="bg-black/60 border border-white/10 p-4 rounded-lg text-[13px] text-white font-mono leading-relaxed whitespace-pre-wrap overflow-y-auto custom-scrollbar border-l-2 border-primary/20 flex-1">
+                          <p className="text-[10px] text-muted-foreground/60 font-mono uppercase mb-2 tracking-widest shrink-0">Caption Output:</p>
+                          <div className="bg-background/60 border border-border/50 p-4 rounded-lg text-[13px] text-foreground font-mono leading-relaxed whitespace-pre-wrap overflow-y-auto custom-scrollbar border-l-2 border-primary/20 flex-1">
                             {variant.caption.split(/(\*\*.*?\*\*)/g).filter(Boolean).map((part, i) => {
                               if (part.startsWith('**') && part.endsWith('**')) {
                                 const content = part.slice(2, -2).trim();
                                 if (!content) return null;
-                                return <strong key={i} className="font-bold text-white">{content}</strong>;
+                                return <strong key={i} className="font-bold text-foreground">{content}</strong>;
                               }
                               return <span key={i} className="text-white/90">{part}</span>;
                             })}
@@ -1374,18 +1434,18 @@ const CreativeStudio = () => {
 
                       {variant.copy && selectedAsset !== "hashtags" && (
                         <div className="space-y-3 flex-1 flex flex-col min-h-0">
-                          <p className="text-[10px] text-white/40 font-mono uppercase mb-2 tracking-widest shrink-0">
+                          <p className="text-[10px] text-muted-foreground/60 font-mono uppercase mb-2 tracking-widest shrink-0">
                             {selectedAsset === "emails" ? "Full Email Content:" : "Message Body:"}
                           </p>
                           <div className={cn(
-                            "bg-black/60 border border-white/10 p-5 rounded-lg text-[13px] text-white font-mono leading-relaxed whitespace-pre-wrap overflow-y-auto custom-scrollbar flex-1",
+                            "bg-background/60 border border-border/50 p-5 rounded-lg text-[13px] text-foreground font-mono leading-relaxed whitespace-pre-wrap overflow-y-auto custom-scrollbar flex-1",
                             selectedAsset === "emails" ? "border-l-4 border-l-primary/50" : "border-l-2 border-l-primary/30"
                           )}>
                             {variant.copy.split(/(\*\*.*?\*\*)/g).filter(Boolean).map((part, i) => {
                               if (part.startsWith('**') && part.endsWith('**')) {
                                 const content = part.slice(2, -2).trim();
                                 if (!content) return null;
-                                return <strong key={i} className="font-bold text-white">{content}</strong>;
+                                return <strong key={i} className="font-bold text-foreground">{content}</strong>;
                               }
                               return <span key={i} className="text-white/90">{part}</span>;
                             })}
@@ -1395,8 +1455,8 @@ const CreativeStudio = () => {
 
                       {variant.hashtags && selectedAsset !== "captions" && selectedAsset === "hashtags" && (
                         <div className="shrink-0">
-                          <p className="text-[10px] text-white/40 font-mono uppercase mb-2">Hashtag Set Strategy:</p>
-                          <div className="bg-black/60 border border-white/5 p-3 rounded flex flex-wrap gap-1.5 min-h-[100px]">
+                          <p className="text-[10px] text-muted-foreground/60 font-mono uppercase mb-2">Hashtag Set Strategy:</p>
+                          <div className="bg-background/60 border border-border p-3 rounded flex flex-wrap gap-1.5 min-h-[100px]">
                             {(variant.hashtags || "").split(" ").filter(Boolean).map((tag, i) => (
                               <span key={i} className="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-mono text-[10px] hover:bg-primary/20 transition-colors">
                                 {tag}
@@ -1408,8 +1468,16 @@ const CreativeStudio = () => {
 
                       {variant.hashtags && selectedAsset === "captions" && (
                         <div className="shrink-0 mt-4">
-                          <p className="text-[10px] text-white/40 font-mono uppercase mb-2">Engagement Hashtags:</p>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-[10px] text-muted-foreground/60 font-mono uppercase tracking-widest">Engagement Hashtags:</p>
+                            {variant.hashtag_source && (
+                              <span className="text-[8px] text-primary/60 font-mono uppercase bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                                {variant.hashtag_source.includes('ml') ? '✨ ML RECOMMENDED' : '🤖 AI GENERATED'}
+                              </span>
+                            )}
+                          </div>
                           <div className="bg-primary/5 border border-primary/20 p-3 rounded text-[11px] text-primary/90 font-mono leading-relaxed">
+
                             {variant.hashtags.replace(/\*\*/g, '')}
                           </div>
                         </div>
@@ -1453,11 +1521,11 @@ const CreativeStudio = () => {
             </motion.div>
           </div>
 
-          <div className="p-4 border-t border-white/10 shrink-0 flex justify-end bg-black/50 z-10">
+          <div className="p-4 border-t border-border/50 shrink-0 flex justify-end bg-black/50 z-10">
             <Button
               variant="ghost"
               onClick={() => setIsDialogOpen(false)}
-              className="text-white/50 hover:text-white hover:bg-white/10 font-mono text-xs"
+              className="text-muted-foreground/80 hover:text-foreground hover:bg-foreground/10 font-mono text-xs"
             >
               CLOSE TERMINAL
             </Button>
@@ -1469,17 +1537,17 @@ const CreativeStudio = () => {
       <Dialog open={showImageDetailsDialog} onOpenChange={setShowImageDetailsDialog}>
         <DialogContent className="max-w-lg bg-[#060d13] border border-primary/20 p-6 shadow-[0_0_40px_rgba(0,245,212,0.1)]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white font-bebas tracking-wider flex items-center gap-2">
+            <DialogTitle className="text-xl font-bold text-foreground font-heading font-semibold flex items-center gap-2">
               <Image className="w-5 h-5 text-primary" />
               ENHANCE YOUR IMAGE
             </DialogTitle>
-            <DialogDescription className="text-white/50 font-mono text-xs">
+            <DialogDescription className="text-muted-foreground/80 font-mono text-xs">
               // TELL THE AI MORE // BETTER DETAILS = BETTER IMAGES
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div>
-              <label className="text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5 block">
+              <label className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest mb-1.5 block">
                 Subject / Main Focus
               </label>
               <input
@@ -1487,11 +1555,11 @@ const CreativeStudio = () => {
                 placeholder="e.g., A glowing bottle of perfume, a happy customer, a latte"
                 value={imageSubject}
                 onChange={(e) => setImageSubject(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded px-3 py-2 text-sm text-white font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
+                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5 block">
+              <label className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest mb-1.5 block">
                 Mood / Atmosphere
               </label>
               <input
@@ -1499,11 +1567,11 @@ const CreativeStudio = () => {
                 placeholder="e.g., Elegant & luxurious, warm & friendly, energetic & bold"
                 value={imageMood}
                 onChange={(e) => setImageMood(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded px-3 py-2 text-sm text-white font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
+                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5 block">
+              <label className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest mb-1.5 block">
                 Theme / Color Palette
               </label>
               <input
@@ -1511,11 +1579,11 @@ const CreativeStudio = () => {
                 placeholder="e.g., Deep teal & gold, pastel pink, dark moody black & white"
                 value={imageThemeColor}
                 onChange={(e) => setImageThemeColor(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded px-3 py-2 text-sm text-white font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
+                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5 block">
+              <label className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest mb-1.5 block">
                 Visual Style
               </label>
               <input
@@ -1523,7 +1591,7 @@ const CreativeStudio = () => {
                 placeholder="e.g., Minimalist flat-lay, 3D product render, cinematic lifestyle"
                 value={imageStyle}
                 onChange={(e) => setImageStyle(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded px-3 py-2 text-sm text-white font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
+                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
               />
             </div>
             <div className="flex gap-2 pt-2">
@@ -1537,7 +1605,7 @@ const CreativeStudio = () => {
               <Button
                 variant="ghost"
                 onClick={() => handleGenerateImages(true)}
-                className="border border-white/10 text-white/50 hover:text-white hover:bg-white/5 font-mono text-xs h-10 px-4"
+                className="border border-border/50 text-muted-foreground/80 hover:text-foreground hover:bg-foreground/5 font-mono text-xs h-10 px-4"
               >
                 SKIP
               </Button>
@@ -1555,14 +1623,14 @@ const CreativeStudio = () => {
           {/* Close */}
           <button
             onClick={() => setLightboxImage(null)}
-            className="absolute top-4 right-4 z-10 bg-white/10 hover:bg-white/20 text-white rounded-full p-2.5 transition-all border border-white/10"
+            className="absolute top-4 right-4 z-10 bg-foreground/10 hover:bg-white/20 text-foreground rounded-full p-2.5 transition-all border border-border/50"
           >
             <X className="w-5 h-5" />
           </button>
 
           {/* Counter + Download */}
           <div className="absolute top-4 left-4 z-10 flex items-center gap-3">
-            <span className="text-white/50 font-mono text-xs bg-black/60 px-3 py-1.5 rounded-full border border-white/10">
+            <span className="text-muted-foreground/80 font-mono text-xs bg-background/60 px-3 py-1.5 rounded-full border border-border/50">
               {lightboxIndex + 1} / {generatedImages.length}
               {lightboxIndex === 0 && (
                 <span className="ml-2 text-primary">★ AI PICK</span>
@@ -1596,7 +1664,7 @@ const CreativeStudio = () => {
                 setLightboxIndex(prev);
                 setLightboxImage(generatedImages[prev]);
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-all border border-white/10"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-foreground/10 hover:bg-white/20 text-foreground rounded-full p-3 transition-all border border-border/50"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -1610,7 +1678,7 @@ const CreativeStudio = () => {
             transition={{ duration: 0.2 }}
             src={lightboxImage}
             alt={`Generated image variation ${lightboxIndex + 1}`}
-            className="max-h-[85vh] max-w-[85vw] object-contain rounded-xl shadow-2xl border border-white/10"
+            className="max-h-[85vh] max-w-[85vw] object-contain rounded-xl shadow-2xl border border-border/50"
             onClick={(e) => e.stopPropagation()}
           />
 
@@ -1623,7 +1691,7 @@ const CreativeStudio = () => {
                 setLightboxIndex(next);
                 setLightboxImage(generatedImages[next]);
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-all border border-white/10"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-foreground/10 hover:bg-white/20 text-foreground rounded-full p-3 transition-all border border-border/50"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -1636,7 +1704,7 @@ const CreativeStudio = () => {
                 <button
                   key={i}
                   onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); setLightboxImage(img); }}
-                  className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${i === lightboxIndex ? 'border-primary scale-110 shadow-[0_0_10px_rgba(0,245,212,0.5)]' : 'border-white/20 opacity-60 hover:opacity-100'
+                  className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${i === lightboxIndex ? 'border-primary scale-110 shadow-[0_0_10px_rgba(0,245,212,0.5)]' : 'border-border/80 opacity-60 hover:opacity-100'
                     }`}
                 >
                   <img src={img} alt={`thumb ${i + 1}`} className="w-full h-full object-cover" />

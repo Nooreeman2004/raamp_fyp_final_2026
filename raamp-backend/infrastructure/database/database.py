@@ -24,13 +24,13 @@ async def connect_to_mongo():
     # Check Python version
     python_version = sys.version_info
     if python_version >= (3, 13):
-        print(f"⚠️  WARNING: Python {python_version.major}.{python_version.minor} detected")
+        print(f"[WARN] Python {python_version.major}.{python_version.minor} detected")
         print("   Python 3.13 has known SSL/TLS compatibility issues with MongoDB Atlas")
         print("   Recommended: Downgrade to Python 3.11 or 3.12 for production use")
         print()
     
     try:
-        print(f"🔄 Connecting to MongoDB...")
+        print("[INFO] Connecting to MongoDB...")
         
         # Try different connection approaches
         connection_attempts = [
@@ -58,12 +58,12 @@ async def connect_to_mongo():
                 
                 # Test the connection
                 await client.server_info()
-                print(f"✅ Connected to MongoDB: {DATABASE_NAME}")
+                print(f"[OK] Connected to MongoDB: {DATABASE_NAME}")
                 return
                 
             except Exception as e:
                 last_error = e
-                print(f"   ❌ {attempt['name']} failed")
+                print(f"   [ERROR] {attempt['name']} failed")
                 if client:
                     client.close()
                     client = None
@@ -72,7 +72,7 @@ async def connect_to_mongo():
         raise last_error
         
     except ConfigurationError as e:
-        print("❌ MongoDB configuration error:", str(e))
+        print("[ERROR] MongoDB configuration error:", str(e))
         print("Possible causes: DNS SRV lookup failure for mongodb+srv URI, network/DNS blocking, or invalid connection string.")
         print("Quick fixes:")
         print(" - For local testing, set environment variable `MONGODB_URL` to 'mongodb://localhost:27017' and start a local MongoDB.")
@@ -81,10 +81,10 @@ async def connect_to_mongo():
         raise
     except Exception as e:
         error_msg = str(e)
-        print("❌ Failed to connect to MongoDB")
+        print("[ERROR] Failed to connect to MongoDB")
         
         if "SSL" in error_msg or "TLS" in error_msg:
-            print("\n🔧 SSL/TLS Error Detected - Python 3.13 Issue")
+            print("\n[INFO] SSL/TLS Error Detected - Python 3.13 Issue")
             print("=" * 70)
             print("SOLUTION: Use Python 3.11 or 3.12 instead of Python 3.13")
             print()
@@ -117,7 +117,7 @@ async def close_mongo_connection():
     global client
     if client:
         client.close()
-        print("👋 Closed MongoDB connection")
+        print("[INFO] Closed MongoDB connection")
 
 
 async def init_db():
@@ -140,7 +140,6 @@ async def init_db():
     from infrastructure.database.models.security_settings_model import SecuritySettingsModel
     from infrastructure.database.models.billing_profile_model import BillingProfileModel
     from infrastructure.database.models.wallet_model import WalletModel
-    from infrastructure.database.models.geo_intent_simulation_model import GeoIntentSimulationModel
     from infrastructure.database.models.instagram_post_model import (
         InstagramPostModel,
         ScheduledInstagramPostModel,
@@ -155,8 +154,20 @@ async def init_db():
     from infrastructure.database.models.trend_signal_model import TrendSignalModel
     from infrastructure.database.models.trend_detection_model import TrendDetectionModel
     from infrastructure.database.models.trend_watchlist_model import TrendWatchlistModel
+    from infrastructure.database.models.trend_retry_job_model import TrendRetryJobModel
+    from infrastructure.database.models.trend_cache_model import TrendCacheModel
+    from infrastructure.database.models.trend_ai_analysis_model import TrendAIAnalysisModel
+    from infrastructure.database.models.campaign_launch_request_model import CampaignLaunchRequestModel
     from infrastructure.database.models.asset_model import AssetModel
     from infrastructure.database.models.caption_log_model import CaptionLogModel
+    from infrastructure.database.models.heat_score_model import HeatScoreModel
+    from infrastructure.database.models.campaign_log_model import CampaignLogModel
+    from infrastructure.database.models.campaign_brief_model import CampaignBriefModel
+    from infrastructure.database.models.posting_log_model import PostingLogModel
+    from infrastructure.database.models.trend_activity_model import TrendActivityModel
+    from infrastructure.database.models.campaign_draft_model import CampaignDraftModel
+    from infrastructure.database.models.chat_session_model import ChatSessionModel
+    from infrastructure.database.models.chat_interaction_model import ChatInteractionModel
     from infrastructure.database.seed_data import seed_business_domains
 
     await init_beanie(
@@ -180,7 +191,6 @@ async def init_db():
             SecuritySettingsModel,
             BillingProfileModel,
             WalletModel,
-            GeoIntentSimulationModel,
             # Instagram posting models
             InstagramPostModel,
             ScheduledInstagramPostModel,
@@ -196,12 +206,29 @@ async def init_db():
             TrendSignalModel,
             TrendDetectionModel,
             TrendWatchlistModel,
+            TrendRetryJobModel,
+            TrendCacheModel,
+            TrendAIAnalysisModel,
+            CampaignLaunchRequestModel,
+            # Activity logs
+            TrendActivityModel,
             # Asset management
             AssetModel,
             CaptionLogModel,
+            # Geo-Intent Engine
+            HeatScoreModel,
+            CampaignLogModel,
+            CampaignBriefModel,
+            # Social Tracking
+            PostingLogModel,
+            # Drafts (Create Pack)
+            CampaignDraftModel,
+            # Chatbot Sessions & Interactions
+            ChatSessionModel,
+            ChatInteractionModel,
         ]
     )
-    print("✅ Beanie initialized with all document models including Settings, Billing, GeoIntent, Instagram & Facebook Posting, Asset Management, Caption Logs")
+    print("[OK] Beanie initialized with document models (settings, billing, geo-intent, posting, assets, logs)")
     
     # Seed business domains
     await seed_business_domains()

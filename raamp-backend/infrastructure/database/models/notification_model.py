@@ -18,6 +18,8 @@ class NotificationType(str, Enum):
     BILLING = "billing"
     SOCIAL_POST = "social_post"
     AI_CREATIVE = "ai_creative"
+    TREND_SPIKE = "trend_spike"
+    TREND_DISCOVERED = "trend_discovered"
 
 
 class NotificationStatus(str, Enum):
@@ -39,6 +41,10 @@ class NotificationModel(Document):
     title: str = Field(..., description="Short title/header")
     message: str = Field(..., description="Main content body")
     read: bool = Field(default=False, description="Read status")
+
+    # UI ordering / importance (higher appears first)
+    # Convention: 10=high (spike/opportunity), 1=low (discovery), 0=default.
+    priority: int = Field(default=0, description="Notification priority for UI ordering (higher = more important)")
     
     # Social Post Specific Fields
     platform: Optional[str] = Field(None, description="Platform: instagram / facebook / twitter")
@@ -58,5 +64,6 @@ class NotificationModel(Document):
         indexes = [
             "user_id",
             "created_at",
+            "priority",
             ("user_id", "read")  # Compound index for fetching unread
         ]

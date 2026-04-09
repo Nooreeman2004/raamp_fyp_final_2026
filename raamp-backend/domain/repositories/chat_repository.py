@@ -28,3 +28,8 @@ class IChatRepository(ABC):
     @abstractmethod
     async def clear_history(self, session_id: str) -> bool:
         pass
+
+    @abstractmethod
+    async def link_trend(self, session_id: str, trend_id: str) -> bool:
+        """Link a trend ID to the session"""
+        pass

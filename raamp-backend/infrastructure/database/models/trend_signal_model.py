@@ -2,7 +2,7 @@
 from beanie import Document
 from pydantic import Field
 from datetime import datetime
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 
 
 class TrendSignalModel(Document):
@@ -22,6 +22,11 @@ class TrendSignalModel(Document):
     related_queries: Dict = Field(default_factory=dict, description="Related queries from Google Trends")
     rising_queries: Dict = Field(default_factory=dict, description="Rising queries from Google Trends")
     
+    # Provider metadata (observability)
+    provider: Optional[str] = Field(None, description="Provider used to fetch time-series data (serpapi|pytrends)")
+    fallback_from: Optional[str] = Field(None, description="If provider fallback occurred, indicates the initial provider")
+    geo_relaxed: bool = Field(default=False, description="Whether geo was relaxed to global due to provider recovery")
+    
     # Computed metrics
     arbitrage_score: Optional[float] = Field(None, description="Computed arbitrage score (Velocity / Saturation)")
     saturation_score: Optional[float] = Field(None, description="Computed market saturation score (0-100)")
@@ -30,6 +35,11 @@ class TrendSignalModel(Document):
     platform_bias: Dict[str, float] = Field(default_factory=dict, description="Platform affinity scores (google, instagram, facebook)")
     is_real_social: bool = Field(default=False, description="Whether real social metrics were used")
     is_real_saturation: bool = Field(default=False, description="Whether real saturation scraping was used")
+
+    # Event signals (future: EventSignalService) — kept here for forward compatibility
+    event_score: Optional[float] = Field(None, description="Local events catalyst score (0-100)")
+    event_items: List[Dict[str, Any]] = Field(default_factory=list, description="Top event items contributing to event_score")
+    is_real_events: bool = Field(default=False, description="Whether real event sources were used")
     
     # Lifecycle & Prediction fields (ENHANCEMENT)
     lifecycle_stage: Optional[str] = Field(None, description="Emerging, Breakout, Mainstream, Saturated, Declining")
@@ -41,6 +51,7 @@ class TrendSignalModel(Document):
     
     # Metadata
     fetch_status: str = Field(default="pending", description="Status: pending, processing, completed, failed")
+    progress_step: str = Field(default="Initializing...", description="Current step in the detection pipeline")
     error_message: Optional[str] = Field(None, description="Error message if fetch failed")
     fetched_at: Optional[datetime] = Field(None, description="Timestamp when data was successfully fetched")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")

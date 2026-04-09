@@ -28,21 +28,6 @@ class ApiClient {
     //   });
     // }
 
-    // Development-only mock switch. Set VITE_USE_MOCK_API=true in .env to enable.
-    const useMock = import.meta.env.VITE_USE_MOCK_API === 'true';
-    if (useMock && endpoint === '/auth/signup' && options.method === 'POST') {
-      // Simulate network latency and return a successful signup response
-      await new Promise((res) => setTimeout(res, 600));
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      return {
-        id: 'mock-id-123',
-        username: 'mockuser',
-        email: JSON.parse(options.body as string).email,
-        created_at: new Date().toISOString(),
-        message: 'Mock account created',
-      } as unknown as T;
-    }
-
     const isFormData = options.body instanceof FormData;
 
     const headers: HeadersInit = {
@@ -113,7 +98,16 @@ class ApiClient {
           }
           // Priority 2: 'detail' array (e.g. from Pydantic 422)
           else if (Array.isArray(data.detail)) {
-            errorMessage = `Validation Error: ${data.detail.map((e: any) => e.msg || JSON.stringify(e)).join(', ')}`;
+            const hasRadiusError = data.detail.some((e: any) => e.loc?.includes('radius'));
+            const hasKeywordError = data.detail.some((e: any) => e.loc?.includes('keywords'));
+            
+            if (hasRadiusError) {
+              errorMessage = "The selected radar radius exceeds the maximum allowable scan distance. Please pull back the radius and try again.";
+            } else if (hasKeywordError) {
+               errorMessage = "Invalid audience keywords detected. Please update your business setup.";
+            } else {
+              errorMessage = "We encountered an issue with the provided form data. Please review your inputs and try again.";
+            }
           }
           // Priority 3: 'detail' string
           else if (typeof data.detail === 'string') {
@@ -145,6 +139,8 @@ class ApiClient {
                 lowerError.includes('invalid credentials') ||
                 lowerError.includes('invalid email or password')) {
                 errorMessage = 'Incorrect email or password.';
+              } else if (lowerError.includes('sign in failed') || lowerError.includes('signin failed')) {
+                errorMessage = 'Incorrect email or password.';
               } else {
                 // Generic 401/422 for login
                 errorMessage = 'Incorrect email or password.';
@@ -155,6 +151,8 @@ class ApiClient {
                 errorMessage = 'Please enter a valid email address.';
               } else if (lowerError.includes('password')) {
                 errorMessage = 'Password is required.';
+              } else if (lowerError.includes('sign in failed') || lowerError.includes('signin failed')) {
+                errorMessage = 'Incorrect email or password.';
               } else {
                 errorMessage = 'Invalid input. Please check your email and password.';
               }
@@ -181,7 +179,13 @@ class ApiClient {
             }
           }
         } else {
-          errorMessage = typeof data === 'string' ? data : 'Unknown network error';
+          // Vite proxy / upstream failures often return a non-JSON empty body.
+          // Ensure we still surface a useful message to the UI/logs.
+          if (typeof data === 'string' && data.trim().length > 0) {
+            errorMessage = data;
+          } else {
+            errorMessage = `${response.status} ${response.statusText}`.trim();
+          }
         }
 
         const error = {
@@ -206,11 +210,14 @@ class ApiClient {
       clearTimeout(id);
 
       // Don't log 404 errors for expected endpoints (like hyperlocal-setup/current when no data exists)
+      const name = error?.name || (error instanceof DOMException ? error.name : '');
+      const isAbortError = name === 'AbortError';
       const is404Expected = error?.status === 404 && (
-        endpoint.includes('/hyperlocal-setup/current')
+        endpoint.includes('/hyperlocal-setup/current') ||
+        endpoint.includes('/trends/spike_timeline')
       );
 
-      if (!is404Expected) {
+      if (!is404Expected && !isAbortError) {
         console.error('API Error:', error);
       }
 

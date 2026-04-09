@@ -17,12 +17,14 @@ import {
     Bell,
     Search,
     Calendar,
-    Images
+    Images,
+    ShieldCheck,
+    LifeBuoy
 } from "lucide-react";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
 import { authService } from "@/services/authService";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { BrandMark } from "@/components/BrandMark";
 
 const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -31,12 +33,13 @@ const menuItems = [
     { icon: Images, label: "Asset Library", href: "/dashboard/assets" },
     { icon: Calendar, label: "Smart Scheduling", href: "/dashboard/smart-scheduling" },
     { icon: TrendingUp, label: "Trend Arbitrage", href: "/dashboard/trends" },
+    { icon: ShieldCheck, label: "Approvals", href: "/dashboard/approvals" },
     { icon: FlaskConical, label: "A/B Testing", href: "/dashboard/ab-testing" },
-    { icon: BarChart3, label: "Performance", href: "/dashboard/performance" },
     { icon: CreditCard, label: "Billing", href: "/billing" },
 ];
 
 const bottomItems = [
+    { icon: LifeBuoy, label: "Support", href: "/dashboard/complaints" },
     { icon: Bell, label: "Notifications", href: "/notifications" },
     { icon: Settings, label: "Settings", href: "/settings" },
 ];
@@ -61,20 +64,20 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
             animate={{ width: collapsed ? 80 : 240 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className={cn(
-                "fixed left-0 top-0 h-screen z-50 flex flex-col border-r border-white/10 bg-black/40 backdrop-blur-xl transition-all duration-300",
+                "fixed left-0 top-0 h-screen z-50 flex flex-col border-r border-border/50 bg-card backdrop-blur-xl transition-all duration-300",
                 "hidden lg:flex" // Hide on mobile
             )}
         >
             {/* Header */}
-            <div className="h-20 flex items-center px-6 border-b border-white/5 relative">
+            <div className="h-20 flex items-center px-6 border-b border-border relative">
                 <Link to="/dashboard" className="flex items-center gap-3 overflow-hidden">
                     <div className="relative flex-shrink-0">
                         <div className="absolute inset-0 bg-primary/20 blur-lg rounded-full opacity-50" />
-                        <img src={raampIcon} alt="Logo" className="w-8 h-8 relative z-10" />
+                        <BrandMark variant="sidebar" size={32} className="relative z-10" />
                     </div>
                     <motion.span
                         animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
-                        className="font-bebas text-xl tracking-wider text-white whitespace-nowrap overflow-hidden"
+                        className="font-heading font-semibold text-xl tracking-wider text-foreground whitespace-nowrap overflow-hidden"
                     >
                         RAAMP
                     </motion.span>
@@ -82,7 +85,7 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
 
                 <button
                     onClick={() => setCollapsed(!collapsed)}
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-black border border-white/20 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:border-primary/50 transition-all z-50"
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-background border border-border/80 rounded-full flex items-center justify-center text-muted-foreground/80 hover:text-foreground hover:border-primary/50 transition-all z-50"
                 >
                     {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
                 </button>
@@ -93,11 +96,11 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                 <div className="px-4 py-4">
                     <button
                         onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/5 text-xs text-muted-foreground hover:bg-white/10 hover:border-white/10 transition-all group"
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-foreground/5 border border-border text-xs text-muted-foreground hover:bg-foreground/10 hover:border-border/50 transition-all group"
                     >
                         <Search size={14} />
                         <span className="flex-1 text-left">Search...</span>
-                        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-white/10 bg-black px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 group-hover:text-white">
+                        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 group-hover:text-foreground">
                             <span className="text-xs">⌘</span>K
                         </kbd>
                     </button>
@@ -117,7 +120,7 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                                         "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
                                         isActive
                                             ? "bg-primary/10 text-primary shadow-[0_0_20px_rgba(0,224,208,0.1)]"
-                                            : "text-muted-foreground hover:text-white hover:bg-white/5"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                                     )}
                                 >
                                     {isActive && (
@@ -145,7 +148,7 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                                 </Link>
                             </TooltipTrigger>
                             {collapsed && (
-                                <TooltipContent side="right" className="bg-black/90 border-white/10 text-white">
+                                <TooltipContent side="right" className="bg-background/90 border-border/50 text-foreground">
                                     {item.label}
                                 </TooltipContent>
                             )}
@@ -155,15 +158,15 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
             </div>
 
             {/* Bottom Section */}
-            <div className="p-3 border-t border-white/5 space-y-2 bg-black/20">
+            <div className="p-3 border-t border-border space-y-2 bg-card/50">
                 {bottomItems.map((item) => (
                     <Tooltip key={item.href} delayDuration={0}>
                         <TooltipTrigger asChild>
                             <Link
                                 to={item.href}
                                 className={cn(
-                                    "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-muted-foreground hover:text-white hover:bg-white/5 relative",
-                                    location.pathname === item.href && "text-white bg-white/5"
+                                    "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-muted-foreground hover:text-foreground hover:bg-foreground/5 relative",
+                                    location.pathname === item.href && "text-foreground bg-foreground/5"
                                 )}
                             >
                                 <item.icon size={20} className="flex-shrink-0" />
@@ -175,7 +178,7 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                                 </motion.span>
                                 {item.label === "Notifications" && unreadCount > 0 && (
                                     <div className={cn(
-                                        "absolute bg-destructive text-white text-[10px] font-bold flex items-center justify-center rounded-full",
+                                        "absolute bg-destructive text-foreground text-[10px] font-bold flex items-center justify-center rounded-full",
                                         collapsed ? "top-1 right-1 w-3 h-3 p-0" : "right-3 w-5 h-5"
                                     )}>
                                         {!collapsed && (unreadCount > 99 ? '99+' : unreadCount)}
@@ -184,7 +187,7 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                             </Link>
                         </TooltipTrigger>
                         {collapsed && (
-                            <TooltipContent side="right" className="bg-black/90 border-white/10 text-white">
+                            <TooltipContent side="right" className="bg-background/90 border-border/50 text-foreground">
                                 {item.label} {item.label === "Notifications" && unreadCount > 0 && `(${unreadCount})`}
                             </TooltipContent>
                         )}
@@ -207,7 +210,7 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                         </button>
                     </TooltipTrigger>
                     {collapsed && (
-                        <TooltipContent side="right" className="bg-red-900/90 border-red-500/20 text-white">
+                        <TooltipContent side="right" className="bg-red-900/90 border-red-500/20 text-foreground">
                             Sign Out
                         </TooltipContent>
                     )}
