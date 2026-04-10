@@ -2,6 +2,8 @@
 
 This document provides a feature-by-feature breakdown of currently implemented functionality within the RAAMP (Revolutionary AI-powered Autonomous Marketing Platform) project.
 
+**Note**: Some areas (especially Geo-Intent + Trends) are implemented with specific fallbacks, caching, and tier-gating. This document reflects the current code behavior.
+
 ---
 
 ## 1. AI Creative Studio
@@ -44,29 +46,69 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 ---
 
-## 3. Geo-Intent Marketing Engine
-**Purpose**: To provide hyperlocal marketing intelligence by analyzing real-world activity signals within a specific geographic radius.
+## 3. Viral Audio & Intelligence
+**Purpose**: To provide real-time audio trends and viral signals to enhance creative content alignment.
 
-**How it works**: Aggregates data from Google Places (crowd density), Google Trends (online intent), and Tomorrow.io (weather context) to calculate a 0-100 "Heat Score" for a location. 
-
-**User interaction**: 
-- Users set a geographic center and a radius (1-50 KM) using **Google Places Autocomplete**.
-- Users can draw custom targeting zones on an interactive map with dynamic markers.
-- Users view a live "Radar Feed" of signal pings and a heatmap of interest hotspots.
-- Users can trigger **AI Strategy Generation** to create a localized campaign brief based on the detected heat signals.
+**How it works**: Integrates with Spotify Web API and Apple Music RSS to fetch top-charting and "viral" tracks localized to the user's market. It uses genre-vibe heuristics to recommend audio that matches the business niche and trend energy.
 
 **Data/API involved**: 
-- `geo-intent-engine-router`: Core logic for heat score calculation and signal aggregation.
-- `google-places-api`: For location search and autocomplete.
-- `google-maps-api`: For visualization and custom zone drawing.
-- `weather-api`: Tomorrow.io integration for environmental context.
-- `campaign-brief-service`: AI-powered generation of marketing strategies.
-
-**Output/Result**: Real-time Heat Score, area persona/visitor personality breakdown, localized **Campaign Briefs**, and a history of "Radar Sweeps."
+- `Spotify Web API`: For real-time track metadata and popularity indexing.
+- `ViralAudioProvider`: Internal service that scores tracks against platform vibes (TikTok vs. Instagram).
 
 ---
 
-## 4. RAAMP Assistant (AI Marketing Chatbot)
+## 4. Competitor Benchmarking Radar
+**Purpose**: To monitor competitor engagement and density within specific market segments.
+
+**How it works**: Utilizes SerpAPI to fetch local competitor data and engagement signals. It visualizes competitor proximity and provides benchmarking metrics (Engagement share, Review velocity) to identify competitive market gaps.
+
+**Data/API involved**:
+- `SerpAPI (Google Local)`: For competitor location and review data.
+- `IntelligenceGrid`: Frontend component for visualizing competitor vs. business performance.
+
+---
+
+## 5. Geo-Intent Marketing Engine (Geo-Intent Targeting)
+**Purpose**: To provide hyper-local marketing intelligence by fusing **macro digital intent** with **street-level physical density** and **weather mobility context**, producing a 0–100 Heat Score plus persona split and deployable campaign guidance.
+
+**How it works (current implementation)**:
+- **Signals (0.0–1.0 each)**:
+  - **Trends (Macro-Intent)**: Google Trends time-series interest averaged over a 7‑day window (`now 7-d`). This is treated as a **regional/sub-regional** “macro wave” signal (not street-level).
+  - **Places (Local Density)**: Google Places Nearby Search result count (up to **2 pages** for performance) → normalised density proxy.
+  - **Weather (Mobility Modifier)**: Tomorrow.io realtime weather; rain effect flips based on **indoor vs outdoor** business type.
+- **Resilience**: Each external fetcher is timeout-protected and **never raises**; on failure it returns **neutral 0.5** so the engine still responds.
+- **Tier gating**:
+  - **Free tier**: Places only. Trends + Weather return score `0.5` with status `"limited"`.
+  - **Premium/Demo**: All three signals fetched concurrently.
+- **Caching**:
+  - Geo-Intent signal fetchers cache by geo/radius/keywords (service TTL cache).
+  - Google Trends service caches provider results in MongoDB with a TTL (default ~1 hour).
+- **Heat Score**: Aggregates into 0–100 with weighted fusion: **35% Trends, 40% Places, 25% Weather**.
+
+**User interaction (frontend)**:
+- **Profile-driven targeting**: Uses the user’s onboarding location and attempts to use Google `place_id` as the stable `business_id`. If missing, falls back to a deterministic onboarding-coordinates key.
+- **Radius control**: 1–50 km slider (persisted in localStorage) triggers a debounced re-scan.
+- **Custom zones**: Users can draw a polygon; the UI recenters a sweep to the polygon centroid.
+- **Outputs shown**:
+  - Heat Score + urgency state
+  - Per-signal status + explanation (explicitly calls out trends as “city/state scale”)
+  - Live radar feed messages
+  - Visitor persona distribution
+  - Heatmap layer + history + strategy history replay
+
+**Data/API involved (key pieces)**:
+- Backend services:
+  - `raamp-backend/application/services/geo_intent_fetchers.py`: Async signal fetchers + tier gating + neutral fallback rules.
+  - `raamp-backend/application/services/google_trends_service.py`: Trends provider selection + validation + MongoDB caching.
+- Frontend:
+  - `raamp-frontend/src/pages/GeoIntent.tsx`: Main Geo-Intent dashboard and flows.
+  - `raamp-frontend/src/services/geoIntentService.ts`: API client (used by the page).
+
+**Output/Result**: Heat Score (0–100), urgency classification, signal breakdown, persona split, radar feed, heatmap points, sweep history, and AI-generated campaign briefs with replay.
+
+---
+
+## 6. RAAMP Assistant (AI Marketing Chatbot)
 **Purpose**: To act as a 24/7 AI-powered marketing consultant that provides strategic advice and platform assistance.
 
 **How it works**: A conversational interface powered by a Large Language Model (LLM) that has context about the user's business profile and current market trends.
@@ -78,9 +120,31 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 **Output/Result**: Text-based strategic answers, content ideas, and platform guidance generated by AI.
 
+**Advanced Technical Architecture (RAG)**:
+- **Embeddings**: Uses `text-embedding-004` (Gemini) or OpenAI embeddings for vectorizing the RAAMP Knowledge Base.
+- **Vector Store**: MongoDB Atlas Vector Search for high-relevance retrieval.
+- **Pipeline**: Implements a Retrieve-Augment-Generate (RAG) pipeline that fetches platform documentation, marketing best practices, and user-specific business context before generating a response.
+- **Context Management**: Maintains conversation history with summarization logic to ensure long-term memory stability.
+
 ---
 
-## 5. Asset Library & Media Management
+## 7. Support Center & Complaint Management
+**Purpose**: To handle technical issues and feature requests through a structured support ticketing system.
+
+**How it works**: Users can submit complaints with priority levels, attachments, and specific descriptions. The system allows for real-time status updates and two-way communication (comments) between the user and support.
+
+**User interaction**: 
+- Submit new complaints via the Support Center.
+- Upload attachments (logs, screenshots) up to 10MB.
+- Rate the support experience once a complaint is "Resolved."
+
+**Data/API involved**:
+- `complaints-router`: Full CRUD lifecycle for tickets.
+- `complaint-service`: Backend orchestrator for persistence and notifications.
+
+---
+
+## 8. Asset Library & Media Management
 **Purpose**: To manage all generated and uploaded marketing assets in one structured repository.
 
 **How it works**: Stores metadata and file paths for all assets in a database, allowing for filtering by type, source, and favorites. It also links assets to performance metrics if they have been posted to social media.
@@ -98,7 +162,7 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 ---
 
-## 6. Smart Scheduling & Cross-Platform Posting
+## 9. Smart Scheduling & Cross-Platform Posting
 **Purpose**: To automate and plan the deployment of marketing content across social media platforms like Instagram and Facebook.
 
 **How it works**: Allows users to schedule posts for future dates/times. A backend scheduler (APScheduler) processes these jobs and triggers automated posting via platform APIs.
@@ -116,7 +180,7 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 ---
 
-## 7. Performance Dashboard & Real-time Analytics
+## 10. Performance Dashboard & Real-time Analytics
 **Purpose**: To provide a high-level overview of business performance, marketing health, and live customer activity.
 
 **How it works**: Aggregates data from multiple services (Billing, Social ROI, Geo-Intent) into a Unified KPI strip and interactive charts. Uses WebSockets for real-time "Conversion Pings."
@@ -136,15 +200,24 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 ---
 
-## 8. ML Caption Intelligence & Variant Recommendations
+## 11. ML Caption Intelligence & Variant Recommendations
 **Purpose**: To predict the success of marketing copy and recommend the best-performing variant using machine learning.
 
-**How it works**: A dedicated ML service (FastAPI) utilizes a pipeline trained on synthetic and historical engagement data. It analyzes semantic patterns, hashtag relevance, and post timing to provide a predicted "Engagement Score."
+**How it works**:
+- **Generation (business-specific)**: Captions and primary hashtags are generated by Gemini using the user’s saved **brand context** (business type/name/tone). This keeps outputs aligned to the user’s niche.
+- **ML scoring (ranking-only)**: A dedicated ML layer scores each caption variant (`ml_score`) and selects the best variant (`best_caption_id`). The ML model uses caption-level numeric features (structure + timing + sentiment + CTA signals). It does **not** rewrite caption text.
+- **ML hashtag suggestions (optional)**: The backend may attach `ml_hashtags` (cluster-based suggestions) for inspection/experimentation, but the system **does not override** Gemini’s business-specific hashtags by default.
+
+**Data note (important)**:
+- The current training labels in this project are **synthetic / bootstrapped** in most environments. This makes the model behavior coherent for demos, but the reported metrics are **not** evidence of real-world predictive accuracy.
+- We ran a Kaggle augmentation experiment and found a **target-definition mismatch** (Kaggle-style engagement proxies vs. RAAMP’s ROI-labelled engagement), which degraded generalization. That experiment is documented as a learning outcome, and the default training source remains the project’s own caption logs.
 
 **User interaction**: 
 - Automatically runs when content is generated in the Creative Studio.
 - Users see a "Recommended" badge on the variant with the highest ML score.
-- **Hashtag Intelligence**: Receives a separate ranking for recommended hashtag sets.
+- **Hashtag Intelligence**:
+  - Users primarily see the Gemini hashtags (business-specific).
+  - `ml_hashtags` can be surfaced later as an “experimental suggestions” panel if desired.
 - Users can view "Why this works" reasoning for the top recommendation.
 
 **Data/API involved**: 
@@ -156,7 +229,7 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 ---
 
-## 9. Business Onboarding & Setup
+## 12. Business Onboarding & Setup
 **Purpose**: To gather essential business information and configure the platform's AI engines for the specific user.
 
 **How it works**: A multi-step flow that saves the business "Identity" (Domain, Specialties) and "Location" (Physical coordinates) to the user's profile.
@@ -177,7 +250,7 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 ---
 
-## 10. Social Media Integration (Instagram & Facebook)
+## 13. Social Media Integration (Instagram & Facebook)
 **Purpose**: To connect the user's social identity to RAAMP for data syncing and automated actions.
 
 **How it works**: Uses Facebook/Instagram Graph API (OAuth) to authenticate business accounts and retrieve business IDs and access tokens.
@@ -194,7 +267,7 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 ---
 
-## 11. Subscription & Billing Management
+## 14. Subscription & Billing Management
 **Purpose**: To manage the user's financial relationship with the platform, including credits for AI generation.
 
 **How it works**: Integrates with Stripe for payments and a custom **CreditService** for usage metering. Each AI action (Brief generation, Content variant creation) consumes credits based on the user's tier.
@@ -215,7 +288,7 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 ---
 
-## 12. User Profile & Security Settings
+## 15. User Profile & Security Settings
 **Purpose**: To allow users to manage their personal information, account security, and notification preferences.
 
 **How it works**: Provides standard account management functionality including profile updates, password resets, and preference toggles.

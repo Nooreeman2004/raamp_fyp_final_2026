@@ -29,10 +29,10 @@ This document describes **everything related to the Geo-Intent module** in the R
 - **Purpose**
   - Provide a **hyper-local market radar** that identifies windows of high conversion opportunity.
   - Answer the question: *"Is now a good time to run an ad in my neighborhood, and what should I say?"*
-- **Core Signal Proxy**:
-  - **Digital Intent**: Google Trends velocity for niche-relevant keywords.
-  - **Physical Density**: Commercial POI density from Google Places Nearby API.
-  - **Environmental Context**: Real-time weather impact on consumer mobility (e.g., rain driving people to indoor malls).
+- **Core Signal Proxy (Sensor Fusion)**:
+  - **Macro-Intent (Velocity)**: Google Trends interest at the regional/city level. This identifies broad consumer waves.
+  - **Hyper-Local Context (Density)**: Physical commercial POI density from Google Places (street-level). This grounds the macro-intent in a physical zone.
+  - **Environmental Context (Mobility)**: Real-time weather impact on consumer mobility (street-level).
 
 ---
 
@@ -119,7 +119,7 @@ Calculated in `GeoIntentService._calculate_persona_split()`. It uses a base mapp
 
 ## 6. Known Limitations
 
-1. **Google Trends Precision**: Digital intent is regional (state/country) rather than street-level, as neighborhood-level search volumes are not available.
+1. **Signal Scope Calibration**: Digital intent (Trends) is intentionally measured at the regional/state level to capture 'Macro Waves.' The system's 'Hyper-Local' accuracy is achieved by multiplying this macro-intent against 100% granular local signals (Google Places & Weather).
 2. **Weather Granularity**: Tomorrow.io provides excellent local weather, but rapid micro-climate shifts may have a 5-10 min lag in the API.
 3. **Map Token Usage**: Excessive custom zone drawing triggers multiple Nearby Search calls; governed by frontend debouncing.
 

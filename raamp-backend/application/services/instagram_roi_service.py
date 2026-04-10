@@ -62,10 +62,14 @@ async def fetch_post_insights(instagram_post_id: str, access_token: str) -> Dict
                 error_code = error_data.get("code")
                 error_msg = error_data.get("message", "Unknown insights error")
                 
-                # Code 100: Not enough data yet (common in first 24h)
+                # Code 100 is overloaded (can mean "not enough data" OR "invalid param/metric").
+                # Only treat it as pending when the message clearly indicates insufficient data.
                 if error_code == 100:
-                    logger.info(f"Insufficient data for post {instagram_post_id}: {error_msg}")
-                    return {"status": "pending"}
+                    msg_lower = (error_msg or "").lower()
+                    if "not enough" in msg_lower or "insufficient" in msg_lower or "temporarily unavailable" in msg_lower:
+                        logger.info(f"Insufficient data for post {instagram_post_id}: {error_msg}")
+                        return {"status": "pending"}
+                    raise InstagramROIFetchError(error_msg, error_code)
                 
                 raise InstagramROIFetchError(error_msg, error_code)
                 
@@ -142,16 +146,43 @@ async def refresh_post_roi(post_id: str, db=None) -> Optional[ROIMetrics]:
             return post.roi_metrics
             
         # 3. Get connection and token
+        # Prefer the connection that belongs to the same user and has a usable page token.
+        # (There may be multiple connection docs pointing at the same ig_business_id.)
         connection = await InstagramConnectionModel.find_one(
-            InstagramConnectionModel.ig_business_id == post.ig_business_id
+            InstagramConnectionModel.user_id == getattr(post, "user_id", None),
+            InstagramConnectionModel.ig_business_id == getattr(post, "ig_business_id", None),
+            InstagramConnectionModel.token_valid == True,  # noqa: E712
+            InstagramConnectionModel.page_access_token != None,  # noqa: E711
         )
+        if not connection:
+            # Fallback: any valid connection with a page token for this ig_business_id
+            connection = await InstagramConnectionModel.find_one(
+                InstagramConnectionModel.ig_business_id == getattr(post, "ig_business_id", None),
+                InstagramConnectionModel.token_valid == True,  # noqa: E712
+                InstagramConnectionModel.page_access_token != None,  # noqa: E711
+            )
+        if not connection:
+            # Final fallback: user-scoped connection (legacy records may not store ig_business_id)
+            connection = await InstagramConnectionModel.find_one(
+                InstagramConnectionModel.user_id == getattr(post, "user_id", None),
+                InstagramConnectionModel.token_valid == True,  # noqa: E712
+                InstagramConnectionModel.page_access_token != None,  # noqa: E711
+            )
+
         if not connection or not connection.page_access_token:
-            logger.error(f"No valid Instagram connection found for business {post.ig_business_id}")
+            logger.error(
+                "No valid Instagram connection found for ROI refresh. ig_business_id=%s user_id=%s",
+                getattr(post, "ig_business_id", None),
+                getattr(post, "user_id", None),
+            )
             post.roi_metrics.fetch_status = "failed"
             await post.save()
             return post.roi_metrics
             
-        access_token = encryption_service.decrypt(connection.page_access_token)
+        # For some Graph API reads (esp. insights), IG User token can be required depending on app setup.
+        # Prefer user_access_token when present; fallback to page_access_token.
+        encrypted_token = connection.user_access_token or connection.page_access_token
+        access_token = encryption_service.decrypt(encrypted_token)
         
         # 4. Fetch insights
         result = await fetch_post_insights(instagram_post_id, access_token)

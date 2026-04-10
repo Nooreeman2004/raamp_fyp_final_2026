@@ -33,6 +33,7 @@ import json
 import math
 import logging
 import asyncio
+import glob
 from datetime import datetime, timezone
 from typing import Any
 
@@ -71,6 +72,137 @@ CTA_KEYWORDS  = {"click", "link in bio", "shop", "buy", "dm", "order", "visit",
 
 _vader = SentimentIntensityAnalyzer()
 
+# ── optional Kaggle augmentation ───────────────────────────────────────────────
+# This is intentionally optional so training still works offline / without Kaggle.
+KAGGLE_DATASET_SLUG = os.getenv("KAGGLE_DATASET_SLUG", "rxsraghavagrawal/instagram-reach")
+ENABLE_KAGGLE_TRAINING = os.getenv("ENABLE_KAGGLE_TRAINING", "0").strip() in {"1", "true", "True", "yes", "YES"}
+KAGGLE_CSV_PATH = os.getenv("KAGGLE_CSV_PATH", "").strip()
+TRAINING_SOURCE = os.getenv("TRAINING_SOURCE", "mongo").strip().lower()
+"""
+TRAINING_SOURCE controls where training data comes from:
+  - "mongo"        : only CaptionLogModel from MongoDB (default)
+  - "kaggle"       : only Kaggle rows (requires ENABLE_KAGGLE_TRAINING=1)
+  - "mixed"        : combine Mongo + Kaggle (requires ENABLE_KAGGLE_TRAINING=1)
+"""
+
+
+def _safe_int(val: Any) -> int:
+    try:
+        if val is None:
+            return 0
+        if isinstance(val, str):
+            val = val.replace(",", "").strip()
+        return int(float(val))
+    except Exception:
+        return 0
+
+
+def _load_kaggle_instagram_reach_rows() -> list[dict[str, Any]]:
+    """
+    Optionally load Kaggle dataset rows and convert them into training samples.
+
+    Expected columns vary across dataset versions. We support a conservative subset:
+      - caption:  Caption / caption / text
+      - hashtags: Hashtags / hashtags
+      - likes:    Likes / likes
+      - comments: Comments / comments (optional, defaults to 0)
+      - followers: Followers / followers (preferred for engagement proxy)
+      - reach/impressions: Reach / Impressions (optional; if present, used as denominator)
+
+    Engagement proxy:
+      - If Reach exists and >0: (likes + comments) / reach
+      - Else if Followers exists and >0: (likes + comments) / followers
+    """
+    if not ENABLE_KAGGLE_TRAINING:
+        return []
+
+    try:
+        import kagglehub  # type: ignore
+    except Exception as exc:
+        logger.warning("⚠️  [ML Trainer] ENABLE_KAGGLE_TRAINING=1 but kagglehub not available: %s", exc)
+        return []
+
+    csv_path: str | None = None
+
+    # Prefer a repo-local CSV if provided (stable path, avoids cache coupling).
+    if KAGGLE_CSV_PATH and os.path.exists(KAGGLE_CSV_PATH):
+        csv_path = KAGGLE_CSV_PATH
+    else:
+        try:
+            dataset_path = kagglehub.dataset_download(KAGGLE_DATASET_SLUG)
+        except Exception as exc:
+            logger.warning("⚠️  [ML Trainer] Kaggle download failed for %s: %s", KAGGLE_DATASET_SLUG, exc)
+            return []
+
+        # Find the first CSV in the downloaded directory.
+        csv_candidates = sorted(glob.glob(os.path.join(dataset_path, "*.csv")))
+        if not csv_candidates:
+            logger.warning("⚠️  [ML Trainer] Kaggle dataset downloaded but no CSV found at %s", dataset_path)
+            return []
+        csv_path = csv_candidates[0]
+    rows: list[dict[str, Any]] = []
+
+    import csv as _csv
+
+    def _get(d: dict[str, Any], *keys: str) -> Any:
+        for k in keys:
+            if k in d and d[k] not in (None, ""):
+                return d[k]
+        return None
+
+    with open(csv_path, "r", encoding="utf-8", errors="ignore", newline="") as f:
+        reader = _csv.DictReader(f)
+        total_seen = 0
+        dropped_bad_denom = 0
+        dropped_bad_rate = 0
+        for raw in reader:
+            total_seen += 1
+            caption = str(_get(raw, "Caption", "caption", "Text", "text") or "")
+            hashtags_raw = str(_get(raw, "Hashtags", "hashtags") or "")
+            likes = _safe_int(_get(raw, "Likes", "likes"))
+            comments = _safe_int(_get(raw, "Comments", "comments"))
+            followers = _safe_int(_get(raw, "Followers", "followers"))
+            reach = _safe_int(_get(raw, "Reach", "reach"))
+            impressions = _safe_int(_get(raw, "Impressions", "impressions"))
+
+            denom = reach or impressions or followers
+            if denom <= 0:
+                dropped_bad_denom += 1
+                continue
+
+            engagement_rate = (likes + comments) / float(denom)
+            # Drop impossible / broken rows (e.g., likes+comments > followers/reach/impressions).
+            # This matches the common filter: (engagement_rate > 0) & (engagement_rate <= 1.0)
+            if not (0.0 < engagement_rate <= 1.0):
+                dropped_bad_rate += 1
+                continue
+
+            # Parse hashtags defensively (handles "#a #b" or "['a','b']" styles).
+            hashtag_list = re.findall(r"#\\w+", hashtags_raw)
+            hashtag_list = [h.lstrip("#").lower() for h in hashtag_list]
+
+            rows.append(
+                {
+                    "caption_text": caption,
+                    "tone": "Unknown",
+                    "asset_type": "post",
+                    "hour_posted": 12,   # neutral
+                    "day_of_week": 2,    # neutral midweek
+                    "hashtags": hashtag_list,
+                    "engagement_rate": float(engagement_rate),
+                }
+            )
+
+    logger.info(
+        "📥 [ML Trainer] Kaggle rows: kept=%d dropped_bad_denom=%d dropped_bad_rate=%d total=%d | from %s",
+        len(rows),
+        dropped_bad_denom,
+        dropped_bad_rate,
+        total_seen,
+        csv_path,
+    )
+    return rows
+
 
 # ── custom exception ───────────────────────────────────────────────────────────
 class ColdStartError(Exception):
@@ -107,6 +239,7 @@ def extract_features(
     day_of_week: int,
     tone_encoder: LabelEncoder,
     asset_type_encoder: LabelEncoder,
+    hashtag_count: int | None = None,
 ) -> list[float]:
     """
     Convert a raw caption + metadata into a fixed-length numeric feature vector.
@@ -128,6 +261,10 @@ def extract_features(
     except ValueError:
         asset_enc = 0
 
+    # Note: hashtag_count is intentionally NOT used in the engagement regressor features.
+    # On synthetic/bootstrapped labels it can dominate and collapse the model into a hashtag counter.
+    # Hashtag intelligence is handled separately via the clustering + hashtag map.
+
     return [
         len(text),                        # caption_length
         len(words),                       # word_count
@@ -136,7 +273,6 @@ def extract_features(
         float(sentiment["neg"]),          # vader_neg
         text.count("!"),                  # exclamation_count
         text.count("?"),                  # question_count
-        text.count("#"),                  # hashtag_count (inline)
         _count_emojis(text),              # emoji_count
         _has_cta(text),                   # has_cta
         int(hour_posted),                 # hour_posted  (0-23)
@@ -148,7 +284,7 @@ def extract_features(
 
 FEATURE_NAMES = [
     "caption_length", "word_count", "vader_compound", "vader_pos", "vader_neg",
-    "exclamation_count", "question_count", "hashtag_count", "emoji_count",
+    "exclamation_count", "question_count", "emoji_count",
     "has_cta", "hour_posted", "day_of_week", "tone_encoded", "asset_type_encoded",
 ]
 
@@ -167,21 +303,44 @@ async def train_models() -> dict[str, Any]:
     """
     logger.info("🤖 [ML Trainer] Starting training pipeline …")
 
-    # ── 1. Fetch data from MongoDB via Beanie (async) ──────────────────────────
-    docs = await CaptionLogModel.find(
-        CaptionLogModel.engagement_rate != None,          # noqa: E711
-        CaptionLogModel.caption_text != None,
-    ).to_list()
+    # ── 1. Load labelled data (Mongo, Kaggle, or both) ─────────────────────────
+    docs: list[CaptionLogModel] = []
+    kaggle_rows: list[dict[str, Any]] = []
 
-    # Filter to caption-type assets only (exclude hashtag/email/whatsapp sets)
-    docs = [
-        d for d in docs
-        if d.asset_type and str(d.asset_type.value) in ("post", "story", "reel")
-    ]
+    if TRAINING_SOURCE not in {"mongo", "kaggle", "mixed"}:
+        logger.warning("⚠️  [ML Trainer] Unknown TRAINING_SOURCE=%s; falling back to 'mongo'", TRAINING_SOURCE)
+        source = "mongo"
+    else:
+        source = TRAINING_SOURCE
 
+    if source in {"mongo", "mixed"}:
+        docs = await CaptionLogModel.find(
+            CaptionLogModel.engagement_rate != None,  # noqa: E711
+            CaptionLogModel.caption_text != None,
+        ).to_list()
 
-    sample_size = len(docs)
-    logger.info("📊 [ML Trainer] Found %d labelled caption_log documents", sample_size)
+        # Filter to caption-type assets only (exclude hashtag/email/whatsapp sets)
+        docs = [
+            d for d in docs
+            if d.asset_type and str(d.asset_type.value) in ("post", "story", "reel")
+        ]
+
+    if source in {"kaggle", "mixed"}:
+        kaggle_rows = _load_kaggle_instagram_reach_rows()
+        if source == "kaggle" and not kaggle_rows:
+            raise ColdStartError(
+                "TRAINING_SOURCE=kaggle but no Kaggle samples were loaded. "
+                "Ensure ENABLE_KAGGLE_TRAINING=1, kagglehub is installed, and Kaggle credentials are configured."
+            )
+
+    sample_size = len(docs) + len(kaggle_rows)
+    logger.info(
+        "📊 [ML Trainer] Training source=%s | labelled samples: mongo=%d kaggle=%d total=%d",
+        source,
+        len(docs),
+        len(kaggle_rows),
+        sample_size,
+    )
 
     if sample_size < MIN_SAMPLES:
         raise ColdStartError(
@@ -191,8 +350,8 @@ async def train_models() -> dict[str, Any]:
         )
 
     # ── 2. Build label encoders ────────────────────────────────────────────────
-    tones       = [d.tone or "General" for d in docs]
-    asset_types = [str(d.asset_type.value) if d.asset_type else "post" for d in docs]
+    tones       = [d.tone or "General" for d in docs] + [r.get("tone") or "Unknown" for r in kaggle_rows]
+    asset_types = [str(d.asset_type.value) if d.asset_type else "post" for d in docs] + [r.get("asset_type") or "post" for r in kaggle_rows]
 
     tone_enc       = LabelEncoder().fit(tones)
     asset_type_enc = LabelEncoder().fit(asset_types)
@@ -212,6 +371,7 @@ async def train_models() -> dict[str, Any]:
         hour_posted = created_at.hour
         day_of_week = created_at.weekday()
         eng_rate    = float(doc.engagement_rate)
+        hashtag_count = len(doc.hashtags or [])
 
         feats = extract_features(
             caption_text=text,
@@ -221,12 +381,40 @@ async def train_models() -> dict[str, Any]:
             day_of_week=day_of_week,
             tone_encoder=tone_enc,
             asset_type_encoder=asset_type_enc,
+            hashtag_count=hashtag_count,
         )
         X_rows.append(feats)
         y_vals.append(eng_rate)
 
         captions_for_clustering.append(text)
         hashtags_for_clustering.append(doc.hashtags or [])
+        er_for_clustering.append(eng_rate)
+
+    # Append Kaggle samples (optional augmentation)
+    for row in kaggle_rows:
+        text = row.get("caption_text") or ""
+        tone = row.get("tone") or "Unknown"
+        asset_type = row.get("asset_type") or "post"
+        hour_posted = int(row.get("hour_posted") or 12)
+        day_of_week = int(row.get("day_of_week") or 2)
+        eng_rate = float(row.get("engagement_rate") or 0.0)
+        hashtags = row.get("hashtags") or []
+        hashtag_count = len(hashtags)
+
+        feats = extract_features(
+            caption_text=text,
+            tone=tone,
+            asset_type=asset_type,
+            hour_posted=hour_posted,
+            day_of_week=day_of_week,
+            tone_encoder=tone_enc,
+            asset_type_encoder=asset_type_enc,
+            hashtag_count=hashtag_count,
+        )
+        X_rows.append(feats)
+        y_vals.append(eng_rate)
+        captions_for_clustering.append(text)
+        hashtags_for_clustering.append(hashtags)
         er_for_clustering.append(eng_rate)
 
     X = np.array(X_rows, dtype=float)

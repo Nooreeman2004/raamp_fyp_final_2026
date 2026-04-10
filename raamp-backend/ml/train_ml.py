@@ -13,31 +13,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 async def main():
-    print("🔌 Connecting to MongoDB...")
+    print("Connecting to MongoDB...")
     from infrastructure.database.database import connect_to_mongo, init_db
     await connect_to_mongo()
     await init_db()
-    print("✅ MongoDB connected.\n")
+    print("MongoDB connected.\n")
 
-    print("🤖 Starting ML training pipeline...")
+    print("Starting ML training pipeline...")
     from ml.model_trainer import train_models, ColdStartError
     try:
         metrics = await train_models()
         print("\n" + "="*55)
-        print("✅  TRAINING COMPLETE")
+        print("TRAINING COMPLETE")
         print("="*55)
         print(f"  Sample size     : {metrics['sample_size']}")
-        print(f"  R²              : {metrics['r2']}")
+        print(f"  R2              : {metrics['r2']}")
         print(f"  RMSE            : {metrics['rmse']}")
         print(f"  MAE             : {metrics['mae']}")
         print(f"  Clusters        : {metrics['n_clusters']}")
         print(f"  Silhouette      : {metrics['silhouette']}")
         print(f"  Trained at      : {metrics['trained_at']}")
         print("="*55)
-        print(f"\n📁 Models saved to: raamp-backend/ml/models/")
+        print("\nModels saved to: raamp-backend/ml/models/")
     except ColdStartError as e:
         print("\n" + "="*55)
-        print("❄️   COLD START — NOT ENOUGH DATA")
+        print("COLD START — NOT ENOUGH DATA")
         print("="*55)
         print(f"\n{e}\n")
         print("ℹ️  To fix this: ensure caption_logs documents have")

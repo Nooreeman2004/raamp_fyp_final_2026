@@ -519,9 +519,9 @@ const GeoIntent = () => {
                       
                       {/* Signals Breakdown */}
                       {[
-                        { name: "Online Interest", score: data.signals.trends_score, status: data.signals_status.trends, desc: "People searching for your type of business" },
-                        { name: "Crowd Traffic", score: data.signals.places_score, status: data.signals_status.places, desc: "Physical density of people nearby" },
-                        { name: "Weather Boost", score: data.signals.weather_score, status: data.signals_status.weather, desc: "Favorability of current conditions" }
+                        { name: "Regional Intent", score: data.signals.trends_score, status: data.signals_status.trends, desc: "Macro search volume for your business type at a regional/city level." },
+                        { name: "Local Density", score: data.signals.places_score, status: data.signals_status.places, desc: "Hyper-local physical commercial activity in your exact search radius." },
+                        { name: "Weather Boost", score: data.signals.weather_score, status: data.signals_status.weather, desc: "Real-time weather favorability for target audience mobility." }
                       ].map((signal, idx) => (
                         <motion.div
                           key={idx}
@@ -543,8 +543,13 @@ const GeoIntent = () => {
                                   <TooltipContent side="right" className="bg-popover border border-border p-4 max-w-[280px] shadow-2xl text-popover-foreground z-[100] rounded-xl">
                                     <p className="font-bold text-primary mb-1 uppercase tracking-widest">{signal.name}</p>
                                     <p className="mb-2">{signal.desc}</p>
+                                    {signal.name === "Regional Intent" && (
+                                      <p className="text-[10px] text-muted-foreground border-t border-border/50 pt-2 mt-2 italic">
+                                        Note: Intent is measured at city/state scale and grounded by your local POI density to ensure hyper-local relevance.
+                                      </p>
+                                    )}
                                     <div className="pt-2 border-t border-border flex justify-between items-baseline">
-                                       <span className="text-[8px] opacity-60 uppercase">Raw Signal Value:</span>
+                                       <span className="text-[8px] opacity-60 uppercase">Normalized Score:</span>
                                        <span className="text-primary font-bold">{(signal.score * 100).toFixed(1)}%</span>
                                     </div>
                                   </TooltipContent>

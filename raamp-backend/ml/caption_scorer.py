@@ -149,6 +149,7 @@ def score_caption(
             day_of_week=day_of_week,
             tone_encoder=_label_encoders["tone"],
             asset_type_encoder=_label_encoders["asset_type"],
+            hashtag_count=None,
         )
         X = np.array([feats], dtype=float)
         predicted_rate = float(np.clip(_gbr_model.predict(X)[0], 0.0, 1.0))

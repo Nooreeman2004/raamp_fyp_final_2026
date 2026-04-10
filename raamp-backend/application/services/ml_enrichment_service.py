@@ -125,15 +125,15 @@ async def enrich_captions(
             "model_available":     score_result["model_available"],
         }
 
-        # Replace hashtags with ML-recommended ones (if available)
-        if ml_hashtags:
-            updated["hashtags"]        = ml_hashtags
-            updated["hashtag_source"]  = (
-                f"ml_cluster_{cluster_id}" if cluster_id is not None else "ml_cluster_unknown"
-            )
-        else:
-            # Keep Gemini hashtags, annotate source honestly
-            updated["hashtag_source"] = "gemini_generated"
+        # Keep Gemini hashtags as the default (business-specific).
+        # Attach ML hashtags separately so the frontend can optionally display them
+        # without overriding domain relevance.
+        updated["ml_hashtags"] = ml_hashtags
+        updated["hashtag_source"] = (
+            "gemini_generated"
+            if not ml_hashtags
+            else (f"ml_cluster_{cluster_id}" if cluster_id is not None else "ml_cluster_unknown")
+        )
 
         # Track best variant
         eng = score_result["engagement_rate"]

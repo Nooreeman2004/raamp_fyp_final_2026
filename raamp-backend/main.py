@@ -32,6 +32,7 @@ from application.services.token_expiry_monitor_service import check_token_expiry
 from application.services.job_health_monitor_service import check_scheduler_health, cleanup_job_logs
 from application.services.trend_detection_service import TrendDetectionService
 from application.services.instagram_roi_service import scheduled_roi_refresh
+from application.services.caption_roi_join_service import backfill_caption_log_engagement_rates
 from tasks.trend_retry_worker import process_due_trend_retries
 from tasks.trend_expiry_worker import expire_old_trend_detections
 from infrastructure.database.models.instagram_connection_model import InstagramConnectionModel
@@ -179,6 +180,17 @@ async def lifespan(app: FastAPI):
         replace_existing=True
     )
     logging.info("ROI refresh scheduler configured (every 6 hours)")
+
+    # Backfill caption_logs.engagement_rate from ROI (every 6 hours, offset)
+    # Runs after ROI refresh so freshly fetched metrics can label captions for ML training.
+    scheduler.add_job(
+        backfill_caption_log_engagement_rates,
+        CronTrigger(hour='*/6', minute=15),  # Every 6 hours at :15
+        id='backfill_caption_log_engagement_rates',
+        name='Backfill caption engagement_rate from Instagram ROI',
+        replace_existing=True
+    )
+    logging.info("Caption ROI join scheduler configured (every 6 hours at :15)")
 
     # Startup RAG Health Check (validates Pinecone and OpenAI)
     try:

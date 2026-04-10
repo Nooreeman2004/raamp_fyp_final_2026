@@ -46,9 +46,8 @@ async def fetch_trends_score(
 ) -> Tuple[float, str]:
     """
     Return a normalised (0–1) Google Trends keyword-velocity score.
-
-    Uses the existing GoogleTrendsService so we reuse its retry / rate-limit
-    logic. Runs the blocking PyTrends call in a thread pool.
+    Note: Digital intent is measured at the regional/sub-region level (e.g., city/state)
+    and acts as a 'Macro Wave' signal that is later grounded by local POI density.
 
     Falls back to 0.5 on any error.
     """
@@ -63,8 +62,14 @@ async def fetch_trends_score(
         from application.services.google_trends_service import GoogleTrendsService
 
         svc = GoogleTrendsService()
-        # Convert geo code from env or derive from lat/lng context
-        location_code = settings.GOOGLE_TRENDS_GEO or "PK"
+        
+        # ── Geographic Granularity Ladder ──────────────────────────────────
+        # 1. Prefer explicit sub-region (e.g., PK-SD-KAR) if provided
+        # 2. Use settings fallback
+        # 3. Default to national scope
+        location_code = geo or settings.GOOGLE_TRENDS_GEO or "PK"
+
+        logger.info("Fetching trends for geo=%s (Signal Scope: Regional/Sub-Regional)", location_code)
 
         result = await svc.fetch_trends_data(
             keywords=keywords[:5],
