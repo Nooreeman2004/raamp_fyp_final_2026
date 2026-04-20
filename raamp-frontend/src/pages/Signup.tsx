@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { authService } from "@/services/authService";
 import { signInWithGoogle } from "@/services/googleAuth";
 import { motion } from "framer-motion";
@@ -41,13 +42,16 @@ const PasswordRequirementItem = ({ label, isMet, showError }: { label: string, i
 );
 
 const Signup = () => {
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    agreed_to_terms: false,
-  });
+  const { values: formData, setValues: setFormData, clearPersistence: clearSignupDraft } = useFormPersistence(
+    "raamp_auth_signup",
+    {
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      agreed_to_terms: false,
+    }
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState({
@@ -179,13 +183,17 @@ const Signup = () => {
         password: formData.password,
         agreed_to_terms: formData.agreed_to_terms,
       });
+      clearSignupDraft();
       toast({
         title: "Account Created",
         description: "Please check your email to verify your account.",
         className: "bg-primary/10 border-primary/20 text-primary",
       });
-      // Redirect to email verification page with email state
-      navigate("/verify-email", { state: { email: formData.email } });
+      // URL + state so refresh / direct link still has email
+      navigate(
+        `/verify-email?email=${encodeURIComponent(formData.email)}`,
+        { state: { email: formData.email } }
+      );
     } catch (error: any) {
       console.error("Signup Error:", error);
 
@@ -321,6 +329,7 @@ const Signup = () => {
         localStorage.setItem('token', response.token);
       }
 
+      clearSignupDraft();
       toast({
         title: "Login Successful",
         description: "Identity verified via Google.",
@@ -385,7 +394,7 @@ const Signup = () => {
                     id="username"
                     placeholder="commander1"
                     value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value.toLowerCase() }))}
                     onBlur={() => handleBlur('username')}
                     className={cn(
                       "pl-10 bg-foreground/5 backdrop-blur-sm border-border/50 font-mono focus:border-border/80 transition-colors",
@@ -417,7 +426,7 @@ const Signup = () => {
                     type="email"
                     placeholder="name@company.com"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value.toLowerCase() }))}
                     onBlur={() => handleBlur('email')}
                     className={cn(
                       "pl-10 bg-foreground/5 backdrop-blur-sm border-border/50 font-mono focus:border-border/80 transition-colors",
@@ -446,7 +455,7 @@ const Signup = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
                     onBlur={() => handleBlur('password')}
                     className={cn(
                       "pl-10 pr-10 bg-foreground/5 backdrop-blur-sm border-border/50 font-mono focus:border-border/80 transition-colors",
@@ -528,7 +537,7 @@ const Signup = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                     onBlur={() => handleBlur('confirmPassword')}
                     className={cn(
                       "pl-10 pr-10 bg-foreground/5 backdrop-blur-sm border-border/50 font-mono focus:border-border/80 transition-colors",
@@ -549,7 +558,9 @@ const Signup = () => {
                   className="border-border/80 data-[state=checked]:bg-primary data-[state=checked]:text-black"
                   required
                   checked={formData.agreed_to_terms}
-                  onCheckedChange={(checked) => setFormData({ ...formData, agreed_to_terms: checked as boolean })}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({ ...prev, agreed_to_terms: checked === true }))
+                  }
                 />
                 <Label htmlFor="terms" className="text-xs font-normal text-muted-foreground">
                   I agree to the <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link> and <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>

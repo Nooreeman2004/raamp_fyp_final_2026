@@ -13,7 +13,7 @@ export function ThemeToggle() {
         variant="outline"
         size="icon"
         disabled
-        className="w-10 h-10"
+        className="h-11 w-11 sm:h-10 sm:w-10"
       />
     )
   }
@@ -23,7 +23,7 @@ export function ThemeToggle() {
       variant="outline"
       size="icon"
       onClick={() => toggleTheme()}
-      className="relative w-10 h-10 bg-background border border-border hover:bg-secondary/80 hover:border-primary/50 transition-all duration-300 rounded-lg shadow-sm"
+      className="relative h-11 w-11 sm:h-10 sm:w-10 bg-background border border-border hover:bg-secondary/80 hover:border-primary/50 transition-all duration-300 rounded-lg shadow-sm"
       title={`Switch to ${isDark ? "light" : "dark"} mode`}
       aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
     >

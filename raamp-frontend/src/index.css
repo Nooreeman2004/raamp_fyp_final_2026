@@ -81,12 +81,42 @@
     @apply border-border;
   }
 
+  /* --- Responsive foundation (no visual theme change) --- */
+  html {
+    /* Prevent horizontal scroll from full-bleed children; iOS notch safe area support */
+    overflow-x: clip;
+    max-width: 100vw;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    /* Smooth scrolling for the whole page */
     scroll-behavior: smooth;
+    overflow-x: clip;
+    max-width: 100vw;
+    /* Slightly larger base text on very small phones scales down with rem elsewhere */
+    font-size: clamp(0.9375rem, 0.9rem + 0.15vw, 1rem);
+  }
+
+  /* Media-rich content: never wider than viewport */
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+    height: auto;
   }
 }
+
+/*
+  Breakpoint reference (Tailwind defaults + xs):
+  - default: 0–479px (phones, incl. 320px)
+  - xs: 480px+
+  - sm: 640px+
+  - md: 768px+
+  - lg: 1024px+ (desktop sidebar shell)
+  - xl: 1280px+
+  - 2xl: 1536px+
+*/
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
@@ -109,6 +139,12 @@
 /* Noise overlay removed (external URL caused 403) */
 
 @layer utilities {
+  /* Minimum ~44×44px tap targets on touch devices (WCAG 2.5.5); use on icon-only controls */
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
   .animate-meteor-effect {
     animation: meteor 5s linear infinite;
   }

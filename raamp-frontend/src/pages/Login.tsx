@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { Button } from "@/components/ui/button";
 import { InputSpotlight } from "@/components/ui/input-spotlight";
 import { Label } from "@/components/ui/label";
@@ -18,8 +19,10 @@ import { VelocityScroll } from "@/components/ui/velocity-scroll";
 import { LiquidLogo } from "@/components/ui/liquid-logo";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { values: form, setValues: setForm, clearPersistence: clearLoginDraft } = useFormPersistence(
+    "raamp_auth_login",
+    { email: "", password: "" }
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -29,14 +32,16 @@ const Login = () => {
   // Autofill email if provided (e.g. from Signup/Verify flow)
   useEffect(() => {
     if (location.state?.email) {
-      setEmail(location.state.email);
+      setForm((prev) => ({ ...prev, email: location.state.email as string }));
     }
-  }, [location.state]);
+  }, [location.state, setForm]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Client-side validation
+    const email = form.email;
+    const password = form.password;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim()) {
       toast.error("Please enter your email address.");
@@ -76,6 +81,7 @@ const Login = () => {
         login(response.user, rememberMe);
       }
 
+      clearLoginDraft();
       toast.success("Welcome back to the command center.");
 
       if (response.user && !response.user.profile_completed) {
@@ -84,8 +90,47 @@ const Login = () => {
         navigate("/dashboard");
       }
     } catch (error: unknown) {
-      // Use the enhanced error messages from the API
-      const apiError = error as { message?: string };
+      const apiError = error as {
+        message?: string;
+        status?: number;
+        errors?: Record<string, string | string[]> & { signup_state?: string | string[] };
+      };
+      const emailFieldError = apiError.errors?.email;
+      const emailErrStr = Array.isArray(emailFieldError)
+        ? emailFieldError.join(" ")
+        : emailFieldError || "";
+      const signupState = apiError.errors?.signup_state;
+      const signupStateStr = Array.isArray(signupState)
+        ? signupState[0]
+        : signupState;
+      const msg = `${apiError.message || ""} ${emailErrStr}`.toLowerCase();
+      // Backend: unverified account OR pending_signup (OTP not completed after /signup)
+      const needsVerification =
+        apiError.status === 400 &&
+        (signupStateStr === "pending_otp" ||
+          msg.includes("verify your email") ||
+          msg.includes("email not verified"));
+
+      if (needsVerification) {
+        const pendingSignup = signupStateStr === "pending_otp";
+        toast.info(
+          pendingSignup
+            ? "Finish signup: enter the verification code we sent to your email."
+            : "Verify your email: enter the code we sent you."
+        );
+        const e = email.trim();
+        const qs = new URLSearchParams({ email: e, from: "login" });
+        if (pendingSignup) qs.set("pending", "1");
+        navigate(`/verify-email?${qs.toString()}`, {
+          state: {
+            email: e,
+            fromSignIn: true,
+            signupPending: pendingSignup,
+          },
+        });
+        return;
+      }
+
       const errorMessage = apiError.message || "An unexpected error occurred.";
       toast.error(errorMessage);
     } finally {
@@ -114,6 +159,7 @@ const Login = () => {
         login(response.user, true); // Defaulting to "remember" for OAuth for better UX
       }
 
+      clearLoginDraft();
       toast.success("Identity verified via Google.");
 
       if (response.user && !response.user.profile_completed) {
@@ -167,10 +213,11 @@ const Login = () => {
               <Label htmlFor="email">Email Address</Label>
               <InputSpotlight
                 id="email"
+                name="email"
                 type="email"
                 placeholder="name@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={form.email}
+                onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
                 required
               />
             </div>
@@ -188,10 +235,11 @@ const Login = () => {
               <div className="relative">
                 <InputSpotlight
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={form.password}
+                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                   required
                 />
                 <button

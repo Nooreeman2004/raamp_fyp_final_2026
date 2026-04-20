@@ -1,9 +1,10 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from "react";
 import { authService } from "@/services/authService";
+import { refreshAccessToken, shouldProactivelyRefresh } from "@/services/tokenRefresh";
 import type { UserResponse, AuthContextType } from "@/types";
 
 interface ExtendedAuthContextType extends AuthContextType {
-  login: (user: UserResponse, remember: boolean) => void;
+  login: (userData: UserResponse, remember: boolean) => void;
 }
 
 const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined);
@@ -23,8 +24,12 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<UserResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionUncertain, setSessionUncertain] = useState(false);
 
-  const loadUser = async () => {
+  const dismissSessionWarning = useCallback(() => setSessionUncertain(false), []);
+  const reportSessionUncertain = useCallback(() => setSessionUncertain(true), []);
+
+  const loadUser = useCallback(async () => {
     try {
       // Check storage (Local first, then Session)
       const stored = localStorage.getItem("user") || sessionStorage.getItem("user");
@@ -44,6 +49,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const profile = await authService.getProfile();
       if (profile) {
         setUser(profile);
+        setSessionUncertain(false);
         // Update the storage that was already in use
         if (localStorage.getItem("user")) {
           localStorage.setItem("user", JSON.stringify(profile));
@@ -53,6 +59,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } else {
         // If backend says no user, clear everything
         setUser(null);
+        setSessionUncertain(false);
         localStorage.removeItem("user");
         sessionStorage.removeItem("user");
       }
@@ -60,18 +67,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const apiError = error as { status?: number };
       if (apiError?.status === 401 || apiError?.status === 403) {
         setUser(null);
+        setSessionUncertain(false);
         localStorage.removeItem("user");
         localStorage.removeItem("token");
         sessionStorage.removeItem("user");
+      } else {
+        // Network / 5xx / timeout: keep cached user but warn — actions may fail until server is reachable
+        if (localStorage.getItem("user") || sessionStorage.getItem("user")) {
+          setSessionUncertain(true);
+        }
       }
-      // For other errors, keep existing user from storage if available
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const login = (userData: UserResponse, remember: boolean) => {
     setUser(userData);
+    setSessionUncertain(false);
     if (remember) {
       localStorage.setItem("user", JSON.stringify(userData));
       sessionStorage.removeItem("user");
@@ -81,9 +94,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     await loadUser();
-  };
+  }, [loadUser]);
 
   const logout = async () => {
     try {
@@ -92,6 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("Logout error:", error);
     } finally {
       setUser(null);
+      setSessionUncertain(false);
       localStorage.removeItem("user");
       localStorage.removeItem("token");
       sessionStorage.removeItem("user");
@@ -99,7 +113,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
-    loadUser();
+    void loadUser();
+  }, [loadUser]);
+
+  // Keep React state in sync when apiClient/tokenRefresh rotates the JWT outside of login()
+  useEffect(() => {
+    const onTokenRefreshed = () => {
+      void loadUser();
+    };
+    window.addEventListener("raamp-token-refreshed", onTokenRefreshed);
+    return () => window.removeEventListener("raamp-token-refreshed", onTokenRefreshed);
+  }, [loadUser]);
+
+  // Proactive rotation before access token expires (requires still-valid token)
+  useEffect(() => {
+    const WINDOW_MS = 10 * 60 * 1000;
+    const tick = () => {
+      const token = localStorage.getItem("token");
+      if (shouldProactivelyRefresh(token, WINDOW_MS)) {
+        void refreshAccessToken();
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 2 * 60 * 1000);
+    return () => window.clearInterval(id);
   }, []);
 
   const value: ExtendedAuthContextType = {
@@ -109,8 +146,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     refreshUser,
     logout,
     login,
+    sessionUncertain,
+    dismissSessionWarning,
+    reportSessionUncertain,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-

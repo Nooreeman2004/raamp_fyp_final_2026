@@ -1,6 +1,7 @@
 # Presentation Layer - Geo-Intent Marketing Engine Router
 # Mounts at /api/v1/geo  (registered in main.py)
 import logging
+import time
 
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
@@ -62,6 +63,33 @@ async def resolve_geo_campaign_business_id(
 router = APIRouter(prefix="/api/v1/geo", tags=["Geo-Intent Marketing Engine"])
 
 
+class ZoneRecommendationRequest(BaseModel):
+    business_id: str
+    keywords: List[str]
+    latitude: float
+    longitude: float
+    radius: int = Field(default=1000, ge=500, le=50000)
+    is_indoor: bool = False
+
+
+class ZoneResult(BaseModel):
+    label: str
+    latitude: float
+    longitude: float
+    score: int
+    urgency: str
+    reason: str
+    signals: Dict[str, float]
+
+
+class ZoneRecommendationResponse(BaseModel):
+    zones: List[ZoneResult]
+    center_lat: float
+    center_lng: float
+    radius_m: int
+    timestamp: datetime
+
+
 # ---------------------------------------------------------------------------
 # Dependency injection
 # ---------------------------------------------------------------------------
@@ -107,6 +135,7 @@ async def compute_heat_score(
         request.longitude,
     )
 
+    t_req = time.perf_counter()
     try:
         result = await service.compute(
             business_id=request.business_id,
@@ -120,8 +149,9 @@ async def compute_heat_score(
         )
     except Exception as exc:
         logger.error(
-            "Heat score computation failed for user=%s: %s",
+            "Heat score computation failed for user=%s after %.2fs: %s",
             current_user_email,
+            time.perf_counter() - t_req,
             exc,
             exc_info=True,
         )
@@ -129,6 +159,13 @@ async def compute_heat_score(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Heat score computation failed. Please try again.",
         ) from exc
+
+    logger.info(
+        "POST /api/v1/geo/heat-score OK — user=%s total_request_time=%.2fs score=%s",
+        current_user_email,
+        time.perf_counter() - t_req,
+        result.get("score"),
+    )
 
     if result["urgency"] in ["High", "Critical"]:
         asyncio.create_task(log_activity(
@@ -155,6 +192,69 @@ async def compute_heat_score(
         longitude=result.get("longitude"),
         radius_km=result.get("radius_km"),
         timestamp=result["timestamp"],
+    )
+
+
+@router.post(
+    "/recommend-zones",
+    response_model=ZoneRecommendationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get top 3 nearby zones to run ads",
+)
+async def recommend_zones(
+    request: ZoneRecommendationRequest,
+    current_user_email: str = Depends(get_current_user_email),
+    service: GeoIntentService = Depends(get_geo_intent_service),
+) -> ZoneRecommendationResponse:
+    """Score 8 compass zones around the business in parallel; return the top 3 by heat score."""
+    credit_service = get_credit_service()
+    await credit_service.check_and_deduct(current_user_email, "geo_radar_scan")
+
+    logger.info(
+        "POST /api/v1/geo/recommend-zones — user=%s business_id=%s lat=%.4f lng=%.4f",
+        current_user_email,
+        request.business_id,
+        request.latitude,
+        request.longitude,
+    )
+
+    t_req = time.perf_counter()
+    try:
+        zones = await service.recommend_zones(
+            business_id=request.business_id,
+            keywords=request.keywords,
+            latitude=request.latitude,
+            longitude=request.longitude,
+            radius=request.radius,
+            is_indoor=request.is_indoor,
+            user_id=current_user_email,
+        )
+    except Exception as exc:
+        logger.error(
+            "Zone recommendation failed for user=%s after %.2fs: %s",
+            current_user_email,
+            time.perf_counter() - t_req,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Zone recommendation failed. Please try again.",
+        ) from exc
+
+    logger.info(
+        "POST /api/v1/geo/recommend-zones OK — user=%s total_request_time=%.2fs zones_returned=%d",
+        current_user_email,
+        time.perf_counter() - t_req,
+        len(zones),
+    )
+
+    return ZoneRecommendationResponse(
+        zones=[ZoneResult(**z) for z in zones],
+        center_lat=request.latitude,
+        center_lng=request.longitude,
+        radius_m=request.radius,
+        timestamp=datetime.utcnow(),
     )
 
 
@@ -655,7 +755,10 @@ async def get_campaign_brief_history(
     service: GeoIntentService = Depends(get_geo_intent_service)
 ):
     """Returns a list of previously generated campaign strategies for this business."""
-    return await service.get_brief_history(business_id, limit=limit)
+    # Align business_id resolution with brief persistence logic so history doesn't look empty
+    # when the caller uses an alias (place_id vs onboarding coords vs user-scoped id).
+    resolved_business_id = await resolve_geo_campaign_business_id(current_user_email, business_id)
+    return await service.get_brief_history(resolved_business_id, user_email=current_user_email, limit=limit)
 
 @router.get(
     "/campaign-brief/{brief_id}",

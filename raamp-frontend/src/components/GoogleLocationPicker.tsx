@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search, MapPin, Loader2, Navigation } from 'lucide-react';
 import { Input } from './ui/input';
+import { loadGoogleMapsScript } from '@/lib/loadGoogleMapsScript';
 
 interface GoogleLocationPickerProps {
     onLocationSelect: (lat: number, lng: number, address?: string) => void;
@@ -37,17 +38,17 @@ export default function GoogleLocationPicker({
     useEffect(() => {
         if (!GOOGLE_KEY || !mapRef.current) return;
 
-        // Load Google Maps Script with Places library
-        if (!window.google) {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places`;
-            script.async = true;
-            script.defer = true;
-            script.onload = initializeMap;
-            document.head.appendChild(script);
-        } else {
-            initializeMap();
-        }
+        let cancelled = false;
+
+        void (async () => {
+            try {
+                await loadGoogleMapsScript(GOOGLE_KEY);
+                if (cancelled) return;
+                initializeMap();
+            } catch {
+                setIsLoading(false);
+            }
+        })();
 
         function initializeMap() {
             if (!mapRef.current || !window.google || !window.google.maps) {
@@ -153,6 +154,9 @@ export default function GoogleLocationPicker({
             }
         }
 
+        return () => {
+            cancelled = true;
+        };
     }, [GOOGLE_KEY]);
 
     const handleCurrentLocation = () => {

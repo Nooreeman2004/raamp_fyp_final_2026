@@ -27,6 +27,8 @@ export const getErrorMessage = (error: unknown): string => {
         return apiError.message || "Invalid request. Please check your input and try again.";
       case 401:
         return "You are not authenticated. Please login again.";
+      case 402:
+        return apiError.message || "Not enough ad credits for this action. Add funds or upgrade to continue.";
       case 403:
         return "You don't have permission to perform this action.";
       case 404:

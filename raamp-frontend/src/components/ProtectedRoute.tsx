@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { authService } from "@/services/authService";
+import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import type { UserResponse } from "@/types";
@@ -15,6 +16,7 @@ const ProtectedRoute = ({ children, requireProfile = false }: ProtectedRouteProp
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserResponse | null>(null);
   const location = useLocation();
+  const { reportSessionUncertain, dismissSessionWarning } = useAuth();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -37,6 +39,7 @@ const ProtectedRoute = ({ children, requireProfile = false }: ProtectedRouteProp
           if (profile) {
             setUser(profile);
             setIsAuthenticated(true);
+            dismissSessionWarning();
             try {
               localStorage.setItem("user", JSON.stringify(profile));
             } catch {}
@@ -50,11 +53,14 @@ const ProtectedRoute = ({ children, requireProfile = false }: ProtectedRouteProp
             setIsAuthenticated(false);
             localStorage.removeItem("user");
             localStorage.removeItem("token");
+            dismissSessionWarning();
           } else {
-            // Network error or other issue - allow access but log error
+            // Network error or other issue — allow access only if cached user exists; surface warning via Layout
             console.error("Auth check failed:", error);
-            // For network errors, we'll allow access if localStorage has user data
             setIsAuthenticated(stored ? true : false);
+            if (stored) {
+              reportSessionUncertain();
+            }
           }
         }
       } catch (error: unknown) {
@@ -67,7 +73,7 @@ const ProtectedRoute = ({ children, requireProfile = false }: ProtectedRouteProp
     };
 
     checkAuth();
-  }, []);
+  }, [dismissSessionWarning, reportSessionUncertain]);
 
   if (isLoading) {
     return (

@@ -350,15 +350,13 @@ export const trendService = {
         return apiClient.post(`/trends/${trendId}/ai-analysis/regenerate`, {});
     },
 
-    // --- INTELLIGENCE ---
-    getViralAudio: async (platform: string, geo: string, niche: string): Promise<any> => {
-        const qs = new URLSearchParams({ platform, geo, niche }).toString();
-        return apiClient.get(`/trends/viral-audio?${qs}`);
+    // --- INTELLIGENCE (Module 3 placeholders: no backend routes yet; avoid 404 noise in demo) ---
+    getViralAudio: async (_platform: string, _geo: string, _niche: string): Promise<{ recommended_tracks: unknown[] }> => {
+        return Promise.resolve({ recommended_tracks: [] });
     },
 
-    getInfluencerRadar: async (geo: string, niche: string, keyword?: string): Promise<any> => {
-        const qs = new URLSearchParams({ geo, niche, ...(keyword ? { keyword } : {}) }).toString();
-        return apiClient.get(`/trends/influencer-radar?${qs}`);
+    getInfluencerRadar: async (_geo: string, _niche: string, _keyword?: string): Promise<{ influencers: unknown[] }> => {
+        return Promise.resolve({ influencers: [] });
     },
 
     // --- EXECUTE (STREAMING) ---

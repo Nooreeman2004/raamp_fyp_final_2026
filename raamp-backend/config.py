@@ -62,6 +62,39 @@ class Config:
     
     # Environment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+
+    # CORS: comma-separated extra origins (production, preview, tunnels). Defaults cover local dev.
+    # Example: CORS_ALLOW_ORIGINS=https://app.example.com,https://preview.vercel.app
+    CORS_ALLOW_ORIGINS: str = os.getenv("CORS_ALLOW_ORIGINS", "")
+
+    @staticmethod
+    def cors_allow_origins_list() -> list[str]:
+        """Merge built-in dev origins with CORS_ALLOW_ORIGINS (comma-separated)."""
+        defaults: list[str] = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:8080",
+            "http://localhost:8081",
+            "http://localhost:8082",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:8080",
+            "http://127.0.0.1:8081",
+            "http://127.0.0.1:8082",
+            "http://[::1]:8080",
+            "http://192.168.100.31:8080",
+        ]
+        merged = list(defaults)
+        extra = Config.CORS_ALLOW_ORIGINS.strip()
+        if extra:
+            for part in extra.split(","):
+                origin = part.strip()
+                if origin and origin not in merged:
+                    merged.append(origin)
+        # SPA URL (OAuth redirects) — include as allowed origin when not localhost duplicate
+        fe = os.getenv("FRONTEND_URL", "").strip()
+        if fe and fe not in merged:
+            merged.append(fe)
+        return merged
     
     # Facebook App (OAuth)
     FACEBOOK_APP_ID: str = os.getenv("FACEBOOK_APP_ID", "")

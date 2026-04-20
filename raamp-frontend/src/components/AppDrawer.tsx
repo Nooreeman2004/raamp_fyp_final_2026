@@ -147,7 +147,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-primary hover:bg-foreground/5 transition-all"
+            className="touch-target text-muted-foreground hover:text-primary hover:bg-foreground/5 transition-all sm:min-h-10 sm:min-w-10"
             aria-label="Open menu"
           >
             <Menu className="w-6 h-6" />
@@ -155,7 +155,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
         </SheetTrigger>
         <SheetContent
           side="left"
-          className="w-[300px] sm:w-[340px] p-0 flex flex-col bg-background/95 backdrop-blur-2xl border-r border-border/50 text-foreground"
+          className="w-[min(100vw-1rem,21.25rem)] sm:w-[min(100vw-2rem,21.25rem)] p-0 flex flex-col bg-background/95 backdrop-blur-2xl border-r border-border/50 text-foreground max-w-[100vw]"
         >
           {/* Glow Slide Effect Container */}
           <div
@@ -238,7 +238,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                               to={item.href}
                               onClick={() => setOpen(false)}
                               className={`
-                                group flex items-center gap-3 px-3 py-2.5 rounded-r-lg transition-all duration-300 relative overflow-hidden
+                                group flex min-h-[2.75rem] items-center gap-3 px-3 py-2.5 rounded-r-lg transition-all duration-300 relative overflow-hidden
                                 ${active
                                   ? 'bg-primary/10 text-primary border-l-2 border-primary'
                                   : 'text-muted-foreground/80 hover:text-foreground hover:bg-foreground/5 border-l-2 border-transparent'

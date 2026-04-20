@@ -78,6 +78,9 @@ celerybeat.pid
 .env.local
 .env.*.local
 .venv
+
+# User uploads / generated assets (never commit)
+uploaded_files/
 env/
 venv/
 ENV/

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { loadGoogleMapsScript } from '@/lib/loadGoogleMapsScript';
 
 interface HeatmapMapProps {
   userLocation?: {
@@ -36,20 +37,12 @@ export default function HeatmapMap({
   useEffect(() => {
     if (!GOOGLE_KEY || !mapRef.current) return;
 
-    // Load Google Maps script if not already loaded
-    if (!window.google) {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=visualization`;
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeMap;
-      document.head.appendChild(script);
-    } else {
-      initializeMap();
-    }
+    const markersRef: any[] = [];
+    let heatmapLayer: any = null;
+    let cancelled = false;
 
     function initializeMap() {
-      if (!mapRef.current || !window.google) {
+      if (!mapRef.current || !window.google?.maps) {
         setIsLoading(false);
         return;
       }
@@ -72,9 +65,6 @@ export default function HeatmapMap({
       });
 
       setMap(mapInstance);
-
-      // Clear existing markers
-      markers.forEach(marker => marker.setMap(null));
 
       const newMarkers: any[] = [];
 
@@ -144,6 +134,7 @@ export default function HeatmapMap({
         newMarkers.push(marker);
       });
 
+      newMarkers.forEach((m) => markersRef.push(m));
       setMarkers(newMarkers);
 
       // Create heatmap layer for high intent areas
@@ -153,15 +144,14 @@ export default function HeatmapMap({
           weight: (area.intensity || 0.8) * 10,
         }));
 
-        const heatmapLayer = new window.google.maps.visualization.HeatmapLayer({
+        const hm = new window.google.maps.visualization.HeatmapLayer({
           data: heatmapData,
           map: mapInstance,
           radius: 50,
           opacity: 0.6,
         });
 
-        // Gradient for heatmap (red for high intent)
-        heatmapLayer.set('gradient', [
+        hm.set('gradient', [
           'rgba(255, 0, 0, 0)',
           'rgba(255, 0, 0, 0.4)',
           'rgba(255, 0, 0, 0.6)',
@@ -169,7 +159,8 @@ export default function HeatmapMap({
           'rgba(255, 0, 0, 1)',
         ]);
 
-        setHeatmap(heatmapLayer);
+        heatmapLayer = hm;
+        setHeatmap(hm);
       }
 
       // Fit bounds if we have multiple locations
@@ -185,11 +176,21 @@ export default function HeatmapMap({
       setIsLoading(false);
     }
 
+    void (async () => {
+      try {
+        await loadGoogleMapsScript(GOOGLE_KEY);
+        if (cancelled) return;
+        initializeMap();
+      } catch {
+        setIsLoading(false);
+      }
+    })();
+
     return () => {
-      // Cleanup markers
-      markers.forEach(marker => marker.setMap(null));
-      if (heatmap) {
-        heatmap.setMap(null);
+      cancelled = true;
+      markersRef.forEach(marker => marker.setMap(null));
+      if (heatmapLayer) {
+        heatmapLayer.setMap(null);
       }
     };
   }, [userLocation, highIntentAreas, GOOGLE_KEY]);

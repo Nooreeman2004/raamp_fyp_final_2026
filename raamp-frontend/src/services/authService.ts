@@ -83,6 +83,13 @@ export const authService = {
   getProfile: async (): Promise<UserResponse> => {
     return apiClient.get<UserResponse>('/auth/profile');
   },
+
+  /**
+   * Rotate access token while the current one is still valid (same as proactive refresh).
+   */
+  refreshSession: async (): Promise<LoginResponse> => {
+    return apiClient.post<LoginResponse>('/auth/refresh', {});
+  },
   /**
    * Send OTP for password change
    */

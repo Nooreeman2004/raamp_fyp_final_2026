@@ -5,9 +5,9 @@ import { Slider } from "@/components/ui/slider";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MapPin, Target, TrendingUp, Users, Globe, Radar, 
-  Crosshair, Scan, RefreshCw, Layers, Info, Map as MapIcon,
+  Scan, RefreshCw, Layers, Info, Map as MapIcon,
   Activity, Fingerprint, Calendar, Mail, Megaphone, Clock, MapPinned,
-  ChevronRight, ArrowRight
+  ChevronRight, ArrowRight, Loader2
 } from "lucide-react";
 import {
   Tooltip,
@@ -21,11 +21,29 @@ import { BlurText } from "@/components/ui/text-reveal";
 import Reveal from "@/components/ui/Reveal";
 import { staggerContainer, fadeInUp, hoverScale, hoverLift } from "@/utils/animations";
 import { businessService } from "@/services/businessService";
-import { geoIntentService, HeatScoreResponse, HeatmapResponse, CampaignLogEntry, CampaignBrief } from "@/services/geoIntentService";
+import { geoIntentService, HeatScoreResponse, HeatmapResponse, CampaignLogEntry, CampaignBrief, ZoneResult } from "@/services/geoIntentService";
 import GeoIntentMap, { GeoIntentMapRef } from "@/components/GeoIntentMap";
 import GeoCampaignBriefModal from "@/components/GeoCampaignBriefModal";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getErrorMessage } from "@/utils/errorHandler";
+import { useAuth } from "@/hooks/useAuth";
+
+/** Stable id so loading toast updates in place (success/error). */
+const FIND_ZONES_TOAST_ID = "geo-intent-find-zones";
+
+/** Maps API status strings to UI — free tier uses `limited` for trends/weather. */
+function signalUi(status: string | undefined) {
+  const s = (status || "").toLowerCase();
+  if (s === "ok") {
+    return { dot: "bg-primary shadow-[0_0_8px_rgba(0,224,208,0.8)]", label: "ACTIVE", bar: "bg-primary" };
+  }
+  if (s === "limited") {
+    return { dot: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]", label: "PLAN", bar: "bg-amber-500/80" };
+  }
+  return { dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]", label: "DEGRADED", bar: "bg-red-500" };
+}
 
 /**
  * Stable geo key for API calls: prefer Google `place_id` from Business/onboarding;
@@ -57,6 +75,7 @@ function resolveGeoBusinessId(
 }
 
 const GeoIntent = () => {
+  const { user } = useAuth();
   const [radius, setRadius] = useState<number[]>(() => {
     const saved = localStorage.getItem("geointent_radius");
     return saved ? [parseInt(saved)] : [5];
@@ -79,7 +98,35 @@ const GeoIntent = () => {
   const [briefLoading, setBriefLoading] = useState(false);
   const [strategyHistory, setStrategyHistory] = useState<CampaignBrief[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [recommendedZones, setRecommendedZones] = useState<ZoneResult[]>([]);
+  const [zonesLoading, setZonesLoading] = useState(false);
   const mapRef = useRef<GeoIntentMapRef>(null);
+  const skipRadiusDebounceOnce = useRef(true);
+
+  const tier = (user as any)?.subscriptionTier || "free";
+  const isPremium = String(tier).toLowerCase() === "premium";
+
+  const latestBrief = campaignBrief || (strategyHistory.length > 0 ? strategyHistory[0] : null);
+  const previewCaption =
+    latestBrief?.caption ||
+    latestBrief?.caption_variants?.aggressive ||
+    latestBrief?.caption_variants?.urgency ||
+    `"Hey! ${(data?.signals?.weather_score ?? 0) > 0.5 ? "Perfect weather alert!" : "Limited time opportunity!"} Get a free sample of ${setup?.business_type || "our special"} at ${businessName}. Just ${radius[0]}KM away from you right now."`;
+
+  const status = data?.signals_status;
+  const hasAnySignalIssues =
+    Boolean(status) &&
+    (status?.trends !== "ok" || status?.places !== "ok" || status?.weather !== "ok");
+  const hasLimitedSignals =
+    Boolean(status) &&
+    (String(status?.trends).toLowerCase() === "limited" ||
+      String(status?.places).toLowerCase() === "limited" ||
+      String(status?.weather).toLowerCase() === "limited");
+  const signalMsg = hasLimitedSignals
+    ? isPremium
+      ? "One or more sources are limited (quota/rate limits). The score blends what we could fetch — ~50% often means neutral fallback, not weak market."
+      : "One or more sources are limited (free plan limits, API quota, or rate limits). The score blends what we could fetch — ~50% often means neutral fallback, not weak market."
+    : "One or more sources are unavailable (API key missing, quota/rate limits, or upstream outage). The score blends what we could fetch — ~50% often means neutral fallback, not weak market.";
 
   const fetchSetup = async () => {
     try {
@@ -89,7 +136,12 @@ const GeoIntent = () => {
         setBusinessName(response.business_name);
         return response;
       }
-    } catch (e) {
+    } catch (e: unknown) {
+      const status = (e as { status?: number })?.status;
+      // Backend returns 404 when no business / hyperlocal row exists — expected until onboarding is done.
+      if (status === 404) {
+        return null;
+      }
       console.error("Failed to fetch setup", e);
       toast.error("Profile sync failed. Check your network connection.");
     }
@@ -181,6 +233,83 @@ const GeoIntent = () => {
       fetchData();
   };
 
+  const handleRecommendZones = async () => {
+    if (zonesLoading) return;
+
+    const activeSetup = setup;
+    const nameForId = activeSetup?.business_name || businessName;
+    const businessId = resolveGeoBusinessId(activeSetup, nameForId);
+    const keywords = activeSetup?.business_type
+      ? [activeSetup.business_type, "business", "store"]
+      : ["coffee", "cafe", "espresso"];
+    const lat = activeSetup?.latitude ?? 33.7215;
+    const lng = activeSetup?.longitude ?? 73.0433;
+
+    setZonesLoading(true);
+    toast.loading("Finding best zones… scoring compass points (can take 1–2 min).", {
+      id: FIND_ZONES_TOAST_ID,
+      duration: 600_000,
+    });
+    try {
+      const result = await geoIntentService.recommendZones({
+        business_id: businessId,
+        keywords,
+        latitude: lat,
+        longitude: lng,
+        radius: radius[0] * 1000,
+        is_indoor: true,
+      });
+      setRecommendedZones(result.zones);
+      toast.success(`Ranked ${result.zones.length} high-intent zones around your scan radius.`, {
+        id: FIND_ZONES_TOAST_ID,
+      });
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e), { id: FIND_ZONES_TOAST_ID });
+    } finally {
+      setZonesLoading(false);
+    }
+  };
+
+  const handleDeployZone = async (zone: ZoneResult) => {
+    if (briefLoading) return;
+    setBriefLoading(true);
+    setCampaignBrief(null);
+    setBriefModalOpen(true);
+    toast.loading("Generating brief for this zone…", { id: "geo-brief" });
+    try {
+      const keywords = setup?.business_type
+        ? [setup.business_type, "business", "store"]
+        : ["coffee", "cafe", "espresso"];
+      const nameForId = setup?.business_name || businessName;
+      const businessId = resolveGeoBusinessId(setup, nameForId);
+
+      const brief = await geoIntentService.generateCampaignBrief({
+        lat: zone.latitude,
+        lng: zone.longitude,
+        radius_km: radius[0],
+        heat_score: zone.score,
+        urgency: zone.urgency ?? "Medium",
+        trends_score: (zone.signals?.trends_score ?? 0) * 100,
+        weather_score: (zone.signals?.weather_score ?? 0) * 100,
+        places_score: (zone.signals?.places_score ?? 0) * 100,
+        reasoning: zone.reason,
+        persona_split: data?.persona_split || [],
+        keywords,
+        business_id: businessId,
+      });
+
+      setCampaignBrief(brief);
+      toast.success(`Brief ready for zone ${zone.label}.`, { id: "geo-brief" });
+      fetchStrategyHistory();
+    } catch (err) {
+      console.error("Brief generation failed:", err);
+      toast.error(getErrorMessage(err), { id: "geo-brief" });
+      setBriefModalOpen(false);
+    } finally {
+      setBriefLoading(false);
+    }
+  };
+
   const handleDeployClick = async () => {
     if (!data) {
         toast.error("Please run a radar scan first to generate a brief.");
@@ -202,10 +331,10 @@ const GeoIntent = () => {
             lng: data.longitude || setup?.longitude || 73.0433,
             radius_km: radius[0],
             heat_score: data.score,
-            urgency: data.urgency,
-            trends_score: data.signals.trends_score * 100,
-            weather_score: data.signals.weather_score * 100,
-            places_score: data.signals.places_score * 100,
+            urgency: data.urgency ?? "Medium",
+            trends_score: (data.signals?.trends_score ?? 0) * 100,
+            weather_score: (data.signals?.weather_score ?? 0) * 100,
+            places_score: (data.signals?.places_score ?? 0) * 100,
             reasoning: data.reasoning || "Consistent commercial intent detected.",
             persona_split: data.persona_split || [],
             keywords,
@@ -272,7 +401,7 @@ const GeoIntent = () => {
               const nameForId = activeSetup.business_name || businessName;
               const bid = resolveGeoBusinessId(activeSetup, nameForId);
               const hist = await geoIntentService.getHistory(bid);
-              setHistory(hist.logs);
+              setHistory(Array.isArray(hist?.logs) ? hist.logs : []);
           } catch (e) {
               console.error("History fetch failed", e);
           }
@@ -293,21 +422,35 @@ const GeoIntent = () => {
     }
   }, [data]);
 
-  // Debounced re-fetch when radius changes
+  // Debounced re-fetch when radius changes (skip once after initial load — init already scanned)
   useEffect(() => {
     if (!loading && !refreshing) {
-        localStorage.setItem("geointent_radius", radius[0].toString());
-        const timer = setTimeout(() => {
-            fetchData();
-        }, 1000);
-        return () => clearTimeout(timer);
+      localStorage.setItem("geointent_radius", radius[0].toString());
+      if (skipRadiusDebounceOnce.current) {
+        skipRadiusDebounceOnce.current = false;
+        return;
+      }
+      const timer = setTimeout(() => {
+        fetchData();
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-  }, [radius]);
+  }, [radius, loading, refreshing, fetchData]);
 
   return (
     <Layout>
       <TooltipProvider delayDuration={100}>
         <div className="space-y-8">
+        {data && hasAnySignalIssues && (
+          <Alert className="border-amber-500/40 bg-amber-500/10 text-foreground">
+            <Radar className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-900 dark:text-amber-100">Signal quality</AlertTitle>
+            <AlertDescription className="text-sm text-amber-950/90 dark:text-amber-50/90">
+              {signalMsg}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Header */}
         <Reveal variant="blurInUp">
           <div className="flex items-center justify-between gap-4 mb-2">
@@ -350,6 +493,21 @@ const GeoIntent = () => {
               </Button>
               <Button
                 variant="outline"
+                size="sm"
+                onClick={handleRecommendZones}
+                disabled={loading || refreshing || zonesLoading}
+                aria-busy={zonesLoading}
+                className="bg-card border-primary/30 text-primary hover:bg-primary/20 font-mono text-[10px] hidden md:flex min-w-[9rem]"
+              >
+                {zonesLoading ? (
+                  <Loader2 className="w-3 h-3 mr-2 animate-spin shrink-0" aria-hidden />
+                ) : (
+                  <Layers className="w-3 h-3 mr-2 shrink-0" aria-hidden />
+                )}
+                {zonesLoading ? "SCANNING…" : "FIND BEST ZONES"}
+              </Button>
+              <Button
+                variant="outline"
                 size="icon"
                 onClick={handleRefresh}
                 disabled={loading || refreshing}
@@ -377,8 +535,16 @@ const GeoIntent = () => {
                   TARGETING ZONE BUILDER
                 </h2>
                 <div className="flex items-center gap-2 text-[10px] font-mono text-primary border border-primary/30 px-2 py-1 rounded bg-primary/5">
-                  <div className={`w-2 h-2 rounded-full ${refreshing ? 'bg-amber-500' : 'bg-primary'} animate-pulse`} />
-                  {refreshing ? 'SYNCING LIVE INTENT' : 'LIVE DATA SCANNING'}
+                  <div
+                    className={`w-2 h-2 rounded-full animate-pulse ${
+                      zonesLoading ? "bg-amber-500" : refreshing ? "bg-amber-500" : "bg-primary"
+                    }`}
+                  />
+                  {zonesLoading
+                    ? "RANKING ZONES…"
+                    : refreshing
+                      ? "SYNCING LIVE INTENT"
+                      : "LIVE DATA SCANNING"}
                 </div>
               </div>
 
@@ -389,16 +555,11 @@ const GeoIntent = () => {
                   center={{ lat: setup?.latitude || 33.7215, lng: setup?.longitude || 73.0433 }}
                   radiusMeters={radius[0] * 1000}
                   heatmapData={heatmapData}
-                  onDrawingComplete={(coords) => {
-                      if (coords.length > 0) {
-                          // Calculate centroid
-                          const lat = coords.reduce((sum, c) => sum + c.lat, 0) / coords.length;
-                          const lng = coords.reduce((sum, c) => sum + c.lng, 0) / coords.length;
-                          
-                          toast.success(`Custom zone captured. Refocusing radar to: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-                          fetchData(setup, lat, lng);
-                      }
-                  }}
+                  zonePins={recommendedZones.map((z) => ({
+                    lat: z.latitude,
+                    lng: z.longitude,
+                    label: z.label,
+                  }))}
                 />
                 
                 {/* Map Legend Overlay */}
@@ -419,14 +580,40 @@ const GeoIntent = () => {
                     <div className="w-2 h-2 rounded-full border border-primary/50" />
                     <span className="text-[10px] font-mono text-foreground font-bold tracking-tighter uppercase">Scanning Boundary</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                    <span className="text-[10px] font-mono text-foreground font-bold tracking-tighter uppercase">Recommended zone</span>
+                  </div>
                 </div>
 
-                {!loading && heatmapData.length === 0 && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/20 pointer-events-none">
-                     <div className="px-4 py-2 bg-background/95 border border-primary/40 rounded-full flex items-center gap-2 shadow-[0_0_20px_rgba(0,224,208,0.2)]">
-                        <Radar className="w-4 h-4 text-primary animate-pulse" />
-                        <span className="text-[11px] font-mono text-primary font-bold tracking-widest uppercase">Scanner Active: Searching for Activity...</span>
-                     </div>
+                {loading && !data && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/40 pointer-events-none">
+                    <div className="px-4 py-2 bg-background/95 border border-primary/40 rounded-full flex items-center gap-2 shadow-[0_0_20px_rgba(0,224,208,0.2)]">
+                      <Radar className="w-4 h-4 text-primary animate-pulse" />
+                      <span className="text-[11px] font-mono text-primary font-bold tracking-widest uppercase">
+                        Running radar scan…
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {zonesLoading && (
+                  <div className="absolute inset-0 z-[25] flex items-center justify-center bg-background/55 backdrop-blur-[2px]">
+                    <div className="mx-3 max-w-sm rounded-lg border border-amber-500/40 bg-card/95 px-4 py-3 shadow-lg flex flex-col items-center gap-2 text-center pointer-events-none">
+                      <Loader2 className="h-8 w-8 text-amber-500 animate-spin" aria-hidden />
+                      <p className="text-xs font-mono font-bold text-foreground uppercase tracking-wide">
+                        Finding best zones…
+                      </p>
+                      <p className="text-[10px] font-mono text-muted-foreground leading-snug">
+                        Scoring several directions in parallel. Please wait — do not click again.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {!loading && data && heatmapData.length === 0 && (
+                  <div className="absolute bottom-3 left-3 right-3 z-10 pointer-events-none">
+                    <div className="px-3 py-2 bg-card/95 border border-border/60 rounded-lg text-[10px] font-mono text-muted-foreground text-center">
+                      Heatmap dots appear as we accumulate saved scans. Your heat score above is from this run.
+                    </div>
                   </div>
                 )}
               </div>
@@ -474,23 +661,103 @@ const GeoIntent = () => {
                 )}
 
                 <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
-                  <Button 
-                    onClick={() => {
-                        mapRef.current?.startDrawing();
-                        toast.info("Custom radar sweep initiated. Draw a zone on the map.");
-                    }}
-                    className="w-full bg-primary/10 text-primary border border-primary/50 hover:bg-primary hover:text-primary-foreground font-mono font-bold tracking-wider transition-all h-12"
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRecommendZones}
+                    disabled={zonesLoading || loading || refreshing}
+                    aria-busy={zonesLoading}
+                    className="w-full border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 font-mono font-bold tracking-wider h-12"
                   >
-                    <Crosshair className="w-4 h-4 mr-2" />
-                    INITIATE CUSTOM ZONE DRAWING
+                    {zonesLoading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin shrink-0" aria-hidden />
+                    ) : (
+                      <Layers className="w-4 h-4 mr-2 shrink-0" aria-hidden />
+                    )}
+                    {zonesLoading ? "SCANNING ZONES…" : "FIND BEST ZONES"}
                   </Button>
                 </motion.div>
+                <p className="text-[10px] text-muted-foreground font-mono">
+                  Tip: adjust the radius slider or use Find Best Zones to explore intent. Custom polygon drawing was removed for demo stability (Maps Drawing library deprecation).
+                </p>
               </div>
             </HolographicCard>
           </motion.div>
 
           {/* Right Column - Insights */}
           <div className="space-y-6">
+            {/* Top Zones (dedicated card, not inside "WHY HOT") */}
+            {recommendedZones.length > 0 && (
+              <motion.div variants={fadeInUp}>
+                <HolographicCard className="p-6 border-amber-500/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold font-mono text-amber-600 dark:text-amber-300 flex items-center gap-2">
+                      <Layers className="w-4 h-4" />
+                      TOP ZONES (MULTI-ZONE SCAN)
+                    </h3>
+                    <Badge
+                      variant="outline"
+                      className="text-[9px] font-mono border-amber-500/30 text-amber-700 dark:text-amber-300"
+                    >
+                      {recommendedZones.length} ZONES
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
+                    {recommendedZones.map((zone) => (
+                      <div
+                        key={`${zone.label}-${zone.latitude.toFixed(4)}`}
+                        className="p-3 rounded border border-amber-500/30 bg-amber-500/5 space-y-2"
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <span className="text-xs font-mono font-bold text-foreground">{zone.label}</span>
+                            <span className="text-[10px] font-mono text-muted-foreground ml-2">
+                              {zone.score}/100
+                            </span>
+                            <div className="mt-1 text-[9px] font-mono text-muted-foreground/80">
+                              {zone.latitude.toFixed(5)}, {zone.longitude.toFixed(5)}{" "}
+                              <a
+                                className="ml-2 text-primary hover:underline"
+                                href={`https://www.google.com/maps?q=${zone.latitude},${zone.longitude}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                View on map
+                              </a>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[9px] font-mono",
+                              zone.urgency === "Critical" || zone.urgency === "High"
+                                ? "border-red-500/50 text-red-600"
+                                : "border-primary/40 text-primary"
+                            )}
+                          >
+                            {zone.urgency}
+                          </Badge>
+                        </div>
+                        <p className="text-[10px] font-mono text-muted-foreground leading-snug">{zone.reason}</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="w-full font-mono text-[10px] h-8"
+                          disabled={briefLoading}
+                          onClick={() => handleDeployZone(zone)}
+                        >
+                          <MapPinned className="w-3 h-3 mr-2" />
+                          Deploy Here
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </HolographicCard>
+              </motion.div>
+            )}
+
             {/* Geo-Intent Insights */}
             <motion.div variants={fadeInUp}>
               <HolographicCard className="p-6">
@@ -504,8 +771,10 @@ const GeoIntent = () => {
                       <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                       <p className="text-xs font-mono text-primary animate-pulse">Scanning frequencies...</p>
                     </div>
-                  ) : data ? (
+                  ) : (data || recommendedZones.length > 0) ? (
                     <>
+                      {data && (
+                        <>
                       {/* Overall Score */}
                       <motion.div variants={hoverLift} className="flex flex-col gap-2 p-3 bg-card rounded border border-border/50">
                         <div className="flex justify-between items-center">
@@ -518,26 +787,28 @@ const GeoIntent = () => {
                       </motion.div>
                       
                       {/* Signals Breakdown */}
-                      {[
+                      {data.signals && data.signals_status ? [
                         { name: "Regional Intent", score: data.signals.trends_score, status: data.signals_status.trends, desc: "Macro search volume for your business type at a regional/city level." },
                         { name: "Local Density", score: data.signals.places_score, status: data.signals_status.places, desc: "Hyper-local physical commercial activity in your exact search radius." },
                         { name: "Weather Boost", score: data.signals.weather_score, status: data.signals_status.weather, desc: "Real-time weather favorability for target audience mobility." }
-                      ].map((signal, idx) => (
+                      ].map((signal, idx) => {
+                        const sui = signalUi(signal.status);
+                        return (
                         <motion.div
                           key={idx}
                           variants={hoverLift}
                           className="flex items-center justify-between p-3 bg-card rounded border border-border/50 hover:border-primary/50 transition-all group"
                         >
                           <div className="flex items-center gap-3 w-full">
-                            <div className={`w-2 h-2 rounded-full ${signal.status === 'ok' ? 'bg-primary shadow-[0_0_8px_rgba(0,224,208,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'} animate-pulse`}></div>
+                            <div className={`w-2 h-2 rounded-full ${sui.dot} animate-pulse`} />
                             <div className="flex-1">
                               <div className="flex justify-between items-center">
                                 <p className="font-bold text-[10px] font-mono text-foreground group-hover:text-primary transition-colors tracking-tighter">{signal.name.toUpperCase()}</p>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <button className="outline-none focus:ring-1 focus:ring-primary rounded-full transition-opacity opacity-60 hover:opacity-100 flex items-center gap-1 group/tip">
+                                    <button type="button" className="outline-none focus:ring-1 focus:ring-primary rounded-full transition-opacity opacity-60 hover:opacity-100 flex items-center gap-1 group/tip">
                                        <Radar className="w-3 h-3 text-primary group-hover/tip:animate-pulse" />
-                                       <span className="text-[9px] font-mono text-muted-foreground uppercase">{signal.status === 'ok' ? 'ACTIVE' : 'FAILED'}</span>
+                                       <span className="text-[9px] font-mono text-muted-foreground uppercase">{sui.label}</span>
                                     </button>
                                   </TooltipTrigger>
                                   <TooltipContent side="right" className="bg-popover border border-border p-4 max-w-[280px] shadow-2xl text-popover-foreground z-[100] rounded-xl">
@@ -557,14 +828,18 @@ const GeoIntent = () => {
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="h-1 flex-1 bg-foreground/10 rounded-full overflow-hidden mt-1">
-                                  <div className={`h-full ${signal.status === 'ok' ? 'bg-primary' : 'bg-red-500'}`} style={{ width: `${signal.score * 100}%` }} />
+                                  <div className={`h-full ${sui.bar}`} style={{ width: `${signal.score * 100}%` }} />
                                 </div>
                                 <p className="text-[10px] text-muted-foreground/60 font-mono w-8 text-right">{(signal.score * 100).toFixed(0)}%</p>
                               </div>
                             </div>
                           </div>
                         </motion.div>
-                      ))}
+                      );
+                      }) : null}
+                        </>
+                      )}
+
                     </>
                   ) : errorMsg ? (
                     <div className="flex flex-col items-center justify-center h-full space-y-4 p-4 text-center">
@@ -608,7 +883,7 @@ const GeoIntent = () => {
                      <div className="p-4 bg-foreground/5 rounded border border-border/50 hover:border-primary/30 transition-colors">
                        <Target className={`w-5 h-5 mb-2 ${data?.is_critical ? 'text-red-500 animate-pulse' : 'text-primary'}`} />
                        <p className={`text-2xl font-bold font-heading font-semibold ${data?.is_critical ? 'text-red-400' : 'text-foreground'}`}>
-                         {loading ? "..." : (data?.urgency.toUpperCase() || "UNKNOWN")}
+                         {loading ? "..." : (data?.urgency?.toUpperCase() ?? "UNKNOWN")}
                        </p>
                        <p className="text-[10px] text-muted-foreground font-mono uppercase">Zone Urgency</p>
                      </div>
@@ -625,7 +900,7 @@ const GeoIntent = () => {
                    <div className="p-4 bg-primary/5 rounded border border-primary/20">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-[9px] font-mono text-muted-foreground uppercase opacity-70">Projected Reach</span>
-                        <span className="text-[10px] font-mono text-primary font-bold">~{(data?.signals.places_score || 0) * 1200 + 450} USERS</span>
+                        <span className="text-[10px] font-mono text-primary font-bold">~{(data?.signals?.places_score ?? 0) * 1200 + 450} USERS</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-[9px] font-mono text-muted-foreground uppercase opacity-70">Conv. Probability</span>
@@ -691,6 +966,15 @@ const GeoIntent = () => {
                   </Tooltip>
               </div>
               <div className="space-y-4">
+                 {persona.length === 0 && (
+                   <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+                     {loading
+                       ? "Inferring visitor mix from POI signals…"
+                       : data
+                         ? "No persona split for this run — try a larger radius or rescan when Places data is strong."
+                         : "Run a radar scan to estimate visitor personas from local POI density."}
+                   </p>
+                 )}
                  {persona.map((p, i) => (
                      <div key={i} className="group">
                         <div className="flex justify-between items-end mb-1">
@@ -742,7 +1026,7 @@ const GeoIntent = () => {
                     SUGGESTED CREATIVE
                  </p>
                  <p className="text-xs font-mono text-foreground leading-relaxed italic mb-3">
-                    "Hey! {data?.signals.weather_score && data.signals.weather_score > 0.5 ? 'Perfect weather alert!' : 'Limited time opportunity!'} Get a free sample of {setup?.business_type || 'our special'} at {businessName}. Just {radius[0]}KM away from you right now."
+                    {previewCaption}
                  </p>
                   <div className="flex justify-between items-center text-[10px] font-mono text-muted-foreground mt-4">
                     <span>Tone: {data?.score && data.score > 70 ? 'High Energy' : 'Direct/Soft'}</span>
@@ -797,7 +1081,7 @@ const GeoIntent = () => {
                               </td>
                               <td className="py-4">
                                  <span className={`px-2 py-0.5 rounded text-[10px] ${log.urgency === 'Critical' ? 'bg-red-500/20 text-red-400' : 'bg-primary/20 text-primary'}`}>
-                                    {log.urgency.toUpperCase()}
+                                    {(log.urgency ?? "").toUpperCase()}
                                  </span>
                               </td>
                            </tr>

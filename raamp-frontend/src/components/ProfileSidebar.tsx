@@ -28,7 +28,7 @@ const ProfileSidebar = ({ open, onOpenChange }: ProfileSidebarProps) => {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md">
+      <SheetContent className="w-full min-w-0 max-w-[100vw] sm:max-w-md overflow-x-hidden">
         <SheetHeader>
           <SheetTitle className="text-2xl font-bold">
             Manage Profile
@@ -46,7 +46,7 @@ const ProfileSidebar = ({ open, onOpenChange }: ProfileSidebarProps) => {
                 to={item.href}
                 onClick={() => onOpenChange(false)}
                 className={cn(
-                  "flex items-start gap-4 p-4 rounded-lg border-2 transition-all cursor-pointer hover:border-primary/50",
+                  "flex min-h-[3.25rem] items-start gap-4 p-4 rounded-lg border-2 transition-all cursor-pointer hover:border-primary/50 sm:min-h-0",
                   isActive 
                     ? "border-primary bg-primary/5" 
                     : "border-primary/10 bg-card/50"

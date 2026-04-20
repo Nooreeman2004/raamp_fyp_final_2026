@@ -4,6 +4,8 @@ from typing import Optional
 import os
 from jose import jwt, JWTError
 
+from config import Config
+
 
 class JWTService:
     """Service for JWT token generation and validation"""
@@ -11,7 +13,6 @@ class JWTService:
     def __init__(self):
         self.secret_key = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
         self.algorithm = "HS256"
-        self.access_token_expire_minutes = 60 * 24 * 7  # 7 days
     
     def create_access_token(self, user_id: str, email: str) -> str:
         """
@@ -24,7 +25,7 @@ class JWTService:
         Returns:
             Encoded JWT token string
         """
-        expire = datetime.utcnow() + timedelta(minutes=self.access_token_expire_minutes)
+        expire = datetime.utcnow() + timedelta(days=Config.JWT_EXPIRATION_DAYS)
         
         to_encode = {
             "sub": user_id,  # Subject (user_id)

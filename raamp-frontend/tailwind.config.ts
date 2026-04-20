@@ -10,14 +10,23 @@ const config: Config = {
   ],
   prefix: "",
   theme: {
+    /* Responsive horizontal padding; max width cap at 2xl (default Tailwind `sm`/`md`/… still 640/768/…) */
     container: {
       center: true,
-      padding: "2rem",
+      padding: {
+        DEFAULT: "1rem",
+        sm: "1.25rem",
+        lg: "2rem",
+      },
       screens: {
         "2xl": "1400px",
       },
     },
     extend: {
+      /* Extra breakpoint between phones and `sm` (640px) for fine-tuned layouts */
+      screens: {
+        xs: "480px",
+      },
       fontFamily: {
         sans: ["Inter", "sans-serif"],
         heading: ["Poppins", "sans-serif"],
@@ -93,6 +102,9 @@ const config: Config = {
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in-up": "fade-in-up 0.6s ease-out forwards",
         "blur-in": "blur-in 0.8s ease-out forwards",
+      },
+      maxWidth: {
+        prose: "65ch",
       },
     },
   },

@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import OnboardingGating from "./OnboardingGating";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface ProfileGuardProps {
   children: ReactNode;
@@ -14,7 +15,7 @@ export default function ProfileGuard({ children }: ProfileGuardProps) {
   const location = useLocation();
 
   if (authLoading || (statusLoading && !user)) {
-    return null; // Or a loading spinner
+    return <LoadingSpinner />;
   }
 
   // 1. If already completed (via API or Cache), allow everything immediately

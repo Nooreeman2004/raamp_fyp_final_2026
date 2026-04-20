@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,20 @@ const ResetPassword = () => {
         if (checkedCount <= 4) return { level: "medium", color: "text-warning" };
         return { level: "strong", color: "text-success" };
     };
+
+    // Password resets now use OTP (no reset links).
+    // If a user lands here, redirect them to the OTP flow.
+    useEffect(() => {
+        const resetToken = token || searchParams.get('token');
+        if (resetToken) {
+            toast({
+                title: "Reset links are no longer supported",
+                description: "Please use the 6-digit code sent to your email to reset your password.",
+                variant: "destructive",
+            });
+        }
+        navigate("/forgot-password", { replace: true });
+    }, [navigate, searchParams, token]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

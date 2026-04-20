@@ -117,7 +117,7 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                                 <Link
                                     to={item.href}
                                     className={cn(
-                                        "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
+                                        "flex min-h-[2.75rem] items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
                                         isActive
                                             ? "bg-primary/10 text-primary shadow-[0_0_20px_rgba(0,224,208,0.1)]"
                                             : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
@@ -165,7 +165,7 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                             <Link
                                 to={item.href}
                                 className={cn(
-                                    "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-muted-foreground hover:text-foreground hover:bg-foreground/5 relative",
+                                    "flex min-h-[2.75rem] items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-muted-foreground hover:text-foreground hover:bg-foreground/5 relative",
                                     location.pathname === item.href && "text-foreground bg-foreground/5"
                                 )}
                             >
@@ -197,8 +197,9 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                 <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>
                         <button
+                            type="button"
                             onClick={handleLogout}
-                            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="w-full flex min-h-[2.75rem] items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-red-400 hover:text-red-300 hover:bg-red-500/10"
                         >
                             <LogOut size={20} className="flex-shrink-0" />
                             <motion.span

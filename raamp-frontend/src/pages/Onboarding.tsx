@@ -158,6 +158,16 @@ const Onboarding = () => {
         return () => window.removeEventListener('message', handleMessage);
     }, [fetchStatus, fetchCurrentLocation, refreshUser]);
 
+    const toggleGoogleLocationEditor = useCallback(() => {
+        setShowLocationForm((prev) => {
+            const opening = !prev;
+            if (opening) {
+                void fetchCurrentLocation();
+            }
+            return opening;
+        });
+    }, [fetchCurrentLocation]);
+
     const handleConnect = async (platform: 'facebook' | 'instagram' | 'google') => {
         setConnecting(platform);
         if (platform === 'facebook') {
@@ -180,7 +190,7 @@ const Onboarding = () => {
             const top = window.screen.height / 2 - height / 2;
             window.open('/api/profile/onboarding/instagram/auth', 'instagram_auth', `width=${width},height=${height},left=${left},top=${top}`);
         } else if (platform === 'google') {
-            setShowLocationForm(!showLocationForm);
+            toggleGoogleLocationEditor();
         }
         setConnecting(null);
     };
@@ -512,20 +522,36 @@ const Onboarding = () => {
                                             </div>
                                             <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                                                 <Button
-                                                    variant={status.google_maps_connected ? "outline" : "default"}
+                                                    variant={
+                                                        status.google_maps_connected && !showLocationForm
+                                                            ? "outline"
+                                                            : showLocationForm
+                                                              ? "outline"
+                                                              : "default"
+                                                    }
                                                     className={cn(
                                                         "min-w-[100px]",
-                                                        status.google_maps_connected ? "border-emerald-500 text-emerald-500" : ""
+                                                        status.google_maps_connected && !showLocationForm
+                                                            ? "border-emerald-500 text-emerald-500"
+                                                            : ""
                                                     )}
-                                                    onClick={() => !status.google_maps_connected && setShowLocationForm(!showLocationForm)}
-                                                    disabled={loading || status.google_maps_connected}
+                                                    onClick={toggleGoogleLocationEditor}
+                                                    disabled={loading}
                                                 >
                                                     {status.google_maps_connected ? (
-                                                        <>
-                                                            <Check className="w-4 h-4 mr-2" />
-                                                            Connected
-                                                        </>
-                                                    ) : showLocationForm ? "Cancel" : "Configure"}
+                                                        showLocationForm ? (
+                                                            "Cancel"
+                                                        ) : (
+                                                            <>
+                                                                <Check className="w-4 h-4 mr-2" />
+                                                                Edit location
+                                                            </>
+                                                        )
+                                                    ) : showLocationForm ? (
+                                                        "Cancel"
+                                                    ) : (
+                                                        "Configure"
+                                                    )}
                                                 </Button>
                                             </motion.div>
                                         </div>

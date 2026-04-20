@@ -98,6 +98,27 @@ interface Message {
 
 interface RAMPFloatingWidgetProps {
   userName?: string;
+  /** Backend uses this for business/RAG context (optional header). */
+  userId?: string;
+}
+
+// Same base strategy as api.ts / chatbotService: relative `/api` (Vite proxy) or absolute API URL in production.
+const API_PREFIX = import.meta.env.VITE_API_BASE_URL || "/api";
+
+const CHAT_STREAM_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT) || 60000;
+
+function buildChatbotHeaders(userId?: string): HeadersInit {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = localStorage.getItem("token");
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  if (userId) {
+    headers["X-User-ID"] = userId;
+  }
+  return headers;
 }
 
 // Detect WebSocket URL from environment or current window host
@@ -116,9 +137,7 @@ const getWsUrl = (token: string) => {
   return `${protocol}//${host}${apiPrefix}/v1/dashboard-analytics/ws?token=${token}`;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
+const RAMPFloatingWidget = ({ userName, userId }: RAMPFloatingWidgetProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -270,13 +289,16 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
 
     setMessages((prev) => [...prev, assistantMessage]);
 
+    const streamController = new AbortController();
+    const streamTimeout = window.setTimeout(() => streamController.abort(), CHAT_STREAM_TIMEOUT_MS);
+
     try {
-      // Call the streaming chatbot API
-      const response = await fetch(`${API_BASE_URL}/api/chatbot/chat/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      // Aligned with chatbotService: same API prefix, Bearer + X-User-ID, credentials for cookies.
+      const response = await fetch(`${API_PREFIX}/chatbot/chat/stream`, {
+        method: "POST",
+        headers: buildChatbotHeaders(userId),
+        credentials: "include",
+        signal: streamController.signal,
         body: JSON.stringify({
           message: userInput,
           session_id: sessionId,
@@ -402,18 +424,25 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
     } catch (error) {
       console.error('Chatbot error:', error);
 
+      const isAbort =
+        error instanceof DOMException && error.name === "AbortError";
+      const fallback = isAbort
+        ? "The assistant took too long to respond. Please try a shorter question or try again."
+        : "I apologize, but I'm having trouble connecting right now. Please try again in a moment.";
+
       // Fallback response on error
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMessageId
             ? {
                 ...msg,
-                content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
+                content: fallback,
               }
             : msg
         )
       );
     } finally {
+      clearTimeout(streamTimeout);
       setIsTyping(false);
     }
   };
@@ -471,11 +500,10 @@ const RAMPFloatingWidget = ({ userName }: RAMPFloatingWidgetProps) => {
   // Reset conversation
   const handleReset = async () => {
     try {
-      await fetch(`${API_BASE_URL}/api/chatbot/reset`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      await fetch(`${API_PREFIX}/chatbot/reset`, {
+        method: "POST",
+        headers: buildChatbotHeaders(userId),
+        credentials: "include",
         body: JSON.stringify({ session_id: sessionId }),
       });
     } catch (error) {

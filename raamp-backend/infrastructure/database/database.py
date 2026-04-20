@@ -168,6 +168,10 @@ async def init_db():
     from infrastructure.database.models.campaign_draft_model import CampaignDraftModel
     from infrastructure.database.models.chat_session_model import ChatSessionModel
     from infrastructure.database.models.chat_interaction_model import ChatInteractionModel
+    from infrastructure.database.models.performance_analytics_model import (
+        ConversionEventModel,
+        CampaignPerformanceModel,
+    )
     from infrastructure.database.seed_data import seed_business_domains
 
     await init_beanie(
@@ -219,6 +223,9 @@ async def init_db():
             HeatScoreModel,
             CampaignLogModel,
             CampaignBriefModel,
+            # Dashboard / performance analytics
+            ConversionEventModel,
+            CampaignPerformanceModel,
             # Social Tracking
             PostingLogModel,
             # Drafts (Create Pack)

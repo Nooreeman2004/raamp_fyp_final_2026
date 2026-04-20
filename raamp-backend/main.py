@@ -25,6 +25,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from presentation.routers import auth_router
 from infrastructure.database.database import connect_to_mongo, close_mongo_connection, init_db
+from config import Config
 from application.services.firebase_service import firebase_service
 from application.services.cleanup_service import cleanup_service
 from application.services.instagram_scheduler_service import process_scheduled_posts, InstagramSchedulerService
@@ -81,7 +82,6 @@ async def lifespan(app: FastAPI):
 
     # Validate Geo-Intent Marketing Engine environment variables
     try:
-        from config import Config
         Config.validate_geo_intent_keys()
         logging.info("Geo-Intent engine env keys validated")
     except RuntimeError as geo_err:
@@ -252,41 +252,51 @@ async def global_exception_handler(request, exc):
     """Log all unhandled exceptions to a file for analysis"""
     from datetime import datetime
     import traceback
-    
+    import uuid
+
     # We use a local logger reference to avoid potential NameErrors during early startup/shutdown
     handler_logger = logging.getLogger("raamp.exception_handler")
-    
+
+    request_id = str(uuid.uuid4())
     tb = traceback.format_exc()
     try:
         with open("raamp_error.log", "a") as f:
-            f.write(f"\n--- {datetime.utcnow()} ---\n")
+            f.write(f"\n--- {datetime.utcnow()} --- request_id={request_id}\n")
             f.write(f"URL: {request.url}\n")
             f.write(tb)
     except Exception:
         pass
-        
-    handler_logger.error("Unhandled Exception: %s", str(exc), exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal Server Error", "message": str(exc)}
+
+    handler_logger.error(
+        "Unhandled Exception [%s]: %s",
+        request_id,
+        str(exc),
+        exc_info=True,
     )
 
-# CORS Configuration
+    # Never expose raw exception strings to clients in production (can leak paths, SQL, secrets).
+    if Config.is_production():
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "Internal Server Error",
+                "message": "An unexpected error occurred. Please try again later.",
+                "request_id": request_id,
+            },
+        )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error",
+            "message": str(exc),
+            "request_id": request_id,
+        },
+    )
+
+# CORS Configuration (extend via CORS_ALLOW_ORIGINS in .env — comma-separated origins)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000", 
-        "http://localhost:5173",
-        "http://localhost:8080",
-        "http://localhost:8081",  # Frontend dev server
-        "http://localhost:8082",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8080",
-        "http://127.0.0.1:8081",
-        "http://127.0.0.1:8082",
-        "http://[::1]:8080",  # IPv6 localhost
-        "http://192.168.100.31:8080",  # Local LAN frontend
-    ],
+    allow_origins=Config.cors_allow_origins_list(),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],

@@ -206,11 +206,16 @@ class GoogleTrendsService:
     async def _get_from_cache(self, cache_key: str) -> Optional[Dict]:
         """Get cached trends data from MongoDB if present and unexpired."""
         now = datetime.utcnow()
-        doc = await TrendCacheModel.find_one(
-            TrendCacheModel.namespace == "google_trends",
-            TrendCacheModel.key == cache_key,
-            TrendCacheModel.expires_at > now,
-        )
+        try:
+            # Dict filter avoids Pydantic/Beanie edge cases with `Model.field` query expressions.
+            doc = await TrendCacheModel.find_one({
+                "namespace": "google_trends",
+                "key": cache_key,
+                "expires_at": {"$gt": now},
+            })
+        except Exception as exc:
+            logger.debug("Trends cache read skipped: %s", exc)
+            return None
         if not doc:
             return None
         try:
@@ -225,10 +230,10 @@ class GoogleTrendsService:
         now = datetime.utcnow()
         expires_at = now + timedelta(minutes=ttl)
         try:
-            await TrendCacheModel.find_one(
-                TrendCacheModel.namespace == "google_trends",
-                TrendCacheModel.key == cache_key,
-            ).upsert(
+            await TrendCacheModel.find_one({
+                "namespace": "google_trends",
+                "key": cache_key,
+            }).upsert(
                 {"$set": {
                     "value": data,
                     "meta": {"ttl_minutes": ttl},

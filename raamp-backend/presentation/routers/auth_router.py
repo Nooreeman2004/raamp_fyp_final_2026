@@ -48,7 +48,7 @@ from application.services.jwt_service import JWTService
 from application.services.mailtrap_service import MailtrapService
 from application.services.onboarding_service import OnboardingService
 from application.utils.otp_utils import OTPGenerator
-from config import OTP_EXPIRY_HOURS, OTP_RESEND_COOLDOWN_SECONDS, OTP_MAX_RESENDS_PER_HOUR, OTP_MAX_RESENDS_PER_DAY
+from config import Config, OTP_EXPIRY_HOURS, OTP_RESEND_COOLDOWN_SECONDS, OTP_MAX_RESENDS_PER_HOUR, OTP_MAX_RESENDS_PER_DAY
 from application.services.firebase_service import firebase_service
 from infrastructure.repositories.user_repository_impl import UserRepository
 from infrastructure.repositories.pending_verification_repository import PendingVerificationRepository
@@ -73,6 +73,7 @@ from infrastructure.database.models.oauth_state_model import OAuthStateModel
 from infrastructure.database.models.wallet_model import WalletModel
 # ----------------------------------------------
 from infrastructure.database.models.business_domain_model import BusinessDomainModel
+from infrastructure.database.models.user_model import UserModel
 
 import secrets
 from fastapi import Body
@@ -96,7 +97,8 @@ def get_signin_use_case() -> SignInUseCase:
     user_repository = UserRepository()
     password_verifier = PasswordVerifier()
     jwt_service = JWTService()
-    return SignInUseCase(user_repository, password_verifier, jwt_service)
+    pending_repo = PendingVerificationRepository()
+    return SignInUseCase(user_repository, password_verifier, jwt_service, pending_repo)
 
 
 def get_verify_email_use_case() -> VerifyEmailUseCase:
@@ -862,6 +864,44 @@ async def get_profile(current_user_email: str = Depends(get_current_user_email))
     )
 
     return user_response
+
+
+@router.post(
+    "/refresh",
+    response_model=SignInResponse,
+    status_code=status.HTTP_200_OK,
+    responses={401: {"model": ErrorResponse, "description": "Not authenticated"}},
+)
+async def refresh_session(
+    response: Response,
+    current_user_email: str = Depends(get_current_user_email),
+):
+    """
+    Issue a new access token while the current one is still valid.
+    Used by the SPA for proactive refresh and optional 401 recovery.
+    """
+    user_response = await get_profile(current_user_email=current_user_email)
+    user_repository = UserRepository()
+    user = await user_repository.find_by_email(current_user_email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    jwt_service = JWTService()
+    new_token = jwt_service.create_access_token(user_id=str(user.id), email=user.email)
+    max_age = Config.JWT_EXPIRATION_DAYS * 86400
+    response.set_cookie(
+        key="access_token",
+        value=new_token,
+        httponly=True,
+        secure=Config.is_production(),
+        samesite="lax",
+        max_age=max_age,
+    )
+    return SignInResponse(
+        user=user_response,
+        token=new_token,
+        message="Session refreshed",
+    )
 
 
 @router.get(

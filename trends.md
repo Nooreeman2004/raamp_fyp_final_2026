@@ -85,16 +85,13 @@ This section is a **living checklist** so you can immediately see what’s left.
         - `POST /api/trends/{trend_id}/execute/blog-outline`
         - `POST /api/trends/{trend_id}/execute/ad-copy`
 
-  - **Intelligence endpoints (new)**: **Implemented**
-    - Viral audio (cached):
-      - `GET /api/trends/viral-audio?platform={platform}&geo={geo}&niche={niche}`
-      - Source is **Apple Music RSS** via `ViralAudioProvider` and must be labeled as **“Trending Audio (charting)”** (not “Instagram trending”)
-      - Cached in `trend_cache` for **6 hours**
-    - Competitor Radar (Benchmarking, cached):
-      - `GET /api/trends/influencer-radar?geo={geo}&niche={niche}&keyword={keyword}`
-      - Uses `InstagramGraphAPIClient` hashtag search + recent media analysis.
-      - **Benchmarks**: Extracts competitor handles, calculates engagement **Heat** scores (likes+comments), and returns **Proof-of-Trend URLs** (permalinks).
-      - Cached in `trend_cache` for **12 hours**.
+  - **Intelligence endpoints (Viral audio / Competitor radar)**: **Backend implemented**; **frontend stubbed for demo UX**
+    - **Backend** (`trend_signal_router.py`):
+      - `GET /api/trends/viral-audio?platform=&geo=&niche=` — `ViralAudioProvider` (charting / RSS-style feed), response includes `recommended_tracks` / `tracks`; cached in `trend_cache` (**6 hours**).
+      - `GET /api/trends/influencer-radar?geo=&niche=&keyword=` — competitor / benchmarking payload (`influencers`); implementation uses SerpAPI + Instagram URL parsing when configured; cached in `trend_cache`.
+    - **Frontend** (`raamp-frontend/src/services/trendService.ts`):
+      - `getViralAudio` and `getInfluencerRadar` currently **`Promise.resolve` empty arrays** (`recommended_tracks: []`, `influencers: []`) and **do not call the API** — avoids noisy 404s/console in environments where the Intelligence Grid is shown before wiring.
+      - **To enable live data**: replace stubs with `apiClient.get` to the routes above (same auth/timeout as other `/trends/*` calls).
 
 ---
 
@@ -103,6 +100,7 @@ This section is a **living checklist** so you can immediately see what’s left.
 This section tracks **front-end UX + product features** for the Trends screen (not just backend plumbing).
 
 ### Done (already implemented)
+- **Intelligence Grid + viral/radar (UI)**: components such as `IntelligenceGrid.tsx` call `trendService.getViralAudio` / `getInfluencerRadar`; until those methods are wired to the backend, the UI shows **empty states** by design (see **Status → Intelligence endpoints** above).
 - **Ticker strip pinned to top** (Trends page): the scrolling ticker (e.g. “RR vs MI …”) is rendered at the **top of the screen** (sticky).
 - **Active trend as source of truth (frontend)**:
   - Users set an **Active trend** by selecting a card.
@@ -432,8 +430,7 @@ Below are the features currently implemented (or partially implemented) that are
 
 - **How it’s implemented**
   - `TrendingNowFetcher.fetch_terms(geo, category, limit, use_cache)`:
-    - Short TTL in-memory cache keyed by `(geo, category, limit)` (default TTL: 600s)
-    - Defensive parsing via `_extract_terms()` for multiple payload shapes
+    - **DB-backed** cache via `trend_cache` / `TrendCacheModel` (TTL aligned with fetcher config), plus defensive parsing via `_extract_terms()` for multiple payload shapes
     - Reliability handling:
       - Missing `SERPAPI_API_KEY` → returns empty list
       - 401/403/429/5xx → returns empty list (non-fatal to scan)
@@ -482,14 +479,13 @@ Below are the features currently implemented (or partially implemented) that are
     - Additional backoff on 429: \(60s, 120s, 240s\).
 
 - **Caching**
-  - `GoogleTrendsService` has an in-memory cache `_TRENDS_CACHE` keyed by hash of `(keywords, location, timeframe)` with TTL (default 60 minutes).
+  - `GoogleTrendsService.fetch_trends_data()` reads/writes **`trend_cache`** (MongoDB / `TrendCacheModel`) keyed by `(keywords, location, timeframe)` with TTL (default **60 minutes**). Survives process restarts and is shared across workers.
 
 - **Estimated completion**
   - **~85%**
 
 - **Gaps / missing parts**
   - Provider results normalization for SerpAPI is best-effort; related/rising query shapes may not match pytrends exactly.
-  - No persistent cache layer (in-memory only); cache is lost on restart and not shared across workers.
 
 - **Known limitations / edge cases**
   - Google Trends (pytrends) rate limits can still fail scans; retry queue helps but does not guarantee success.
@@ -616,8 +612,7 @@ Below are the features currently implemented (or partially implemented) that are
   - **~75%**
 
 - **Gaps / missing parts**
-  - Bubble chart includes synthetic fallback points, which is not “real data”.
-  - Platform reach is heuristic (not measured).
+  - Platform reach is heuristic (not measured); response is gated with `data_quality` until real `platform_bias` exists.
 
 - **Known limitations / edge cases**
   - Enrichment join for live feed is best-effort; matching by keyword in signal keywords or signal time-series keys.
@@ -673,8 +668,7 @@ Below are the features currently implemented (or partially implemented) that are
   - **~85%**
 
 - **Gaps / missing parts**
-  - No explicit deduping of retry jobs for the same `trend_id` (could enqueue multiple jobs under certain conditions).
-  - No admin endpoints to inspect/cancel retry jobs (currently internal only).
+  - Admin endpoints to inspect/cancel retry jobs are still internal-only (no user-facing UI).
 
 ---
 
@@ -711,6 +705,13 @@ All trend-related endpoints are primarily under the `/api/trends` namespace (plu
 |---|---:|---|---|---|---|
 | `/api/trends/trending_now` | GET | `location?`, `category?`, `limit?` | `{ geo, terms[], relevant[], count, data_quality }` | `TrendingNowFetcher` (SerpAPI) | Regional “what’s happening” feed + business-relevant shortlist; returns empty if SerpAPI not configured |
 | `/api/trends/industry_trends` | GET | `niche`, `scope` (`GLOBAL\|PK\|...`), `timeframe` (`24h\|7d\|30d\|90d`), `limit?` | `{ scope, niche, seed_keywords[], terms[], count, data_quality }` | `GoogleTrendsService` (forced pytrends) | Derived from related/rising queries; **time-bounded** (avoid UI hangs). If provider errors/times out/returns no related/rising terms, falls back to `seed_keywords` so the UI never looks empty/broken |
+
+### 3.2.2 Intelligence (viral audio / competitor radar)
+
+| Endpoint | Method | Inputs / Parameters | Output / Response shape | Dependencies | Notes |
+|---|---:|---|---|---|---|
+| `/api/trends/viral-audio` | GET | `platform`, `geo`, `niche` | `recommended_tracks`, `tracks`, `source`, `label` | `ViralAudioProvider`, `trend_cache` (6h) | **Backend live**. Frontend `getViralAudio` may still be stubbed — see Status section. |
+| `/api/trends/influencer-radar` | GET | `geo`, `niche`, `keyword?` | `influencers`, `source` | SerpAPI (when key set), `trend_cache` (12h) | **Backend live**. Frontend `getInfluencerRadar` may still be stubbed — see Status section. |
 
 ### 3.3 Trend AI endpoints (content suggestions, explanations, forecast)
 
@@ -764,7 +765,7 @@ This section describes what happens step-by-step from fetch to persistence to UI
   - `TrendingNowFetcher.fetch_terms(geo_code, category)` calls SerpAPI trending-now engine.
   - Results are merged into `TrendSignal.keywords` and saved.
 - **Caching**
-  - Trending Now uses its own short TTL in-memory cache separate from `_TRENDS_CACHE`.
+  - Trending Now results are persisted in **`trend_cache`** (`TrendCacheModel`) with TTL (see `TrendingNowFetcher`), not only process-local memory.
 
 ### 4.3 Fetch: provider selection → time-series data acquisition
 
@@ -779,7 +780,7 @@ This section describes what happens step-by-step from fetch to persistence to UI
     - Timeframe: `24h|7d|30d|90d` → Google format strings (`now 1-d`, etc.)
   - Calls `GoogleTrendsService.fetch_trends_data()` which delegates to `TrendsProviderSelector`.
     - Provider order based on `TRENDS_PROVIDER` and SerpAPI configuration.
-  - **Caches** successful results in `_TRENDS_CACHE` (TTL: 60 minutes).
+  - **Caches** successful provider payloads in **`trend_cache`** (MongoDB; default TTL **60 minutes**).
   - Persists:
     - `keywords`, `search_interest`, `geo_data`, `related_queries`, `rising_queries`
     - Sets `fetch_status="completed"` and `fetched_at`
@@ -915,8 +916,8 @@ These are known missing or incomplete aspects needed for a fully production-read
   - `/api/trends/fetch` enforces a per-user cooldown (`TREND_SCAN_COOLDOWN_SECONDS`, default 120s) to protect SerpAPI quota.
 
 - **Configurability of detection parameters**
-  - **Gap**: Z-score threshold, rolling window, alpha, and min points are static defaults.
-  - **Need**: Environment-configurable or per-niche presets; log config in responses for traceability.
+  - **Status**: Core spike parameters are **environment-configurable** (`TREND_Z_THRESHOLD`, `TREND_ROLLING_WINDOW_DAYS`, `TREND_EWMA_ALPHA`, `TREND_MIN_DATA_POINTS`); pipeline logs values per scan.
+  - **Optional follow-up**: per-niche presets or exposing selected parameters in API responses for client display.
 
 ---
 
@@ -967,8 +968,7 @@ These are known missing or incomplete aspects needed for a fully production-read
   - Fail fast and trigger retry/fallback if data is malformed.
 
 - **Clarify “synthetic” vs “real” in analytics**
-  - Bubble chart and platform reach should explicitly indicate when values are heuristics/simulated.
-  - Recommendation: add `data_quality` fields to responses.
+  - Analytics responses include a **`data_quality`** object where applicable; bubble chart uses **real detections only** (empty state when insufficient data). Platform reach remains heuristic until real `platform_bias` exists.
 
 ---
 
@@ -977,6 +977,10 @@ These are known missing or incomplete aspects needed for a fully production-read
 - **API routers**
   - `raamp-backend/presentation/routers/trend_signal_router.py` — scan + analytics + AI endpoints
   - `raamp-backend/presentation/routers/watchlist_router.py` — watchlist CRUD
+
+- **Frontend (trends UI)**
+  - `raamp-frontend/src/pages/TrendArbitrage.tsx` — main Trends page
+  - `raamp-frontend/src/services/trendService.ts` — client for `/api/trends/*` (includes optional stubs for viral audio / influencer radar — see Status)
 
 - **Core services**
   - `raamp-backend/application/services/trend_detection_service.py` — orchestration, spike detection, enrichment, notifications, retries

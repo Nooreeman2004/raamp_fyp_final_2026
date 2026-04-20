@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiClient } from '@/services/api';
+import { loadGoogleMapsScript } from '@/lib/loadGoogleMapsScript';
 
 interface GoogleMapProps {
   locations: Array<{
@@ -35,26 +35,11 @@ export default function GoogleMap({
   useEffect(() => {
     if (!GOOGLE_KEY || !mapRef.current) return;
 
-    // Load Google Maps script if not already loaded
-    if (typeof window.google === 'undefined') {
-      const existingScript = document.getElementById('google-maps-script');
-      if (!existingScript) {
-        const script = document.createElement('script');
-        script.id = 'google-maps-script';
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places`;
-        script.async = true;
-        script.defer = true;
-        script.onload = initializeMap;
-        document.head.appendChild(script);
-      } else {
-        existingScript.addEventListener('load', initializeMap);
-      }
-    } else {
-      initializeMap();
-    }
+    const markersRef: any[] = [];
+    let cancelled = false;
 
-    function initializeMap() {
-      if (!mapRef.current || typeof window.google === 'undefined') {
+    const initializeMap = () => {
+      if (!mapRef.current || !window.google?.maps) {
         setIsLoading(false);
         return;
       }
@@ -75,11 +60,8 @@ export default function GoogleMap({
 
       setMap(mapInstance);
 
-      // Clear existing markers
-      markers.forEach(marker => marker.setMap(null));
-
       // Add markers for each location
-      const newMarkers = locations.map((location, idx) => {
+      const newMarkers = locations.map((location) => {
         const marker = new window.google.maps.Marker({
           position: { lat: location.lat, lng: location.lng },
           map: mapInstance,
@@ -111,6 +93,7 @@ export default function GoogleMap({
         return marker;
       });
 
+      markersRef.push(...newMarkers);
       setMarkers(newMarkers);
 
       // Fit bounds if multiple locations
@@ -123,11 +106,21 @@ export default function GoogleMap({
       }
 
       setIsLoading(false);
-    }
+    };
+
+    void (async () => {
+      try {
+        await loadGoogleMapsScript(GOOGLE_KEY);
+        if (cancelled) return;
+        initializeMap();
+      } catch {
+        setIsLoading(false);
+      }
+    })();
 
     return () => {
-      // Cleanup markers
-      markers.forEach(marker => marker.setMap(null));
+      cancelled = true;
+      markersRef.forEach((marker) => marker.setMap(null));
     };
   }, [locations, center, zoom, GOOGLE_KEY]);
 

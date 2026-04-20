@@ -2,9 +2,11 @@
  * Media Generation Service
  * =========================
  * Service for generating Reels and Videos using the backend API.
+ * Uses apiClient for shared timeout, retry, and auth behavior.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import { apiClient } from '@/services/api';
+import { API_BASE_URL } from '@/config/apiBase';
 
 // ==================== Types ====================
 
@@ -62,23 +64,19 @@ export type MediaGenerationError = {
 // ==================== Service Class ====================
 
 class MediaGenerationService {
-  private getAuthHeaders(): HeadersInit {
-    const token = localStorage.getItem('token');
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    };
-  }
-
-  private async handleResponse<T>(response: Response): Promise<T> {
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({
-        error: 'Network error',
-        detail: response.statusText,
-      }));
-      throw new Error(error.detail || error.error || 'Request failed');
+  /**
+   * Map a resolved media URL (under API prefix) to an apiClient path (no duplicate /api).
+   */
+  private urlToEndpoint(fullPath: string): string {
+    const base = API_BASE_URL;
+    if (fullPath.startsWith(base)) {
+      const rest = fullPath.slice(base.length);
+      return rest.startsWith('/') ? rest : `/${rest}`;
     }
-    return response.json();
+    if (fullPath.startsWith('/api')) {
+      return fullPath.slice('/api'.length) || '/';
+    }
+    return fullPath.startsWith('/') ? fullPath : `/${fullPath}`;
   }
 
   // ==================== Reel Generation ====================
@@ -87,39 +85,21 @@ class MediaGenerationService {
    * Generate a Reel script/prompt using Gemini AI
    */
   async generateReelPrompt(request: MediaPromptRequest): Promise<MediaPromptResponse> {
-    const response = await fetch(`${API_BASE_URL}/media/reels/generate-prompt`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(request),
-    });
-
-    return this.handleResponse<MediaPromptResponse>(response);
+    return apiClient.post<MediaPromptResponse>('/media/reels/generate-prompt', request);
   }
 
   /**
    * Generate Reel videos from a prompt
    */
   async generateReels(request: MediaGenerationRequest): Promise<MediaGenerationResponse> {
-    const response = await fetch(`${API_BASE_URL}/media/reels/generate`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(request),
-    });
-
-    return this.handleResponse<MediaGenerationResponse>(response);
+    return apiClient.post<MediaGenerationResponse>('/media/reels/generate', request);
   }
 
   /**
    * Quick Reel generation - combines prompt + video in one step
    */
   async generateQuickReel(request: QuickReelRequest): Promise<MediaGenerationResponse> {
-    const response = await fetch(`${API_BASE_URL}/media/generate-quick-reel`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(request),
-    });
-
-    return this.handleResponse<MediaGenerationResponse>(response);
+    return apiClient.post<MediaGenerationResponse>('/media/generate-quick-reel', request);
   }
 
   // ==================== Video Generation ====================
@@ -128,26 +108,14 @@ class MediaGenerationService {
    * Generate a video script/prompt using Gemini AI
    */
   async generateVideoPrompt(request: MediaPromptRequest): Promise<MediaPromptResponse> {
-    const response = await fetch(`${API_BASE_URL}/media/videos/generate-prompt`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(request),
-    });
-
-    return this.handleResponse<MediaPromptResponse>(response);
+    return apiClient.post<MediaPromptResponse>('/media/videos/generate-prompt', request);
   }
 
   /**
    * Generate videos from a prompt
    */
   async generateVideos(request: MediaGenerationRequest): Promise<MediaGenerationResponse> {
-    const response = await fetch(`${API_BASE_URL}/media/videos/generate`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(request),
-    });
-
-    return this.handleResponse<MediaGenerationResponse>(response);
+    return apiClient.post<MediaGenerationResponse>('/media/videos/generate', request);
   }
 
   // ==================== Helper Methods ====================
@@ -181,16 +149,23 @@ class MediaGenerationService {
    * Download a media file
    */
   async downloadMedia(path: string, filename: string): Promise<void> {
-    const url = this.getMediaUrl(path);
-    const response = await fetch(url, {
-      headers: this.getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to download media');
+    const mediaUrl = this.getMediaUrl(path);
+    let blob: Blob;
+    if (mediaUrl.startsWith('http')) {
+      const token = localStorage.getItem('token');
+      const response = await fetch(mediaUrl, {
+        credentials: 'include',
+        ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to download media');
+      }
+      blob = await response.blob();
+    } else {
+      const endpoint = this.urlToEndpoint(mediaUrl);
+      blob = await apiClient.getBlob(endpoint);
     }
 
-    const blob = await response.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;

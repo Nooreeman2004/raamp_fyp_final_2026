@@ -1,5 +1,9 @@
 # Application Layer - Geo-Intent Marketing Engine Service
+import asyncio
 import logging
+import math
+import os
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import BackgroundTasks
@@ -109,6 +113,7 @@ class GeoIntentService:
             user_tier = user.subscriptionTier if user else "free"
 
         # ── Step 1: Parallel signal ingestion ──────────────────────────────
+        t_ingest = time.perf_counter()
         signals = await ingest_all_signals(
             keywords=keywords,
             latitude=latitude,
@@ -116,6 +121,11 @@ class GeoIntentService:
             radius=radius,
             is_indoor=is_indoor,
             user_tier=user_tier # Added to filter signals
+        )
+        logger.info(
+            "GeoIntentService.compute: ingest_all_signals %.2fs (tier=%s)",
+            time.perf_counter() - t_ingest,
+            user_tier,
         )
 
         trends_score: float = signals["trends"]
@@ -230,6 +240,129 @@ class GeoIntentService:
             "radius_km": radius / 1000.0,
             "timestamp": timestamp,
         }
+
+    def _generate_zone_points(
+        self,
+        lat: float,
+        lng: float,
+        radius_m: int,
+        num_points: int = 8,
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate points in a ring around the center at ~radius_m distance.
+        Returns list of {lat, lng, label} dicts.
+        """
+        points: List[Dict[str, Any]] = []
+        directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        n = max(1, min(num_points, 8))
+        for i in range(n):
+            angle = (360 / n) * i
+            angle_rad = math.radians(angle)
+            r_earth = 6371000.0
+            d_lat = (radius_m * math.cos(angle_rad)) / r_earth
+            d_lng = (radius_m * math.sin(angle_rad)) / (
+                r_earth * math.cos(math.radians(lat))
+            )
+            points.append(
+                {
+                    "lat": lat + math.degrees(d_lat),
+                    "lng": lng + math.degrees(d_lng),
+                    "label": directions[i],
+                }
+            )
+        return points
+
+    async def recommend_zones(
+        self,
+        business_id: str,
+        keywords: List[str],
+        latitude: float,
+        longitude: float,
+        radius: int,
+        is_indoor: bool,
+        user_id: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Score surrounding zones in parallel, return top 3 ranked.
+        Credits are deducted once by the router, not per zone.
+        """
+        _ = business_id  # reserved for future persistence / analytics
+
+        user = await UserModel.find_one(UserModel.email == user_id)
+        if user_id.lower() == "abdullah@gmail.com":
+            user_tier = "premium"
+        else:
+            user_tier = user.subscriptionTier if user else "free"
+
+        try:
+            env_n = int(os.getenv("RAAMP_ZONE_NUM_POINTS", "4"))
+        except ValueError:
+            env_n = 4
+        n_zones = max(4, min(env_n, 8))
+
+        zone_points = self._generate_zone_points(latitude, longitude, radius, num_points=n_zones)
+        logger.info(
+            "recommend_zones: start n_zones=%d radius_m=%d user=%s",
+            len(zone_points),
+            radius,
+            user_id,
+        )
+        t_zones = time.perf_counter()
+
+        async def score_zone(point: Dict[str, Any]) -> Dict[str, Any]:
+            signals = await ingest_all_signals(
+                keywords=keywords,
+                latitude=point["lat"],
+                longitude=point["lng"],
+                radius=radius,
+                is_indoor=is_indoor,
+                user_tier=user_tier,
+            )
+            score = compute_heat_score(
+                signals["trends"],
+                signals["places"],
+                signals["weather"],
+            )
+            urgency = classify_urgency(score)
+
+            dominant = max(
+                [
+                    ("trends", signals["trends"]),
+                    ("places", signals["places"]),
+                    ("weather", signals["weather"]),
+                ],
+                key=lambda x: x[1],
+            )
+            signal_labels = {
+                "trends": "high search intent",
+                "places": "high foot traffic density",
+                "weather": "favorable weather conditions",
+            }
+            reason = f"{signal_labels[dominant[0]]} in this zone"
+
+            return {
+                "label": point["label"],
+                "latitude": point["lat"],
+                "longitude": point["lng"],
+                "score": score,
+                "urgency": urgency,
+                "reason": reason,
+                "signals": {
+                    "trends_score": round(signals["trends"], 3),
+                    "places_score": round(signals["places"], 3),
+                    "weather_score": round(signals["weather"], 3),
+                },
+            }
+
+        results = await asyncio.gather(*[score_zone(p) for p in zone_points])
+        ranked = sorted(results, key=lambda x: x["score"], reverse=True)
+        logger.info(
+            "recommend_zones: done in %.2fs (parallel ingest per zone) n_zones=%d user=%s",
+            time.perf_counter() - t_zones,
+            len(zone_points),
+            user_id,
+        )
+        return ranked[:3]
 
     def _calculate_persona_split(
         self,
@@ -574,20 +707,25 @@ class GeoIntentService:
             return None
 
     async def get_brief_history(
-        self, 
-        business_id: str, 
+        self,
+        business_id: str,
+        user_email: Optional[str] = None,
         limit: int = 20,
-        days: int = 30
+        days: int = 30,
     ) -> List[Dict[str, Any]]:
-        """Retrieve recent campaign briefs for a business with optional time filtering."""
+        """Retrieve recent campaign briefs for a business (and optionally a user) with time filtering."""
         from datetime import datetime, timedelta
         
         start_date = datetime.utcnow() - timedelta(days=days)
-        
-        query = CampaignBriefModel.find(
+
+        filters = [
             CampaignBriefModel.business_id == business_id,
-            CampaignBriefModel.timestamp >= start_date
-        ).sort(-CampaignBriefModel.timestamp).limit(limit)
+            CampaignBriefModel.timestamp >= start_date,
+        ]
+        if user_email:
+            filters.append(CampaignBriefModel.user_email == user_email)
+
+        query = CampaignBriefModel.find(*filters).sort(-CampaignBriefModel.timestamp).limit(limit)
         
         records = await query.to_list()
         result = []

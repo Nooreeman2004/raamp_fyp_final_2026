@@ -81,8 +81,16 @@ export default function Breadcrumbs({ items, className }: BreadcrumbsProps) {
   }
 
   return (
-    <nav aria-label="Breadcrumb" className={cn("flex items-center space-x-2 text-sm", className)}>
-      <ol className="flex items-center space-x-2 flex-wrap">
+    <nav
+      aria-label="Breadcrumb"
+      className={cn(
+        "flex min-w-0 max-w-full items-center text-sm",
+        /* Long paths scroll horizontally on narrow panes instead of forcing page overflow */
+        "overflow-x-auto overflow-y-hidden [scrollbar-width:thin]",
+        className
+      )}
+    >
+      <ol className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         {breadcrumbs.map((item, index) => (
           <li key={index} className="flex items-center">
             {index > 0 && (

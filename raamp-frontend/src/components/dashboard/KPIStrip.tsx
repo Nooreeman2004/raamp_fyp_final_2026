@@ -36,7 +36,9 @@ export const KPIStrip = ({ businessId }: KPIStripProps) => {
     queryFn: () => geoIntentService.getHistory(businessId, 1),
     enabled: !!businessId
   });
-  const recentHeat = geoHistory?.[0];
+  // API returns { business_id, total, logs } — newest log first
+  const recentLog = geoHistory?.logs?.[0];
+  const heatScore = recentLog?.final_score ?? 0;
 
   // 4. Connection Statuses
   const { data: socialStatus, isLoading: statusLoading } = useQuery({
@@ -74,9 +76,9 @@ export const KPIStrip = ({ businessId }: KPIStripProps) => {
 
     {
       label: "Market Heat Index",
-      value: recentHeat?.max_score || 0,
-      subValue: recentHeat?.urgency ? `Urgency: ${recentHeat.urgency}` : (hyperlocalSetup?.has_setup ? "No active scans" : null),
-      cta: !hyperlocalSetup?.has_setup && !setupLoading ? { label: "Configure Location", route: "/profile/onboarding" } : (!recentHeat?.max_score && !geoLoading ? { label: "Run Market Scan", route: "/dashboard/geo-intent" } : null),
+      value: heatScore,
+      subValue: recentLog?.urgency ? `Urgency: ${recentLog.urgency}` : (hyperlocalSetup?.has_setup ? "No active scans" : null),
+      cta: !hyperlocalSetup?.has_setup && !setupLoading ? { label: "Configure Location", route: "/profile/onboarding" } : (!heatScore && !geoLoading ? { label: "Run Market Scan", route: "/dashboard/geo-intent" } : null),
       icon: Zap,
       color: "text-indigo-400",
       bg: "bg-indigo-500/10",

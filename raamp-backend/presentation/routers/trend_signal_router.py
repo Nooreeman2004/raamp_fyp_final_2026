@@ -121,9 +121,11 @@ def _stream_openai_chat(*, system_prompt: str, user_prompt: str):
 async def _cached_get(namespace: str, key: str):
     now = datetime.utcnow()
     doc = await TrendCacheModel.find_one(
-        TrendCacheModel.namespace == namespace,
-        TrendCacheModel.key == key,
-        TrendCacheModel.expires_at > now,
+        {
+            "namespace": namespace,
+            "key": key,
+            "expires_at": {"$gt": now},
+        }
     )
     if not doc:
         return None
@@ -134,8 +136,7 @@ async def _cached_set(namespace: str, key: str, value: Any, ttl_seconds: int):
     now = datetime.utcnow()
     expires_at = now + timedelta(seconds=max(60, int(ttl_seconds or 0)))
     await TrendCacheModel.find_one(
-        TrendCacheModel.namespace == namespace,
-        TrendCacheModel.key == key,
+        {"namespace": namespace, "key": key}
     ).upsert(
         {
             "$set": {

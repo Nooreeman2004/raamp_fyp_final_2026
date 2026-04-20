@@ -13,6 +13,7 @@ import { motion } from "framer-motion";
 import Reveal from "@/components/ui/Reveal";
 import { staggerContainer, fadeInUp, hoverScale, zoomIn, scaleUp } from "@/utils/animations";
 import { BlurText } from "@/components/ui/text-reveal";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 type Step = "email" | "otp" | "password" | "done";
 
@@ -61,7 +62,7 @@ const ForgotPassword = () => {
             toast({ title: "OTP Sent", description: "Check your email for a 6-digit reset code." });
             setStep("otp");
         } catch (err: any) {
-            toast({ title: "Error", description: err?.message || "Failed to send OTP.", variant: "destructive" });
+            toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setIsLoading(false);
         }
@@ -96,7 +97,7 @@ const ForgotPassword = () => {
             setStep("done");
             toast({ title: "Password Reset", description: "Your password has been reset successfully." });
         } catch (err: any) {
-            toast({ title: "Error", description: err?.message || "Failed to reset password.", variant: "destructive" });
+            toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setIsLoading(false);
         }

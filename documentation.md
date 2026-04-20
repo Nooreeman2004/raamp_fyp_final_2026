@@ -11,6 +11,8 @@ This document provides a feature-by-feature breakdown of currently implemented f
 
 **How it works**: Uses advanced AI models (via backend routers like `/api/content-generation` and `/api/media-generation`) to process natural language prompts and parameters (aspect ratio, tone) to create multiple variants of marketing material.
 
+**Module doc**: See `content_generation.md` for the full API/contracts/credits/frontend flow for Creative Studio content generation.
+
 **User interaction**: 
 - Users input a "Campaign Idea" in natural language.
 - Users select content types (Captions, Hashtags, WhatsApp, Emails, or All).
@@ -76,35 +78,45 @@ This document provides a feature-by-feature breakdown of currently implemented f
   - **Trends (Macro-Intent)**: Google Trends time-series interest averaged over a 7‑day window (`now 7-d`). This is treated as a **regional/sub-regional** “macro wave” signal (not street-level).
   - **Places (Local Density)**: Google Places Nearby Search result count (up to **2 pages** for performance) → normalised density proxy.
   - **Weather (Mobility Modifier)**: Tomorrow.io realtime weather; rain effect flips based on **indoor vs outdoor** business type.
-- **Resilience**: Each external fetcher is timeout-protected and **never raises**; on failure it returns **neutral 0.5** so the engine still responds.
+- **Resilience**: Each external fetcher is timeout-protected and **never raises**; on failure it returns **neutral 0.5** so the engine still responds. Per-signal health is exposed as `signals_status` (`ok`, `limited`, `failed`, etc.).
 - **Tier gating**:
-  - **Free tier**: Places only. Trends + Weather return score `0.5` with status `"limited"`.
-  - **Premium/Demo**: All three signals fetched concurrently.
+  - **Free tier**: Full Places fetch; Trends + Weather are forced to neutral with status `"limited"` inside `ingest_all_signals`.
+  - **Premium / demo override**: All three signals fetched concurrently (demo user `abdullah@gmail.com` is treated as premium where the backend applies overrides).
 - **Caching**:
-  - Geo-Intent signal fetchers cache by geo/radius/keywords (service TTL cache).
+  - Geo-Intent signal fetchers use an in-memory TTL cache by geo/radius/keywords.
   - Google Trends service caches provider results in MongoDB with a TTL (default ~1 hour).
-- **Heat Score**: Aggregates into 0–100 with weighted fusion: **35% Trends, 40% Places, 25% Weather**.
+- **Heat Score**: Aggregates into 0–100 with weighted fusion: **35% Trends, 40% Places, 25% Weather**. Urgency bands: Low 0–30, Medium 31–60, High 61–89, Critical 90–100.
+- **Multi-Zone Recommender**:
+  - **Endpoint**: `POST /api/v1/geo/recommend-zones` (same payload shape as a heat scan: `business_id`, `keywords`, `latitude`, `longitude`, `radius` in meters, `is_indoor`).
+  - **Behavior**: Generates **4–8 compass sample points** on a ring at the chosen radius (N, NE, E, …), runs **`ingest_all_signals` + heat score** for each point in parallel, returns the **top 3** zones with scores, urgency, per-zone signal breakdown, and a one-line “dominant signal” reason.
+  - **Credits**: One **`geo_radar_scan`** charge per request (not per zone). External API usage is **much higher** than a single heat-score call; optional env **`RAAMP_ZONE_NUM_POINTS`** (default `8`, clamped 4–8) lowers ring density if Google Maps / Tomorrow quotas are tight.
+  - **Frontend**: “Find Best Zones” loads ranked zone cards; **amber pins** on the map; **Deploy Here** pre-fills a campaign brief for that zone’s coordinates and signals.
 
 **User interaction (frontend)**:
 - **Profile-driven targeting**: Uses the user’s onboarding location and attempts to use Google `place_id` as the stable `business_id`. If missing, falls back to a deterministic onboarding-coordinates key.
 - **Radius control**: 1–50 km slider (persisted in localStorage) triggers a debounced re-scan.
 - **Custom zones**: Users can draw a polygon; the UI recenters a sweep to the polygon centroid.
+- **Multi-zone**: Users run **Find Best Zones** (in addition to the main radar refresh); optional header shortcut on larger breakpoints.
 - **Outputs shown**:
   - Heat Score + urgency state
-  - Per-signal status + explanation (explicitly calls out trends as “city/state scale”)
+  - Per-signal status + explanation (explicitly calls out trends as “city/state scale”); alert when any signal is not `ok`
   - Live radar feed messages
   - Visitor persona distribution
-  - Heatmap layer + history + strategy history replay
+  - Heatmap layer (from persisted scans) + sweep history + strategy history replay
+  - Top 3 recommended zones (after a multi-zone run)
 
 **Data/API involved (key pieces)**:
 - Backend services:
+  - `raamp-backend/application/services/geo_intent_service.py`: `compute`, `_generate_zone_points`, `recommend_zones`, persona, persistence hooks.
   - `raamp-backend/application/services/geo_intent_fetchers.py`: Async signal fetchers + tier gating + neutral fallback rules.
   - `raamp-backend/application/services/google_trends_service.py`: Trends provider selection + validation + MongoDB caching.
+  - `raamp-backend/presentation/routers/geo_intent_engine_router.py`: `/heat-score`, `/recommend-zones`, heatmap, history, briefs, best posting time, etc.
 - Frontend:
   - `raamp-frontend/src/pages/GeoIntent.tsx`: Main Geo-Intent dashboard and flows.
-  - `raamp-frontend/src/services/geoIntentService.ts`: API client (used by the page).
+  - `raamp-frontend/src/components/GeoIntentMap.tsx`: Map, heatmap, radius, drawing, **zone pins**.
+  - `raamp-frontend/src/services/geoIntentService.ts`: API client (`getHeatScore`, `recommendZones`, briefs, …).
 
-**Output/Result**: Heat Score (0–100), urgency classification, signal breakdown, persona split, radar feed, heatmap points, sweep history, and AI-generated campaign briefs with replay.
+**Output/Result**: Heat Score (0–100), urgency classification, signal breakdown, persona split, radar feed, heatmap points, sweep history, **top-3 zone recommendations**, and AI-generated campaign briefs (with replay). **Deeper module reference**: see `geo_intent.md` in the repo root.
 
 ---
 
@@ -270,9 +282,10 @@ This document provides a feature-by-feature breakdown of currently implemented f
 ## 14. Subscription & Billing Management
 **Purpose**: To manage the user's financial relationship with the platform, including credits for AI generation.
 
-**How it works**: Integrates with Stripe for payments and a custom **CreditService** for usage metering. Each AI action (Brief generation, Content variant creation) consumes credits based on the user's tier.
-- **Free Tier**: Limited to Google Places signals; no AI Brief generation.
-- **Premium Tier**: Full access to Google Trends, Weather context, and high-volume AI generation.
+**How it works**: Integrates with Stripe for payments and a custom **CreditService** for usage metering. Actions such as Geo-Intent scans, campaign briefs, and content generation consume **ad credits** when not bypassed by tier/demo rules.
+- **Geo-Intent**: Each **heat-score** or **recommend-zones** request deducts **`geo_radar_scan`** (2 credits by default). Each **generate-campaign-brief** deducts **`campaign_brief`** (3 credits by default). Exact costs live in `credit_service.ACTION_COSTS`.
+- **Signal tiers (Geo-Intent)**: **Free** users get full Places signal but Trends/Weather may be neutral/`limited`; **Premium** (and the demo user where overridden) gets full multi-signal ingestion.
+- **Premium Tier** (subscription): Generally unlocks full Geo-Intent signals and higher credit allowances vs. free, per product rules in billing code.
 
 **User interaction**: 
 - Users view current balance and "Ad Credits Remaining" on the KPI strip.

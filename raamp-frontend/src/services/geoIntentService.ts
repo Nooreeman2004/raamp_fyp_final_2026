@@ -25,6 +25,24 @@ export interface RadarSignal {
   type: 'info' | 'alert' | 'success';
 }
 
+export interface ZoneResult {
+  label: string;
+  latitude: number;
+  longitude: number;
+  score: number;
+  urgency: string;
+  reason: string;
+  signals: SignalBreakdown;
+}
+
+export interface ZoneRecommendationResponse {
+  zones: ZoneResult[];
+  center_lat: number;
+  center_lng: number;
+  radius_m: number;
+  timestamp: string;
+}
+
 export interface HeatScoreResponse {
   score: number;
   urgency: string;
@@ -158,5 +176,16 @@ export const geoIntentService = {
 
   getCampaignBriefById: async (briefId: string): Promise<CampaignBrief> => {
     return apiClient.get<CampaignBrief>(`/v1/geo/campaign-brief/${briefId}`);
-  }
+  },
+
+  recommendZones: async (payload: {
+    business_id: string;
+    keywords: string[];
+    latitude: number;
+    longitude: number;
+    radius: number;
+    is_indoor: boolean;
+  }): Promise<ZoneRecommendationResponse> => {
+    return apiClient.post<ZoneRecommendationResponse>('/v1/geo/recommend-zones', payload);
+  },
 };

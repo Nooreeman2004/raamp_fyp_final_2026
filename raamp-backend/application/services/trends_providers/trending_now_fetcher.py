@@ -70,9 +70,11 @@ class TrendingNowFetcher:
             try:
                 now = datetime.utcnow()
                 doc = await TrendCacheModel.find_one(
-                    TrendCacheModel.namespace == "trending_now",
-                    TrendCacheModel.key == cache_key,
-                    TrendCacheModel.expires_at > now,
+                    {
+                        "namespace": "trending_now",
+                        "key": cache_key,
+                        "expires_at": {"$gt": now},
+                    }
                 )
                 if doc and isinstance(doc.value, dict):
                     terms = doc.value.get("terms")
@@ -146,8 +148,7 @@ class TrendingNowFetcher:
                 now = datetime.utcnow()
                 expires_at = now + timedelta(seconds=int(self.ttl_s))
                 await TrendCacheModel.find_one(
-                    TrendCacheModel.namespace == "trending_now",
-                    TrendCacheModel.key == cache_key,
+                    {"namespace": "trending_now", "key": cache_key}
                 ).upsert(
                     {"$set": {
                         "value": {"terms": list(terms)},

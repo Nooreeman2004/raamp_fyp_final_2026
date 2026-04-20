@@ -8,6 +8,8 @@
 #   - NEVER raises — returns 0.5 (neutral) on any failure so the engine always responds.
 import asyncio
 import logging
+import os
+import time
 from functools import partial
 from typing import List, Tuple
 
@@ -22,7 +24,14 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 _NEUTRAL_SCORE: float = 0.5          # returned when a fetcher fails
-_HTTP_TIMEOUT: float = 8.0           # seconds per external request
+_HTTP_TIMEOUT: float = 8.0           # seconds per external request (httpx Places / Weather)
+# Geo-intent heat-score calls GoogleTrendsService (SerpAPI + pytrends via thread pool).
+# Those paths do not use _HTTP_TIMEOUT; without a cap pytrends can block past the frontend geo timeout (~30s).
+try:
+    _GEO_TRENDS_FETCH_WALL_SEC = float(os.getenv("RAAMP_GEO_TRENDS_TIMEOUT_SEC", "12.0"))
+except ValueError:
+    _GEO_TRENDS_FETCH_WALL_SEC = 12.0
+_GEO_TRENDS_FETCH_WALL_SEC = max(3.0, min(_GEO_TRENDS_FETCH_WALL_SEC, 25.0))
 
 
 # ---------------------------------------------------------------------------
@@ -71,12 +80,22 @@ async def fetch_trends_score(
 
         logger.info("Fetching trends for geo=%s (Signal Scope: Regional/Sub-Regional)", location_code)
 
-        result = await svc.fetch_trends_data(
-            keywords=keywords[:5],
-            location=location_code,
-            timeframe="now 7-d",
-            use_cache=True,
-        )
+        try:
+            result = await asyncio.wait_for(
+                svc.fetch_trends_data(
+                    keywords=keywords[:5],
+                    location=location_code,
+                    timeframe="now 7-d",
+                    use_cache=True,
+                ),
+                timeout=_GEO_TRENDS_FETCH_WALL_SEC,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "fetch_trends_score: hard timeout after %.1fs — using neutral score",
+                _GEO_TRENDS_FETCH_WALL_SEC,
+            )
+            return _NEUTRAL_SCORE, "failed"
 
         if not result.get("success"):
             logger.warning(
@@ -322,6 +341,16 @@ async def ingest_all_signals(
     Failures are isolated — each fetcher returns 0.5 on error.
     Always returns a dict with keys: trends, places, weather.
     """
+    t0 = time.perf_counter()
+    logger.info(
+        "ingest_all_signals: start tier=%s lat=%.4f lng=%.4f radius=%dm keywords=%s",
+        user_tier,
+        latitude,
+        longitude,
+        radius,
+        keywords[:5],
+    )
+
     trends_task = fetch_trends_score(keywords, geo_code, latitude, longitude, radius)
     places_task = fetch_places_score(latitude, longitude, radius)
     weather_task = fetch_weather_score(latitude, longitude, is_indoor)
@@ -340,6 +369,19 @@ async def ingest_all_signals(
             weather_task,
             return_exceptions=False,
         )
+
+    elapsed = time.perf_counter() - t0
+    tr_st = trends_result[1] if isinstance(trends_result, tuple) else "?"
+    pl_st = places_result[1] if isinstance(places_result, tuple) else "?"
+    wx_st = weather_result[1] if isinstance(weather_result, tuple) else "?"
+    logger.info(
+        "ingest_all_signals: completed in %.2fs tier=%s signal_status trends/places/weather=%s/%s/%s",
+        elapsed,
+        user_tier,
+        tr_st,
+        pl_st,
+        wx_st,
+    )
 
     return {
         "trends": trends_result[0],

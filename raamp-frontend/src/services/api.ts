@@ -1,7 +1,8 @@
 import { isRetryableError, getRetryDelay } from '@/utils/errorHandler';
+import { API_BASE_URL } from '@/config/apiBase';
+import { refreshAccessToken } from '@/services/tokenRefresh';
 
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+export { API_BASE_URL } from '@/config/apiBase';
 
 // API Client
 class ApiClient {
@@ -13,10 +14,27 @@ class ApiClient {
     this.maxRetries = maxRetries;
   }
 
+  private shouldAttemptJwtRefresh(endpoint: string): boolean {
+    const skip = [
+      '/auth/signin',
+      '/auth/signup',
+      '/auth/refresh',
+      '/auth/logout',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      '/auth/verify-email',
+      '/auth/resend-verification',
+      '/auth/register',
+    ];
+    const lower = endpoint.toLowerCase();
+    return !skip.some((s) => lower.includes(s));
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    retryAttempt: number = 0
+    retryAttempt: number = 0,
+    didTryJwtRefresh: boolean = false
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
 
@@ -51,17 +69,49 @@ class ApiClient {
     };
 
     // Allow configuring timeout via Vite env var VITE_API_TIMEOUT (ms)
-    // Use longer timeout for signup/auth endpoints that send emails
-    const isAuthEndpoint = endpoint.includes('/auth/signup') || endpoint.includes('/auth/verify');
+    // Use longer timeout for signup/auth endpoints that send emails, and for session checks (profile/refresh).
+    const isAuthEndpoint =
+      endpoint.includes('/auth/signup') ||
+      endpoint.includes('/auth/verify') ||
+      endpoint.includes('/auth/profile') ||
+      endpoint.includes('/auth/refresh');
     const isSocialPosting = endpoint.includes('/instagram/posting/post') ||
       endpoint.includes('/facebook/posting/post') ||
       endpoint.includes('/social/post'); // Unified social posting endpoint
     const isTrending = endpoint.includes('/trends/') || endpoint.includes('/arbitrage/');
     const isChatbot = endpoint.includes('/chatbot/chat'); // Chatbot RAG pipeline needs time
+    const isMediaGeneration =
+      endpoint.includes('/media/reels/') ||
+      endpoint.includes('/media/videos/') ||
+      endpoint.includes('/media/generate-quick-reel');
 
-    // Social media posting, trend scanning, and chatbot RAG can take up to 45s-60s on the backend
-    const defaultTimeout = isAuthEndpoint ? 30000 : (isSocialPosting || isTrending || isChatbot ? 60000 : 10000);
-    const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT) || defaultTimeout;
+    // Geo-intent (Trends + Places + Weather in parallel, or multi-zone recommend) often exceeds 20s under API latency.
+    const isGeoEndpoint = endpoint.includes('/v1/geo/');
+
+    // Social posting, trends, chatbot RAG, and media generation can run 60s+ on the backend
+    const baseDefault = isAuthEndpoint
+      ? 30000
+      : isSocialPosting || isTrending || isChatbot
+        ? 60000
+        : isMediaGeneration
+          ? 120000
+          : 20000;
+
+    // recommend-zones runs 4–8 parallel full signal ingests — often slower than a single heat-score.
+    const isGeoRecommendZones = endpoint.includes('/v1/geo/recommend-zones');
+    const geoTimeoutEnv = Number(import.meta.env.VITE_GEO_API_TIMEOUT);
+    const defaultGeoFloor = isGeoRecommendZones ? 120000 : 30000;
+    const geoFloorMs =
+      !Number.isNaN(geoTimeoutEnv) && geoTimeoutEnv > 0 ? geoTimeoutEnv : defaultGeoFloor;
+    const defaultTimeout = isGeoEndpoint ? geoFloorMs : baseDefault;
+
+    const globalOverride = Number(import.meta.env.VITE_API_TIMEOUT);
+    const timeoutMs =
+      !Number.isNaN(globalOverride) && globalOverride > 0
+        ? isGeoEndpoint
+          ? Math.max(globalOverride, defaultTimeout)
+          : globalOverride
+        : defaultTimeout;
 
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -87,6 +137,17 @@ class ApiClient {
       // }
 
       if (!response.ok) {
+        if (
+          response.status === 401 &&
+          !didTryJwtRefresh &&
+          this.shouldAttemptJwtRefresh(endpoint)
+        ) {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            return this.request<T>(endpoint, options, retryAttempt, true);
+          }
+        }
+
         // Extract error data
         let errorMessage = 'An unexpected error occurred';
         const errorData = isJson ? data : {};
@@ -147,7 +208,18 @@ class ApiClient {
               }
             } else if (response.status === 400) {
               const lowerError = errorMessage.toLowerCase();
-              if (lowerError.includes('email')) {
+              // Sign-in: unverified email must be detected before generic "email" checks
+              // (otherwise "verify your email" is misread as invalid email format).
+              if (
+                lowerError.includes('verify your email') ||
+                lowerError.includes('not verified') ||
+                lowerError.includes('unverified')
+              ) {
+                errorMessage =
+                  'Email not verified. Enter the verification code we sent to your inbox.';
+              } else if (lowerError.includes('invalid email or password')) {
+                errorMessage = 'Incorrect email or password.';
+              } else if (lowerError.includes('email')) {
                 errorMessage = 'Please enter a valid email address.';
               } else if (lowerError.includes('password')) {
                 errorMessage = 'Password is required.';
@@ -188,6 +260,12 @@ class ApiClient {
           }
         }
 
+        // Never expose raw server/internal errors to end-users.
+        // Backend may include exception details in development; we intentionally hide them.
+        if (response.status >= 500) {
+          errorMessage = 'Something went wrong on our side. Please try again.';
+        }
+
         const error = {
           status: response.status,
           message: errorMessage,
@@ -199,7 +277,7 @@ class ApiClient {
         if (isRetryableError(error) && retryAttempt < this.maxRetries && !skipRetry) {
           const delay = getRetryDelay(retryAttempt);
           await new Promise(resolve => setTimeout(resolve, delay));
-          return this.request<T>(endpoint, options, retryAttempt + 1);
+          return this.request<T>(endpoint, options, retryAttempt + 1, didTryJwtRefresh);
         }
 
         throw error;
@@ -231,11 +309,13 @@ class ApiClient {
           errors: { timeout: 'request aborted' },
         };
 
-        // Retry on timeout if we haven't exceeded max retries
-        if (retryAttempt < this.maxRetries && !isSocialPosting) {
+        // Retry on timeout if we haven't exceeded max retries (avoid triple-wait on slow geo endpoints)
+        const skipTimeoutRetry =
+          isSocialPosting || (isGeoEndpoint && isGeoRecommendZones);
+        if (retryAttempt < this.maxRetries && !skipTimeoutRetry) {
           const delay = getRetryDelay(retryAttempt);
           await new Promise(resolve => setTimeout(resolve, delay));
-          return this.request<T>(endpoint, options, retryAttempt + 1);
+          return this.request<T>(endpoint, options, retryAttempt + 1, didTryJwtRefresh);
         }
 
         throw timeoutError;
@@ -255,7 +335,7 @@ class ApiClient {
         if (retryAttempt < this.maxRetries && !isSocialPosting) {
           const delay = getRetryDelay(retryAttempt);
           await new Promise(resolve => setTimeout(resolve, delay));
-          return this.request<T>(endpoint, options, retryAttempt + 1);
+          return this.request<T>(endpoint, options, retryAttempt + 1, didTryJwtRefresh);
         }
 
         throw networkError;
@@ -265,7 +345,7 @@ class ApiClient {
       if (isRetryableError(error) && retryAttempt < this.maxRetries) {
         const delay = getRetryDelay(retryAttempt);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return this.request<T>(endpoint, options, retryAttempt + 1);
+        return this.request<T>(endpoint, options, retryAttempt + 1, didTryJwtRefresh);
       }
 
       throw error;
@@ -306,6 +386,102 @@ class ApiClient {
       method: 'POST',
       body: formData,
     });
+  }
+
+  /**
+   * GET binary response (e.g. media download) with the same auth, timeout, and retry behavior as JSON requests.
+   */
+  async getBlob(endpoint: string): Promise<Blob> {
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${this.baseURL}${path}`;
+    const token = localStorage.getItem('token');
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const defaultTimeout =
+      path.includes('/reels/') || path.includes('/videos/') ? 120000 : 60000;
+    const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT) || defaultTimeout;
+    return this.blobFetch(url, headers, timeoutMs, 0);
+  }
+
+  private async blobFetch(
+    url: string,
+    headers: HeadersInit,
+    timeoutMs: number,
+    retryAttempt: number
+  ): Promise<Blob> {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+
+      if (!response.ok) {
+        const err = {
+          status: response.status,
+          message: `${response.status} ${response.statusText}`.trim() || 'Download failed',
+        };
+        if (isRetryableError(err) && retryAttempt < this.maxRetries) {
+          const delay = getRetryDelay(retryAttempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return this.blobFetch(url, headers, timeoutMs, retryAttempt + 1);
+        }
+        throw err;
+      }
+
+      return response.blob();
+    } catch (error: unknown) {
+      clearTimeout(id);
+      const name =
+        error instanceof DOMException ? error.name : (error as { name?: string })?.name;
+      const isAbortError = name === 'AbortError';
+
+      if (!isAbortError) {
+        console.error('API getBlob error:', error);
+      }
+
+      if (isAbortError) {
+        const timeoutError = {
+          status: 0,
+          message: 'Server took too long to respond. Please try again.',
+          errors: { timeout: 'request aborted' },
+        };
+        if (retryAttempt < this.maxRetries) {
+          const delay = getRetryDelay(retryAttempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return this.blobFetch(url, headers, timeoutMs, retryAttempt + 1);
+        }
+        throw timeoutError;
+      }
+
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        const networkError = {
+          status: 0,
+          message: 'Unable to connect to server. Please check your internet connection.',
+          errors: { network: 'Failed to fetch' },
+        };
+        if (retryAttempt < this.maxRetries) {
+          const delay = getRetryDelay(retryAttempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return this.blobFetch(url, headers, timeoutMs, retryAttempt + 1);
+        }
+        throw networkError;
+      }
+
+      if (isRetryableError(error) && retryAttempt < this.maxRetries) {
+        const delay = getRetryDelay(retryAttempt);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return this.blobFetch(url, headers, timeoutMs, retryAttempt + 1);
+      }
+
+      throw error;
+    }
   }
 }
 

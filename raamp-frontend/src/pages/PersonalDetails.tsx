@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { cn } from "@/lib/utils";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { useAuth } from "@/hooks/useAuth";
-import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { getNextOnboardingRouteFromUser } from "@/hooks/useOnboardingStatus";
 import { apiClient } from "@/services/api";
 
 interface BusinessDomain {
@@ -29,8 +29,8 @@ interface BusinessDomain {
 
 const PersonalDetails = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { refreshUser } = useAuth();
-  const { isFullyOnboarded } = useOnboardingStatus();
 
   // Use persistence hook for form data
   const { values: formData, setValues: setFormData, handleChange, clearPersistence } = useFormPersistence("personal_details_form", {
@@ -210,10 +210,10 @@ const PersonalDetails = () => {
         description: "Your professional parameters have been locked in.",
       });
 
-      // Only navigate to next onboarding step if user is NOT fully onboarded (new user in onboarding flow)
-      // If user is fully onboarded (editing from Settings), just save and stay
-      if (!isFullyOnboarded) {
-        setTimeout(() => navigate("/profile/onboarding"), 1000);
+      // Use API response so navigation does not rely on stale hook state or localStorage cache.
+      const nextRoute = getNextOnboardingRouteFromUser(response.user);
+      if (nextRoute !== null && nextRoute !== location.pathname) {
+        setTimeout(() => navigate(nextRoute), 500);
       }
     } catch (error: any) {
       console.error("Profile update error:", error);

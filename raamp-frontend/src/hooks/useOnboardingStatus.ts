@@ -1,5 +1,27 @@
 import { useMemo, useEffect } from 'react';
 import { useAuth } from './useAuth';
+import type { OnboardingStatus, UserResponse } from '@/types/user.types';
+
+/** First incomplete onboarding route, or `null` when all steps are done. */
+export function getNextOnboardingRoute(status: OnboardingStatus): string | null {
+    if (!status.profile_completed) return '/profile/personal-details';
+    if (!status.business_setup_completed) return '/profile/business-setup';
+    if (!status.brand_setup_completed) return '/profile/brand-settings';
+    if (!status.connections_completed) return '/profile/onboarding';
+    return null;
+}
+
+/** Resolves onboarding status from API user (including legacy responses without `onboarding_status`). */
+export function getNextOnboardingRouteFromUser(user: UserResponse | null | undefined): string | null {
+    if (!user) return '/profile/personal-details';
+    const status: OnboardingStatus = user.onboarding_status ?? {
+        profile_completed: user.profile_completed,
+        business_setup_completed: false,
+        brand_setup_completed: false,
+        connections_completed: false,
+    };
+    return getNextOnboardingRoute(status);
+}
 
 export interface OnboardingStep {
     id: string;
@@ -53,20 +75,20 @@ export const useOnboardingStatus = () => {
 
     // Find the first incomplete step
     const nextStep = steps.find((step) => !step.isCompleted);
-    
-    // BACK-BUTTON RESISTANT: Cache completion status in localStorage
-    const isCompletedInCache = localStorage.getItem('raamp_onboarded') === 'true';
-    const isFullyOnboarded = isCompletedInCache || !nextStep;
+
+    // Source of truth: API-derived steps only. Stale `raamp_onboarded` must not block progress.
+    const isFullyOnboarded = !nextStep;
 
     useEffect(() => {
-        if (!nextStep && !isCompletedInCache) {
+        if (nextStep) {
+            localStorage.removeItem('raamp_onboarded');
+        } else {
             localStorage.setItem('raamp_onboarded', 'true');
         }
-        // If user logged out or profile removed, clear cache (handled in useAuth typically, but can check user here)
-        if (!user && isCompletedInCache) {
+        if (!user) {
             localStorage.removeItem('raamp_onboarded');
         }
-    }, [nextStep, user, isCompletedInCache]);
+    }, [nextStep, user]);
 
     return {
         status: currentStatus,

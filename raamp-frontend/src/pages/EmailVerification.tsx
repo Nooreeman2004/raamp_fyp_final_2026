@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Mail, Check } from "lucide-react";
@@ -16,7 +16,14 @@ import { BlurText } from "@/components/ui/text-reveal";
 const EmailVerification = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const email = location.state?.email || "";
+    const [searchParams] = useSearchParams();
+    const emailFromQuery = (searchParams.get("email") || "").trim();
+    const emailFromState = (location.state?.email as string | undefined)?.trim() || "";
+    const email = emailFromState || emailFromQuery;
+    const fromSignIn =
+        location.state?.fromSignIn === true || searchParams.get("from") === "login";
+    const signupPending =
+        location.state?.signupPending === true || searchParams.get("pending") === "1";
 
     const [code, setCode] = useState(["", "", "", "", "", ""]);
     const [isLoading, setIsLoading] = useState(false);
@@ -266,7 +273,11 @@ const EmailVerification = () => {
                                         <BlurText text="Verify Your Email" />
                                     </h1>
                                     <p className="text-muted-foreground font-mono text-sm">
-                                        We've sent a 6-digit verification code to
+                                        {signupPending
+                                            ? "Complete your signup by entering the 6-digit code we sent to"
+                                            : fromSignIn
+                                              ? "Your email is not verified yet. Enter the 6-digit code we sent to"
+                                              : "We've sent a 6-digit verification code to"}
                                     </p>
                                     <p className="text-foreground font-medium font-mono">{email}</p>
                                 </div>

@@ -8,6 +8,8 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 
+from beanie.operators import NE, Or
+
 from infrastructure.database.models.instagram_post_model import (
     ROIMetrics, 
     InstagramPostModel, 
@@ -240,24 +242,34 @@ async def refresh_post_roi(post_id: str, db=None) -> Optional[ROIMetrics]:
 
 async def scheduled_roi_refresh() -> None:
     """
-    Background job to refresh ROI for pending posts older than 25 hours.
+    Background job to refresh ROI for pending feed posts/stories.
+    Eligible items: fetch_status pending, has instagram_post_id (or story id),
+    and either no published_at or published long enough ago to retry Meta insights
+    (>=1h, or null published_at which previously excluded rows from the old query).
     Runs every 6 hours (triggered from main.py).
     """
     try:
         now = datetime.now(timezone.utc)
-        delay_threshold = now - timedelta(hours=25)
-        
-        # Query for pending posts older than 25h
-        # Limit to 50 to avoid rate limiting
+        eligible_before = now - timedelta(hours=1)
+
+        # Pending + must have external IG media id for insights API
+        # Include published_at is None (older code paths never picked these up)
         pending_posts = await InstagramPostModel.find(
             InstagramPostModel.roi_metrics.fetch_status == "pending",
-            InstagramPostModel.published_at < delay_threshold
+            NE(InstagramPostModel.instagram_post_id, None),
+            Or(
+                InstagramPostModel.published_at == None,  # noqa: E711
+                InstagramPostModel.published_at < eligible_before,
+            ),
         ).limit(50).to_list()
-        
-        # Also check stories (remaining capacity)
+
         pending_stories = await InstagramStoryModel.find(
             InstagramStoryModel.roi_metrics.fetch_status == "pending",
-            InstagramStoryModel.published_at < delay_threshold
+            NE(InstagramStoryModel.instagram_story_id, None),
+            Or(
+                InstagramStoryModel.published_at == None,  # noqa: E711
+                InstagramStoryModel.published_at < eligible_before,
+            ),
         ).limit(max(0, 50 - len(pending_posts))).to_list()
         
         all_pending = pending_posts + pending_stories

@@ -69,4 +69,8 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
+  /** True when the API could not be reached to validate the session; cached user may be stale. */
+  sessionUncertain: boolean;
+  dismissSessionWarning: () => void;
+  reportSessionUncertain: () => void;
 }

@@ -1,4 +1,4 @@
-import api from "./api";
+import { apiClient } from "./api";
 
 export interface ComplaintSubmitRequest {
   subject: string;
@@ -26,27 +26,22 @@ export interface Complaint {
 
 export const complaintService = {
   submitComplaint: async (data: ComplaintSubmitRequest) => {
-    const response = await api.post("/complaints/submit", data);
-    return response.data;
+    return apiClient.post<unknown>("/complaints/submit", data);
   },
 
   getUserComplaints: async (): Promise<Complaint[]> => {
-    const response = await api.get("/complaints/user");
-    return response.data;
+    return apiClient.get<Complaint[]>("/complaints/user");
   },
 
   addComment: async (complaintId: string, text: string) => {
-    const response = await api.post(`/complaints/${complaintId}/comments`, { text });
-    return response.data;
+    return apiClient.post<unknown>(`/complaints/${complaintId}/comments`, { text });
   },
 
   submitRating: async (complaintId: string, rating: number) => {
-    const response = await api.post(`/complaints/${complaintId}/rating`, { rating });
-    return response.data;
+    return apiClient.post<unknown>(`/complaints/${complaintId}/rating`, { rating });
   },
 
   deleteComplaint: async (complaintId: string) => {
-    const response = await api.delete(`/complaints/${complaintId}`);
-    return response.data;
+    return apiClient.delete<unknown>(`/complaints/${complaintId}`);
   }
 };
