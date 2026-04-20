@@ -9,9 +9,11 @@ This document provides a feature-by-feature breakdown of currently implemented f
 ## 1. AI Creative Studio
 **Purpose**: To provide a centralized environment for generating high-quality marketing assets including text, images, and video content.
 
-**How it works**: Uses advanced AI models (via backend routers like `/api/content-generation` and `/api/media-generation`) to process natural language prompts and parameters (aspect ratio, tone) to create multiple variants of marketing material.
+**How it works**: Uses advanced AI models (via backend routers like `/api/content/*` and `/api/media/*`) to process natural language prompts and parameters (aspect ratio, tone) to create multiple variants of marketing material.
 
 **Module doc**: See `content_generation.md` for the full API/contracts/credits/frontend flow for Creative Studio content generation.
+
+**Supporting modules doc**: See `supporting_modules.md` for Notifications, Support/Complaints, and Settings (features, routes, UX rules, and gaps).
 
 **User interaction**: 
 - Users input a "Campaign Idea" in natural language.

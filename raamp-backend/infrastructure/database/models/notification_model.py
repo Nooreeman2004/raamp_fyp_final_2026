@@ -7,6 +7,7 @@ from pydantic import Field
 from datetime import datetime
 from typing import Optional, Dict, Any
 from enum import Enum
+from pymongo import IndexModel
 
 
 class NotificationType(str, Enum):
@@ -65,5 +66,8 @@ class NotificationModel(Document):
             "user_id",
             "created_at",
             "priority",
-            ("user_id", "read")  # Compound index for fetching unread
+            ("user_id", "read"),  # Compound index for fetching unread
+            # Retention: auto-delete notifications after N seconds.
+            # Production note: tune this (e.g., 90–180 days) based on product requirements.
+            IndexModel([("created_at", 1)], expireAfterSeconds=60 * 60 * 24 * 180),
         ]

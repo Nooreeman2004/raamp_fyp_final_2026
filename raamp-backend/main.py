@@ -346,6 +346,7 @@ from presentation.routers import geo_intent_engine_router
 from presentation.routers import dashboard_analytics_router
 from presentation.routers import ml_router
 from presentation.routers import activity_router
+from presentation.routers.meta_ads_router import router as meta_ads_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
@@ -402,6 +403,7 @@ app.include_router(geo_intent_engine_router.router)
 app.include_router(dashboard_analytics_router.router)
 app.include_router(activity_router.router)
 app.include_router(ml_router.router)  # ML Caption Intelligence endpoints
+app.include_router(meta_ads_router)
 
 # Mount static files for uploaded content
 os.makedirs("uploaded_files", exist_ok=True)

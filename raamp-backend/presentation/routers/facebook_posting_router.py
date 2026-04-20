@@ -161,22 +161,22 @@ async def post_to_facebook(
             )
         
     except ValueError as e:
-        logger.error(f"Validation error: {e}")
+        logger.warning("Facebook posting validation error: %s", str(e))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Invalid request"
         )
     except FacebookAPIError as e:
         logger.error(f"Facebook API error: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Facebook API error: {str(e)}"
+            detail="Facebook API error"
         )
     except Exception as e:
         logger.error(f"Unexpected error in post_to_facebook: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to post to Facebook: {str(e)}"
+            detail="Failed to post to Facebook"
         )
 
 

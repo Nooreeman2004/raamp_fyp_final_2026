@@ -35,9 +35,9 @@ async def trigger_scheduled_posts_processor(
     try:
         result = await process_scheduled_posts()
         return result
-    except Exception as e:
-        logger.exception(f"Scheduler execution failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Scheduler execution failed")
+        raise HTTPException(status_code=500, detail="Scheduler execution failed")
 
 
 @router.get("/scheduler-health")

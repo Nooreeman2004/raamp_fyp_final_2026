@@ -19,7 +19,9 @@ from presentation.schemas.content_generation_schema import (
     MessageVariant,
     HashtagSet,
     BrandContext,
-    ContentGenerationError
+    ContentGenerationError,
+    PlatformsResponse,
+    PlatformInfo,
 )
 from application.use_cases.content_generation_use_case import (
     ContentGenerationUseCase,
@@ -89,9 +91,14 @@ async def generate_content(
             campaign_idea=request.campaign_idea,
             target_audience=request.target_audience,
             campaign_tone=request.campaign_tone,
-            platform_type="story" if getattr(request, 'aspect_ratio', '1:1') == "9:16" else "post",
+            platform_type=(
+                getattr(request, "platform_type", None)
+                if getattr(request, "platform_type", None) in {"post", "story", "reel"}
+                else ("story" if getattr(request, "aspect_ratio", "1:1") == "9:16" else "post")
+            ),
             campaign_id=campaign_id,
-            content_type=getattr(request, 'content_type', 'all') or 'all'
+            content_type=getattr(request, 'content_type', 'all') or 'all',
+            aspect_ratio=getattr(request, "aspect_ratio", None),
         )
         
         # Handle errors from the use case
@@ -189,6 +196,9 @@ async def generate_content(
             asset_ids=result.get("asset_ids", []),
             image_generation_prompt=result.get("image_generation_prompt"),
             reasoning=result.get("reasoning"),
+            validation_warnings=result.get("validation_warnings", []),
+            logo_used=result.get("logo_used"),
+            logo_warning=result.get("logo_warning"),
             generated_at=result["generated_at"]
         )
         
@@ -240,3 +250,50 @@ async def get_brand_context(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch brand context"
         ) from e
+
+
+@router.get("/platforms", response_model=PlatformsResponse)
+async def get_platforms():
+    """
+    Return a static list of supported publishing platforms and formats.
+
+    Notes:
+    - This endpoint is intentionally **public** (no auth) because it is static UI config.
+    - The test suite expects a JSON object with a top-level `platforms` array and each
+      platform object must include: `id`, `name`, `description`, `guidelines`.
+    """
+    platforms = [
+        PlatformInfo(
+            id="instagram",
+            name="Instagram",
+            description="Best for visual-first marketing: feed posts, stories, and reels.",
+            guidelines="Keep captions punchy. Use 5–15 hashtags. Prefer strong hooks and clear CTAs.",
+            supported_generation_types=["post", "story", "reel"],
+            supported_aspect_ratios=["1:1", "4:5", "9:16"],
+        ),
+        PlatformInfo(
+            id="facebook",
+            name="Facebook",
+            description="Great for community engagement and local reach via posts and short videos.",
+            guidelines="Lead with value. Keep readability high. Add a single clear CTA.",
+            supported_generation_types=["post", "story", "reel"],
+            supported_aspect_ratios=["1:1", "4:5", "9:16"],
+        ),
+        PlatformInfo(
+            id="twitter",
+            name="X (Twitter)",
+            description="Short, fast updates and trend-driven hooks.",
+            guidelines="Be concise. One key idea per post. Avoid hashtag stuffing.",
+            supported_generation_types=["post"],
+            supported_aspect_ratios=["1:1"],
+        ),
+        PlatformInfo(
+            id="whatsapp",
+            name="WhatsApp",
+            description="Broadcast messages and direct-response campaigns.",
+            guidelines="Short and casual. One offer + one CTA. Keep it human and clear.",
+            supported_generation_types=["post"],
+            supported_aspect_ratios=["1:1"],
+        ),
+    ]
+    return PlatformsResponse(platforms=platforms)

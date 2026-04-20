@@ -5,7 +5,7 @@ Pydantic schemas for the AI-powered social media content generation API.
 Generates ALL content types in a single request.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from pydantic import BaseModel, Field
 
 
@@ -53,7 +53,11 @@ class ContentGenerationRequest(BaseModel):
     )
     platform_type: str = Field(
         default="post",
-        description="[Deprecated] Derived automatically from aspect_ratio. Kept for backward compatibility."
+        description=(
+            "Preferred platform prompt mode for text generation. "
+            "Allowed: 'post', 'story', 'reel'. "
+            "If omitted/invalid, the backend derives it from aspect_ratio (9:16 → story, else post)."
+        )
     )
     aspect_ratio: Optional[str] = Field(
         default="1:1",
@@ -140,7 +144,21 @@ class ContentGenerationResponse(BaseModel):
     
     # Metadata
     reasoning: Optional[str] = Field(None, description="AI reasoning for content strategy")
+    validation_warnings: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Non-blocking validation warnings when brand-lock checks fail after retries"
+    )
     generated_at: str = Field(..., description="ISO timestamp of generation")
+
+    # Image generation transparency (optional)
+    logo_used: Optional[bool] = Field(
+        default=None,
+        description="Whether the stored brand logo was successfully fetched and used as a visual reference for image prompts"
+    )
+    logo_warning: Optional[str] = Field(
+        default=None,
+        description="If logo_used is false, a human-readable reason/warning for the UI"
+    )
 
 
 class ContentGenerationError(BaseModel):
@@ -148,3 +166,24 @@ class ContentGenerationError(BaseModel):
     success: bool = False
     error: str = Field(..., description="Error message")
     detail: Optional[str] = Field(None, description="Detailed error information")
+
+
+class PlatformInfo(BaseModel):
+    """Static platform configuration used by the UI."""
+    id: str = Field(..., description="Platform identifier (e.g. instagram, facebook)")
+    name: str = Field(..., description="Human-friendly platform name")
+    description: str = Field(..., description="Short description of what this platform is used for")
+    guidelines: str = Field(..., description="Short content guidelines for this platform")
+    supported_generation_types: List[str] = Field(
+        default_factory=list,
+        description="Supported generation modes (e.g. post, story, reel)"
+    )
+    supported_aspect_ratios: List[str] = Field(
+        default_factory=list,
+        description="Supported aspect ratios (e.g. 1:1, 4:5, 9:16)"
+    )
+
+
+class PlatformsResponse(BaseModel):
+    """Response payload for GET /api/content/platforms."""
+    platforms: List[PlatformInfo] = Field(default_factory=list)

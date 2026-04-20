@@ -319,7 +319,7 @@ async def cancel_scheduled_post(
         logger.exception(f"Error cancelling scheduled post {request.post_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to cancel post: {str(e)}"
+            detail="Failed to cancel post"
         )
 
 

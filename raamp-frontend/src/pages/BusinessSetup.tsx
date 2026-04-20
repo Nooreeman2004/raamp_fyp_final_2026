@@ -200,7 +200,7 @@ const BusinessSetup = () => {
     };
 
     return (
-        <Layout breadcrumbItems={[{ label: "Profile", href: "/profile/user" }, { label: "Business Setup" }]}>
+        <Layout breadcrumbItems={[{ label: "Settings", href: "/settings" }, { label: "Business Setup" }]}>
             <motion.div
                 className="space-y-6 max-w-3xl mx-auto"
                 initial={{ opacity: 0, y: 20 }}

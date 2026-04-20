@@ -337,7 +337,7 @@ const BrandSettings = () => {
     }
 
     return (
-        <Layout breadcrumbItems={[{ label: "Profile", href: "/profile/user" }, { label: "Brand Settings" }]}>
+        <Layout breadcrumbItems={[{ label: "Settings", href: "/settings" }, { label: "Brand Settings" }]}>
             <motion.div
                 className="space-y-6 max-w-5xl mx-auto pb-20"
                 initial={{ opacity: 0, y: 20 }}

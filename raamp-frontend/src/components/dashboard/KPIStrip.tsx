@@ -99,7 +99,19 @@ export const KPIStrip = ({ businessId }: KPIStripProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {kpis.map((kpi, idx) => (
-        <Card key={idx} className="p-6 bg-card/40 backdrop-blur-md border-border/10 hover:border-primary/20 transition-all group relative overflow-hidden">
+        <Card
+          key={idx}
+          className={cn(
+            "p-6 bg-card/40 backdrop-blur-md border-border/10 group relative overflow-hidden",
+            "transition-all duration-300 will-change-transform",
+            "hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_0_32px_rgba(0,224,208,0.14)]",
+            // Edge highlight / glow
+            "before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none",
+            "before:ring-1 before:ring-inset before:ring-primary/0 group-hover:before:ring-primary/35",
+            "before:transition-[box-shadow,ring-color] before:duration-300",
+            "group-hover:before:shadow-[inset_0_0_0_1px_rgba(0,224,208,0.12)]"
+          )}
+        >
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
             <kpi.icon className="w-24 h-24" />
           </div>

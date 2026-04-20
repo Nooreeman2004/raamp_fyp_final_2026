@@ -160,9 +160,32 @@ class ContentGenerationService:
             sections.append(f"Expert Specialties: {', '.join(brand_context['specialties'])}")
         
         if not sections:
-            return "Brand Context: No brand information available. Generate generic but professional content."
-        
-        return "BRAND VOICE GUIDELINES:\n" + "\n".join(f"• {s}" for s in sections)
+            return (
+                "BRAND CONSTRAINTS:\n"
+                "- No brand information is available. You may generate generic but professional content.\n"
+                "- IMPORTANT: Still avoid bland/generic filler; be specific to the campaign idea."
+            )
+
+        biz_name = brand_context.get("business_name")
+        tagline = brand_context.get("tagline")
+        tone = brand_context.get("tone_of_voice")
+        constraints: list[str] = [
+            "BRAND CONSTRAINTS (HARD RULES — treat violations as INVALID output):",
+        ]
+        if biz_name:
+            constraints.append(f'- Business name MUST appear verbatim in EVERY caption variant: "{biz_name}".')
+        if tagline:
+            constraints.append(f'- Tagline MUST be incorporated verbatim (do not paraphrase): "{tagline}".')
+        if tone:
+            constraints.append(f'- Tone MUST be followed strictly: "{tone}".')
+        constraints.extend([
+            "- Do NOT produce generic content. Every line must reflect the specific campaign idea.",
+            "- If a brand field is missing, do NOT invent one; use only what is provided.",
+            "",
+            "BRAND VOICE GUIDELINES (context):",
+            *[f"• {s}" for s in sections],
+        ])
+        return "\n".join(constraints)
     
     def _build_user_prompt(
         self,
@@ -199,12 +222,9 @@ class ContentGenerationService:
                 logger.warning(f"Failed to build industry context: {e}")
                 industry_section = ""
         
-        # Build the prompt
+        # Build the prompt (put constraints first so the model treats them as primary).
         biz_name = brand_context.get("business_name", "Our Team")
-        prompt_parts = [
-            brand_section,
-            ""
-        ]
+        prompt_parts = [brand_section, ""]
         
         # Add industry-specific section if available
         if industry_section:
@@ -234,7 +254,7 @@ class ContentGenerationService:
             "2. Three hashtag strategy sets (Reach, Niche, Local).",
             "3. WhatsApp Messages: SHORT, CASUAL, CHATTY. NO Subject lines. NO placeholders. Start with 'Hey {{name}}!'. End with a friendly sign-off like 'Regards, Team {biz_name}'.",
             f"4. Email Campaigns: PROFESSIONAL, STRUCTURED. Format EXACTLY as:\n   Subject: [Compelling Line]\n   Body: [Professional greeting, 2 paragraphs of detail]\n   Regards,\n   Team {biz_name}",
-            "5. Three detailed, descriptive image generation prompts. DO NOT focus only on current brand if the campaign idea involves a new concept or industry (like a University Admission). Follow the CAMPAIGN IDEA's visual theme primarily.",
+            "5. Three detailed, descriptive image prompts. Follow the CAMPAIGN IDEA's visual theme primarily (brand identity should be integrated, not replace the campaign theme).",
             "",
             "EXACT JSON SCHEMA TO FOLLOW:",
             "{",
@@ -254,9 +274,10 @@ class ContentGenerationService:
             '    { "id": 1, "tone": "Professional", "message": "Subject: [Topic]\\n\\nBody: [Details]\\n\\nRegards, [Team]", "predicted_performance": "High" },',
             "    ...",
             "  ],",
-            '  "image_generation_prompts": [',
-            '    { "id": 1, "prompt": "detailed image prompt here" },',
-            "    ...",
+            '  "image_prompts": [',
+            '    "detailed image prompt 1",',
+            '    "detailed image prompt 2",',
+            '    "detailed image prompt 3"',
             "  ]",
             "}",
             "",
@@ -274,7 +295,8 @@ class ContentGenerationService:
         campaign_tone: Optional[str] = None,
         platform_type: str = "post",
         campaign_id: Optional[str] = None,
-        content_type: str = "all"
+        content_type: str = "all",
+        aspect_ratio: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate ALL content types in a single AI call.
@@ -333,77 +355,196 @@ class ContentGenerationService:
                     "or CTA, and end with a direct action link or instruction."
                 )
             
-            # Select appropriate system prompt based on platform type
-            system_prompt = self._get_system_prompt(platform_type)
-            full_prompt = f"{system_prompt}\n\n{user_prompt}"
-            logger.info(f"📤 Calling GenAI SDK — model: {self.model}, platform: {platform_type}, content_type: {content_type}")
-            logger.info(f"📝 Prompt length: {len(full_prompt)} chars")
-            
-            # Call Google GenAI SDK directly (bypasses OpenAI-compat which has model coverage gaps)
-            try:
-                response = await asyncio.to_thread(
-                    lambda: self.client.models.generate_content(
-                        model=self.model,
-                        contents=full_prompt,
-                        config=genai_types.GenerateContentConfig(
-                            temperature=0.8,
-                            max_output_tokens=4096,
-                            response_mime_type="application/json",
+            # ----- Brand-lock validation + bounded retries -----
+            def _norm(s: Optional[str]) -> str:
+                return (s or "").strip().lower()
+
+            biz_name_req = (brand_context.get("business_name") or "").strip()
+            tagline_req = (brand_context.get("tagline") or "").strip()
+
+            def _tagline_probe(tagline: str) -> str:
+                words = [w for w in re.split(r"\s+", tagline.strip()) if w]
+                if len(words) >= 10:
+                    return " ".join(words[:5])
+                return tagline.strip()
+
+            tagline_probe = _tagline_probe(tagline_req) if tagline_req else ""
+
+            def _validate_brand_lock(
+                *,
+                captions: list[dict],
+                whatsapp: list[dict],
+                emails: list[dict],
+                ct: str,
+            ) -> list[dict]:
+                warnings: list[dict] = []
+                biz_norm = _norm(biz_name_req)
+                tag_norm = _norm(tagline_probe)
+
+                def check_variants(label: str, variants: list[dict], text_key: str):
+                    if not variants:
+                        return
+                    tag_found_any = False
+                    for v in variants[:3]:
+                        vid = v.get("id")
+                        text = str(v.get(text_key, "") or "")
+                        text_norm = _norm(text)
+                        missing = []
+                        if biz_norm and biz_norm not in text_norm:
+                            missing.append("business_name")
+                        if tag_norm and tag_norm in text_norm:
+                            tag_found_any = True
+                        if missing:
+                            warnings.append(
+                                {
+                                    "type": "brand_lock",
+                                    "content_type": label,
+                                    "variant_id": vid,
+                                    "missing": missing,
+                                }
+                            )
+                    if tag_norm and not tag_found_any:
+                        warnings.append(
+                            {
+                                "type": "brand_lock",
+                                "content_type": label,
+                                "variant_id": None,
+                                "missing": ["tagline"],
+                                "detail": "Tagline not found in any variant for this content type.",
+                            }
+                        )
+
+                # Only validate types that are actually expected for this request.
+                if ct in ("all", "captions"):
+                    check_variants("captions", captions, "caption")
+                if ct in ("all", "whatsapp"):
+                    check_variants("whatsapp", whatsapp, "message")
+                if ct in ("all", "emails"):
+                    check_variants("emails", emails, "message")
+                return warnings
+
+            def _build_retry_prefix(warnings: list[dict], attempt: int) -> str:
+                if not warnings:
+                    return ""
+                lines = [
+                    "VALIDATION FAILURE FROM PREVIOUS GENERATION (MUST FIX):",
+                    "The previous output violated BRAND CONSTRAINTS. Regenerate and ensure all requirements are met.",
+                ]
+                # Mention a few concrete failures for targeting.
+                for w in warnings[:6]:
+                    ct = w.get("content_type")
+                    vid = w.get("variant_id")
+                    missing = ", ".join(w.get("missing", []))
+                    lines.append(f"- {ct} variant {vid}: missing {missing}.")
+                if attempt >= 1:
+                    lines.append("SECOND ATTEMPT: This is your final chance. Output MUST pass all brand constraints.")
+                lines.append("")
+                return "\n".join(lines)
+
+            # retry loop (0 + up to 2 retries = 3 total attempts)
+            max_retries = 2
+            validation_warnings: list[dict] = []
+            logo_used = None
+            logo_warning = None
+            result = None
+
+            for attempt in range(0, max_retries + 1):
+                # Select appropriate system prompt based on platform type
+                system_prompt = self._get_system_prompt(platform_type)
+                retry_prefix = _build_retry_prefix(validation_warnings, attempt) if attempt > 0 else ""
+                full_prompt = f"{retry_prefix}{system_prompt}\n\n{user_prompt}"
+                logger.info(
+                    "📤 Calling GenAI SDK — model: %s, platform: %s, content_type: %s, attempt: %d/%d",
+                    self.model,
+                    platform_type,
+                    content_type,
+                    attempt + 1,
+                    max_retries + 1,
+                )
+
+                try:
+                    response = await asyncio.to_thread(
+                        lambda: self.client.models.generate_content(
+                            model=self.model,
+                            contents=full_prompt,
+                            config=genai_types.GenerateContentConfig(
+                                temperature=0.8,
+                                max_output_tokens=4096,
+                                response_mime_type="application/json",
+                            ),
                         )
                     )
-                )
-                raw_text = response.text
-                logger.info(f"✅ GenAI SDK responded — {len(raw_text)} chars")
-            except Exception as api_error:
-                logger.error(f"❌ GenAI SDK call failed: {type(api_error).__name__}: {api_error}")
-                logger.error(f"   Model: {self.model}")
-                import traceback
-                logger.error(f"   Traceback: {traceback.format_exc()}")
-                error_msg = str(api_error).lower()
-                if "quota" in error_msg or "429" in error_msg:
-                    detail = "API quota exhausted. Please check your billing."
-                elif "401" in error_msg or "api_key" in error_msg:
-                    detail = "Invalid Gemini API key. Please check your .env configuration."
-                elif "404" in error_msg or "not found" in error_msg:
-                    detail = f"Model '{self.model}' is not accessible with your API key tier."
-                else:
-                    detail = f"Technical error: {str(api_error)[:200]}"
-                return {"success": False, "error": "AI service temporarily unavailable", "detail": detail}
+                    raw_text = response.text
+                except Exception as api_error:
+                    logger.error("❌ GenAI SDK call failed: %s: %s", type(api_error).__name__, api_error)
+                    error_msg = str(api_error).lower()
+                    if "quota" in error_msg or "429" in error_msg:
+                        detail = "API quota exhausted. Please check your billing."
+                    elif "401" in error_msg or "api_key" in error_msg:
+                        detail = "Invalid Gemini API key. Please check your .env configuration."
+                    elif "404" in error_msg or "not found" in error_msg:
+                        detail = f"Model '{self.model}' is not accessible with your API key tier."
+                    else:
+                        detail = f"Technical error: {str(api_error)[:200]}"
+                    return {"success": False, "error": "AI service temporarily unavailable", "detail": detail}
 
-            # Extract JSON from the response (strip any markdown fences)
-            content = raw_text.strip()
-            logger.info(f"📥 Raw response preview: {content[:300]}...")
-            
-            # Clean response content (remove markdown code blocks if present)
-            if content.startswith("```json"):
-                content = content.replace("```json", "", 1)
-                if content.endswith("```"):
-                    content = content[:-3]
-            elif content.startswith("```"):
-                content = content.replace("```", "", 1)
-                if content.endswith("```"):
-                    content = content[:-3]
-            
-            content = content.strip()
-            
-            # Extract JSON — try raw first, then regex search for first {...} block
-            try:
-                result = json.loads(content)
-                logger.info("✅ Successfully parsed JSON response")
-            except json.JSONDecodeError:
-                logger.warning("⚠️ Direct JSON parse failed, trying regex extraction...")
-                match = re.search(r'\{[\s\S]*\}', content)
-                if match:
-                    try:
+                content = (raw_text or "").strip()
+                # Clean response content (remove markdown code blocks if present)
+                if content.startswith("```json"):
+                    content = content.replace("```json", "", 1)
+                    if content.endswith("```"):
+                        content = content[:-3]
+                elif content.startswith("```"):
+                    content = content.replace("```", "", 1)
+                    if content.endswith("```"):
+                        content = content[:-3]
+                content = content.strip()
+
+                # Extract JSON — try raw first, then regex search for first {...} block
+                try:
+                    result = json.loads(content)
+                except json.JSONDecodeError:
+                    match = re.search(r"\{[\s\S]*\}", content)
+                    if match:
                         result = json.loads(match.group(0))
-                        logger.info("✅ Successfully parsed JSON via regex extraction")
-                    except json.JSONDecodeError as json_error:
-                        logger.error(f"❌ Failed to parse JSON after regex: {json_error}")
-                        logger.error(f"Response text: {content[:1000]}")
-                        raise
-                else:
-                    logger.error(f"❌ No JSON block found in response. Raw: {content[:500]}")
-                    raise json.JSONDecodeError("No JSON block found", content, 0)
+                    else:
+                        raise json.JSONDecodeError("No JSON block found", content, 0)
+
+                # Pre-normalization brand-lock validation. If it fails, retry generation.
+                # (We validate again after normalization only to attach warnings in the final response.)
+                def _raw_variants(key: str, text_key: str) -> list[dict]:
+                    items = result.get(key, []) or []
+                    if isinstance(items, dict):
+                        items = list(items.values())
+                    if not isinstance(items, list):
+                        return []
+                    out: list[dict] = []
+                    for i, it in enumerate(items[:3]):
+                        if isinstance(it, dict):
+                            out.append({"id": it.get("id", i + 1), text_key: it.get(text_key, "")})
+                    return out
+
+                raw_captions = _raw_variants("caption_variants", "caption")
+                raw_whatsapp = _raw_variants("whatsapp_variants", "message") or _raw_variants("message_variants", "message")
+                raw_emails = _raw_variants("email_variants", "message")
+
+                validation_warnings = _validate_brand_lock(
+                    captions=raw_captions,
+                    whatsapp=raw_whatsapp,
+                    emails=raw_emails,
+                    ct=content_type,
+                )
+
+                if validation_warnings and attempt < max_retries:
+                    logger.warning(
+                        "⚠️ Brand-lock validation failed (attempt %d/%d). Retrying generation.",
+                        attempt + 1,
+                        max_retries + 1,
+                    )
+                    continue
+
+                # Either validation passed, or we're out of retries; proceed to normalization.
+                break
             
             # Validate and normalize caption variants
             caption_variants = result.get("caption_variants", [])
@@ -558,6 +699,49 @@ class ContentGenerationService:
                     "hashtag_id": h_id,
                     "hashtags": h_set.get("hashtags", []) if isinstance(h_set, dict) else h_set
                 })
+
+            # Pick best hashtag set using a lightweight deterministic heuristic.
+            # Goal: avoid always returning 1, while staying stable for the same inputs.
+            def _score_hashtag_set(tags: Any) -> float:
+                if not isinstance(tags, list):
+                    return 0.0
+                cleaned: list[str] = []
+                for t in tags:
+                    if not t:
+                        continue
+                    s = str(t).strip()
+                    if not s:
+                        continue
+                    # Normalize leading '#'
+                    if not s.startswith("#"):
+                        s = "#" + s.lstrip("#")
+                    cleaned.append(s.lower())
+                if not cleaned:
+                    return 0.0
+                unique = list(dict.fromkeys(cleaned))
+                uniq_n = len(unique)
+                # Encourage variety: mix of short/broad + longer/niche tags
+                lens = [len(x) for x in unique]
+                short = sum(1 for l in lens if l <= 10)
+                long = sum(1 for l in lens if l >= 16)
+                diversity = 1.0 if (short > 0 and long > 0) else 0.0
+                # Penalize duplicates
+                dup_penalty = max(0, len(cleaned) - uniq_n)
+                return (uniq_n * 1.0) + (diversity * 1.5) - (dup_penalty * 0.5)
+
+            best_hashtag_set_id = 1
+            try:
+                if normalized_hashtag_sets:
+                    scored = [
+                        (float(_score_hashtag_set(s.get("hashtags"))), int(s.get("id", idx + 1)))
+                        for idx, s in enumerate(normalized_hashtag_sets)
+                    ]
+                    # Highest score wins; tie-breaker prefers middle set (2), then 3, then 1.
+                    scored.sort(key=lambda x: (x[0], {2: 3, 3: 2, 1: 1}.get(x[1], 0)), reverse=True)
+                    best_hashtag_set_id = scored[0][1] if scored else 1
+            except Exception as e:
+                logger.warning("⚠️ Hashtag set scoring failed, defaulting to 1: %s", e)
+                best_hashtag_set_id = 1
             
             # Log hashtag sets to database (non-blocking)
             try:
@@ -723,11 +907,29 @@ class ContentGenerationService:
                 logger.error(f"⚠️ Failed to log messages: {log_error}")
             
             # Get image prompts (or provide placeholders)
-            image_prompts = result.get("image_prompts", [
-                "Professional product photography with brand colors",
-                "Lifestyle shot showing product in use",
-                "Bold promotional graphic for social media"
-            ])
+            image_prompts = result.get("image_prompts")
+            if not image_prompts:
+                # Backward compatibility: accept old key if model returns it
+                legacy = result.get("image_generation_prompts")
+                if isinstance(legacy, list):
+                    # Accept either [{"id":1,"prompt":"..."}, ...] or ["..."]
+                    extracted: list[str] = []
+                    for item in legacy:
+                        if isinstance(item, str):
+                            extracted.append(item)
+                        elif isinstance(item, dict) and item.get("prompt"):
+                            extracted.append(str(item["prompt"]))
+                    image_prompts = extracted
+
+            if not isinstance(image_prompts, list):
+                image_prompts = []
+
+            if not image_prompts:
+                image_prompts = [
+                    "Professional product photography with brand colors",
+                    "Lifestyle shot showing product in use",
+                    "Bold promotional graphic for social media",
+                ]
             
             # Generate real images using Gemini (Only when explicitly requested via 'images' type)
             image_paths = []
@@ -740,13 +942,16 @@ class ContentGenerationService:
                     image_result = await image_service.generate_campaign_images(
                         campaign_idea=campaign_idea,
                         brand_context=brand_context,
-                        user_id=user_id
+                        user_id=user_id,
+                        aspect_ratio=aspect_ratio or "1:1",
                     )
                     
                     if image_result.get("success"):
                         image_paths = image_result.get("image_paths", [])
                         image_generation_prompt = image_result.get("image_prompt", "")
                         asset_ids = image_result.get("asset_ids", [])
+                        logo_used = image_result.get("logo_used")
+                        logo_warning = image_result.get("logo_warning")
                         logger.info("🖼️ Successfully generated %d images with %d assets saved", len(image_paths), len(asset_ids))
                     else:
                         logger.warning("⚠️ Image generation failed: %s", image_result.get("message"))
@@ -792,6 +997,15 @@ class ContentGenerationService:
                 final_hashtags = empty_hashtag_sets
                 final_whatsapp = empty_messages
             
+            # Final brand-lock validation warnings (for UI visibility).
+            # Note: we already retried earlier pre-normalization; this is for transparency.
+            validation_warnings = _validate_brand_lock(
+                captions=normalized_captions,
+                whatsapp=normalized_whatsapp,
+                emails=normalized_email,
+                ct=content_type,
+            )
+
             logger.info("✅ Content generation completed successfully")
             return {
                 "success": True,
@@ -799,6 +1013,7 @@ class ContentGenerationService:
                 "caption_variants": final_captions,
                 "best_caption_id": ml_best_id if 'ml_best_id' in dir() else result.get("best_caption_id", 1),
                 "hashtag_sets": final_hashtags[:3],
+                "best_hashtag_set_id": best_hashtag_set_id,
                 "whatsapp_variants": final_whatsapp,
                 "email_variants": final_email,
                 "message_variants": normalized_messages, # Legacy support
@@ -808,6 +1023,9 @@ class ContentGenerationService:
                 "asset_ids": asset_ids,
                 "image_generation_prompt": image_generation_prompt,
                 "reasoning": result.get("reasoning", ""),
+                "validation_warnings": validation_warnings,
+                "logo_used": logo_used,
+                "logo_warning": logo_warning,
                 "generated_at": datetime.now(timezone.utc).isoformat()
             }
             

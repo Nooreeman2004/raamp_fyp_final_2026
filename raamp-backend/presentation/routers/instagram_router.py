@@ -77,9 +77,12 @@ async def instagram_callback(request: Request, code: str = None, state: str = No
         r = await client.get(token_url, params=params, timeout=10.0)
         try:
             r.raise_for_status()
-        except Exception as e:
-            logging.exception('Failed to exchange code for token')
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        except Exception:
+            logging.exception("Failed to exchange code for token")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to exchange code for token",
+            )
         data = r.json()
 
     short_token = data.get('access_token')

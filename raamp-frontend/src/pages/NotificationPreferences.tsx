@@ -34,6 +34,7 @@ const NotificationPreferences = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showPasswordGate, setShowPasswordGate] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<NotificationSettings>({
     emailNotifications: true,
@@ -53,6 +54,7 @@ const NotificationPreferences = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await authService.getNotificationSettings();
       if (res) {
         setSettings({
@@ -68,7 +70,12 @@ const NotificationPreferences = () => {
       }
     } catch (error) {
       console.error("Failed to fetch settings", error);
-      // Fallback to defaults or show error
+      setLoadError("We couldn’t load your notification preferences. Please try again.");
+      toast({
+        title: "Could not load preferences",
+        description: "Please try again in a moment.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -151,6 +158,22 @@ const NotificationPreferences = () => {
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
+        ) : loadError ? (
+          <Reveal variant="fadeInUp" delay={0.1}>
+            <Card className="p-6 bg-card/70 backdrop-blur-sm border-destructive/20">
+              <div className="space-y-3">
+                <p className="text-sm text-foreground font-mono">{loadError}</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={fetchSettings} className="font-mono text-xs">
+                    Retry
+                  </Button>
+                  <Button variant="ghost" onClick={() => navigate("/settings")} className="font-mono text-xs">
+                    Back to Settings
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </Reveal>
         ) : (
           <>
             <Reveal variant="fadeInUp" delay={0.1}>

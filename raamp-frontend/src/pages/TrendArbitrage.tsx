@@ -1211,15 +1211,15 @@ const TrendArbitrage = () => {
 
   return (
     <Layout>
-      <div className="space-y-0 pb-24 pt-6 overflow-x-hidden bg-background relative">
+      <div className="space-y-0 pb-24 pt-4 overflow-x-hidden bg-background relative">
         <div className="absolute top-0 left-1/4 w-1/2 h-1/2 bg-primary/5 blur-[160px] rounded-full pointer-events-none -z-10" />
 
         <div className="space-y-0">
 
           {/* Ticker strip */}
-          <div className="w-full overflow-hidden bg-foreground/5 border-y border-border py-1 backdrop-blur-md sticky top-0 z-50">
+          <div className="w-full overflow-hidden bg-foreground/5 border-y border-border h-10 flex items-center backdrop-blur-md sticky top-0 z-50">
             <motion.div
-              className="flex gap-12 whitespace-nowrap cursor-pointer hover:pause"
+              className="flex items-center gap-12 whitespace-nowrap cursor-pointer hover:pause"
               animate={{ x: [0, -3000] }}
               transition={{ repeat: Infinity, duration: 80, ease: "linear" }}
               onHoverStart={() => { }} // Could dispatch a pause action
@@ -1252,7 +1252,7 @@ const TrendArbitrage = () => {
 
           {/* Profit Windows strip (moved to top) */}
           <div className="px-6 pt-2">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 py-3 px-5 bg-card/50 backdrop-blur-xl border border-border rounded-xl shadow-2xl min-w-0">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 py-2.5 px-4 bg-card/50 backdrop-blur-xl border border-border rounded-xl shadow-xl min-w-0">
               <div className="flex items-center gap-4 min-w-0">
                 <div className="p-2 bg-primary/20 rounded-lg border border-primary/40">
                   <Globe className="w-5 h-5 text-primary" />
@@ -1557,15 +1557,15 @@ const TrendArbitrage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="absolute top-20 right-6 flex flex-col gap-2 z-[100]"
                   >
-                    <div className="flex items-center gap-3 bg-red-500/20 border border-red-500/40 px-4 py-3 rounded-xl backdrop-blur-3xl shadow-2xl max-w-sm">
-                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                    <div className="flex items-center gap-3 bg-destructive/10 border border-destructive/25 px-4 py-3 rounded-xl backdrop-blur-3xl shadow-2xl max-w-sm">
+                      <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0" />
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-mono font-black text-red-500 uppercase tracking-[0.2em]">System Alert</span>
-                        <span className="text-[11px] font-mono text-white/80 leading-tight">{error || "Connection failure detected."}</span>
+                        <span className="text-[10px] font-mono font-black text-destructive uppercase tracking-[0.2em]">System Alert</span>
+                        <span className="text-[11px] font-mono text-foreground/80 leading-tight">{error || "Connection failure detected."}</span>
                       </div>
                         <button
                           type="button"
-                          className="ml-2 text-white/40 hover:text-white/80 transition-colors text-xs font-mono"
+                          className="ml-2 text-muted-foreground/60 hover:text-foreground transition-colors text-xs font-mono"
                           onClick={() => {
                             setError(null);
                             setIsOffline(false);
@@ -1662,8 +1662,8 @@ const TrendArbitrage = () => {
 
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-red-100/60 text-[10px] font-mono uppercase">
-                  <AlertCircle className="w-4 h-4 text-red-400" />
+                <div className="bg-destructive/10 border border-destructive/25 p-4 rounded-xl flex items-center gap-3 text-destructive/90 text-[10px] font-mono uppercase">
+                  <AlertCircle className="w-4 h-4 text-destructive" />
                   <span>{error}</span>
                 </div>
               )}
@@ -1728,12 +1728,12 @@ const TrendArbitrage = () => {
                             <RefreshCw className="w-4 h-4 animate-spin text-primary/80" />
                             <div className="text-[10px] font-mono font-black uppercase tracking-[0.2em] text-primary/80">
                               Scanning…
-                              <span className="ml-2 text-white/40 font-normal tracking-normal">
+                              <span className="ml-2 text-muted-foreground/70 dark:text-white/40 font-normal tracking-normal">
                                 {scanStep || "Processing signal vectors"}
                               </span>
                             </div>
                           </div>
-                          <div className="text-[10px] font-mono text-white/30 uppercase tracking-widest">
+                          <div className="text-[10px] font-mono text-muted-foreground/60 dark:text-white/30 uppercase tracking-widest">
                             {location}
                           </div>
                         </div>
@@ -1773,7 +1773,7 @@ const TrendArbitrage = () => {
                             <div key={item.id} className="p-4 bg-foreground/5 border border-border/50 rounded-xl relative group">
                               <button
                                 onClick={() => handleRemoveFromWatchlist(item.keyword)}
-                                className="absolute top-2 right-2 text-white/20 hover:text-red-500 transition-colors"
+                                className="absolute top-2 right-2 text-muted-foreground/50 hover:text-destructive transition-colors"
                               >
                                 <AlertCircle className="w-4 h-4" />
                               </button>
@@ -1860,7 +1860,7 @@ const TrendArbitrage = () => {
                     }`}
                   >
                     <div className="text-sm font-heading font-semibold">{label}</div>
-                    <div className="text-[9px] font-mono text-white/30 mt-0.5">{hint}</div>
+                    <div className="text-[9px] font-mono text-muted-foreground/60 dark:text-white/30 mt-0.5">{hint}</div>
                   </button>
                 ))}
               </div>
@@ -1872,7 +1872,7 @@ const TrendArbitrage = () => {
                 value={deployPrompt}
                 onChange={(e) => setDeployPrompt(e.target.value)}
                 rows={5}
-                className="w-full bg-white/[0.03] border border-border/50 rounded-xl p-4 text-sm font-mono text-white/80 resize-none focus:outline-none focus:border-primary/50 leading-relaxed"
+                className="w-full bg-white/[0.03] border border-border/50 rounded-xl p-4 text-sm font-mono text-foreground/90 dark:text-white/80 resize-none focus:outline-none focus:border-primary/50 leading-relaxed"
               />
             </div>
           </div>
@@ -1887,7 +1887,7 @@ const TrendArbitrage = () => {
             >
               OPEN IN CREATIVE STUDIO →
             </Button>
-            <p className="text-center text-[10px] font-mono text-white/20">You can edit and refine before publishing.</p>
+            <p className="text-center text-[10px] font-mono text-muted-foreground/60 dark:text-white/20">You can edit and refine before publishing.</p>
           </div>
         </SheetContent>
       </Sheet>
@@ -1917,7 +1917,7 @@ const TrendArbitrage = () => {
                   { label: "SOCIAL SCORE", value: selectedTrend.social_score || null },
                 ].filter(m => m.value !== null).map(({ label, value }) => (
                   <div key={label} className="p-3 bg-foreground/5 border border-border/50 rounded-xl">
-                    <p className="text-[9px] font-mono font-black text-white/30 uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-[9px] font-mono font-black text-muted-foreground/60 dark:text-white/30 uppercase tracking-wider mb-1">{label}</p>
                     <p className="text-lg font-heading font-semibold text-foreground">{value}</p>
                   </div>
                 ))}
@@ -1925,14 +1925,14 @@ const TrendArbitrage = () => {
 
               {selectedTrend.niche && (
                 <div className="p-3 bg-foreground/5 border border-border/50 rounded-xl">
-                  <p className="text-[9px] font-mono font-black text-white/30 uppercase tracking-wider mb-1">NICHE</p>
-                  <p className="text-sm font-mono text-white/80">{selectedTrend.niche}</p>
+                  <p className="text-[9px] font-mono font-black text-muted-foreground/60 dark:text-white/30 uppercase tracking-wider mb-1">NICHE</p>
+                  <p className="text-sm font-mono text-foreground/80 dark:text-white/80">{selectedTrend.niche}</p>
                 </div>
               )}
 
               {(selectedTrend.rising_queries?.length ?? 0) > 0 && (
                 <div className="p-3 bg-foreground/5 border border-border/50 rounded-xl">
-                  <p className="text-[9px] font-mono font-black text-white/30 uppercase tracking-wider mb-2">RISING QUERIES</p>
+                  <p className="text-[9px] font-mono font-black text-muted-foreground/60 dark:text-white/30 uppercase tracking-wider mb-2">RISING QUERIES</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedTrend.rising_queries!.slice(0, 6).map((q, i) => (
                       <span key={i} className="text-[10px] font-mono text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">{q}</span>

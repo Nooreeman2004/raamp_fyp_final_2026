@@ -30,9 +30,9 @@ async def create_checkout_session_controller(user_id: str, email: str, plan: str
     try:
         session = create_checkout_session(user_id, email, plan)
         return {"url": session.url}
-    except Exception as e:
-        logging.error(f"Stripe checkout error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logging.exception("Stripe checkout error")
+        raise HTTPException(status_code=500, detail="Failed to start checkout")
 
 
 async def create_portal_session_controller(customer_id: str):
@@ -42,9 +42,9 @@ async def create_portal_session_controller(customer_id: str):
     try:
         session = create_portal_session(customer_id)
         return {"url": session.url}
-    except Exception as e:
-        logging.error(f"Stripe portal error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logging.exception("Stripe portal error")
+        raise HTTPException(status_code=500, detail="Failed to open billing portal")
 
 
 async def process_stripe_webhook_controller(event: dict):

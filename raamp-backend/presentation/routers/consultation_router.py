@@ -155,12 +155,11 @@ Email: {consultation.business_email}
         # Re-raise HTTP exceptions
         raise
     
-    except ValueError as e:
-        # Validation errors from Pydantic validators
+    except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        ) from e
+            detail="Invalid consultation request",
+        )
     
     except Exception as e:
         logging.error("Error processing consultation request: %s", e)

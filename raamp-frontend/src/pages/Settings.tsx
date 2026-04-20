@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Bell,
   Link2,
-  Shield,
   Target,
   Settings as SettingsIcon,
 } from "lucide-react";
@@ -68,12 +67,6 @@ const Settings = () => {
       href: "/profile/business-setup",
     },
     {
-      title: "Edit Billing Profile",
-      description: "Company invoicing address and tax details",
-      icon: <Building2 className="w-5 h-5 text-primary" />,
-      href: "/settings/billing-profile",
-    },
-    {
       title: "Business Specialties",
       description: "Set keywords for enhanced trend detection",
       icon: <Target className="w-5 h-5 text-primary" />,
@@ -95,13 +88,7 @@ const Settings = () => {
       title: "Integrations",
       description: "Meta, Google, and API connections",
       icon: <Link2 className="w-5 h-5 text-primary" />,
-      href: "/profile/onboarding",
-    },
-    {
-      title: "Account & Security",
-      description: "Password and account management",
-      icon: <Shield className="w-5 h-5 text-primary" />,
-      href: "/settings/security",
+      href: "/settings/integrations",
     },
   ];
 
@@ -141,25 +128,6 @@ const Settings = () => {
             <SettingsCard key={module.title} {...module} />
           ))}
         </motion.div>
-
-        {/* Quick Actions */}
-        <Reveal variant="fadeInUp" delay={0.4}>
-          <Card className="p-6 bg-muted/30 border-dashed">
-            <h3 className="font-semibold mb-4 font-heading font-semibold">Quick Actions</h3>
-            <div className="flex flex-wrap gap-3">
-              <Link to="/billing">
-                <Button variant="outline" size="sm" className="font-mono text-xs">
-                  Billing & Payments
-                </Button>
-              </Link>
-              <Link to="/dashboard">
-                <Button variant="outline" size="sm" className="font-mono text-xs">
-                  Back to Dashboard
-                </Button>
-              </Link>
-            </div>
-          </Card>
-        </Reveal>
       </motion.div>
     </Layout>
   );

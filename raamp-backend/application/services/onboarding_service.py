@@ -91,6 +91,8 @@ class OnboardingService:
             "instagram_manage_messages",
             "instagram_content_publish",
             "business_management",
+            "ads_read",
+            "ads_management",
         ]
         raw = getattr(settings, "FACEBOOK_OAUTH_SCOPES", None)
         if raw:
@@ -204,7 +206,32 @@ class OnboardingService:
             granted = await self.fetch_permissions(access_token)
         except Exception:
             granted = []
-        doc = await self.facebook_repo.create_or_update(user_email, access_token, fb_user_id=fb_user_id, fb_pages=fb_pages, granted_scopes=granted)
+
+        # fetch ad accounts
+        ad_accounts = []
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    "https://graph.facebook.com/v22.0/me/adaccounts",
+                    params={
+                        "fields": "id,name,currency,account_status",
+                        "access_token": access_token,
+                    },
+                    timeout=10.0,
+                )
+                r.raise_for_status()
+                ad_accounts = r.json().get("data", [])
+        except Exception:
+            ad_accounts = []
+
+        doc = await self.facebook_repo.create_or_update(
+            user_email,
+            access_token,
+            fb_user_id=fb_user_id,
+            fb_pages=fb_pages,
+            granted_scopes=granted,
+            ad_accounts=ad_accounts,
+        )
         # mark user profile flag
         await self.user_repo.update_connection_flags(user_email, facebook=True)
         
@@ -218,7 +245,11 @@ class OnboardingService:
                  type=NotificationType.SYSTEM,
                  title="Facebook Connected",
                  message="Your Facebook Ads account has been successfully connected.",
-                 metadata={"channel": "facebook", "pages_count": len(fb_pages) if fb_pages else 0}
+                 metadata={
+                     "channel": "facebook",
+                     "pages_count": len(fb_pages) if fb_pages else 0,
+                     "ad_accounts_count": len(ad_accounts) if ad_accounts else 0,
+                 }
              )
         except Exception as e:
             logging.error(f"Failed to send notification: {e}")

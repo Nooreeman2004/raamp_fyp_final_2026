@@ -1151,14 +1151,33 @@ async def change_password(
     request: ChangePasswordRequest = Body(...),
     current_user_email: str = Depends(get_current_user_email)
 ):
-    """Change user's password after verifying OTP"""
+    """Change user's password after verifying current password + OTP."""
     if request.new_password != request.confirm_password:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"success": False, "errors": {"confirm_password": "Passwords do not match"}, "message": "New passwords do not match"}
         )
 
-    # Verify OTP first
+    # Verify current password first (prevents session hijack takeover)
+    user_repository = UserRepository()
+    user = await user_repository.find_by_email(current_user_email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    try:
+        verifier = PasswordVerifier()
+        if not verifier.verify(request.current_password, user.password_hash):
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"success": False, "errors": {"current_password": "Incorrect password"}, "message": "Invalid credentials"},
+            )
+    except Exception:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "errors": {"server": "Verification failed"}, "message": "Could not update password"},
+        )
+
+    # Verify OTP next
     email = current_user_email.lower()
     repo = ProfileEditVerificationRepository()
     entry = await repo.find_by_email(email)
@@ -1177,11 +1196,6 @@ async def change_password(
         )
 
     # OTP verified, proceed with password change
-    user_repository = UserRepository()
-    user = await user_repository.find_by_email(current_user_email)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
     password_hasher = PasswordHasher()
     new_hash = password_hasher.hash_password(request.new_password)
     updated = await user_repository.update_password(email=current_user_email, new_password_hash=new_hash)
@@ -1632,6 +1646,8 @@ async def get_current_user(current_user_email: str = Depends(get_current_user_em
     return {
         "id": str(user.id),
         "email": user.email,
+        "last_login": user.last_login.isoformat() if getattr(user, "last_login", None) else None,
+        "created_at": user.created_at.isoformat() if getattr(user, "created_at", None) else None,
         "subscriptionTier": user.subscriptionTier,
         "subscriptionStatus": user.subscriptionStatus,
         "adCreditsRemaining": user.adCreditsRemaining,

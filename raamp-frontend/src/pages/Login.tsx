@@ -71,9 +71,15 @@ const Login = () => {
     try {
       const response = await authService.signin({ email, password });
 
-      // Store the token in localStorage
+      // Persist token according to "Keep me logged in"
       if (response.token) {
-        localStorage.setItem('token', response.token);
+        if (rememberMe) {
+          localStorage.setItem("token", response.token);
+          sessionStorage.removeItem("token");
+        } else {
+          sessionStorage.setItem("token", response.token);
+          localStorage.removeItem("token");
+        }
       }
 
       // Update AuthContext with persistence preference

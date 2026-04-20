@@ -115,13 +115,16 @@ const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbO
                 <span className="font-mono uppercase text-[9px] font-black tracking-widest">Real-time Data Active</span>
               </div>
               <ThemeToggle />
-              <Link to="/profile/user" className="touch-target flex items-center justify-center sm:min-h-0 sm:min-w-0">
-                <div className="h-8 w-8 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 dark:from-gray-800 dark:to-black flex items-center justify-center border border-primary/30 dark:border-border/50 hover:border-primary/50 transition-all cursor-pointer shadow-lg group">
-                  <span className="text-xs font-bold text-foreground group-hover:scale-110 transition-transform">
+              <div className="flex items-center gap-2 rounded-full border border-border/50 bg-background/60 px-3 py-1.5">
+                <div className="h-8 w-8 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 dark:from-gray-800 dark:to-black flex items-center justify-center border border-primary/30 dark:border-border/50 shadow-lg">
+                  <span className="text-xs font-bold text-foreground">
                     {getUserInitials()}
                   </span>
                 </div>
-              </Link>
+                <span className="hidden sm:inline text-xs font-mono text-muted-foreground max-w-[180px] truncate">
+                  {user?.first_name || user?.username || "User"}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -151,13 +154,13 @@ const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbO
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <ThemeToggle />
-              <Link to="/profile/user" className="touch-target flex items-center justify-center sm:min-h-0 sm:min-w-0">
+              <div className="flex items-center gap-2 rounded-full border border-border/50 bg-background/60 px-2 py-1">
                 <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 dark:from-gray-800 dark:to-black flex items-center justify-center border border-primary/30 dark:border-border/50">
                   <span className="text-xs font-bold text-foreground">
                     {getUserInitials()}
                   </span>
                 </div>
-              </Link>
+              </div>
             </div>
           </nav>
           <div className="h-14 sm:h-16" />

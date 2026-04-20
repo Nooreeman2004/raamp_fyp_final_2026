@@ -3,6 +3,7 @@ Settings Router - handles notification and security settings endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime
+import logging
 
 from presentation.schemas.settings_schemas import (
     NotificationSettingsRequest,
@@ -22,6 +23,7 @@ from infrastructure.database.models.business_model import BusinessModel
 
 
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -31,7 +33,7 @@ router = APIRouter(prefix="/api/settings", tags=["Settings"])
 @router.get(
     "/notifications",
     response_model=NotificationSettingsGetResponse,
-    responses={404: {"model": ErrorResponse}}
+    responses={}
 )
 async def get_notification_settings(
     current_user_email: str = Depends(get_current_user_email)
@@ -50,9 +52,17 @@ async def get_notification_settings(
         settings = await repo.get_by_user_id(current_user_email)
         
         if not settings:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Notification settings not found. Please save your preferences first."
+            # Auto-create defaults on first run (avoid a 404 UX)
+            settings = await repo.create_or_update(
+                user_id=current_user_email,
+                email_alerts=True,
+                sms_alerts=False,
+                push_notifications=True,
+                marketing_alerts=False,
+                campaign_alerts=True,
+                performance_alerts=True,
+                trend_alerts=True,
+                billing_alerts=True,
             )
         
         return NotificationSettingsGetResponse(
@@ -71,7 +81,7 @@ async def get_notification_settings(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching notification settings: {e}")
+        logger.exception("Error fetching notification settings")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch notification settings"
@@ -127,7 +137,7 @@ async def save_notification_settings(
         )
         
     except Exception as e:
-        print(f"Error saving notification settings: {e}")
+        logger.exception("Error saving notification settings")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to save notification settings"
@@ -141,7 +151,7 @@ async def save_notification_settings(
 @router.get(
     "/security",
     response_model=SecuritySettingsGetResponse,
-    responses={404: {"model": ErrorResponse}}
+    responses={}
 )
 async def get_security_settings(
     current_user_email: str = Depends(get_current_user_email)
@@ -161,9 +171,14 @@ async def get_security_settings(
         settings = await repo.get_by_user_id(current_user_email)
         
         if not settings:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Security settings not found. Please save your preferences first."
+            # Auto-create defaults on first run (avoid a 404 UX)
+            settings = await repo.create_or_update(
+                user_id=current_user_email,
+                two_factor_enabled=False,
+                login_alerts=True,
+                session_timeout_minutes=60,
+                trusted_devices_only=False,
+                password_change_required=False,
             )
         
         return SecuritySettingsGetResponse(
@@ -179,7 +194,7 @@ async def get_security_settings(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching security settings: {e}")
+        logger.exception("Error fetching security settings")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch security settings"
@@ -230,7 +245,7 @@ async def save_security_settings(
         )
         
     except Exception as e:
-        print(f"Error saving security settings: {e}")
+        logger.exception("Error saving security settings")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to save security settings"
@@ -318,7 +333,7 @@ async def update_business_specialties(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating business specialties: {e}")
+        logger.exception("Error updating business specialties")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update business specialties"

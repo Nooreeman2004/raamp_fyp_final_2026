@@ -57,7 +57,7 @@ class ApiClient {
     }
 
     // Add Authorization header if token exists
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -394,7 +394,7 @@ class ApiClient {
   async getBlob(endpoint: string): Promise<Blob> {
     const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = `${this.baseURL}${path}`;
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     const headers: HeadersInit = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;

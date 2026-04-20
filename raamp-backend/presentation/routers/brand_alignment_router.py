@@ -77,7 +77,7 @@ async def upload_brand_logo(
         print(f"Error uploading logo: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload logo: {str(e)}"
+            detail="Failed to upload logo"
         ) from e
 
 
@@ -126,8 +126,8 @@ async def save_brand_alignment(
             updated_at=business.updated_at.isoformat()
         )
     
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid brand settings")
     except Exception as e:
         print(f"Error saving brand alignment: {e}")
         raise HTTPException(

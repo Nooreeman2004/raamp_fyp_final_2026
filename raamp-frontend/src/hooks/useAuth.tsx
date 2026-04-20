@@ -129,7 +129,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     const WINDOW_MS = 10 * 60 * 1000;
     const tick = () => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
       if (shouldProactivelyRefresh(token, WINDOW_MS)) {
         void refreshAccessToken();
       }

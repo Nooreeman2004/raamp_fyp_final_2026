@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
+from datetime import datetime
 from presentation.schemas.onboarding_schemas import (
     FacebookConnectionResponse,
     InstagramConnectionResponse,
@@ -65,3 +66,31 @@ async def get_facebook_granted_scopes(current_user_email: str = Depends(get_curr
     if not fb:
         return {"granted_scopes": []}
     return {"granted_scopes": getattr(fb, 'granted_scopes', [])}
+
+
+@router.get("/facebook/ad-accounts")
+async def get_facebook_ad_accounts(current_user_email: str = Depends(get_current_user_email)):
+    """Return ad_accounts array from the facebook_connections record for the current user."""
+    fb = await service.facebook_repo.find_by_user_id(current_user_email)
+    if not fb:
+        return {"ad_accounts": [], "selected_ad_account_id": None}
+    return {
+        "ad_accounts": [a.dict() for a in getattr(fb, 'ad_accounts', [])],
+        "selected_ad_account_id": getattr(fb, 'selected_ad_account_id', None)
+    }
+
+
+@router.post("/facebook/ad-accounts/select")
+async def select_ad_account(
+    payload: dict,
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """Persist the user's chosen ad account."""
+    ad_account_id = payload.get("ad_account_id")
+    fb = await service.facebook_repo.find_by_user_id(current_user_email)
+    if not fb:
+        return {"ok": False}
+    fb.selected_ad_account_id = ad_account_id
+    fb.updated_at = datetime.utcnow()
+    await fb.save()
+    return {"ok": True}

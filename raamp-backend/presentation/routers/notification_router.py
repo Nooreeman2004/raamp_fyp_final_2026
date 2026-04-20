@@ -6,12 +6,16 @@ from presentation.schemas.notification_schemas import (
 )
 from presentation.routers.auth_router import get_current_user_email
 from infrastructure.database.models.notification_model import NotificationType
+from fastapi.responses import JSONResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 service = NotificationService()
 
 # --- Internal / Admin / Development ---
-@router.post("", response_model=NotificationResponse)
+@router.post("", response_model=None)
 async def create_notification(
     request: NotificationCreateRequest,
     current_user_email: str = Depends(get_current_user_email)
@@ -30,8 +34,11 @@ async def create_notification(
         metadata=request.metadata or {}
     )
     if not notification:
-         # Suppressed
-         raise HTTPException(status_code=200, detail="Notification suppressed by user preferences")
+         # Suppressed (consistent 200 shape; not an error)
+         return JSONResponse(
+             status_code=status.HTTP_200_OK,
+             content={"suppressed": True, "message": "Notification suppressed by user preferences"},
+         )
          
     return notification
 
@@ -114,23 +121,32 @@ async def websocket_endpoint(
     # Accept connection first to avoid 403 handshake rejection
     await websocket.accept()
     
-    # Simple Token Validation Logic
+    # Simple Token Validation Logic (supports query param, Authorization header, or cookie)
     user_email = None
     try:
          from application.services.jwt_service import JWTService
          jwt_service = JWTService()
-         if token:
+         auth_token = token
+         if not auth_token:
+             auth_header = websocket.headers.get("authorization")
+             if auth_header and auth_header.lower().startswith("bearer "):
+                 auth_token = auth_header.split(" ", 1)[1].strip()
+         if not auth_token:
+             # cookie auth: align with main auth system
+             auth_token = websocket.cookies.get("access_token")
+
+         if auth_token:
              # JWTService.verify_token returns the decoded payload dict
-             payload = jwt_service.verify_token(token)
+             payload = jwt_service.verify_token(auth_token)
              if payload:
                  user_email = payload.get("email")
-                 print(f"WS Auth Success: {user_email}")
+                 logger.info("Notifications WS auth success for %s", user_email)
              else:
-                 print(f"WS Auth Failed: Invalid Token")
+                 logger.warning("Notifications WS auth failed: invalid token")
          else:
-             print(f"WS Auth Failed: No token provided")
+             logger.warning("Notifications WS auth failed: no token provided")
     except Exception as e:
-        print(f"WS Auth Exception: {e}")
+        logger.warning("Notifications WS auth exception: %s", str(e))
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
@@ -151,5 +167,5 @@ async def websocket_endpoint(
     except WebSocketDisconnect:
         manager.disconnect(websocket, user_email)
     except Exception as e:
-        print(f"WS Error: {e}")
+        logger.warning("Notifications WS error: %s", str(e))
         manager.disconnect(websocket, user_email)

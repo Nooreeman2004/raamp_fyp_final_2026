@@ -195,7 +195,8 @@ class UpdateProfileResponse(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    """Request schema for changing password - now requires OTP verification"""
+    """Request schema for changing password (requires current password + OTP verification)."""
+    current_password: str = Field(..., min_length=1, description="Current password for verification")
     otp_code: str = Field(..., min_length=6, max_length=6, description="6-digit OTP code for verification")
     new_password: str = Field(..., min_length=8, description="New password with required complexity")
     confirm_password: str = Field(..., min_length=8)

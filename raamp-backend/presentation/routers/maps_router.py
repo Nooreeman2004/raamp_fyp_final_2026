@@ -23,10 +23,10 @@ async def maps_search(payload: MapSearchRequest, current_user_email: str = Depen
         # convert to DTO list
         dto_list = [PlaceResultDTO(**p) for p in places]
         return {"places": dto_list}
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid search request")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to search locations")
 
 
 @router.post('/confirm', response_model=MapConfirmResponse)
@@ -34,10 +34,10 @@ async def maps_confirm(payload: MapConfirmRequest, current_user_email: str = Dep
     try:
         preview = await confirm_business_location_usecase(place_id=payload.place_id, name=payload.name)
         return MapConfirmResponse(**preview)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid confirm request")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to confirm location")
 
 
 @router.post('/save', response_model=MapSaveResponse)
@@ -45,7 +45,7 @@ async def maps_save(payload: MapSaveRequest, current_user_email: str = Depends(g
     try:
         res = await save_business_location_usecase(user_email=current_user_email, place_id=payload.place_id, name=payload.name, address=payload.address, latitude=payload.lat, longitude=payload.lng)
         return MapSaveResponse(**res)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid save request")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save location")

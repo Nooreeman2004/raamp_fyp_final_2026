@@ -73,8 +73,8 @@ async def get_business_domain(domain_id: str):
             business=domain.business,
             description=domain.description
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid domain ID format: {str(e)}"
+            detail="Invalid domain ID format",
         )

@@ -225,11 +225,25 @@ const AssetLibrary = () => {
         }
     };
 
+    const getAssetDisplayName = (asset: Asset) => {
+        const raw = String(asset.file_name || "").trim();
+        if (!raw) return "untitled";
+
+        const reelMatch = raw.match(/reel_variation_(\d+)\.mp4$/i);
+        if (reelMatch) return `Reel Variation ${reelMatch[1]}`;
+
+        const videoMatch = raw.match(/video_variation_(\d+)\.mp4$/i);
+        if (videoMatch) return `Video Variation ${videoMatch[1]}`;
+
+        return raw;
+    };
+
     const handleDownload = async (asset: Asset) => {
         try {
-            await assetService.downloadAsset(asset.asset_id, asset.file_name);
+            const friendly = getAssetDisplayName(asset);
+            await assetService.downloadAsset(asset.asset_id, friendly);
             toast.success("Download Started", {
-                description: `Downloading ${asset.file_name}`
+                description: `Downloading ${friendly}`
             });
         } catch (error: any) {
             toast.error("Download Failed", {
@@ -457,14 +471,19 @@ const AssetLibrary = () => {
                                                 }}
                                             />
                                         ) : (
-                                            <img
-                                                src={getMediaUrl(asset.storage_url)}
-                                                alt={asset.file_name}
-                                                className="w-full h-full object-cover"
-                                                onError={(e) => {
-                                                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23000" width="400" height="400"/%3E%3Ctext fill="%2300f5d4" font-family="monospace" font-size="16" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EImage Not Found%3C/text%3E%3C/svg%3E';
-                                                }}
-                                            />
+                                            <div className="w-full h-full p-2 bg-foreground/[0.02]">
+                                                <div className="w-full h-full rounded-md border border-border/60 bg-background overflow-hidden">
+                                                    <img
+                                                        src={getMediaUrl(asset.storage_url)}
+                                                        alt={asset.file_name}
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => {
+                                                            (e.target as HTMLImageElement).src =
+                                                                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23000" width="400" height="400"/%3E%3Ctext fill="%2300f5d4" font-family="monospace" font-size="16" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EImage Not Found%3C/text%3E%3C/svg%3E';
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
                                         )}
 
                                         {/* Top-left: Video/Reel badge (always visible) */}
@@ -517,7 +536,7 @@ const AssetLibrary = () => {
 
                                         {/* Bottom: always-visible info bar */}
                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2.5 pt-6">
-                                            <p className="text-foreground text-xs font-mono truncate leading-tight">{asset.file_name}</p>
+                                            <p className="text-foreground text-xs font-mono truncate leading-tight">{getAssetDisplayName(asset)}</p>
                                             <p className="text-muted-foreground/80 text-[10px] font-mono mt-0.5">
                                                 {formatDate(asset.created_at)} · {formatFileSize(asset.file_size_bytes)}
                                             </p>
@@ -781,7 +800,7 @@ const AssetLibrary = () => {
                 <DialogContent className="max-w-5xl w-full p-0 overflow-hidden bg-background border-border">
                     <DialogHeader className="absolute top-0 left-0 right-0 z-10 flex flex-row items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
                         <DialogTitle className="text-foreground font-mono text-sm truncate max-w-md">
-                            {viewAsset?.file_name}
+                            {viewAsset ? getAssetDisplayName(viewAsset) : null}
                         </DialogTitle>
                         <div className="flex items-center gap-2">
                             {viewAsset && (
@@ -818,11 +837,15 @@ const AssetLibrary = () => {
                                 loop
                             />
                         ) : viewAsset ? (
-                            <img
-                                src={getMediaUrl(viewAsset.storage_url)}
-                                alt={viewAsset.file_name}
-                                className="max-w-full max-h-[80vh] object-contain"
-                            />
+                            <div className="max-w-[95%] max-h-[80vh] p-3 rounded-2xl border border-border/60 bg-foreground/[0.02]">
+                                <div className="rounded-xl border border-border/60 bg-background overflow-hidden">
+                                    <img
+                                        src={getMediaUrl(viewAsset.storage_url)}
+                                        alt={getAssetDisplayName(viewAsset)}
+                                        className="max-w-full max-h-[76vh] object-contain"
+                                    />
+                                </div>
+                            </div>
                         ) : null}
                     </div>
 

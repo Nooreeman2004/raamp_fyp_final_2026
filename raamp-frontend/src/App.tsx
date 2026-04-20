@@ -33,9 +33,7 @@ const BrandSettings = lazy(() => import("./pages/BrandSettings"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
 const RestaurantProfile = lazy(() => import("./pages/RestaurantProfile"));
-const Billing = lazy(() => import("./pages/Billing"));
-const AddFunds = lazy(() => import("./pages/AddFunds"));
-const Transactions = lazy(() => import("./pages/Transactions"));
+// Billing module removed (demo scope)
 const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const About = lazy(() => import("./pages/About"));
@@ -51,7 +49,8 @@ const LusionDemo = lazy(() => import("./pages/LusionDemo"));
 const RAAMPAssistant = lazy(() => import("./pages/RAAMPAssistant"));
 const SmartScheduling = lazy(() => import("./pages/SmartScheduling"));
 const AssetLibrary = lazy(() => import("./pages/AssetLibrary"));
-const BillingProfile = lazy(() => import("./pages/BillingProfile"));
+const SettingsIntegrations = lazy(() => import("./pages/SettingsIntegrations"));
+const AdminComplaints = lazy(() => import("./pages/AdminComplaints"));
 const CampaignApprovals = lazy(() => import("./pages/CampaignApprovals"));
 const Complaints = lazy(() => import("./pages/Complaints"));
 
@@ -252,38 +251,6 @@ const App = () => (
                       }
                     />
 
-                    {/* Protected Routes - Billing */}
-                    <Route
-                      path="/billing"
-                      element={
-                        <ProtectedRoute>
-                          <ProfileGuard>
-                            <Billing />
-                          </ProfileGuard>
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/billing/add-funds"
-                      element={
-                        <ProtectedRoute>
-                          <ProfileGuard>
-                            <AddFunds />
-                          </ProfileGuard>
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/billing/transactions"
-                      element={
-                        <ProtectedRoute>
-                          <ProfileGuard>
-                            <Transactions />
-                          </ProfileGuard>
-                        </ProtectedRoute>
-                      }
-                    />
-
                     {/* Protected Routes - Settings */}
                     <Route
                       path="/settings"
@@ -336,11 +303,21 @@ const App = () => (
                       }
                     />
                     <Route
-                      path="/settings/billing-profile"
+                      path="/settings/integrations"
                       element={
                         <ProtectedRoute>
                           <ProfileGuard>
-                            <BillingProfile />
+                            <SettingsIntegrations />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/complaints"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <AdminComplaints />
                           </ProfileGuard>
                         </ProtectedRoute>
                       }

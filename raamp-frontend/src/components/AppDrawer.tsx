@@ -79,7 +79,6 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Asset Library", icon: Images, href: "/dashboard/assets" },
     { label: "Trend Arbitrage", icon: TrendIcon, href: "/dashboard/trends" },
     { label: "A/B Testing", icon: Flask, href: "/dashboard/ab-testing" },
-    { label: "Billing & Finance", icon: CreditCard, href: "/billing" },
   ];
 
   // SETTINGS - All editable screens
@@ -88,7 +87,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Edit Business Details", icon: Building2, href: "/profile/business-setup" },
     { label: "Brand Settings", icon: Palette, href: "/profile/brand-settings" },
     { label: "Notification Preferences", icon: Bell, href: "/settings/notifications" },
-    { label: "Integrations", icon: Link2, href: "/profile/onboarding" },
+    { label: "Integrations", icon: Link2, href: "/settings/integrations" },
     { label: "Account & Security", icon: Shield, href: "/settings/security" },
   ];
 

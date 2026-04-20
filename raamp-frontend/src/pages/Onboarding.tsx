@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useMemo, useState, useEffect, useCallback } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
@@ -65,6 +65,12 @@ interface OnboardingStatus {
 const Onboarding = () => {
     const { refreshUser, user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const [searchParams] = useSearchParams();
+    const context = (searchParams.get("context") || "").toLowerCase();
+    // Settings context should only be triggered by Settings-owned route(s),
+    // not by someone manually visiting /profile/onboarding.
+    const isSettingsContext = location.pathname.startsWith("/settings/") || context === "settings";
     const [status, setStatus] = useState<OnboardingStatus>({
         facebook_connected: false,
         instagram_connected: false,
@@ -107,6 +113,9 @@ const Onboarding = () => {
             setStatus(response);
         } catch (error) {
             console.error("Failed to fetch onboarding status", error);
+            toast.error("Could not load integrations status", {
+                description: "Please refresh the page and try again.",
+            });
         } finally {
             setLoading(false);
         }
@@ -129,6 +138,9 @@ const Onboarding = () => {
             // 404 is expected when no location data exists yet - not an error
             if (error?.response?.status !== 404 && error?.status !== 404) {
                 console.error("Failed to fetch location data", error);
+                toast.error("Could not load saved location", {
+                    description: "Please try again.",
+                });
             }
         }
     }, []);
@@ -148,7 +160,7 @@ const Onboarding = () => {
                     refreshUser(); // Refresh global auth status
                 } else if (event.data.error) {
                     toast.error("Connection Failed", {
-                        description: event.data.error,
+                        description: "Please try again. If the issue persists, reconnect from Settings → Integrations.",
                     });
                 }
             }
@@ -215,9 +227,8 @@ const Onboarding = () => {
             await refreshUser();
         } catch (error: any) {
             console.error(`Disconnect ${platformToDisconnect} error:`, error);
-            const errorMessage = error?.response?.data?.detail || error?.message || `Failed to disconnect ${platformToDisconnect}`;
             toast.error("Disconnect Failed", {
-                description: errorMessage,
+                description: "Could not disconnect right now. Please try again.",
             });
         } finally {
             setDisconnecting(false);
@@ -240,6 +251,9 @@ const Onboarding = () => {
             }
         } catch (error) {
             console.error("Failed to fetch suggestions", error);
+            toast.error("Could not fetch location suggestions", {
+                description: "Please try again.",
+            });
         }
     };
 
@@ -350,8 +364,14 @@ const Onboarding = () => {
     };
 
 
+    const breadcrumbItems = useMemo(() => {
+        return isSettingsContext
+            ? [{ label: "Settings", href: "/settings" }, { label: "Integrations" }]
+            : [{ label: "Profile", href: "/profile/user" }, { label: "Integrations" }];
+    }, [isSettingsContext]);
+
     return (
-        <Layout breadcrumbItems={[{ label: "Profile", href: "/profile/user" }, { label: "Integrations" }]}>
+        <Layout breadcrumbItems={breadcrumbItems}>
             <motion.div
                 className="space-y-6 max-w-3xl mx-auto"
                 initial={{ opacity: 0, y: 20 }}
@@ -411,7 +431,7 @@ const Onboarding = () => {
                                         <div className="flex items-center gap-4">
                                             <div className={cn(
                                                 "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500",
-                                                connecting === 'facebook' ? "bg-teal-600/40 animate-pulse scale-110" : "bg-teal-600"
+                                                connecting === 'facebook' ? "bg-[#1877F2]/40 animate-pulse scale-110" : "bg-[#1877F2]"
                                             )}>
                                                 <FacebookLogo />
                                             </div>
@@ -653,28 +673,30 @@ const Onboarding = () => {
                                     </Card>
                                 </motion.div>
 
-                                {/* Pro-Tip Link to Specialties */}
-                                <motion.div variants={fadeInUp} key="specialties-link">
-                                    <Link to="/settings/business-specialties">
-                                        <Card className="p-6 bg-purple-500/5 hover:bg-purple-500/10 backdrop-blur-sm border-dashed border-purple-500/30 transition-all duration-300 group cursor-pointer">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <Target className="w-5 h-5 text-purple-400" />
+                                {/* Pro-Tip Link to Specialties (hide in Settings context) */}
+                                {!isSettingsContext && (
+                                    <motion.div variants={fadeInUp} key="specialties-link">
+                                        <Link to="/settings/business-specialties">
+                                            <Card className="p-6 bg-purple-500/5 hover:bg-purple-500/10 backdrop-blur-sm border-dashed border-purple-500/30 transition-all duration-300 group cursor-pointer">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                            <Target className="w-5 h-5 text-purple-400" />
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-heading font-semibold text-lg text-foreground flex items-center gap-2">
+                                                                Refine Targeting
+                                                                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                                                            </h3>
+                                                            <p className="text-xs text-muted-foreground font-mono">Set your niche keywords for AI trend focus</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <h3 className="font-heading font-semibold text-lg text-foreground flex items-center gap-2">
-                                                            Refine Targeting
-                                                            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                                                        </h3>
-                                                        <p className="text-xs text-muted-foreground font-mono">Set your niche keywords for AI trend focus</p>
-                                                    </div>
+                                                    <ArrowRight className="w-4 h-4 text-purple-400 group-hover:translate-x-1 transition-transform" />
                                                 </div>
-                                                <ArrowRight className="w-4 h-4 text-purple-400 group-hover:translate-x-1 transition-transform" />
-                                            </div>
-                                        </Card>
-                                    </Link>
-                                </motion.div>
+                                            </Card>
+                                        </Link>
+                                    </motion.div>
+                                )}
                             </>
                         )}
                     </AnimatePresence>

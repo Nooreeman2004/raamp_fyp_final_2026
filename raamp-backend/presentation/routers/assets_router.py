@@ -280,7 +280,7 @@ async def upload_media(
         logger.exception(f"Upload failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"File upload failed: {str(e)}"
+            detail="File upload failed"
         )
 
 def _public_asset_url(asset: AssetModel) -> str:
@@ -642,11 +642,11 @@ async def get_asset_library(
             per_page=per_page
         )
         
-    except Exception as e:
-        logger.exception(f"Error fetching asset library: {e}")
+    except Exception:
+        logger.exception("Error fetching asset library")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve asset library: {str(e)}"
+            detail="Failed to retrieve asset library",
         )
 
 
@@ -784,7 +784,7 @@ async def get_asset_details(
         logger.exception(f"Error fetching asset details: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve asset: {str(e)}"
+            detail="Failed to retrieve asset"
         )
 
 
@@ -831,7 +831,7 @@ async def download_asset(
         logger.exception(f"Error downloading asset: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to download asset: {str(e)}"
+            detail="Failed to download asset"
         )
 
 
@@ -860,7 +860,7 @@ async def toggle_asset_favorite(
         logger.exception("Error toggling asset favorite: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to toggle favorite: {str(e)}"
+            detail="Failed to toggle favorite"
         )
 
 
@@ -897,7 +897,7 @@ async def mark_asset_used(
         logger.exception(f"Error marking asset used: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update asset: {str(e)}"
+            detail="Failed to update asset"
         )
 
 
@@ -939,5 +939,5 @@ async def delete_asset(
         logger.exception(f"Error deleting asset: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete asset: {str(e)}"
+            detail="Failed to delete asset"
         )

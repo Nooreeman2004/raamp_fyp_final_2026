@@ -7,7 +7,7 @@ import {
   MapPin, Target, TrendingUp, Users, Globe, Radar, 
   Scan, RefreshCw, Layers, Info, Map as MapIcon,
   Activity, Fingerprint, Calendar, Mail, Megaphone, Clock, MapPinned,
-  ChevronRight, ArrowRight, Loader2
+  ChevronRight, ArrowRight, Loader2, X
 } from "lucide-react";
 import {
   Tooltip,
@@ -24,11 +24,13 @@ import { businessService } from "@/services/businessService";
 import { geoIntentService, HeatScoreResponse, HeatmapResponse, CampaignLogEntry, CampaignBrief, ZoneResult } from "@/services/geoIntentService";
 import GeoIntentMap, { GeoIntentMapRef } from "@/components/GeoIntentMap";
 import GeoCampaignBriefModal from "@/components/GeoCampaignBriefModal";
+import MetaDeployModal, { FBPage as MetaFBPage } from "@/components/MetaDeployModal";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { useAuth } from "@/hooks/useAuth";
+import { apiClient } from "@/services/api";
 
 /** Stable id so loading toast updates in place (success/error). */
 const FIND_ZONES_TOAST_ID = "geo-intent-find-zones";
@@ -76,6 +78,13 @@ function resolveGeoBusinessId(
 
 const GeoIntent = () => {
   const { user } = useAuth();
+  const [showSignalBanner, setShowSignalBanner] = useState(() => {
+    try {
+      return localStorage.getItem("raamp_hide_signal_banner") !== "1";
+    } catch {
+      return true;
+    }
+  });
   const [radius, setRadius] = useState<number[]>(() => {
     const saved = localStorage.getItem("geointent_radius");
     return saved ? [parseInt(saved)] : [5];
@@ -102,6 +111,10 @@ const GeoIntent = () => {
   const [zonesLoading, setZonesLoading] = useState(false);
   const mapRef = useRef<GeoIntentMapRef>(null);
   const skipRadiusDebounceOnce = useRef(true);
+  const [deployZone, setDeployZone] = useState<ZoneResult | null>(null);
+  const [deployBrief, setDeployBrief] = useState<CampaignBrief | null>(null);
+  const [fbPages, setFbPages] = useState<MetaFBPage[]>([]);
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
 
   const tier = (user as any)?.subscriptionTier || "free";
   const isPremium = String(tier).toLowerCase() === "premium";
@@ -147,6 +160,22 @@ const GeoIntent = () => {
     }
     return null;
   };
+
+  const fetchFacebookPages = useCallback(async () => {
+    try {
+      const resp = await apiClient.get<{ connected: boolean; details?: { fb_pages?: Array<{ id: string; name?: string | null }> } }>(
+        "/profile/connections/facebook"
+      );
+      const pages = Array.isArray(resp?.details?.fb_pages) ? resp.details!.fb_pages! : [];
+      setFbPages(pages);
+      if (!selectedPageId) {
+        const first = pages[0]?.id;
+        setSelectedPageId(first || null);
+      }
+    } catch {
+      setFbPages([]);
+    }
+  }, [selectedPageId]);
 
   const handleManualSync = async () => {
     setRefreshing(true);
@@ -310,6 +339,45 @@ const GeoIntent = () => {
     }
   };
 
+  const handleMetaDeployOpen = async (zone: ZoneResult) => {
+    if (briefLoading) return;
+    setDeployZone(zone);
+    setDeployBrief(null);
+    await fetchFacebookPages();
+    setBriefLoading(true);
+    toast.loading("Preparing Meta deploy brief…", { id: "meta-deploy-brief" });
+    try {
+      const keywords = setup?.business_type
+        ? [setup.business_type, "business", "store"]
+        : ["coffee", "cafe", "espresso"];
+      const nameForId = setup?.business_name || businessName;
+      const businessId = resolveGeoBusinessId(setup, nameForId);
+
+      const brief = await geoIntentService.generateCampaignBrief({
+        lat: zone.latitude,
+        lng: zone.longitude,
+        radius_km: radius[0],
+        heat_score: zone.score,
+        urgency: zone.urgency ?? "Medium",
+        trends_score: (zone.signals?.trends_score ?? 0) * 100,
+        weather_score: (zone.signals?.weather_score ?? 0) * 100,
+        places_score: (zone.signals?.places_score ?? 0) * 100,
+        reasoning: zone.reason,
+        persona_split: data?.persona_split || [],
+        keywords,
+        business_id: businessId,
+      });
+
+      setDeployBrief(brief);
+      toast.success("Meta deploy ready.", { id: "meta-deploy-brief" });
+    } catch (err) {
+      toast.error(getErrorMessage(err), { id: "meta-deploy-brief" });
+      setDeployZone(null);
+    } finally {
+      setBriefLoading(false);
+    }
+  };
+
   const handleDeployClick = async () => {
     if (!data) {
         toast.error("Please run a radar scan first to generate a brief.");
@@ -401,7 +469,27 @@ const GeoIntent = () => {
               const nameForId = activeSetup.business_name || businessName;
               const bid = resolveGeoBusinessId(activeSetup, nameForId);
               const hist = await geoIntentService.getHistory(bid);
-              setHistory(Array.isArray(hist?.logs) ? hist.logs : []);
+              const rawLogs = Array.isArray(hist?.logs) ? hist.logs : [];
+              const sorted = [...rawLogs].sort((a, b) => {
+                const at = Number(new Date(a.timestamp).getTime());
+                const bt = Number(new Date(b.timestamp).getTime());
+                return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
+              });
+
+              // De-dupe repeats (common during demo runs / replays)
+              const seen = new Set<string>();
+              const deduped = sorted.filter((log) => {
+                const t = new Date(log.timestamp);
+                const bucket = Number.isNaN(t.getTime())
+                  ? String(log.timestamp)
+                  : t.toISOString().slice(0, 16); // minute-bucket
+                const key = `${bucket}|${log.radius}|${log.final_score}|${log.urgency ?? ""}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+
+              setHistory(deduped.slice(0, 12));
           } catch (e) {
               console.error("History fetch failed", e);
           }
@@ -441,13 +529,28 @@ const GeoIntent = () => {
     <Layout>
       <TooltipProvider delayDuration={100}>
         <div className="space-y-8">
-        {data && hasAnySignalIssues && (
-          <Alert className="border-amber-500/40 bg-amber-500/10 text-foreground">
+        {data && hasAnySignalIssues && showSignalBanner && (
+          <Alert className="border-amber-500/40 bg-amber-500/10 text-foreground relative pr-10">
             <Radar className="h-4 w-4 text-amber-600" />
             <AlertTitle className="text-amber-900 dark:text-amber-100">Signal quality</AlertTitle>
             <AlertDescription className="text-sm text-amber-950/90 dark:text-amber-50/90">
               {signalMsg}
             </AlertDescription>
+            <button
+              type="button"
+              className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-amber-500/30 bg-background/40 hover:bg-background/70"
+              onClick={() => {
+                setShowSignalBanner(false);
+                try {
+                  localStorage.setItem("raamp_hide_signal_banner", "1");
+                } catch {
+                  // ignore
+                }
+              }}
+              aria-label="Dismiss signal quality banner"
+            >
+              <X className="h-4 w-4 text-amber-700 dark:text-amber-300" aria-hidden />
+            </button>
           </Alert>
         )}
 
@@ -686,78 +789,6 @@ const GeoIntent = () => {
 
           {/* Right Column - Insights */}
           <div className="space-y-6">
-            {/* Top Zones (dedicated card, not inside "WHY HOT") */}
-            {recommendedZones.length > 0 && (
-              <motion.div variants={fadeInUp}>
-                <HolographicCard className="p-6 border-amber-500/30">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold font-mono text-amber-600 dark:text-amber-300 flex items-center gap-2">
-                      <Layers className="w-4 h-4" />
-                      TOP ZONES (MULTI-ZONE SCAN)
-                    </h3>
-                    <Badge
-                      variant="outline"
-                      className="text-[9px] font-mono border-amber-500/30 text-amber-700 dark:text-amber-300"
-                    >
-                      {recommendedZones.length} ZONES
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
-                    {recommendedZones.map((zone) => (
-                      <div
-                        key={`${zone.label}-${zone.latitude.toFixed(4)}`}
-                        className="p-3 rounded border border-amber-500/30 bg-amber-500/5 space-y-2"
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <div>
-                            <span className="text-xs font-mono font-bold text-foreground">{zone.label}</span>
-                            <span className="text-[10px] font-mono text-muted-foreground ml-2">
-                              {zone.score}/100
-                            </span>
-                            <div className="mt-1 text-[9px] font-mono text-muted-foreground/80">
-                              {zone.latitude.toFixed(5)}, {zone.longitude.toFixed(5)}{" "}
-                              <a
-                                className="ml-2 text-primary hover:underline"
-                                href={`https://www.google.com/maps?q=${zone.latitude},${zone.longitude}`}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                View on map
-                              </a>
-                            </div>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "text-[9px] font-mono",
-                              zone.urgency === "Critical" || zone.urgency === "High"
-                                ? "border-red-500/50 text-red-600"
-                                : "border-primary/40 text-primary"
-                            )}
-                          >
-                            {zone.urgency}
-                          </Badge>
-                        </div>
-                        <p className="text-[10px] font-mono text-muted-foreground leading-snug">{zone.reason}</p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          className="w-full font-mono text-[10px] h-8"
-                          disabled={briefLoading}
-                          onClick={() => handleDeployZone(zone)}
-                        >
-                          <MapPinned className="w-3 h-3 mr-2" />
-                          Deploy Here
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </HolographicCard>
-              </motion.div>
-            )}
-
             {/* Geo-Intent Insights */}
             <motion.div variants={fadeInUp}>
               <HolographicCard className="p-6">
@@ -857,6 +888,78 @@ const GeoIntent = () => {
                 </div>
               </HolographicCard>
             </motion.div>
+
+            {/* Top Zones (dedicated card, separate from "WHY HOT") */}
+            {recommendedZones.length > 0 && (
+              <motion.div variants={fadeInUp}>
+                <HolographicCard className="p-6 border-amber-500/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold font-mono text-amber-600 dark:text-amber-300 flex items-center gap-2">
+                      <Layers className="w-4 h-4" />
+                      TOP ZONES (MULTI-ZONE SCAN)
+                    </h3>
+                    <Badge
+                      variant="outline"
+                      className="text-[9px] font-mono border-amber-500/30 text-amber-700 dark:text-amber-300"
+                    >
+                      {recommendedZones.length} ZONES
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
+                    {recommendedZones.map((zone) => (
+                      <div
+                        key={`${zone.label}-${zone.latitude.toFixed(4)}`}
+                        className="p-3 rounded border border-amber-500/30 bg-amber-500/5 space-y-2"
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <span className="text-xs font-mono font-bold text-foreground">{zone.label}</span>
+                            <span className="text-[10px] font-mono text-muted-foreground ml-2">
+                              {zone.score}/100
+                            </span>
+                            <div className="mt-1 text-[9px] font-mono text-muted-foreground/80">
+                              {zone.latitude.toFixed(5)}, {zone.longitude.toFixed(5)}{" "}
+                              <a
+                                className="ml-2 text-primary hover:underline"
+                                href={`https://www.google.com/maps?q=${zone.latitude},${zone.longitude}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                View on map
+                              </a>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[9px] font-mono",
+                              zone.urgency === "Critical" || zone.urgency === "High"
+                                ? "border-red-500/50 text-red-600"
+                                : "border-primary/40 text-primary"
+                            )}
+                          >
+                            {zone.urgency}
+                          </Badge>
+                        </div>
+                        <p className="text-[10px] font-mono text-muted-foreground leading-snug">{zone.reason}</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="w-full font-mono text-[10px] h-8"
+                          disabled={briefLoading}
+                          onClick={() => handleMetaDeployOpen(zone)}
+                        >
+                          <MapPinned className="w-3 h-3 mr-2" />
+                          Deploy Here
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </HolographicCard>
+              </motion.div>
+            )}
 
             {/* Detailed Analysis Metrics */}
             <motion.div variants={fadeInUp}>
@@ -1170,6 +1273,20 @@ const GeoIntent = () => {
             onClose={() => setBriefModalOpen(false)} 
             brief={campaignBrief} 
         />
+
+        {deployZone && (
+          <MetaDeployModal
+            zone={deployZone}
+            brief={deployBrief}
+            pageId={selectedPageId}
+            fbPages={fbPages}
+            radiusMeters={radius[0] * 1000}
+            onClose={() => {
+              setDeployZone(null);
+              setDeployBrief(null);
+            }}
+          />
+        )}
       </div>
      </TooltipProvider>
     </Layout>

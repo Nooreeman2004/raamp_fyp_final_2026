@@ -5,7 +5,8 @@ Business logic layer for generating social media content.
 Orchestrates between the service layer and repositories.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+from fastapi import HTTPException, status
 from infrastructure.repositories.business_repository import BusinessRepository
 from application.services.content_generation_service import get_content_generation_service
 from application.services.credit_service import get_credit_service
@@ -73,7 +74,8 @@ class ContentGenerationUseCase:
         campaign_tone: Optional[str] = None,
         platform_type: str = "post",
         campaign_id: Optional[str] = None,
-        content_type: str = "all"
+        content_type: str = "all",
+        aspect_ratio: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate ALL content types for a campaign in one call.
@@ -107,9 +109,33 @@ class ContentGenerationUseCase:
         
         # Fetch brand context from database
         brand_context = await self.get_brand_context(user_id)
+
+        # Brand field gate: reject early (before credits) if required fields are missing.
+        required_fields = ["business_name", "tagline", "tone_of_voice"]
+        missing: List[str] = []
+        for f in required_fields:
+            v = brand_context.get(f)
+            if v is None or not str(v).strip():
+                missing.append(f)
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "success": False,
+                    "error": "brand_profile_incomplete",
+                    "missing_fields": missing,
+                    "message": (
+                        "Your brand profile is incomplete. Please update your brand settings and try again."
+                    ),
+                },
+            )
         
-        # Check Credits and Enforce Tier Limits (1 credit for captions/ads)
-        await self.credit_service.check_and_deduct(user_id, "caption_generation")
+        # Check credits based on what is requested.
+        # - images: charge image_generation
+        # - everything else (captions/hashtags/whatsapp/emails/all): charge caption_generation
+        ct = (content_type or "all").lower().strip()
+        action_type = "image_generation" if ct == "images" else "caption_generation"
+        await self.credit_service.check_and_deduct(user_id, action_type)
 
         # Generate all content using AI service
         result = await self.content_service.generate_content(
@@ -120,7 +146,8 @@ class ContentGenerationUseCase:
             campaign_tone=campaign_tone.strip() if campaign_tone else None,
             platform_type=platform_type,
             campaign_id=campaign_id,
-            content_type=content_type
+            content_type=content_type,
+            aspect_ratio=aspect_ratio,
         )
         
         # Add brand context to response

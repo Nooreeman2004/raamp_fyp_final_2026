@@ -305,7 +305,7 @@ async def fetch_trends(
         logger.warning("Location validation failed for user %s: %s", current_user_email, str(e))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Invalid request"
         ) from e
     except Exception as e:
         logger.error("Unexpected error initializing detection signal for user %s: %s", current_user_email, str(e), exc_info=True)

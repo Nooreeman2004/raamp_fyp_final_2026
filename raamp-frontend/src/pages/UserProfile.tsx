@@ -29,11 +29,6 @@ import { BlurText } from "@/components/ui/text-reveal";
 import { PasswordVerificationDialog } from "@/components/PasswordVerificationDialog";
 
 const UserProfile = () => {
-  // Override breadcrumb to remove "Profile" and show just "User Profile"
-  const customBreadcrumbOverride = [
-    { label: "Home", path: "/dashboard" },
-    { label: "User Profile", path: "/profile/user" }
-  ];
 
   const [isEditing, setIsEditing] = useState(false);
   const [userData, setUserData] = useState({
@@ -252,6 +247,10 @@ const UserProfile = () => {
   };
 
   const handleChangePassword = () => {
+    if (!passwordData.currentPassword.trim()) {
+      sonner.error("Error", { description: "Current password is required" });
+      return;
+    }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       sonner.error("Error", { description: "Passwords do not match" });
       return;
@@ -265,6 +264,7 @@ const UserProfile = () => {
     (async () => {
       try {
         const resp = await authService.changePassword({
+          current_password: passwordData.currentPassword,
           otp_code: passwordOtp,
           new_password: passwordData.newPassword,
           confirm_password: passwordData.confirmPassword,
@@ -278,8 +278,9 @@ const UserProfile = () => {
         setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
         setPasswordOtp("");
       } catch (err: any) {
-        const msg = err?.message || (err?.errors ? JSON.stringify(err.errors) : 'Failed to change password');
-        sonner.error("Error", { description: msg });
+        sonner.error("Could not change password", {
+          description: "Please request a new OTP and try again.",
+        });
       }
     })();
   };
@@ -321,7 +322,7 @@ const UserProfile = () => {
   };
 
   return (
-    <Layout breadcrumbOverride={customBreadcrumbOverride}>
+    <Layout breadcrumbItems={[{ label: "Settings", href: "/settings" }, { label: "Profile" }]}>
       <div className="max-w-3xl mx-auto space-y-6">
         <Reveal variant="blurInUp">
           <div className="flex items-center justify-between mb-2">
@@ -599,6 +600,16 @@ const UserProfile = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword" className="text-xs font-mono text-primary">CURRENT PASSWORD</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                className="bg-black/50 border-border/50 font-mono focus:border-primary/50 focus:ring-primary/20"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="newPassword" className="text-xs font-mono text-primary">NEW PASSWORD</Label>
               <div className="relative">

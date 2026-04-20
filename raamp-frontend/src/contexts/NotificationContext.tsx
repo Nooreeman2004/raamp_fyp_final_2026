@@ -18,11 +18,16 @@ interface NotificationContextType {
     notifications: Notification[];
     unreadCount: number;
     loading: boolean;
+    loadingMore: boolean;
+    hasMore: boolean;
+    unreadOnly: boolean;
+    setUnreadOnly: (v: boolean) => void;
     markAsRead: (id: string) => Promise<void>;
     markAllAsRead: () => Promise<void>;
     deleteNotification: (id: string) => Promise<void>;
     clearAllNotifications: () => Promise<void>;
-    fetchNotifications: () => Promise<void>;
+    fetchNotifications: (opts?: { limit?: number; offset?: number; append?: boolean; unread_only?: boolean }) => Promise<void>;
+    loadMore: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -32,24 +37,47 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [unreadOnly, setUnreadOnly] = useState(false);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
     const wsRef = useRef<WebSocket | null>(null);
     const pingIntervalRef = useRef<number | null>(null);
     const shouldReconnectRef = useRef(true);
     const intentionalCloseRef = useRef(false);
+    const wsWarnedAtRef = useRef<number>(0);
+    const wsConnectedOnceRef = useRef(false);
+    const pageSizeRef = useRef<number>(20);
 
     // Fetch initial notifications
-    const fetchNotifications = async () => {
+    const fetchNotifications = async (opts?: { limit?: number; offset?: number; append?: boolean; unread_only?: boolean }) => {
         if (!user) return;
         try {
-            setLoading(true);
-            const data = await apiClient.get<{ notifications: Notification[]; unread_count: number }>('/notifications?limit=20');
-            setNotifications(data.notifications || []);
+            const limit = Math.max(1, Math.min(Number(opts?.limit ?? pageSizeRef.current), 100));
+            const offset = Math.max(0, Number(opts?.offset ?? 0));
+            const append = Boolean(opts?.append);
+            const unread_only = (opts?.unread_only ?? unreadOnly) ? "true" : "false";
+            if (append) setLoadingMore(true);
+            else setLoading(true);
+
+            const qs = new URLSearchParams();
+            qs.set("limit", String(limit));
+            qs.set("offset", String(offset));
+            qs.set("unread_only", unread_only);
+            const data = await apiClient.get<{ notifications: Notification[]; unread_count: number }>(`/notifications?${qs.toString()}`);
+            const list = Array.isArray(data?.notifications) ? data.notifications : [];
+            setNotifications(prev => append ? [...prev, ...list] : list);
             setUnreadCount(data.unread_count || 0);
+            setHasMore(list.length >= limit);
         } catch (error) {
             console.error('Failed to fetch notifications:', error);
+            // User-facing, safe message (no backend details)
+            toast.message("Notifications unavailable", {
+                description: "We couldn’t load your notifications right now. Retrying in the background.",
+            });
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     };
 
@@ -88,7 +116,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         // `useAuth` usually stores it? If not, we are in trouble.
         // Let's assume we can get it from a cookie utility or localStorage if saved there.
 
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         // In dev, the frontend runs on :8080 but the backend runs on :8000.
@@ -101,6 +129,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         ws.onopen = () => {
             console.log('Notification WebSocket connected');
             intentionalCloseRef.current = false;
+            wsConnectedOnceRef.current = true;
             // Keepalive: backend waits on receive_text(); this prevents idle proxy timeouts.
             pingIntervalRef.current = window.setInterval(() => {
                 try {
@@ -166,6 +195,16 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             // intentionally close the socket once right after connecting.
             // Also avoid reconnecting when we explicitly closed the socket (switch user, unmount, etc.).
             if (!shouldReconnectRef.current || intentionalCloseRef.current) return;
+
+            // User-facing notice (rate-limited) when realtime disconnects
+            const now = Date.now();
+            const shouldToast = wsConnectedOnceRef.current && (now - wsWarnedAtRef.current) > 60_000;
+            if (shouldToast) {
+                wsWarnedAtRef.current = now;
+                toast.message("Realtime notifications disconnected", {
+                    description: "We’re reconnecting in the background.",
+                });
+            }
             reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
         };
 
@@ -175,7 +214,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         if (user) {
             shouldReconnectRef.current = true;
-            fetchNotifications();
+            fetchNotifications({ limit: pageSizeRef.current, offset: 0, append: false, unread_only: unreadOnly });
             connectWebSocket();
         }
         return () => {
@@ -185,6 +224,13 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             if (pingIntervalRef.current) window.clearInterval(pingIntervalRef.current);
         };
     }, [user]);
+
+    // When unreadOnly changes, refetch from start.
+    useEffect(() => {
+        if (!user) return;
+        void fetchNotifications({ limit: pageSizeRef.current, offset: 0, append: false, unread_only: unreadOnly });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [unreadOnly]);
 
     const markAsRead = async (id: string) => {
         try {
@@ -196,6 +242,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             await apiClient.patch(`/notifications/${id}/read`, {});
         } catch (error) {
             console.error('Failed to mark read:', error);
+            toast.error("Could not update notification", { description: "Please try again." });
             fetchNotifications(); // Revert on error
         }
     };
@@ -206,6 +253,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             setUnreadCount(0);
             await apiClient.post('/notifications/read-all', {});
         } catch (error) {
+            toast.error("Could not mark all as read", { description: "Please try again." });
             fetchNotifications();
         }
     };
@@ -218,6 +266,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
             await apiClient.delete(`/notifications/${id}`);
         } catch (error) {
+            toast.error("Could not delete notification", { description: "Please try again." });
             fetchNotifications();
         }
     };
@@ -234,16 +283,27 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const loadMore = async () => {
+        if (loading || loadingMore) return;
+        if (!hasMore) return;
+        await fetchNotifications({ limit: pageSizeRef.current, offset: notifications.length, append: true, unread_only: unreadOnly });
+    };
+
     return (
         <NotificationContext.Provider value={{
             notifications,
             unreadCount,
             loading,
+            loadingMore,
+            hasMore,
+            unreadOnly,
+            setUnreadOnly,
             markAsRead,
             markAllAsRead,
             deleteNotification,
             clearAllNotifications,
-            fetchNotifications
+            fetchNotifications,
+            loadMore,
         }}>
             {children}
         </NotificationContext.Provider>

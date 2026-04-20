@@ -13,8 +13,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Bell, Check, Trash2, TrendingUp, DollarSign, AlertTriangle, Sparkles, CheckCheck, Search } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Bell, Check, Trash2, TrendingUp, DollarSign, AlertTriangle, Sparkles, CheckCheck, Search, Filter } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast as sonner } from "sonner";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { LaunchCampaignDialog, LaunchCampaignPrefill } from "@/components/LaunchCampaignDialog";
@@ -25,7 +25,20 @@ import Reveal from "@/components/ui/Reveal";
 import { fadeInUp } from "@/utils/animations";
 
 const Notifications = () => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, clearAllNotifications, loading } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAllNotifications,
+    loading,
+    loadMore,
+    hasMore,
+    loadingMore,
+    unreadOnly,
+    setUnreadOnly,
+  } = useNotifications();
   const [searchQuery, setSearchQuery] = useState("");
   const [launchOpen, setLaunchOpen] = useState(false);
   const [launchPrefill, setLaunchPrefill] = useState<LaunchCampaignPrefill | undefined>(undefined);
@@ -42,6 +55,38 @@ const Notifications = () => {
         notification.type.toLowerCase().includes(query)
     );
   }, [notifications, searchQuery]);
+
+  const todaySections = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const today: typeof filteredNotifications = [];
+    const earlier: typeof filteredNotifications = [];
+    for (const n of filteredNotifications) {
+      const t = new Date(n.created_at).getTime();
+      if (!Number.isFinite(t)) {
+        earlier.push(n);
+        continue;
+      }
+      if (t >= startOfToday.getTime()) today.push(n);
+      else earlier.push(n);
+    }
+    return { today, earlier };
+  }, [filteredNotifications]);
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      const first = entries[0];
+      if (!first?.isIntersecting) return;
+      if (loading || loadingMore) return;
+      if (!hasMore) return;
+      void loadMore();
+    }, { rootMargin: "200px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, loadMore, loading, loadingMore]);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -124,6 +169,15 @@ const Notifications = () => {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap justify-end">
+              <Button
+                variant={unreadOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setUnreadOnly(!unreadOnly)}
+                disabled={loading}
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Unread only
+              </Button>
               {unreadCount > 0 && (
                 <Button variant="outline" size="sm" onClick={() => markAllAsRead()}>
                   <CheckCheck className="w-4 h-4 mr-2" />
@@ -174,7 +228,7 @@ const Notifications = () => {
           </div>
         </Reveal>
 
-        <div className="space-y-3">
+        <div className="space-y-5">
           <AnimatePresence>
             {loading && filteredNotifications.length === 0 ? (
               <div className="text-center py-10">Loading notifications...</div>
@@ -193,93 +247,202 @@ const Notifications = () => {
                 </Card>
               </Reveal>
             ) : (
-              filteredNotifications.map((notification, index) => (
-                <motion.div
-                  key={notification.id}
-                  variants={fadeInUp}
-                  initial="hidden"
-                  animate="visible"
-                  exit={{ opacity: 0, x: -100 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Card
-                    className={`p-4 bg-card/70 backdrop-blur-sm border-primary/10 transition-all ${!notification.read ? "border-l-4 border-l-primary" : ""
-                      }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${getTypeColor(
-                          notification.type
-                        )}`}
+              <>
+                {todaySections.today.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Today</div>
+                    {todaySections.today.map((notification, index) => (
+                      <motion.div
+                        key={notification.id}
+                        variants={fadeInUp}
+                        initial="hidden"
+                        animate="visible"
+                        exit={{ opacity: 0, x: -100 }}
+                        transition={{ delay: index * 0.03 }}
                       >
-                        {getIcon(notification.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className={`font-semibold ${!notification.read ? "text-foreground" : "text-muted-foreground"}`}>
-                              {notification.title}
-                            </h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              {new Date(notification.created_at).toLocaleString()}
-                            </p>
-
-                            {(notification.type === "trend_spike" || notification.metadata?.action === "launch_campaign") && (
-                              <div className="mt-3">
-                                <Button
-                                  size="sm"
-                                  className="bg-primary/20 hover:bg-primary text-primary hover:text-black border border-primary/50"
-                                  onClick={() => {
-                                    const md = notification.metadata || {};
-                                    const pre = (md.campaign_prefill || {}) as any;
-                                    setLaunchPrefill({
-                                      trend_id: md.trend_id ?? md.related_entity_id ?? md.trend_signal_id ?? null,
-                                      keyword: pre.keyword ?? md.keyword ?? null,
-                                      niche: pre.niche ?? md.niche ?? null,
-                                      location: pre.location ?? md.location ?? null,
-                                      suggested_platforms: pre.suggested_platforms ?? [],
-                                      hashtags: pre.hashtags ?? md.hashtags ?? [],
-                                      lifecycle_stage: pre.lifecycle_stage ?? md.lifecycle_stage ?? null,
-                                    });
-                                    setLaunchOpen(true);
-                                  }}
-                                >
-                                  Launch Campaign
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex gap-1 flex-shrink-0">
-                            {!notification.read && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => markAsRead(notification.id)}
-                              >
-                                <Check className="w-4 h-4" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => deleteNotification(notification.id)}
+                        <Card
+                          className={`p-4 bg-card/70 backdrop-blur-sm border-primary/10 transition-all ${!notification.read ? "border-l-4 border-l-primary" : ""
+                            }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div
+                              className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${getTypeColor(
+                                notification.type
+                              )}`}
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                              {getIcon(notification.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <h3 className={`font-semibold ${!notification.read ? "text-foreground" : "text-muted-foreground"}`}>
+                                    {notification.title}
+                                  </h3>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-2">
+                                    {new Date(notification.created_at).toLocaleString()}
+                                  </p>
+
+                                  {(notification.type === "trend_spike" || notification.metadata?.action === "launch_campaign") && (
+                                    <div className="mt-3">
+                                      <Button
+                                        size="sm"
+                                        className="bg-primary/20 hover:bg-primary text-primary hover:text-black border border-primary/50"
+                                        onClick={() => {
+                                          const md = notification.metadata || {};
+                                          const pre = (md.campaign_prefill || {}) as any;
+                                          setLaunchPrefill({
+                                            trend_id: md.trend_id ?? md.related_entity_id ?? md.trend_signal_id ?? null,
+                                            keyword: pre.keyword ?? md.keyword ?? null,
+                                            niche: pre.niche ?? md.niche ?? null,
+                                            location: pre.location ?? md.location ?? null,
+                                            suggested_platforms: pre.suggested_platforms ?? [],
+                                            hashtags: pre.hashtags ?? md.hashtags ?? [],
+                                            lifecycle_stage: pre.lifecycle_stage ?? md.lifecycle_stage ?? null,
+                                          });
+                                          setLaunchOpen(true);
+                                        }}
+                                      >
+                                        Launch Campaign
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex gap-1 flex-shrink-0">
+                                  {!notification.read && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => markAsRead(notification.id)}
+                                    >
+                                      <Check className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={() => deleteNotification(notification.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+
+                {todaySections.earlier.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earlier</div>
+                    {todaySections.earlier.map((notification, index) => (
+                      <motion.div
+                        key={notification.id}
+                        variants={fadeInUp}
+                        initial="hidden"
+                        animate="visible"
+                        exit={{ opacity: 0, x: -100 }}
+                        transition={{ delay: index * 0.03 }}
+                      >
+                        <Card
+                          className={`p-4 bg-card/70 backdrop-blur-sm border-primary/10 transition-all ${!notification.read ? "border-l-4 border-l-primary" : ""
+                            }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div
+                              className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${getTypeColor(
+                                notification.type
+                              )}`}
+                            >
+                              {getIcon(notification.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <h3 className={`font-semibold ${!notification.read ? "text-foreground" : "text-muted-foreground"}`}>
+                                    {notification.title}
+                                  </h3>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-2">
+                                    {new Date(notification.created_at).toLocaleString()}
+                                  </p>
+
+                                  {(notification.type === "trend_spike" || notification.metadata?.action === "launch_campaign") && (
+                                    <div className="mt-3">
+                                      <Button
+                                        size="sm"
+                                        className="bg-primary/20 hover:bg-primary text-primary hover:text-black border border-primary/50"
+                                        onClick={() => {
+                                          const md = notification.metadata || {};
+                                          const pre = (md.campaign_prefill || {}) as any;
+                                          setLaunchPrefill({
+                                            trend_id: md.trend_id ?? md.related_entity_id ?? md.trend_signal_id ?? null,
+                                            keyword: pre.keyword ?? md.keyword ?? null,
+                                            niche: pre.niche ?? md.niche ?? null,
+                                            location: pre.location ?? md.location ?? null,
+                                            suggested_platforms: pre.suggested_platforms ?? [],
+                                            hashtags: pre.hashtags ?? md.hashtags ?? [],
+                                            lifecycle_stage: pre.lifecycle_stage ?? md.lifecycle_stage ?? null,
+                                          });
+                                          setLaunchOpen(true);
+                                        }}
+                                      >
+                                        Launch Campaign
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex gap-1 flex-shrink-0">
+                                  {!notification.read && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => markAsRead(notification.id)}
+                                    >
+                                      <Check className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={() => deleteNotification(notification.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </AnimatePresence>
+
+          <div ref={sentinelRef} />
+
+          {/* Fallback control if infinite scroll doesn't trigger */}
+          {!loading && hasMore && (
+            <div className="pt-2">
+              <Button variant="outline" className="w-full" disabled={loadingMore} onClick={() => loadMore()}>
+                {loadingMore ? "Loading…" : "Load more"}
+              </Button>
+            </div>
+          )}
         </div>
       </motion.div>
 

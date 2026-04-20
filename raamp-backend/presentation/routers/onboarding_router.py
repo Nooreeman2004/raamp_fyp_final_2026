@@ -121,10 +121,12 @@ async def facebook_callback(
 
     try:
         token_data = await service.exchange_fb_code_for_token(code)
-    except Exception as e:
-        # provide a clearer message for debugging/token exchange failures
+    except Exception:
         logging.exception("Facebook token exchange failed")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"FB token exchange failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Facebook token exchange failed",
+        )
 
     access_token = token_data.get("access_token")
     if not access_token:
@@ -180,7 +182,7 @@ async def facebook_disconnect(current_user_email: str = Depends(get_current_user
         logging.exception(f"Failed to disconnect Facebook for {current_user_email}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail=f"Failed to disconnect Facebook: {str(e)}"
+            detail="Failed to disconnect Facebook"
         )
 
 
@@ -204,7 +206,7 @@ async def instagram_disconnect(current_user_email: str = Depends(get_current_use
         logging.exception(f"Failed to disconnect Instagram for {current_user_email}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail=f"Failed to disconnect Instagram: {str(e)}"
+            detail="Failed to disconnect Instagram"
         )
 
 
@@ -1037,7 +1039,7 @@ async def instagram_accounts(page_id: str, current_user_email: str = Depends(get
         raise
     except Exception as e:
         logging.error(f"Error linking Instagram for {current_user_email}, page {page_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to link Instagram: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to link Instagram")
 
 
 @router.post("/google-maps/connect")
@@ -1089,7 +1091,7 @@ async def maps_search(payload: dict, current_user_email: str = Depends(get_curre
         return {'results': results}
     except Exception as e:
         logging.error(f"ERROR in maps_search: {type(e).__name__}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Search error: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Search error")
 
 
 @router.post('/maps/confirm')
@@ -1129,7 +1131,10 @@ async def maps_save(payload: dict, current_user_email: str = Depends(get_current
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='place_id, name and address are required')
     try:
         await service.store_google_business(current_user_email, business_name=name, address=address, latitude=lat or 0.0, longitude=lng or 0.0, place_id=place_id)
-    except Exception as e:
-        logging.exception('Failed to save google business')
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except Exception:
+        logging.exception("Failed to save google business")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save Google business",
+        )
     return {'success': True}

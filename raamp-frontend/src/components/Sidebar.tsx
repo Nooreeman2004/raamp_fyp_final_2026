@@ -9,7 +9,6 @@ import {
     BarChart3,
     TrendingUp,
     FlaskConical,
-    CreditCard,
     Settings,
     LogOut,
     ChevronLeft,
@@ -25,6 +24,18 @@ import { authService } from "@/services/authService";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { BrandMark } from "@/components/BrandMark";
+import { toast } from "sonner";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -35,7 +46,6 @@ const menuItems = [
     { icon: TrendingUp, label: "Trend Arbitrage", href: "/dashboard/trends" },
     { icon: ShieldCheck, label: "Approvals", href: "/dashboard/approvals" },
     { icon: FlaskConical, label: "A/B Testing", href: "/dashboard/ab-testing" },
-    { icon: CreditCard, label: "Billing", href: "/billing" },
 ];
 
 const bottomItems = [
@@ -53,9 +63,20 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
     const unreadCount = notificationContext?.unreadCount || 0;
 
     const handleLogout = async () => {
-        await authService.logout();
-        localStorage.removeItem("token");
-        navigate("/login");
+        try {
+            await authService.logout();
+        } catch {
+            // Don't block sign-out UX on network/server failures
+            toast.message("Signed out locally", {
+                description: "We couldn’t reach the server, but this device has been signed out.",
+            });
+        } finally {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            sessionStorage.removeItem("token");
+            sessionStorage.removeItem("user");
+            navigate("/login");
+        }
     };
 
     return (
@@ -194,28 +215,49 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                     </Tooltip>
                 ))}
 
-                <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild>
-                        <button
-                            type="button"
-                            onClick={handleLogout}
-                            className="w-full flex min-h-[2.75rem] items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                        >
-                            <LogOut size={20} className="flex-shrink-0" />
-                            <motion.span
-                                animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
-                                className="font-medium text-sm whitespace-nowrap overflow-hidden"
-                            >
+                <AlertDialog>
+                    <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                            <AlertDialogTrigger asChild>
+                                <button
+                                    type="button"
+                                    className="w-full flex min-h-[2.75rem] items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                >
+                                    <LogOut size={20} className="flex-shrink-0" />
+                                    <motion.span
+                                        animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+                                        className="font-medium text-sm whitespace-nowrap overflow-hidden"
+                                    >
+                                        Sign Out
+                                    </motion.span>
+                                </button>
+                            </AlertDialogTrigger>
+                        </TooltipTrigger>
+                        {collapsed && (
+                            <TooltipContent side="right" className="bg-red-900/90 border-red-500/20 text-foreground">
                                 Sign Out
-                            </motion.span>
-                        </button>
-                    </TooltipTrigger>
-                    {collapsed && (
-                        <TooltipContent side="right" className="bg-red-900/90 border-red-500/20 text-foreground">
-                            Sign Out
-                        </TooltipContent>
-                    )}
-                </Tooltip>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Sign out of RAAMP?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                You’ll be returned to the login screen. You can sign back in anytime.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={handleLogout}
+                            >
+                                Sign out
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </motion.div>
     );

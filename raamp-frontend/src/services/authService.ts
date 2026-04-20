@@ -99,7 +99,7 @@ export const authService = {
   /**
    * Change current user's password (requires OTP)
    */
-  changePassword: async (data: { otp_code: string; new_password: string; confirm_password: string; }): Promise<{ success: boolean; message: string }> => {
+  changePassword: async (data: { current_password: string; otp_code: string; new_password: string; confirm_password: string; }): Promise<{ success: boolean; message: string }> => {
     return apiClient.post<{ success: boolean; message: string }>('/auth/change-password', data);
   },
   /**

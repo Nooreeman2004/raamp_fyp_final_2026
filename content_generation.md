@@ -40,10 +40,13 @@ Video/Reel generation is a separate module under “Media Generation” (see sec
 
 #### C) Platforms endpoint (note)
 
-The test suite references `GET /api/content/platforms`, but **it is not implemented** in `content_generation_router.py` currently.
+Static UI config endpoint.
 
 - **Test reference**: `raamp-backend/tests/test_content_generation.py`
-- **Status**: **missing endpoint** (documentation only; not implemented here)
+- **Status**: **implemented**
+- **Method/Path**: `GET /api/content/platforms`
+- **Auth**: not required (static config)
+- **Purpose**: returns a list of supported platforms and their supported aspect ratios / generation types.
 
 ---
 
@@ -58,14 +61,17 @@ The test suite references `GET /api/content/platforms`, but **it is not implemen
 - **campaign_idea** (required, 10–1000 chars)
 - **target_audience** (optional)
 - **campaign_tone** (optional; overrides brand tone for this generation)
-- **aspect_ratio** (optional; `"1:1"` default; `"9:16"` vertical; `"4:5"` portrait)
+- **platform_type** (default `"post"`; `"post" | "story" | "reel"`)
+  - If provided and valid, it selects the **prompt mode** in the text generation service.
+  - If omitted/invalid at the API boundary, the router derives it from `aspect_ratio` (`9:16 → story`, else `post`).
+- **aspect_ratio** (default `"1:1"`; `"1:1" | "9:16" | "4:5"`)
 - **content_type** (optional; default `"all"`)
   - `"captions"`: captions + per-caption hashtags
   - `"hashtags"`: hashtag sets only
   - `"whatsapp"`: WhatsApp variants
   - `"emails"`: email variants
   - `"images"`: image generation only (returns images + asset IDs; other arrays are intentionally emptied)
-  - `"all"`: generate all types (default)
+  - `"all"`: generate all **text** types (default) (captions/hashtags/whatsapp/emails). Images are only generated when `content_type="images"`.
 - **campaign_id** (optional; used to group generated outputs)
 
 ### 3.2 Response schema
@@ -81,6 +87,8 @@ The test suite references `GET /api/content/platforms`, but **it is not implemen
 - **image_prompts**: list of prompts (or placeholders)
 - **image_paths**: list of generated image URLs (only when `content_type="images"` triggers real image generation)
 - **asset_ids**: list of asset IDs for generated images (usage tracking + asset library)
+- **validation_warnings**: list of non-blocking warnings if brand-lock validation fails after bounded retries
+- **logo_used** / **logo_warning**: optional transparency fields for image generation (logo fetch success/failure)
 - **generated_at**: ISO timestamp
 
 Important implementation note:
@@ -105,7 +113,32 @@ Important implementation note:
 
 Credit charging currently happens here:
 
-- `check_and_deduct(user_id, "caption_generation")`
+- `check_and_deduct(user_id, "caption_generation")` for non-image generation
+- `check_and_deduct(user_id, "image_generation")` for `content_type="images"`
+
+Brand-profile gating (before credits):
+
+- The use case rejects generation with **HTTP 400** if required brand fields are missing:
+  - `business_name`, `tagline`, `tone_of_voice`
+- Error response includes `missing_fields` so the frontend can direct the user to complete their brand profile.
+
+Example error (brand profile incomplete):
+
+```json
+{
+  "detail": {
+    "success": false,
+    "error": "brand_profile_incomplete",
+    "missing_fields": ["business_name", "tagline"],
+    "message": "Your brand profile is incomplete. Please update your brand settings and try again."
+  }
+}
+```
+
+Credit failure:
+
+- Credits are checked/deducted via `CreditService.check_and_deduct(...)`.
+- When insufficient, the service raises an HTTP error (typically **402 Payment Required**) with a structured error payload.
 
 ### 4.2 Content generation service (Gemini text + orchestration)
 
@@ -125,6 +158,8 @@ Credit charging currently happens here:
   - **Aspect ratio → platform_type mapping** (router behavior):
     - `"9:16"` → `"story"`
     - everything else → `"post"`
+  - **Brand-lock retries**:
+    - After parsing Gemini JSON, the service performs a string-level brand-lock validation and will retry up to **2** times (bounded) before returning output with `validation_warnings`.
 
 ### 4.3 ML enrichment (captions)
 
@@ -166,7 +201,12 @@ This is used for **creative history** and usage tracking.
 The prompt generator is intentionally strict:
 
 - prioritizes **campaign idea theme** over generic brand context
-- can optionally fetch `brand_logo_url` and pass it as a multimodal “logo reference” to Gemini
+- attempts to fetch `brand_logo_url` and pass it as a multimodal “logo reference” to Gemini
+- includes strict **color constraints** in the brand prompt block (dominant palette must match brand colors; avoid off-brand palettes unless the campaign explicitly requires it)
+
+Logo fetch transparency:
+
+- Image generation returns `logo_used` and (when not used) a `logo_warning` string so the frontend can inform the user when logo reference could not be loaded.
 
 ### 5.3 Image generation strategies
 
@@ -202,7 +242,9 @@ Important notes:
 - Premium users: unlimited access for metered actions.
 
 Implementation note:
-- Content generation use-case currently deducts **`caption_generation`** even when generating non-caption types; image generation service itself does **not** currently deduct `image_generation` (it relies on upstream orchestration).
+- The use case deducts:
+  - **`caption_generation`** for `captions/hashtags/whatsapp/emails/all`
+  - **`image_generation`** for `images`
 
 ---
 
@@ -292,23 +334,42 @@ Static serving:
 
 ## 10. Known gaps / mismatches
 
-- **`GET /api/content/platforms`** is referenced by tests but not implemented in the router.
+- **`GET /api/content/platforms`**: Implemented (static config response).
 - **Docs vs actual routes mismatch**:
   - Some docs mention `/api/content-generation` and `/api/media-generation`, but the implemented routers are:
     - content generation: `/api/content/*`
     - media generation: `/api/media/*`
-- **Credit charging granularity**:
-  - the use case always deducts `caption_generation` today; if you want separate costs for images/messages-only, you’d likely want to charge by `content_type` (and add `image_generation` deduction when `content_type="images"`).
-- **Image generation does not honor requested aspect ratio end-to-end**:
-  - Frontend sends `aspect_ratio` when generating images.
-  - The backend image generation pipeline supports aspect ratios internally, but the content-gen path does not pass the requested ratio through, so output isn’t reliably controlled by `1:1 / 4:5 / 9:16`.
-- **Image prompt key/shape inconsistency**:
-  - The LLM prompt inside `ContentGenerationService` asks for `image_generation_prompts` as a list of objects (`{id, prompt}`),
-  - but the API schema/response path uses `image_prompts: List[str]`.
-  - Result: image-prompt data can be ignored or replaced by placeholders depending on the exact LLM output.
-- **“Reel” text mode is not reachable from `/api/content/generate`**:
-  - The router only maps aspect ratio to `platform_type="story"` (when `9:16`) or `"post"` (otherwise).
-  - There is no request field that selects `"reel"` prompt behavior for text generation in this endpoint.
-- **`best_hashtag_set_id` is effectively a placeholder**:
-  - Response includes `best_hashtag_set_id`, but backend does not compute it (it defaults to `1` in the router response building).
+- **Credit charging granularity**: Implemented for `images` vs non-images (charges `image_generation` for images, `caption_generation` otherwise).
+- **Image generation aspect ratio threading**: Implemented (request `aspect_ratio` is passed into the image generation pipeline).
+- **Image prompt key/shape inconsistency**: Implemented (standardized to `image_prompts: List[str]` + backward compatible parsing).
+- **“Reel” text mode reachability**: Implemented (client can send `platform_type="reel"`; backend still falls back to aspect_ratio mapping if invalid/omitted).
+- **`best_hashtag_set_id`**: Implemented (lightweight deterministic heuristic scoring; no longer hardcoded to 1).
+
+---
+
+## 11. `/api/content/platforms` contract (UI config)
+
+- **Method/Path**: `GET /api/content/platforms`
+- **Auth**: not required (static UI config)
+- **Response**: `{ "platforms": PlatformInfo[] }` where each `PlatformInfo` includes:
+  - `id`, `name`, `description`, `guidelines`
+  - `supported_generation_types`: e.g. `["post","story","reel"]`
+  - `supported_aspect_ratios`: e.g. `["1:1","4:5","9:16"]`
+
+Example response:
+
+```json
+{
+  "platforms": [
+    {
+      "id": "instagram",
+      "name": "Instagram",
+      "description": "Best for visual-first marketing: feed posts, stories, and reels.",
+      "guidelines": "Keep captions punchy. Use 5–15 hashtags. Prefer strong hooks and clear CTAs.",
+      "supported_generation_types": ["post", "story", "reel"],
+      "supported_aspect_ratios": ["1:1", "4:5", "9:16"]
+    }
+  ]
+}
+```
 

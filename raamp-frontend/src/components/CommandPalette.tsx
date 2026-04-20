@@ -18,7 +18,6 @@ import {
   User,
   Store,
   Settings,
-  CreditCard,
   FileText,
   Zap
 } from "lucide-react";
@@ -101,14 +100,6 @@ const navigationItems: NavigationItem[] = [
     icon: Store,
     keywords: ["restaurant", "business", "profile", "location"],
     category: "Profile"
-  },
-  {
-    id: "billing",
-    label: "Billing",
-    path: "/billing",
-    icon: CreditCard,
-    keywords: ["billing", "payment", "subscription", "invoice"],
-    category: "Settings"
   },
   {
     id: "settings",

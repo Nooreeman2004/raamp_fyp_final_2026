@@ -26,9 +26,6 @@ export function useRecentPages(): { recentPages: RecentPage[]; clearRecentPages:
     "/profile/restaurant": "Restaurant Profile",
     "/profile/onboarding": "Onboarding",
     "/profile/personal-details": "Personal Details",
-    "/billing": "Billing",
-    "/billing/add-funds": "Add Funds",
-    "/billing/transactions": "Transactions",
   };
 
   // Load recent pages from localStorage

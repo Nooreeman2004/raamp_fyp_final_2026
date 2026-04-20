@@ -24,7 +24,7 @@ export const signInWithGoogle = async (): Promise<GoogleAuthResult> => {
     };
   } catch (error: any) {
     console.error('Google login error:', error);
-    throw new Error(error.message || 'Failed to login with Google');
+    throw new Error('Google sign-in failed. Please try again.');
   }
 };
 

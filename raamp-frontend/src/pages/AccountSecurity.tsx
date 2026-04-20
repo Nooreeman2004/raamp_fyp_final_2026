@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "@/services/api";
 import { toast as sonner } from "sonner";
+import { authService } from "@/services/authService";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,21 @@ const AccountSecurity = () => {
   const [showPasswordGate, setShowPasswordGate] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showDeleteOtpDialog, setShowDeleteOtpDialog] = useState(false);
+  const [deleteOtp, setDeleteOtp] = useState("");
+  const [deleteOtpError, setDeleteOtpError] = useState("");
+  const [isSendingDeleteOtp, setIsSendingDeleteOtp] = useState(false);
+  const [isResendingDeleteOtp, setIsResendingDeleteOtp] = useState(false);
+
+  // Password change (keep it in Account & Security to avoid UX fragmentation)
+  const [showPwdOtpDialog, setShowPwdOtpDialog] = useState(false);
+  const [showPwdDialog, setShowPwdDialog] = useState(false);
+  const [pwdOtp, setPwdOtp] = useState("");
+  const [pwdOtpError, setPwdOtpError] = useState("");
+  const [pwdCurrent, setPwdCurrent] = useState("");
+  const [pwdNew, setPwdNew] = useState("");
+  const [pwdConfirm, setPwdConfirm] = useState("");
+  const [pwdSaving, setPwdSaving] = useState(false);
 
   const fetchUserProfile = useCallback(async () => {
     try {
@@ -80,12 +96,91 @@ const AccountSecurity = () => {
     });
   };
 
-  const handleChangePassword = () => {
-    navigate("/profile/user");
-    toast({
-      title: "Change Password",
-      description: "You can change your password from the Edit Profile page.",
-    });
+  const lastLoginLabel = () => {
+    const last = userProfile?.last_login;
+    if (last) return formatDate(last);
+    // Legacy users may not have last_login; don't show "Never" (feels broken)
+    return "First login";
+  };
+
+  const handleChangePassword = async () => {
+    if (!userProfile?.email) {
+      toast({
+        title: "Error",
+        description: "Missing email. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await authService.sendChangePasswordOtp({ email: userProfile.email });
+      setPwdOtp("");
+      setPwdOtpError("");
+      setShowPwdOtpDialog(true);
+      sonner.success("Verification code sent", {
+        description: `We emailed a 6-digit code to ${userProfile.email}.`,
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to send verification code. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const verifyPwdOtp = () => {
+    setPwdOtpError("");
+    if (!pwdOtp || pwdOtp.trim().length !== 6) {
+      setPwdOtpError("Please enter the 6-digit code.");
+      return;
+    }
+    setShowPwdOtpDialog(false);
+    setShowPwdDialog(true);
+  };
+
+  const saveNewPassword = async () => {
+    if (!userProfile?.email) {
+      sonner.error("Error", { description: "Missing email. Please refresh and try again." });
+      return;
+    }
+    if (!pwdCurrent.trim()) {
+      sonner.error("Error", { description: "Current password is required." });
+      return;
+    }
+    if (pwdNew.length < 8) {
+      sonner.error("Error", { description: "Password must be at least 8 characters." });
+      return;
+    }
+    if (pwdNew !== pwdConfirm) {
+      sonner.error("Error", { description: "Passwords do not match." });
+      return;
+    }
+
+    setPwdSaving(true);
+    try {
+      const resp = await authService.changePassword({
+        current_password: pwdCurrent,
+        otp_code: pwdOtp.trim(),
+        new_password: pwdNew,
+        confirm_password: pwdConfirm,
+      });
+      sonner.success("Password Updated", {
+        description: resp?.message || "Your password was changed successfully.",
+      });
+      setShowPwdDialog(false);
+      setPwdOtp("");
+      setPwdCurrent("");
+      setPwdNew("");
+      setPwdConfirm("");
+    } catch {
+      sonner.error("Could not change password", {
+        description: "Please request a new code and try again.",
+      });
+    } finally {
+      setPwdSaving(false);
+    }
   };
 
   const handleDeleteAccountClick = () => {
@@ -94,39 +189,94 @@ const AccountSecurity = () => {
 
   const handleConfirmDelete = () => {
     setShowDeleteConfirmation(false);
-    setShowPasswordGate(true);
+    void (async () => {
+      if (!userProfile?.email) {
+        toast({
+          title: "Error",
+          description: "Could not determine your email. Please refresh and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsSendingDeleteOtp(true);
+      try {
+        await apiClient.post("/auth/account-deletion/send-otp", { email: userProfile.email });
+        sonner.success("Verification code sent", {
+          description: `We emailed a 6-digit code to ${userProfile.email}.`,
+        });
+        setDeleteOtp("");
+        setDeleteOtpError("");
+        setShowDeleteOtpDialog(true);
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: "Failed to send verification code. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSendingDeleteOtp(false);
+      }
+    })();
   };
 
-  const handleVerifiedForDelete = async () => {
-    setShowPasswordGate(false);
+  const handleResendDeleteOtp = async () => {
+    if (!userProfile?.email) return;
+    setIsResendingDeleteOtp(true);
+    try {
+      await apiClient.post("/auth/account-deletion/send-otp", { email: userProfile.email });
+      sonner.success("Code resent", { description: `Sent to ${userProfile.email}` });
+      setDeleteOtpError("");
+    } catch (error: any) {
+      toast({
+        title: "Resend failed",
+        description: "Could not resend the code. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResendingDeleteOtp(false);
+    }
+  };
+
+  const handleVerifyDeleteOtp = async () => {
+    setDeleteOtpError("");
+    if (!deleteOtp || deleteOtp.trim().length !== 6) {
+      setDeleteOtpError("Please enter the 6-digit code.");
+      return;
+    }
+    if (!userProfile?.email) {
+      setDeleteOtpError("Missing email. Please refresh and try again.");
+      return;
+    }
+
+    setShowDeleteOtpDialog(false);
     setIsDeleting(true);
 
     try {
-      await apiClient.post("/auth/account-deletion/verify-password", {
-        email: userProfile?.email,
-        password: "VERIFIED_BY_GATE" // The backend should have a password-based deletion endpoint
+      await apiClient.post("/auth/account-deletion/verify", {
+        email: userProfile.email,
+        code: deleteOtp.trim(),
       });
-      // NOTE: Since I don't know the exact password deletion endpoint, 
-      // I'll assume standard verification is enough or the user will provide one.
-      // For now, I'll just follow the pattern.
-
-      // If we don't have a specific password-deletion endpoint, 
-      // we might need to use the one we have or wait.
-      // But the user said "passwords (not otp)".
-
-      // Let's assume we can just call delete with the verified status.
-      await apiClient.delete("/auth/account");
 
       localStorage.removeItem("user");
       localStorage.removeItem("token");
-      sonner.success("Account Deleted");
+      try {
+        // Best-effort cookie cleanup (if backend uses httpOnly cookie auth in any env)
+        await authService.logout();
+      } catch {
+        // ignore
+      }
+      sonner.success("Account Deleted", {
+        description: "Your account was permanently deleted.",
+      });
       navigate("/");
     } catch (error) {
       toast({
         title: "Deletion Failed",
-        description: "Failed to delete account. Please contact support.",
+        description: "Invalid or expired code, or deletion failed. Please try again.",
         variant: "destructive",
       });
+      setShowDeleteOtpDialog(true);
     } finally {
       setIsDeleting(false);
     }
@@ -198,7 +348,12 @@ const AccountSecurity = () => {
               <p className="text-sm text-muted-foreground font-mono">
                 Keep your account secure with a strong password.
               </p>
-              <Button variant="outline" onClick={handleChangePassword} className="font-mono text-xs">
+              <Button
+                variant="outline"
+                onClick={handleChangePassword}
+                className="font-mono text-xs"
+                disabled={!isUnlocked}
+              >
                 Change Password
               </Button>
             </div>
@@ -216,7 +371,7 @@ const AccountSecurity = () => {
                 <div>
                   <p className="text-sm font-medium font-mono">Last Active Session</p>
                   <p className="text-lg text-foreground mt-1 font-mono">
-                    {formatDate(userProfile?.last_login)}
+                    {lastLoginLabel()}
                   </p>
                 </div>
                 <div className="text-right">
@@ -244,10 +399,15 @@ const AccountSecurity = () => {
               <Button
                 variant="destructive"
                 onClick={handleDeleteAccountClick}
-                disabled={!isUnlocked || isDeleting}
+                disabled={!isUnlocked || isDeleting || isSendingDeleteOtp}
                 className="font-mono text-xs"
               >
-                {isDeleting ? (
+                {isSendingDeleteOtp ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending code...
+                  </>
+                ) : isDeleting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Processing...
@@ -260,6 +420,80 @@ const AccountSecurity = () => {
           </Card>
         </Reveal>
       </motion.div>
+
+      {/* Password OTP Dialog */}
+      <Dialog open={showPwdOtpDialog} onOpenChange={setShowPwdOtpDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Password change verification</DialogTitle>
+            <DialogDescription>Enter the 6-digit code we emailed you.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="pwdOtp">OTP code</Label>
+            <Input
+              id="pwdOtp"
+              value={pwdOtp}
+              onChange={(e) => setPwdOtp(e.target.value)}
+              maxLength={6}
+              placeholder="000000"
+            />
+            {pwdOtpError && <p className="text-xs text-destructive">{pwdOtpError}</p>}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowPwdOtpDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={verifyPwdOtp}>Verify</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={showPwdDialog} onOpenChange={setShowPwdDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change password</DialogTitle>
+            <DialogDescription>Enter your current password and a new password.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="pwdCurrent">Current password</Label>
+              <Input
+                id="pwdCurrent"
+                type="password"
+                value={pwdCurrent}
+                onChange={(e) => setPwdCurrent(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="pwdNew">New password</Label>
+              <Input
+                id="pwdNew"
+                type="password"
+                value={pwdNew}
+                onChange={(e) => setPwdNew(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="pwdConfirm">Confirm new password</Label>
+              <Input
+                id="pwdConfirm"
+                type="password"
+                value={pwdConfirm}
+                onChange={(e) => setPwdConfirm(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowPwdDialog(false)} disabled={pwdSaving}>
+              Cancel
+            </Button>
+            <Button onClick={saveNewPassword} disabled={pwdSaving}>
+              {pwdSaving ? "Saving…" : "Update password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
@@ -286,6 +520,56 @@ const AccountSecurity = () => {
             </Button>
             <Button variant="destructive" onClick={handleConfirmDelete} className="font-mono text-xs">
               Send Verification Code
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete OTP Dialog */}
+      <Dialog open={showDeleteOtpDialog} onOpenChange={setShowDeleteOtpDialog}>
+        <DialogContent className="bg-background/90 border-primary/30 text-foreground backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="font-heading font-semibold text-2xl text-primary">CONFIRM ACCOUNT DELETION</DialogTitle>
+            <DialogDescription className="font-mono text-xs text-muted-foreground">
+              Enter the 6-digit verification code sent to your email. This action is irreversible.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="deleteOtp" className="text-xs font-mono text-primary">ONE-TIME CODE</Label>
+              <Input
+                id="deleteOtp"
+                value={deleteOtp}
+                onChange={(e) => setDeleteOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="bg-black/50 border-border/50 text-center text-2xl tracking-[0.5em] font-mono focus:border-primary/50 focus:ring-primary/20"
+                maxLength={6}
+                placeholder="000000"
+              />
+              {deleteOtpError && <p className="text-red-500 text-xs font-mono">{deleteOtpError}</p>}
+              <button
+                type="button"
+                onClick={handleResendDeleteOtp}
+                disabled={isResendingDeleteOtp || isDeleting || isSendingDeleteOtp}
+                className="text-[11px] font-mono text-primary/80 hover:text-primary underline-offset-4 hover:underline disabled:opacity-50 disabled:no-underline"
+              >
+                {isResendingDeleteOtp ? "Resending…" : "Resend code"}
+              </button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowDeleteOtpDialog(false);
+                setDeleteOtp("");
+                setDeleteOtpError("");
+              }}
+              className="font-mono text-xs text-muted-foreground/80 hover:text-foreground"
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleVerifyDeleteOtp} className="bg-red-600 text-white hover:bg-red-600/90 font-heading font-semibold">
+              Verify & Delete
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -96,11 +96,19 @@ IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never a
         if brand_context.get("restaurant_theme"):
             sections.append(f"Brand Style/Theme: {brand_context['restaurant_theme']}")
         
-        if brand_context.get("primary_color"):
-            sections.append(f"Primary Brand Color: {brand_context['primary_color']}")
-        
-        if brand_context.get("secondary_color"):
-            sections.append(f"Secondary Brand Color: {brand_context['secondary_color']}")
+        if brand_context.get("primary_color") or brand_context.get("secondary_color"):
+            palette = []
+            if brand_context.get("primary_color"):
+                palette.append(str(brand_context["primary_color"]).strip())
+            if brand_context.get("secondary_color"):
+                palette.append(str(brand_context["secondary_color"]).strip())
+            palette_str = ", ".join([p for p in palette if p])
+            if palette_str:
+                sections.append(
+                    "COLOR CONSTRAINT (HARD RULE): "
+                    f"Dominant palette MUST be: {palette_str}. "
+                    "Avoid off-brand palettes (e.g., neon/pastel/warm tones) unless explicitly required by the campaign request."
+                )
         
         if brand_context.get("tagline"):
             sections.append(f"Brand Tagline: {brand_context['tagline']}")
@@ -120,7 +128,7 @@ IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never a
         self, 
         campaign_idea: str, 
         brand_context: Dict[str, Any]
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
         Generate a detailed image prompt using Gemini.
         
@@ -129,11 +137,16 @@ IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never a
             brand_context: Brand information from database
             
         Returns:
-            Detailed image generation prompt
+            Dict with:
+            - image_prompt: str
+            - logo_used: bool
+            - logo_warning: Optional[str]
         """
         try:
             brand_section = self._build_brand_context_section(brand_context)
             logo_url = brand_context.get("brand_logo_url") or brand_context.get("logo_url")
+            logo_used = False
+            logo_warning = None
             
             user_message = f"""{brand_section}
 
@@ -171,12 +184,21 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
                                 )
                             )
                         )
+                        logo_used = True
                         logger.info("✅ Logo fetched (%d bytes, %s) — passing to Gemini", len(img_bytes), mime)
                     else:
                         logger.warning("⚠️ Logo fetch failed (%d) — proceeding text-only", logo_resp.status_code)
+                        logo_warning = (
+                            "Logo could not be loaded from the stored URL — images were generated without visual brand reference. "
+                            "Check your brand profile logo URL."
+                        )
                         contents = [self.PROMPT_GENERATOR_SYSTEM_PROMPT + "\n\n" + user_message]
                 except Exception as logo_err:
                     logger.warning("⚠️ Could not fetch logo: %s — proceeding text-only", logo_err)
+                    logo_warning = (
+                        "Logo could not be loaded from the stored URL — images were generated without visual brand reference. "
+                        "Check your brand profile logo URL."
+                    )
                     contents = [self.PROMPT_GENERATOR_SYSTEM_PROMPT + "\n\n" + user_message]
             else:
                 contents = [self.PROMPT_GENERATOR_SYSTEM_PROMPT + "\n\n" + user_message]
@@ -196,23 +218,36 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
             # If AI still refuses (shouldn't happen anymore), use campaign idea directly
             if "CLARIFICATION NEEDED" in image_prompt:
                 logger.warning("⚠️ AI asked for clarification despite instructions — using campaign idea as direct prompt")
-                return (
-                    f"Professional social media marketing image for: {campaign_idea}. "
-                    "Modern design, high-quality photography, vibrant colors, "
-                    "clean composition, suitable for Instagram feed posts (1:1 ratio), "
-                    "eye-catching and scroll-stopping."
-                )
+                return {
+                    "image_prompt": (
+                        f"Professional social media marketing image for: {campaign_idea}. "
+                        "Modern design, high-quality photography, vibrant colors, "
+                        "clean composition, suitable for Instagram feed posts (1:1 ratio), "
+                        "eye-catching and scroll-stopping."
+                    ),
+                    "logo_used": logo_used,
+                    "logo_warning": logo_warning,
+                }
             
             logger.info("Image prompt generated successfully")
-            return image_prompt
+            return {"image_prompt": image_prompt, "logo_used": logo_used, "logo_warning": logo_warning}
             
         except Exception as e:
             logger.error("Image prompt generation failed: %s", str(e))
             # Return a fallback prompt instead of raising so generation can still proceed
-            return (
-                f"Professional social media marketing image for: {campaign_idea}. "
-                "High-quality photography, vibrant colors, clean composition for Instagram."
-            )
+            return {
+                "image_prompt": (
+                    f"Professional social media marketing image for: {campaign_idea}. "
+                    "High-quality photography, vibrant colors, clean composition for Instagram."
+                ),
+                "logo_used": False,
+                "logo_warning": (
+                    "Logo could not be loaded from the stored URL — images were generated without visual brand reference. "
+                    "Check your brand profile logo URL."
+                )
+                if (brand_context.get("brand_logo_url") or brand_context.get("logo_url"))
+                else None,
+            }
     
     async def _generate_single_image(
         self, 
@@ -307,7 +342,8 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
         self, 
         image_prompt: str, 
         campaign_id: Optional[str] = None,
-        count: int = 3
+        count: int = 3,
+        aspect_ratio: str = "1:1",
     ) -> List[str]:
         """
         Generate multiple image variations in parallel.
@@ -335,7 +371,7 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
         tasks = []
         for i in range(count):
             filename = str(output_dir / f"variation_{i+1}.png")
-            tasks.append(self._generate_single_image(image_prompt, filename))
+            tasks.append(self._generate_single_image(image_prompt, filename, aspect_ratio=aspect_ratio))
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
@@ -368,7 +404,8 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
         self, 
         campaign_idea: str, 
         brand_context: Dict[str, Any],
-        user_id: str
+        user_id: str,
+        aspect_ratio: str = "1:1",
     ) -> Dict[str, Any]:
         """
         Complete pipeline: Generate image prompt + generate images + save as assets.
@@ -386,13 +423,21 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
             
             # Step 1: Generate the image prompt (always proceeds — no 'clarification needed' early exit)
             logger.info("📝 Step 1: Generating image prompt using %s", self.text_model)
-            image_prompt = self.generate_image_prompt(campaign_idea, brand_context)
+            prompt_result = self.generate_image_prompt(campaign_idea, brand_context)
+            image_prompt = str(prompt_result.get("image_prompt", "")).strip()
+            logo_used = bool(prompt_result.get("logo_used", False))
+            logo_warning = prompt_result.get("logo_warning")
             logger.info("✅ Image prompt generated: %s...", image_prompt[:100])
             
             # Step 2: Generate 3 images
             logger.info("🖼️ Step 2: Generating 3 images using %s", self.image_model)
             campaign_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-            image_paths = await self.generate_images(image_prompt, campaign_id, count=3)
+            image_paths = await self.generate_images(
+                image_prompt,
+                campaign_id,
+                count=3,
+                aspect_ratio=aspect_ratio,
+            )
             
             if not image_paths:
                 logger.error("❌ No images were generated")
@@ -468,7 +513,9 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
                 "image_prompt": image_prompt,
                 "image_paths": image_paths,
                 "asset_ids": asset_ids,
-                "count": len(image_paths)
+                "count": len(image_paths),
+                "logo_used": logo_used,
+                "logo_warning": logo_warning,
             }
             
         except Exception as e:

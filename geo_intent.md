@@ -13,6 +13,13 @@ This document describes **everything related to the Geo-Intent module** in the R
   - **Dynamic Persona Split**: POI-aware audience distribution (Office Commuters, Retail Shoppers, Food Visitors, Local Residents, Students) with hourly/weather modifiers.
   - **Multi-Zone Recommender**: `POST /api/v1/geo/recommend-zones` scores **4–8 compass points** on a ring at the scan radius (labels N, NE, E, …), runs the same signal pipeline per point in parallel, returns the **top 3** zones by heat score with a short reason string. One **`geo_radar_scan`** credit per request.
   - **Strategic Brief Generation**: AI-powered (Gemini) campaign planning including 3 caption variants (Aggressive, Soft, Urgency), budget advice, and meta-objectives; optional **Deploy Here** from a recommended zone uses that zone’s coordinates and signals.
+  - **Meta Ads “Deploy as Draft” (Paused)**:
+    - After Facebook OAuth, the backend fetches and persists the user’s **ad accounts** (`/me/adaccounts`) in `facebook_connections.ad_accounts`.
+    - Frontend opens `MetaDeployModal` from a zone card, lets the user choose:
+      - an **Ad Account**
+      - a **Facebook Page** (required for the creative)
+      - a caption variant + daily budget
+    - Backend creates a **paused** campaign/adset/creative/ad via Meta Marketing API and returns an **Ads Manager URL**.
   - **Tier-based Logic**: Signal gating (Free tier only gets full Places; Trends/Weather may be neutral with `status="limited"`; Premium gets full multi-signal access). Demo user `abdullah@gmail.com` is treated as premium where enforced in code.
   - **Persistence**: `campaign_logs` and `heat_scores` collections for history and heatmap layers; campaign briefs stored for strategy history.
   - **Frontend UI**:
@@ -106,6 +113,7 @@ sequenceDiagram
   - `raamp-frontend/src/pages/GeoIntent.tsx`: Dashboard, heat scan, **Find Best Zones**, zone cards, Deploy / Deploy Here.
   - `raamp-frontend/src/components/GeoIntentMap.tsx`: Map, heatmap layer, radius circle, optional **zone pins**.
   - `raamp-frontend/src/components/GeoCampaignBriefModal.tsx`: Brief modal (scrollable), caption variants sanitized (no dash characters).
+  - `raamp-frontend/src/components/MetaDeployModal.tsx`: Meta deploy modal — fetches ad accounts + creates **paused** drafts in Meta.
   - `raamp-frontend/src/services/geoIntentService.ts`: API client including `recommendZones`.
   - `raamp-frontend/src/lib/loadGoogleMapsScript.ts`: single Google Maps loader (`id="google-maps-api-script"`, shared Promise).
 
@@ -147,6 +155,34 @@ Implemented in `GeoIntentService._calculate_persona_split()`: base mapping from 
 | `/api/v1/geo/campaign-briefs/{business_id}` | GET | List saved briefs. Server resolves `business_id` to the canonical geo key and filters by the current user so “Strategic History” doesn’t appear empty due to id mismatch. |
 | `/api/v1/geo/campaign-brief/{brief_id}` | GET | Single brief by id. |
 
+### 4.1 Meta deploy support endpoints (Geo-Intent → Ads Manager bridge)
+
+These endpoints support the **“Deploy as Draft”** flow from Geo-Intent.
+
+#### A) Fetch ad accounts (for dropdown)
+
+- **Method/Path**: `GET /api/profile/connections/facebook/ad-accounts`
+- **Auth**: required
+- **Returns**:
+  - `ad_accounts[]`: the persisted list fetched from Meta during OAuth
+  - `selected_ad_account_id`: last user selection (optional)
+
+#### B) Persist selected ad account (UX convenience)
+
+- **Method/Path**: `POST /api/profile/connections/facebook/ad-accounts/select`
+- **Auth**: required
+- **Body**: `{ "ad_account_id": "act_123..." }`
+- **Returns**: `{ "ok": true|false }`
+
+#### C) Create paused campaign draft in Meta
+
+- **Method/Path**: `POST /api/v1/meta/deploy-draft`
+- **Auth**: required
+- **Notes**:
+  - Creates **Campaign**, **Ad Set**, **Creative**, and **Ad** with `status="PAUSED"`.
+  - Returns `ads_manager_url` for the user to review/publish in Meta Ads Manager.
+  - Errors are logged server-side, but responses should remain **user-safe** (no raw Meta/dev strings).
+
 **Smoke / dev**
 
 - `raamp-backend/tests/smoke_recommend_zones.py` — calls `GeoIntentService.recommend_zones` with Lahore demo coordinates (requires env + Mongo).
@@ -186,6 +222,9 @@ Implemented in `GeoIntentService._calculate_persona_split()`: base mapping from 
 - **Personalization**: Signal weights and heuristics are mostly fixed; no per-business-type tuning or learning loop.
 - **Alerts**: No push/mobile “heat spike” notifications in the Geo-Intent module (only optional activity logging).
 - **Closed-loop attribution**: Geo-Intent doesn’t yet tie “brief → campaign → ROI” into a unified feedback loop within the module.
+- **Meta deploy hard requirements**:
+  - Meta deploy requires a **Facebook Page ID** for the ad creative.
+  - Ads endpoints require Meta permissions (`ads_read`, `ads_management`) to be granted at OAuth time.
 
 ---
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/services/api';
+import { toast } from "sonner";
 
 type Place = {
   place_id: string;
@@ -44,7 +45,7 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
       setResults((res && (res.data?.results || res.results)) || []);
     } catch (err: any) {
       console.error('Search error', err);
-      alert('Search failed. Please try again.');
+      toast.error("Search failed", { description: "Please try again." });
     } finally {
       setLoading(false);
     }
@@ -65,7 +66,7 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
       });
     } catch (err: any) {
       console.error('Details error', err);
-      alert('Failed to load place details');
+      toast.error("Failed to load place details", { description: "Please try again." });
     } finally {
       setDetailsLoading(false);
     }
@@ -87,7 +88,7 @@ export default function MapsConnectModal({ isOpen, onClose, onConnected }: Props
       onClose();
     } catch (err: any) {
       console.error('Connect error', err);
-      alert('Failed to connect place. Please try again.');
+      toast.error("Failed to connect", { description: "Please try again." });
     }
   };
 

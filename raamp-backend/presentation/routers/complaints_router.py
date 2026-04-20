@@ -8,12 +8,23 @@ from presentation.schemas.complaint_schemas import (
     ComplaintRatingRequest,
 )
 from application.services.complaint_service import ComplaintService
-from presentation.routers.auth_router import get_current_user_id
+from presentation.routers.auth_router import get_current_user_id, get_current_user_email
 from fastapi.responses import JSONResponse
 from typing import Optional
+import logging
+from infrastructure.repositories.user_repository_impl import UserRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/complaints", tags=["complaints"])
 service = ComplaintService()
+user_repo = UserRepository()
+
+
+async def _require_admin(current_user_email: str) -> None:
+    user = await user_repo.find_by_email(current_user_email)
+    if not user or not getattr(user, "is_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
 
 @router.post("/submit", response_model=ComplaintSubmitResponse, status_code=status.HTTP_201_CREATED)
@@ -28,17 +39,23 @@ async def submit_complaint(payload: ComplaintSubmitRequest, user_id: str = Depen
         )
         return ComplaintSubmitResponse(id=complaint_id)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.exception("Complaint submit failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to submit complaint")
 
 
 @router.get("/user", response_model=list[ComplaintResponseItem])
-async def get_user_complaints(user_id: str = Depends(get_current_user_id)):
+async def get_user_complaints(
+    user_id: str = Depends(get_current_user_id),
+    limit: int = 50,
+    offset: int = 0,
+):
     """Get all complaints for the authenticated user"""
     try:
-        complaints = await service.get_complaints_for_user(user_id)
+        complaints = await service.get_complaints_for_user(user_id, limit=limit, offset=offset)
         return JSONResponse(status_code=status.HTTP_200_OK, content=complaints)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.exception("Get user complaints failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load complaints")
 
 
 @router.put("/{complaint_id}")
@@ -58,7 +75,8 @@ async def update_complaint(complaint_id: str, payload: ComplaintUpdateRequest, u
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.exception("Update complaint failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update complaint")
 
 
 @router.delete("/{complaint_id}")
@@ -72,7 +90,8 @@ async def delete_complaint(complaint_id: str, user_id: str = Depends(get_current
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.exception("Delete complaint failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete complaint")
 
 
 @router.post("/{complaint_id}/comments")
@@ -86,7 +105,8 @@ async def add_comment(complaint_id: str, payload: ComplaintCommentRequest, user_
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.exception("Add comment failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add comment")
 
 
 @router.post("/{complaint_id}/rating")
@@ -100,7 +120,8 @@ async def submit_rating(complaint_id: str, payload: ComplaintRatingRequest, user
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.exception("Submit rating failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to submit rating")
 
 
 @router.post("/{complaint_id}/attachments")
@@ -127,7 +148,82 @@ async def upload_attachment(
         return {"success": True, "url": url}
     except HTTPException:
         raise
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request")
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.exception("Upload attachment failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload attachment")
+
+
+@router.post("/admin/{complaint_id}/resolve")
+async def admin_resolve_complaint(
+    complaint_id: str,
+    payload: dict,
+    current_user_email: str = Depends(get_current_user_email),
+):
+    """Admin/support endpoint to resolve a complaint and set adminResponse."""
+    await _require_admin(current_user_email)
+    try:
+        ok = await service.admin_update_status(
+            complaint_id=complaint_id,
+            status="resolved",
+            admin_email=current_user_email,
+            admin_response=str(payload.get("adminResponse") or ""),
+            comment=str(payload.get("comment") or "Resolved by support"),
+        )
+        if not ok:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Admin resolve failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to resolve complaint")
+
+
+@router.post("/admin/{complaint_id}/status")
+async def admin_set_status(
+    complaint_id: str,
+    payload: dict,
+    current_user_email: str = Depends(get_current_user_email),
+):
+    """Admin/support endpoint to change status (pending|in_progress|resolved|rejected) and optionally set adminResponse."""
+    await _require_admin(current_user_email)
+    new_status = str(payload.get("status") or "").strip().lower()
+    if new_status not in {"pending", "in_progress", "in progress", "resolved", "rejected"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status")
+    normalized = "in_progress" if new_status == "in progress" else new_status
+    try:
+        ok = await service.admin_update_status(
+            complaint_id=complaint_id,
+            status=normalized,
+            admin_email=current_user_email,
+            admin_response=str(payload.get("adminResponse") or ""),
+            comment=str(payload.get("comment") or f"Status updated to {normalized}"),
+        )
+        if not ok:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Admin status update failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update complaint status")
+
+
+@router.get("/admin", response_model=list[ComplaintResponseItem])
+async def admin_list_complaints(
+    current_user_email: str = Depends(get_current_user_email),
+    limit: int = 50,
+    offset: int = 0,
+    status_filter: Optional[str] = None,
+    q: Optional[str] = None,
+):
+    """Admin/support endpoint to list complaints as a ticket queue."""
+    await _require_admin(current_user_email)
+    try:
+        items = await service.admin_list_complaints(limit=limit, offset=offset, status=status_filter, q=q)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=items)
+    except Exception:
+        logger.exception("Admin list complaints failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load complaints")

@@ -49,6 +49,22 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
     platformFilter = "all"
 }) => {
     const [previewMedia, setPreviewMedia] = useState<{ url: string; caption?: string } | null>(null);
+
+    const getPlatformPillClasses = (platform: string) => {
+        const p = String(platform || "").toLowerCase();
+        if (p === "facebook") {
+            return {
+                wrap: "bg-[#1877F2]/10 border-[#1877F2]/30",
+                icon: "text-[#1877F2]",
+                text: "text-[#1877F2]"
+            };
+        }
+        return {
+            wrap: "bg-pink-500/10 border-pink-500/30",
+            icon: "text-pink-500",
+            text: "text-pink-600 dark:text-pink-400"
+        };
+    };
     const [cancellingPostId, setCancellingPostId] = useState<string | null>(null);
     const [postToCancel, setPostToCancel] = useState<ScheduledPostItem | null>(null);
 
@@ -145,6 +161,7 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
                                 // Dynamic platform check support
                                 const platform = (post as any).platform?.toLowerCase() || "instagram";
                                 const isStory = post.status.toLowerCase().includes("story");
+                                const pill = getPlatformPillClasses(platform);
                                 const summary = post.caption
                                     ? (post.caption.length > 80 ? post.caption.slice(0, 80) + "..." : post.caption)
                                     : (isStory ? "Shared as a Story (No caption)" : "No caption");
@@ -163,9 +180,12 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex justify-center">
-                                                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-foreground/5 border border-border/50">
-                                                    {platform === "facebook" ? <Facebook className="w-3.5 h-3.5 text-teal-500" /> : <Instagram className="w-3.5 h-3.5 text-pink-500" />}
-                                                    <span className="text-[10px] font-black uppercase tracking-wider text-white/80">{platform}</span>
+                                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${pill.wrap}`}>
+                                                    {platform === "facebook"
+                                                        ? <Facebook className={`w-3.5 h-3.5 ${pill.icon}`} />
+                                                        : <Instagram className={`w-3.5 h-3.5 ${pill.icon}`} />
+                                                    }
+                                                    <span className={`text-[10px] font-black uppercase tracking-wider ${pill.text}`}>{platform}</span>
                                                 </div>
                                             </div>
                                         </TableCell>

@@ -261,12 +261,26 @@ const RAAMPAssistant = () => {
         } : d
       ));
 
-      if (result.status === 'success') {
-        sonner.success(result.message, { description: result.details });
-      } else if (result.status === 'warning') {
-        sonner.warning(result.message, { description: result.details });
+      const safeTitle =
+        result.status === "success"
+          ? "Diagnostic completed"
+          : result.status === "warning"
+            ? "Diagnostic warning"
+            : "Diagnostic failed";
+
+      const safeDesc =
+        result.status === "success"
+          ? "System check finished successfully."
+          : result.status === "warning"
+            ? "We found something that may need attention."
+            : "We couldn’t complete this check. Please try again.";
+
+      if (result.status === "success") {
+        sonner.success(safeTitle, { description: safeDesc });
+      } else if (result.status === "warning") {
+        sonner.warning(safeTitle, { description: safeDesc });
       } else {
-        sonner.error(result.message, { description: result.details });
+        sonner.error(safeTitle, { description: safeDesc });
       }
 
     } catch (error) {

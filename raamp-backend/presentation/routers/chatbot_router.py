@@ -135,10 +135,10 @@ def get_generator() -> RAAMPGenerator:
     if _generator is None:
         try:
             _generator = RAAMPGenerator()
-        except Exception as e:
+        except Exception:
             raise HTTPException(
                 status_code=503,
-                detail=f"Chatbot service unavailable: {str(e)}"
+                detail="Chatbot service unavailable"
             )
     return _generator
 
@@ -615,10 +615,7 @@ async def get_stats(
         )
         
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error getting stats: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Error getting stats")
 
 
 @router.delete("/session/{session_id}")

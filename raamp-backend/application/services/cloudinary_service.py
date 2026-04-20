@@ -103,7 +103,8 @@ class CloudinaryService:
         folder: str = "raamp_assets",
         filename: Optional[str] = None,
         validate_aspect_ratio: bool = True,
-        optimize_for_stories: bool = False
+        optimize_for_stories: bool = False,
+        authenticated: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
         Upload file content to Cloudinary
@@ -137,6 +138,10 @@ class CloudinaryService:
                 "quality": "auto:best",  # Best quality with minimal smart compression
                 "flags": "preserve_transparency.lossy",  # Preserve transparency, allow minimal lossy
             }
+
+            # Use authenticated delivery for private assets (requires signed URLs)
+            if authenticated:
+                upload_options["type"] = "authenticated"
             
             # For stories, ensure optimal dimensions (1080x1920) with maximum quality
             if optimize_for_stories:
@@ -209,4 +214,28 @@ class CloudinaryService:
             return None
         except Exception as e:
             logger.error(f"⚠️  Cloudinary upload failed: {e}")
+            return None
+
+    def build_authenticated_signed_url(self, public_id: str, resource_type: str = "image") -> Optional[str]:
+        """
+        Build a signed URL for an authenticated asset.
+
+        Note: This produces a signed Cloudinary URL for authenticated delivery. If you need time-limited URLs,
+        use Cloudinary auth tokens (not implemented here).
+        """
+        if not self.is_available:
+            return None
+        try:
+            from cloudinary.utils import cloudinary_url
+
+            url, _ = cloudinary_url(
+                public_id,
+                secure=True,
+                sign_url=True,
+                type="authenticated",
+                resource_type=resource_type or "image",
+            )
+            return url
+        except Exception as e:
+            logger.error("Failed to build signed Cloudinary URL: %s", str(e))
             return None
