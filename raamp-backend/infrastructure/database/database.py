@@ -150,6 +150,13 @@ async def init_db():
         ScheduledFacebookPostModel
     )
     from infrastructure.database.models.notification_model import NotificationModel
+    from infrastructure.database.models.auto_reply_models import (
+        CommentEventModel,
+        AutoReplyDecisionModel,
+        AutoReplyDraftModel,
+        AutoReplySentModel,
+    )
+    from infrastructure.database.models.auto_reply_settings_model import AutoReplySettingsModel
     from application.services.job_health_monitor_service import JobExecutionLogModel
     from infrastructure.database.models.trend_signal_model import TrendSignalModel
     from infrastructure.database.models.trend_detection_model import TrendDetectionModel
@@ -204,6 +211,12 @@ async def init_db():
             ScheduledFacebookPostModel,
             # Notification model
             NotificationModel,
+            # Auto Replies (FB + IG)
+            CommentEventModel,
+            AutoReplyDecisionModel,
+            AutoReplyDraftModel,
+            AutoReplySentModel,
+            AutoReplySettingsModel,
             # Job health monitoring
             JobExecutionLogModel,
             # Trend models

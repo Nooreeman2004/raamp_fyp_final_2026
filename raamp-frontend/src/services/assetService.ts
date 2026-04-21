@@ -8,7 +8,7 @@ const API_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').r
 
 // Helper to get auth token from storage
 const getAuthToken = (): string | null => {
-    return localStorage.getItem('token');
+    return localStorage.getItem('token') || sessionStorage.getItem('token');
 };
 
 // TypeScript interfaces

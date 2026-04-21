@@ -212,6 +212,47 @@ class FacebookGraphAPIClient:
         except Exception as e:
             logger.error(f"Failed to post text: {e}")
             raise FacebookAPIError(f"Failed to post text: {str(e)}")
+
+    async def reply_to_comment(
+        self,
+        *,
+        comment_id: str,
+        page_access_token: str,
+        message: str,
+    ) -> str:
+        """
+        Reply to a Facebook comment via Graph API.
+
+        Endpoint: POST /{comment-id}/comments
+        Returns: reply_id
+        """
+        url = f"{self.BASE_URL}/{comment_id}/comments"
+        payload = {
+            "message": message,
+            "access_token": page_access_token,
+        }
+        try:
+            response = await self.client.post(url, data=payload)
+            response.raise_for_status()
+            data = response.json()
+            if "id" in data:
+                return str(data["id"])
+            raise FacebookAPIError(f"Unexpected response: {data}")
+        except httpx.HTTPStatusError as e:
+            error_data = e.response.json() if e.response.content else {}
+            error_msg = error_data.get("error", {}).get("message", str(e))
+            error_code = error_data.get("error", {}).get("code")
+            error_subcode = error_data.get("error", {}).get("error_subcode")
+            logger.error(
+                "Facebook comment reply error: code=%s subcode=%s msg=%s",
+                error_code,
+                error_subcode,
+                error_msg,
+            )
+            raise FacebookAPIError(f"Failed to reply to comment: {error_msg}")
+        except Exception as e:
+            logger.error("Failed to reply to comment: %s", str(e))
+            raise FacebookAPIError(f"Failed to reply to comment: {str(e)}")
     
     async def get_page_access_token(
         self,

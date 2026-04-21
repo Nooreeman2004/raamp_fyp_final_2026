@@ -42,8 +42,8 @@ const fmtFixed = (v: unknown, digits = 0): string => {
 
 const DataQualityPill = ({ live, labelLive = "Live", labelEst = "Est" }: { live: boolean; labelLive?: string; labelEst?: string }) => {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
-      <span className={`inline-block h-1 w-1 rounded-full ${live ? "bg-emerald-400" : "bg-white/20"}`} />
+    <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-foreground/5 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground dark:border-white/10 dark:bg-white/5">
+      <span className={`inline-block h-1 w-1 rounded-full ${live ? "bg-emerald-500 dark:bg-emerald-400" : "bg-muted-foreground/30 dark:bg-white/20"}`} />
       {live ? labelLive : labelEst}
     </span>
   );
@@ -94,14 +94,14 @@ const ProfitScoreGauge = ({ score }: { score: number }) => {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono font-black text-white/20 uppercase tracking-[0.2em]">Opportunity Gap</span>
+        <span className="text-[10px] font-mono font-black text-muted-foreground/70 uppercase tracking-[0.2em] dark:text-white/20">Opportunity Gap</span>
         <div className={`flex items-center gap-1.5 ${colorConfig.text} font-bold text-xs`}>
           <span>{colorConfig.emoji}</span>
           <span className="font-mono uppercase tracking-widest">{colorConfig.label}</span>
           <span className="opacity-40 ml-1">{scoreInt}/100</span>
         </div>
       </div>
-      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+      <div className="h-1 w-full bg-foreground/10 dark:bg-white/5 rounded-full overflow-hidden">
         <motion.div 
           initial={{ width: 0 }}
           animate={{ width: `${scoreInt}%` }}
@@ -213,7 +213,7 @@ export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, on
       transition={{ duration: 0.4 }}
       className={`relative group rounded-3xl p-6 flex flex-col gap-6 transition-all overflow-hidden ${
         isSpike ? "shadow-[0_30px_90px_rgba(0,224,208,0.08)]" : "shadow-[0_30px_90px_rgba(0,0,0,0.55)]"
-      } ${isActive ? "ring-2 ring-primary/40" : "ring-1 ring-white/5 hover:ring-white/10"}`}
+      } ${isActive ? "ring-2 ring-primary/40" : "ring-1 ring-border/60 hover:ring-border"} dark:${isActive ? "" : "ring-white/5 hover:ring-white/10"}`}
       role="button"
       tabIndex={0}
       onClick={() => onClick?.()}
@@ -224,12 +224,14 @@ export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, on
       {/* Premium glass background */}
       <div
         className={`absolute inset-0 rounded-3xl border backdrop-blur-3xl ${
-          isSpike ? "border-primary/25 bg-gradient-to-br from-primary/10 via-white/[0.03] to-transparent" : "border-white/10 bg-white/[0.03]"
+          isSpike
+            ? "border-primary/25 bg-gradient-to-br from-primary/10 via-card/60 to-transparent dark:via-white/[0.03]"
+            : "border-border/60 bg-card/70 dark:border-white/10 dark:bg-white/[0.03]"
         }`}
       />
-      <div className={`absolute -top-24 -right-24 h-56 w-56 rounded-full blur-[70px] ${isSpike ? "bg-primary/25" : "bg-white/10"}`} />
+      <div className={`absolute -top-24 -right-24 h-56 w-56 rounded-full blur-[70px] ${isSpike ? "bg-primary/25" : "bg-foreground/10 dark:bg-white/10"}`} />
       <div className="absolute -bottom-28 -left-28 h-64 w-64 rounded-full blur-[90px] bg-teal-500/10" />
-      <div className="absolute inset-0 rounded-3xl ring-1 ring-white/5 pointer-events-none" />
+      <div className="absolute inset-0 rounded-3xl ring-1 ring-border/40 dark:ring-white/5 pointer-events-none" />
 
       <div className="relative z-10 flex flex-col gap-6">
       {/* Header Section */}
@@ -242,25 +244,25 @@ export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, on
                 Live Spike
               </div>
             ) : (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/5 text-[9px] font-black font-mono text-white/30 tracking-tighter uppercase">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-foreground/5 border border-border/60 text-[9px] font-black font-mono text-muted-foreground tracking-tighter uppercase dark:bg-white/5 dark:border-white/5 dark:text-white/30">
                 <Activity className="w-2.5 h-2.5" />
                 Pulse Signal
               </div>
             )}
             <DataQualityPill live={trend.is_real_social === true} />
           </div>
-          <h3 className="text-2xl font-bold font-heading text-white tracking-tight capitalize leading-tight">
+          <h3 className="text-2xl font-bold font-heading text-foreground tracking-tight capitalize leading-tight dark:text-white">
             {displayTitle}
           </h3>
           {displaySubtitle && (
-            <p className="text-[11px] font-mono text-white/40 italic line-clamp-1">
+            <p className="text-[11px] font-mono text-muted-foreground italic line-clamp-1 dark:text-white/40">
               Related: {displaySubtitle}
             </p>
           )}
           <div className="flex items-center gap-2 flex-wrap pt-0.5">
              <span className="text-[10px] font-mono font-black text-primary/40 uppercase tracking-widest">{trend.niche}</span>
-             <span className="w-1 h-1 rounded-full bg-white/10" />
-             <span className="text-[10px] font-mono font-black text-white/20 uppercase tracking-widest flex items-center gap-1">
+             <span className="w-1 h-1 rounded-full bg-foreground/10 dark:bg-white/10" />
+             <span className="text-[10px] font-mono font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1 dark:text-white/20">
                 <MapPin className="w-2.5 h-2.5" /> {trend.location}
              </span>
           </div>
@@ -271,7 +273,7 @@ export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, on
             <Button
               variant="ghost"
               size="icon"
-              className={`h-10 w-10 rounded-2xl transition-all ${isCompared ? "bg-primary/10 text-primary" : "text-white/10 hover:text-white/40 hover:bg-white/5"}`}
+              className={`h-10 w-10 rounded-2xl transition-all ${isCompared ? "bg-primary/10 text-primary" : "text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 dark:text-white/10 dark:hover:text-white/40 dark:hover:bg-white/5"}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleCompare?.(trend);
@@ -283,7 +285,7 @@ export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, on
             <Button
               variant="ghost"
               size="icon"
-              className={`h-10 w-10 rounded-2xl transition-all ${isWatchlisted ? 'bg-amber-500/10 text-amber-400' : 'text-white/10 hover:text-white/40 hover:bg-white/5'}`}
+              className={`h-10 w-10 rounded-2xl transition-all ${isWatchlisted ? 'bg-amber-500/10 text-amber-500 dark:text-amber-400' : 'text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 dark:text-white/10 dark:hover:text-white/40 dark:hover:bg-white/5'}`}
               onClick={(e) => {
                 e.stopPropagation();
                 if (onToggleWatchlist) onToggleWatchlist(trend.keyword);
@@ -301,24 +303,24 @@ export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, on
       {(hasScore(trend.z_score_spike) || hasScore(trend.breakout_probability)) && (
         <div className={`grid grid-cols-2 gap-4 transition-all ${isActive ? "" : "hidden md:grid md:opacity-0 md:group-hover:opacity-100 md:group-hover:block"}`}>
           {hasScore(trend.z_score_spike) && (
-            <div className="p-3.5 bg-white/[0.03] border border-white/5 rounded-2xl space-y-1">
-              <span className="text-[8px] font-mono font-black text-white/20 uppercase tracking-[0.2em] flex items-center gap-1.5">
+            <div className="p-3.5 bg-background/50 border border-border/60 rounded-2xl space-y-1 dark:bg-white/[0.03] dark:border-white/5">
+              <span className="text-[8px] font-mono font-black text-muted-foreground/70 uppercase tracking-[0.2em] flex items-center gap-1.5 dark:text-white/20">
                 <Zap className="w-2.5 h-2.5 text-orange-400" /> Velocity
               </span>
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{fmtFixed(trend.z_score_spike, 1)}</span>
-                <span className="text-[9px] font-mono text-white/10">σ-VEL</span>
+                <span className="text-xl font-bold text-foreground dark:text-white">{fmtFixed(trend.z_score_spike, 1)}</span>
+                <span className="text-[9px] font-mono text-muted-foreground/60 dark:text-white/10">σ-VEL</span>
               </div>
             </div>
           )}
           {hasScore(trend.breakout_probability) && (
-            <div className="p-3.5 bg-white/[0.03] border border-white/5 rounded-2xl space-y-1">
-              <span className="text-[8px] font-mono font-black text-white/20 uppercase tracking-[0.2em] flex items-center gap-1.5">
+            <div className="p-3.5 bg-background/50 border border-border/60 rounded-2xl space-y-1 dark:bg-white/[0.03] dark:border-white/5">
+              <span className="text-[8px] font-mono font-black text-muted-foreground/70 uppercase tracking-[0.2em] flex items-center gap-1.5 dark:text-white/20">
                 <Target className="w-2.5 h-2.5 text-emerald-400" /> Confidence
               </span>
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-bold text-emerald-400">{trend.breakout_probability}%</span>
-                <span className="text-[9px] font-mono text-emerald-400/20">ACC</span>
+                <span className="text-[9px] font-mono text-emerald-400/30">ACC</span>
               </div>
             </div>
           )}
@@ -334,7 +336,7 @@ export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, on
       </div>
 
       {/* Footer (single primary action) */}
-      <div className="pt-2 border-t border-white/5" />
+      <div className="pt-2 border-t border-border/60 dark:border-white/5" />
 
       {/* Interaction Rail */}
       <div className="flex items-center justify-end">

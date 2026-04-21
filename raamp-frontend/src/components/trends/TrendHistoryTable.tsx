@@ -15,10 +15,27 @@ export function TrendHistoryTable({ trendHistory }: { trendHistory: any[] }) {
     );
   }
 
+  const deduped = (() => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const row of trendHistory) {
+      const kw = String(row?.trend_keyword || "").trim().toLowerCase();
+      const loc = String(row?.location || "").trim().toUpperCase();
+      const src = String(row?.trend_source || "").trim().toUpperCase();
+      const ts = row?.timestamp ? new Date(row.timestamp).toISOString().slice(0, 16) : "";
+      const key = `${kw}|${loc}|${src}|${ts}`;
+      if (!kw) continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(row);
+    }
+    return out;
+  })();
+
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-border/50 bg-white/[0.015]">
+    <div className="w-full overflow-x-auto rounded-xl border border-border/50 bg-card/60">
       <table className="w-full text-left text-sm text-muted-foreground whitespace-nowrap">
-        <thead className="bg-foreground/5 text-xs uppercase font-mono tracking-widest text-white/50">
+        <thead className="bg-foreground/5 text-xs uppercase font-mono tracking-widest text-muted-foreground">
           <tr>
             <th className="px-6 py-4 font-semibold w-[30%]">Keyword</th>
             <th className="px-6 py-4 font-semibold w-[20%]">Executed at</th>
@@ -28,7 +45,7 @@ export function TrendHistoryTable({ trendHistory }: { trendHistory: any[] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-border/20">
-          {trendHistory.map((history, idx) => {
+          {deduped.map((history, idx) => {
             const location = String(history.location || "—");
             const niche = String(history.niche || "—");
             const source = String(history.trend_source || "execute").toUpperCase();
@@ -36,7 +53,7 @@ export function TrendHistoryTable({ trendHistory }: { trendHistory: any[] }) {
             return (
               <tr
                 key={history.id || idx}
-                className={`hover:bg-white/[0.04] transition-colors ${idx % 2 === 0 ? "bg-white/[0.01]" : "bg-transparent"}`}
+                className={`hover:bg-foreground/5 transition-colors ${idx % 2 === 0 ? "bg-background/30" : "bg-transparent"}`}
               >
                 <td className="px-6 py-4 font-bold font-heading text-foreground uppercase tracking-widest">
                   {history.trend_keyword || "—"}
@@ -46,19 +63,19 @@ export function TrendHistoryTable({ trendHistory }: { trendHistory: any[] }) {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-col">
-                    <span className="text-xs text-white/80">{niche}</span>
+                    <span className="text-xs text-foreground/80">{niche}</span>
                     <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">{location}</span>
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <Badge variant="outline" className="font-mono text-[10px] tracking-widest uppercase bg-white/5 border-white/10 text-white/60">
+                  <Badge variant="outline" className="font-mono text-[10px] tracking-widest uppercase bg-foreground/5 border-border/60 text-muted-foreground">
                     {source}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 text-right">
                   <Button 
                     variant="link" 
-                    className="p-0 h-auto text-[10px] font-black text-primary hover:text-white uppercase tracking-widest"
+                    className="p-0 h-auto text-[10px] font-black text-primary hover:text-primary/80 uppercase tracking-widest"
                     onClick={() => navigate("/dashboard/creative", { state: { prefillPrompt: history.generated_prompt } })}
                     disabled={!history.generated_prompt}
                   >

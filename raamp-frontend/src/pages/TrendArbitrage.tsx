@@ -142,6 +142,24 @@ const TrendArbitrage = () => {
   const [industryLoading, setIndustryLoading] = useState(false);
   const [brandAlignedTerms, setBrandAlignedTerms] = useState<{ term: string; score: number; matched: string[] }[]>([]);
 
+  const sanitizeIndustryNote = (note: unknown): string | null => {
+    const raw = String(note || "").trim();
+    if (!raw) return null;
+    const lower = raw.toLowerCase();
+    // Never show raw provider/errors to end users.
+    if (
+      lower.includes("google returned") ||
+      lower.includes("response with code") ||
+      lower.includes("code 400") ||
+      lower.includes("http") ||
+      lower.includes("pytrends") ||
+      lower.includes("serpapi")
+    ) {
+      return null;
+    }
+    return raw.length > 180 ? `${raw.slice(0, 180)}…` : raw;
+  };
+
   // New AI Analysis State (Trend AI Analysis System)
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeDrawerTrend, setActiveDrawerTrend] = useState<string | null>(null);
@@ -751,14 +769,42 @@ const TrendArbitrage = () => {
         (Array.isArray((globalResp as any)?.terms) && (globalResp as any).terms.length ? (globalResp as any).terms : null) ||
         (Array.isArray((globalResp as any)?.seed_keywords) ? (globalResp as any).seed_keywords : []);
       setIndustryTerms(gTerms);
-      setIndustryGlobalNotes((globalResp as any)?.data_quality?.notes ?? null);
+      setIndustryGlobalNotes(sanitizeIndustryNote((globalResp as any)?.data_quality?.notes));
     } catch {
       setIndustryTerms([]);
-      setIndustryGlobalNotes("Failed to load global industry trends.");
+      setIndustryGlobalNotes(null);
     } finally {
       setIndustryLoading(false);
     }
   };
+
+  const instagramNicheTrends = useMemo(() => {
+    const niche = deriveBusinessNiche().toLowerCase();
+    const scored = (rawTrends || [])
+      .filter((t) => t && t.is_real_social === true)
+      .filter((t) => {
+        const tn = String((t as any)?.niche || "").toLowerCase();
+        // Strong match OR fashion is requested OR user niche is unknown.
+        return !niche || niche === "general" ? true : tn.includes(niche);
+      })
+      .map((t) => ({
+        keyword: String((t as any)?.keyword || "").trim(),
+        score: Number((t as any)?.social_score ?? (t as any)?.score ?? 0) || 0,
+      }))
+      .filter((x) => x.keyword.length > 0)
+      .sort((a, b) => b.score - a.score);
+
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const s of scored) {
+      const k = s.keyword.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(s.keyword);
+      if (out.length >= 12) break;
+    }
+    return out;
+  }, [rawTrends, user]);
 
   const recomputeBrandAligned = () => {
     // Token-overlap scoring against brand profile + niche + specialties.
@@ -1217,9 +1263,10 @@ const TrendArbitrage = () => {
         <div className="space-y-0">
 
           {/* Ticker strip */}
-          <div className="w-full overflow-hidden bg-foreground/5 border-y border-border h-10 flex items-center backdrop-blur-md sticky top-0 z-50">
+          {/* Keep it above Profit Windows (not sticky). Increase contrast so it’s visible in light mode. */}
+          <div className="w-full overflow-hidden bg-card/70 border-y border-border h-10 flex items-center backdrop-blur-md">
             <motion.div
-              className="flex items-center gap-12 whitespace-nowrap cursor-pointer hover:pause"
+              className="flex items-center gap-12 whitespace-nowrap cursor-pointer select-none"
               animate={{ x: [0, -3000] }}
               transition={{ repeat: Infinity, duration: 80, ease: "linear" }}
               onHoverStart={() => { }} // Could dispatch a pause action
@@ -1240,7 +1287,7 @@ const TrendArbitrage = () => {
                         setCampaignModalOpen(true);
                       }
                     }}
-                    className="flex items-center gap-2 text-[11px] font-mono font-bold tracking-tight text-muted-foreground/80 dark:text-muted-foreground/60 hover:text-primary transition-colors hover:scale-105 transform duration-200"
+                    className="flex items-center gap-2 text-[11px] font-mono font-bold tracking-tight text-muted-foreground hover:text-primary transition-colors"
                   >
                     <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
                     {item}
@@ -1251,7 +1298,7 @@ const TrendArbitrage = () => {
           </div>
 
           {/* Profit Windows strip (moved to top) */}
-          <div className="px-6 pt-2">
+          <div className="px-6 pt-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 py-2.5 px-4 bg-card/50 backdrop-blur-xl border border-border rounded-xl shadow-xl min-w-0">
               <div className="flex items-center gap-4 min-w-0">
                 <div className="p-2 bg-primary/20 rounded-lg border border-primary/40">
@@ -1274,8 +1321,8 @@ const TrendArbitrage = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 lg:gap-6 flex-wrap justify-between lg:justify-end min-w-0">
-                <div className="hidden lg:flex items-center gap-2 bg-foreground/5 border border-border/50 rounded-xl px-2 h-10 flex-wrap min-w-0 max-w-full">
+              <div className="flex items-center gap-2 lg:gap-3 flex-wrap justify-between lg:justify-end min-w-0">
+                <div className="hidden xl:flex items-center gap-2 bg-foreground/5 border border-border/50 rounded-xl px-2 h-10 flex-wrap min-w-0 max-w-full">
                   <div className="flex items-center gap-2 px-3 h-8 text-muted-foreground/60">
                     <Search className="w-4 h-4" />
                     <input
@@ -1421,6 +1468,30 @@ const TrendArbitrage = () => {
                                 {t}
                               </Badge>
                             ))
+                          ) : instagramNicheTrends.length > 0 ? (
+                            <>
+                              <div className="w-full flex items-center justify-between gap-3">
+                                <span className="text-xs text-muted-foreground/70">
+                                  Instagram trends in your niche
+                                </span>
+                                <Badge variant="outline" className="text-[10px] font-mono">
+                                  Social
+                                </Badge>
+                              </div>
+                              {instagramNicheTrends.slice(0, 10).map((t) => (
+                                <Badge
+                                  key={t}
+                                  variant="secondary"
+                                  className="cursor-pointer"
+                                  onClick={() => {
+                                    addCustomKeyword(t);
+                                    toast.success("Added keyword", { description: `"${t}" added to scan keywords.` });
+                                  }}
+                                >
+                                  {t}
+                                </Badge>
+                              ))}
+                            </>
                           ) : brandAlignedTerms.length > 0 ? (
                             brandAlignedTerms.slice(0, 10).map((x) => (
                               <Badge
@@ -1583,7 +1654,7 @@ const TrendArbitrage = () => {
               {/* Hero Trend / Empty State */}
               {liveTrends.length === 0 && !isLoading ? (
                 <Reveal variant="fadeInUp">
-                  <div className="relative overflow-hidden group p-12 bg-white/[0.02] border border-border/50 rounded-3xl backdrop-blur-3xl flex flex-col items-center text-center space-y-8">
+                  <div className="relative overflow-hidden group p-12 bg-card/60 dark:bg-white/[0.02] border border-border/50 rounded-3xl backdrop-blur-3xl flex flex-col items-center text-center space-y-8">
                     <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center animate-pulse">
                       <Globe className="w-10 h-10 text-primary" />
                     </div>
@@ -1694,7 +1765,7 @@ const TrendArbitrage = () => {
 
                   {/* Intelligence Grid */}
                   <Reveal variant="fadeInUp" delay={0.35}>
-                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
+                    <div className="p-8 bg-card/60 dark:bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
                       <h2 className="text-xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground uppercase flex items-center gap-3">
                         <div className="w-1.5 h-6 bg-teal-500 rounded-full" /> Intelligence Grid
                       </h2>
@@ -1712,7 +1783,7 @@ const TrendArbitrage = () => {
 
                   {/* Signals Feed */}
                   <Reveal variant="fadeInUp" delay={0.4}>
-                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
+                    <div className="p-8 bg-card/60 dark:bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
                       <div className="flex justify-between items-center">
                         <h2 className="text-xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground uppercase flex items-center gap-3">
                           <div className="w-1.5 h-6 bg-primary rounded-full" /> Signals Feed
@@ -1764,7 +1835,7 @@ const TrendArbitrage = () => {
                   {/* Watchlist Section */}
                   {watchlist.length > 0 && (
                     <Reveal variant="fadeInUp" delay={0.5}>
-                      <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
+                      <div className="p-8 bg-card/60 dark:bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
                         <h2 className="text-xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground uppercase flex items-center gap-3">
                           <div className="w-1.5 h-6 bg-amber-500 rounded-full" /> Tracked Vectors
                         </h2>
@@ -1797,7 +1868,7 @@ const TrendArbitrage = () => {
 
                   {/* Trend History Matrix */}
                   <Reveal variant="fadeInUp" delay={0.6}>
-                    <div className="p-8 bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-8">
+                    <div className="p-8 bg-card/60 dark:bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-8">
                        <h2 className="text-xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground flex items-center gap-3">
                            <Activity className="w-6 h-6 text-primary" /> TREND HISTORY MATRIX
                         </h2>
@@ -1856,7 +1927,7 @@ const TrendArbitrage = () => {
                     className={`p-3 rounded-xl border text-left transition-all ${
                       deployContentType === key
                         ? 'border-primary bg-primary/10 text-foreground'
-                        : 'border-border/50 bg-white/[0.02] text-muted-foreground/80 hover:border-border/80'
+                        : 'border-border/50 bg-card/60 dark:bg-white/[0.02] text-muted-foreground/80 hover:border-border/80'
                     }`}
                   >
                     <div className="text-sm font-heading font-semibold">{label}</div>
@@ -1872,7 +1943,7 @@ const TrendArbitrage = () => {
                 value={deployPrompt}
                 onChange={(e) => setDeployPrompt(e.target.value)}
                 rows={5}
-                className="w-full bg-white/[0.03] border border-border/50 rounded-xl p-4 text-sm font-mono text-foreground/90 dark:text-white/80 resize-none focus:outline-none focus:border-primary/50 leading-relaxed"
+                className="w-full bg-card/60 dark:bg-white/[0.03] border border-border/50 rounded-xl p-4 text-sm font-mono text-foreground/90 resize-none focus:outline-none focus:border-primary/50 leading-relaxed"
               />
             </div>
           </div>

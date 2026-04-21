@@ -11,6 +11,7 @@ import {
   Link2,
   Target,
   Settings as SettingsIcon,
+  MessageSquare,
 } from "lucide-react";
 
 // Animation Imports
@@ -83,6 +84,12 @@ const Settings = () => {
       description: "Email, push, and SMS notification settings",
       icon: <Bell className="w-5 h-5 text-primary" />,
       href: "/settings/notifications",
+    },
+    {
+      title: "Auto Replies",
+      description: "Enable review-only or hybrid auto replies (FB/IG)",
+      icon: <MessageSquare className="w-5 h-5 text-primary" />,
+      href: "/settings/auto-replies",
     },
     {
       title: "Integrations",

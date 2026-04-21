@@ -7,7 +7,14 @@ import {
     Target,
     TrendingUp,
     Brain,
-    Rocket
+    Rocket,
+    MessageSquare,
+    CalendarClock,
+    LibraryBig,
+    CheckCircle2,
+    MessageCircleReply,
+    Bell,
+    Shield
 } from 'lucide-react';
 import { Text3DScroll, SplitText3D, PerspectiveText } from '@/components/ui/text-3d';
 import { MagneticImage, DepthParallaxCard, TiltCard } from '@/components/ui/magnetic-image';
@@ -15,8 +22,11 @@ import { ScrollReveal, ParallaxScroll, ScrollProgressBar, HorizontalScrollSectio
 import { HolographicCard } from '@/components/ui/holographic-card';
 import raampIcon from "@/assets/raamp-logo-v5.png";
 import { LiquidLogo } from "@/components/ui/liquid-logo";
+import { useNavigate } from "react-router-dom";
 
 const LusionInspiredShowcase = () => {
+    const navigate = useNavigate();
+
     return (
         <>
             {/* Scroll Progress Indicator */}
@@ -78,20 +88,29 @@ const LusionInspiredShowcase = () => {
                         className="flex flex-col sm:flex-row gap-4 justify-center"
                     >
                         <motion.button
+                            type="button"
                             className="px-8 py-4 rounded-full bg-primary text-primary-foreground font-semibold text-lg shadow-[0_0_30px_rgba(0,224,208,0.4)] hover:shadow-[0_0_50px_rgba(0,224,208,0.6)] transition-all duration-300"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate("/signup")}
                         >
                             <span className="flex items-center gap-2">
                                 <Rocket className="w-5 h-5" />
-                                Launch Platform
+                                Start Free Trial
                             </span>
                         </motion.button>
 
                         <motion.button
+                            type="button"
                             className="px-8 py-4 rounded-full border border-border/50 bg-foreground/5 text-foreground hover:bg-foreground/10 backdrop-blur-sm font-medium text-lg transition-all duration-300"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                                // More reliable than anchor jumps inside animated/scroll effects.
+                                requestAnimationFrame(() => {
+                                    document.getElementById("demo-features")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                });
+                            }}
                         >
                             Explore Features
                         </motion.button>
@@ -115,87 +134,138 @@ const LusionInspiredShowcase = () => {
             <Text3DScroll text="TRANSFORM" className="bg-background" />
 
             {/* Features Grid with Depth Parallax */}
-            <section className="relative py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+            <section id="demo-features" className="relative py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-b from-background via-primary/5 to-background" />
 
                 <div className="max-w-7xl mx-auto relative z-10">
                     <ScrollReveal className="text-center mb-20">
                         <h2 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
-                            Intelligent Features
+                            Modules
                         </h2>
                         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                            Experience marketing automation powered by cutting-edge AI
+                            Explore the full RAAMP suite. Sign up to unlock and run these modules live.
                         </p>
                     </ScrollReveal>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[
                             {
-                                icon: <Brain className="w-8 h-8" />,
-                                title: 'AI Optimization',
-                                description: 'Autonomous algorithms that continuously learn and adapt to maximize your ROI',
-                                stat: '340%',
-                                label: 'Avg. ROAS Increase'
+                                icon: Brain,
+                                title: "RAAMP AI Assistant",
+                                desc: "Chat with an AI copilot for strategy, optimization, and next-best actions.",
+                                highlight: "Ask • Plan • Optimize",
+                                route: "/dashboard/assistant"
                             },
                             {
-                                icon: <Globe className="w-8 h-8" />,
-                                title: 'Geo-Intent Mapping',
-                                description: 'Pinpoint your ideal customers with hyper-local precision',
-                                stat: '2.5M+',
-                                label: 'Data Points'
+                                icon: Globe,
+                                title: "Geo‑Intent Radar",
+                                desc: "Find high‑intent locations and neighborhoods to target with confidence.",
+                                highlight: "Where to target",
+                                route: "/dashboard/geo-intent"
                             },
                             {
-                                icon: <BarChart3 className="w-8 h-8" />,
-                                title: 'Real-Time Analytics',
-                                description: 'Monitor performance with live dashboards and predictive insights',
-                                stat: '24/7',
-                                label: 'Monitoring'
+                                icon: Zap,
+                                title: "Creative Studio",
+                                desc: "Generate scroll‑stopping ad creatives and variations in minutes.",
+                                highlight: "Make better ads",
+                                route: "/dashboard/creative"
                             },
                             {
-                                icon: <Target className="w-8 h-8" />,
-                                title: 'Smart Targeting',
-                                description: 'AI identifies and targets your most valuable audience segments',
-                                stat: '98%',
-                                label: 'Accuracy'
+                                icon: TrendingUp,
+                                title: "Trend Arbitrage",
+                                desc: "Spot trending topics early and turn spikes into campaigns faster.",
+                                highlight: "Catch trends early",
+                                route: "/dashboard/trends"
                             },
                             {
-                                icon: <TrendingUp className="w-8 h-8" />,
-                                title: 'Growth Acceleration',
-                                description: 'Scale campaigns across 5+ platforms with a single click',
-                                stat: '5x',
-                                label: 'Faster Growth'
+                                icon: Target,
+                                title: "A/B Testing Lab",
+                                desc: "Run controlled tests to find winners for creatives and audiences.",
+                                highlight: "Prove what works",
+                                route: "/dashboard/ab-testing"
                             },
                             {
-                                icon: <Zap className="w-8 h-8" />,
-                                title: 'Campaign Automation',
-                                description: 'Set it and forget it with fully automated campaign management',
-                                stat: '25hrs',
-                                label: 'Time Saved/Week'
+                                icon: CalendarClock,
+                                title: "Smart Scheduling",
+                                desc: "Auto‑schedule content for the best times to post and convert.",
+                                highlight: "Post at peak times",
+                                route: "/dashboard/smart-scheduling"
                             },
-                        ].map((feature, index) => (
-                            <ScrollReveal key={index} delay={index * 0.1}>
+                            {
+                                icon: LibraryBig,
+                                title: "Asset Library",
+                                desc: "Store, organize, and reuse your creatives, templates, and exports.",
+                                highlight: "Everything in one place",
+                                route: "/dashboard/assets"
+                            },
+                            {
+                                icon: CheckCircle2,
+                                title: "Campaign Approvals",
+                                desc: "Review campaigns and approve launches with a clear audit trail.",
+                                highlight: "Review → approve",
+                                route: "/dashboard/approvals"
+                            },
+                            {
+                                icon: MessageCircleReply,
+                                title: "Auto‑Replies",
+                                desc: "Automatically respond to comments and messages with rules and AI drafts.",
+                                highlight: "Never miss a reply",
+                                route: "/dashboard/auto-replies"
+                            },
+                            {
+                                icon: Bell,
+                                title: "Command Alerts",
+                                desc: "Get important updates like approvals, issues, and performance changes.",
+                                highlight: "Stay informed",
+                                route: "/notifications"
+                            },
+                            {
+                                icon: Shield,
+                                title: "Account Security",
+                                desc: "Protect access with security controls, password tools, and verification.",
+                                highlight: "Secure your account",
+                                route: "/settings/security"
+                            },
+                        ].map((m, index) => (
+                            <ScrollReveal key={m.title} delay={0.01}>
                                 <TiltCard className="h-full">
-                                    <HolographicCard className="p-8 h-full">
-                                        <div className="flex flex-col h-full">
-                                            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 text-primary">
-                                                {feature.icon}
+                                    <HolographicCard className="p-7 h-full">
+                                        <div className="flex h-full flex-col">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                                                    <m.icon className="w-6 h-6" />
+                                                </div>
+                                                <motion.button
+                                                    type="button"
+                                                    onClick={() => navigate("/signup")}
+                                                    className="rounded-full border border-border/60 bg-foreground/5 px-4 py-2 text-xs font-mono text-foreground hover:bg-foreground/10 transition-colors"
+                                                    whileHover={{ scale: 1.03 }}
+                                                    whileTap={{ scale: 0.97 }}
+                                                    title={`Unlock ${m.title}`}
+                                                >
+                                                    Unlock
+                                                </motion.button>
                                             </div>
 
-                                            <h3 className="text-2xl font-bold text-foreground mb-3">
-                                                {feature.title}
+                                            <h3 className="mt-5 text-xl font-bold text-foreground">
+                                                {m.title}
                                             </h3>
-
-                                            <p className="text-muted-foreground mb-6 flex-grow">
-                                                {feature.description}
+                                            <p className="mt-2 text-sm text-muted-foreground flex-grow">
+                                                {m.desc}
                                             </p>
 
-                                            <div className="p-4 rounded-xl bg-foreground/5 border border-border/50">
-                                                <div className="text-3xl font-bold text-primary mb-1">
-                                                    {feature.stat}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {feature.label}
-                                                </div>
+                                            <div className="mt-5 flex items-center justify-between gap-3">
+                                                <span className="text-[10px] font-mono uppercase tracking-widest text-primary/80">
+                                                    {m.highlight}
+                                                </span>
+                                                <motion.button
+                                                    type="button"
+                                                    onClick={() => navigate("/signup")}
+                                                    className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                                                    whileHover={{ x: 2 }}
+                                                >
+                                                    Start Free Trial →
+                                                </motion.button>
                                             </div>
                                         </div>
                                     </HolographicCard>
@@ -280,9 +350,11 @@ const LusionInspiredShowcase = () => {
                         </p>
 
                         <motion.button
+                            type="button"
                             className="px-12 py-6 rounded-full bg-primary text-primary-foreground font-bold text-xl shadow-[0_0_40px_rgba(0,224,208,0.5)] hover:shadow-[0_0_60px_rgba(0,224,208,0.7)] transition-all duration-300"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate("/signup")}
                         >
                             <span className="flex items-center gap-3">
                                 <Sparkles className="w-6 h-6" />

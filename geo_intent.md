@@ -13,19 +13,25 @@ This document describes **everything related to the Geo-Intent module** in the R
   - **Dynamic Persona Split**: POI-aware audience distribution (Office Commuters, Retail Shoppers, Food Visitors, Local Residents, Students) with hourly/weather modifiers.
   - **Multi-Zone Recommender**: `POST /api/v1/geo/recommend-zones` scores **4–8 compass points** on a ring at the scan radius (labels N, NE, E, …), runs the same signal pipeline per point in parallel, returns the **top 3** zones by heat score with a short reason string. One **`geo_radar_scan`** credit per request.
   - **Strategic Brief Generation**: AI-powered (Gemini) campaign planning including 3 caption variants (Aggressive, Soft, Urgency), budget advice, and meta-objectives; optional **Deploy Here** from a recommended zone uses that zone’s coordinates and signals.
-  - **Meta Ads “Deploy as Draft” (Paused)**:
-    - After Facebook OAuth, the backend fetches and persists the user’s **ad accounts** (`/me/adaccounts`) in `facebook_connections.ad_accounts`.
-    - Frontend opens `MetaDeployModal` from a zone card, lets the user choose:
-      - an **Ad Account**
-      - a **Facebook Page** (required for the creative)
-      - a caption variant + daily budget
-    - Backend creates a **paused** campaign/adset/creative/ad via Meta Marketing API and returns an **Ads Manager URL**.
+  - **Export campaign package (Honest flow)**:
+    - The Meta API “deploy draft” flow is removed (dead/brittle in demo scope).
+    - From Top Zones, users open an **Export campaign package** modal and copy:
+      - a **copy‑ready caption** (sanitized: no dash bullets)
+      - **targeting parameters** (area name if available; otherwise short degree coordinates, radius in km)
+      - **persona split** (only shown when valid; suppressed when it looks like fallback data)
+    - Users manually open **Meta Ads Manager** and paste/build the campaign themselves.
   - **Tier-based Logic**: Signal gating (Free tier only gets full Places; Trends/Weather may be neutral with `status="limited"`; Premium gets full multi-signal access). Demo user `abdullah@gmail.com` is treated as premium where enforced in code.
   - **Persistence**: `campaign_logs` and `heat_scores` collections for history and heatmap layers; campaign briefs stored for strategy history.
   - **Frontend UI**:
     - Interactive map (center pin, radius circle, heatmap from history)
     - **Find Best Zones**: disabled while running + spinner + in-progress toast; map overlay shows “Finding best zones…” so the screen doesn’t look frozen
-    - **Top Zones card**: shown as a **dedicated card** (not embedded inside “WHY THIS … IS HOT”), includes **lat/lng** + a “View on map” link per zone
+    - **Top Zones card**:
+      - Shown as a **dedicated card** (not embedded inside “WHY THIS … IS HOT”)
+      - Always visible with an **empty state** + “Find Best Zones” CTA (so users know where results will appear)
+      - Results remain on screen **until the user re-runs** the multi-zone scan
+      - Top Zones are cached client-side (localStorage) and restored on reload (scoped to business id)
+      - Displays **area labels** via reverse geocode (cached). Falls back to map link for verification.
+      - Includes a compact per-zone signal breakdown (Trends/Places/Weather %) to reduce “identical reason” confusion.
     - Strategy replay + signal-quality alerts when APIs are limited
     - **No polygon drawing** (Maps Drawing library removed for demo stability / deprecation)
   - **Analytics API**: Endpoints for daily heat score history, optimal posting time, and campaign brief listing.
@@ -36,7 +42,7 @@ This document describes **everything related to the Geo-Intent module** in the R
 
 - **Remaining / Potential Improvements**
   - **Dynamic Weight Tuning**: Allow the system (or AI) to tune signal weights by business category (e.g., weather weight higher for outdoor events).
-  - **Real-Time Push Notifications**: Trigger mobile/web alerts when a Critical heat score is detected in a user’s zone.
+  - **Geo-Intent notifications (high-signal only)**: Keep alerts genuinely useful and low-frequency. See **Section 8** for exact triggers and explicit non-goals.
   - **Competitor Proximity**: Deeper integration of local competitor density on the map (Trend Arbitrage has separate **Competitor Radar** elsewhere).
 
 ---
@@ -112,8 +118,8 @@ sequenceDiagram
 - **Frontend**
   - `raamp-frontend/src/pages/GeoIntent.tsx`: Dashboard, heat scan, **Find Best Zones**, zone cards, Deploy / Deploy Here.
   - `raamp-frontend/src/components/GeoIntentMap.tsx`: Map, heatmap layer, radius circle, optional **zone pins**.
-  - `raamp-frontend/src/components/GeoCampaignBriefModal.tsx`: Brief modal (scrollable), caption variants sanitized (no dash characters).
-  - `raamp-frontend/src/components/MetaDeployModal.tsx`: Meta deploy modal — fetches ad accounts + creates **paused** drafts in Meta.
+  - `raamp-frontend/src/components/GeoCampaignBriefModal.tsx`: Brief modal (scrollable).
+  - `raamp-frontend/src/components/MetaDeployModal.tsx`: **Export campaign package** modal (no Meta API calls). Includes “Copy caption” + “Copy all as text” with preview. Uses area label when reverse‑geocoded (cached); otherwise shows short degree coordinates.
   - `raamp-frontend/src/services/geoIntentService.ts`: API client including `recommendZones`.
   - `raamp-frontend/src/lib/loadGoogleMapsScript.ts`: single Google Maps loader (`id="google-maps-api-script"`, shared Promise).
 
@@ -155,33 +161,18 @@ Implemented in `GeoIntentService._calculate_persona_split()`: base mapping from 
 | `/api/v1/geo/campaign-briefs/{business_id}` | GET | List saved briefs. Server resolves `business_id` to the canonical geo key and filters by the current user so “Strategic History” doesn’t appear empty due to id mismatch. |
 | `/api/v1/geo/campaign-brief/{brief_id}` | GET | Single brief by id. |
 
-### 4.1 Meta deploy support endpoints (Geo-Intent → Ads Manager bridge)
+### 4.1 Meta Ads Manager export (Geo-Intent → manual paste)
 
-These endpoints support the **“Deploy as Draft”** flow from Geo-Intent.
+Geo‑Intent no longer attempts to create campaigns via Meta’s API. Instead it exports a **campaign package** for manual use.
 
-#### A) Fetch ad accounts (for dropdown)
-
-- **Method/Path**: `GET /api/profile/connections/facebook/ad-accounts`
-- **Auth**: required
-- **Returns**:
-  - `ad_accounts[]`: the persisted list fetched from Meta during OAuth
-  - `selected_ad_account_id`: last user selection (optional)
-
-#### B) Persist selected ad account (UX convenience)
-
-- **Method/Path**: `POST /api/profile/connections/facebook/ad-accounts/select`
-- **Auth**: required
-- **Body**: `{ "ad_account_id": "act_123..." }`
-- **Returns**: `{ "ok": true|false }`
-
-#### C) Create paused campaign draft in Meta
-
-- **Method/Path**: `POST /api/v1/meta/deploy-draft`
-- **Auth**: required
-- **Notes**:
-  - Creates **Campaign**, **Ad Set**, **Creative**, and **Ad** with `status="PAUSED"`.
-  - Returns `ads_manager_url` for the user to review/publish in Meta Ads Manager.
-  - Errors are logged server-side, but responses should remain **user-safe** (no raw Meta/dev strings).
+- **Frontend export includes**:
+  - Caption (no dash bullets)
+  - Targeting params:
+    - Area name (reverse geocoded via Google Maps JS `Geocoder` when available; cached client-side)
+    - Fallback: short degree coordinates (e.g. `31.59°N, 74.51°E`)
+    - Radius in km
+  - Persona split only when it looks valid (suppresses 100% single-persona fallbacks)
+- **User action**: open Meta Ads Manager (`https://adsmanager.facebook.com`) and paste/build manually.
 
 **Smoke / dev**
 
@@ -211,21 +202,106 @@ These endpoints support the **“Deploy as Draft”** flow from Geo-Intent.
 
 ---
 
-## 7. Current Gaps / Follow-ups (as of 2026-04-20)
+## 7. Current Gaps / Follow-ups (as of 2026-04-21)
 
-- **Human-readable zone naming**: We show **lat/lng + Google Maps link**, but we don’t yet reverse-geocode into “road/area name” inside the app.
-- **Signal diagnostics clarity**: Premium users can still see degraded signals from **quota / missing keys / upstream outages**; UI copy is improved, but we don’t yet surface a per-provider “why” panel (e.g., Places `REQUEST_DENIED` vs timeout).
-- **Latency predictability**: External providers can still be slow. We added a hard Trends wall-time cap, but end-to-end runtime can still vary with Places/Weather latency.
-- **Multi-zone progress granularity**: We block double-clicks and show “in progress,” but there’s no step-by-step progress (e.g., “scored zone 3/4”) or partial-result streaming.
-- **Blueprint preview without a generated brief**: Before you generate a brief, the preview is still a deterministic fallback (not fully AI-driven).
-- **Map intelligence depth**: No competitor overlays, travel-time/routing context, or category POI layers yet.
-- **Personalization**: Signal weights and heuristics are mostly fixed; no per-business-type tuning or learning loop.
-- **Alerts**: No push/mobile “heat spike” notifications in the Geo-Intent module (only optional activity logging).
-- **Closed-loop attribution**: Geo-Intent doesn’t yet tie “brief → campaign → ROI” into a unified feedback loop within the module.
-- **Meta deploy hard requirements**:
-  - Meta deploy requires a **Facebook Page ID** for the ad creative.
-  - Ads endpoints require Meta permissions (`ads_read`, `ads_management`) to be granted at OAuth time.
+- **Human-readable zone naming (Actionability gap)**:
+  - Current: zones show **labels** and attempt to resolve a **friendly area label** via reverse geocode (cached). When a label isn’t available, the UI falls back to short degree coordinates (verifiable, but less actionable).
+  - Target: display a **friendly place label**:
+    - Examples: “Near Cavalry Ground”, “Gulberg Main Blvd”, “DHA Phase 4”
+  - Implementation options:
+    - **Reverse geocoding**: call a geocoder (Google Geocoding API / Places “nearby” best-match) for each zone point; cache results by `lat,lng` (rounded) for 7–30 days.
+    - **POI centroid naming**: if Places data is already fetched, reuse the top POI names/types to name the zone (“Retail cluster near X”).
+    - **UI fallback**: show both `Zone NE` and the nearest known landmark once available; keep the map link.
+  - **Current implementation (frontend)**:
+    - Geo‑Intent uses Google Maps JS `Geocoder` when available and caches area labels in `localStorage` (`raamp_geo_area_cache_v1`).
+    - UI shows resolved area labels in Top Zones and in the export package; if not available, it falls back to short degree coordinates.
+
+- **Signal transparency (Trust gap)**:
+  - Problem: a heat score like `76/100` looks the same whether it’s **3 strong signals** or **2 neutral fallbacks + 1 real**.
+  - Target UX:
+    - Show a **Confidence/Quality** chip next to the score: `High / Medium / Limited` based on `signals_status`.
+    - Show per-signal status at-a-glance (`Trends: ACTIVE`, `Places: ACTIVE`, `Weather: LIMITED`) with tooltip “why this is limited”.
+    - For recommended zones: include a compact “signal mix” row (3 tiny bars / dots).
+  - Backend support:
+    - ensure `signals_status` / per-zone `signals` are always returned and stable.
+    - optionally add `confidence_score` derived from coverage + recency.
+
+- **Heatmap & history are passive (Staleness gap)**:
+  - Current: heatmap reflects **past scans only**; if the user doesn’t scan, the map looks stale.
+  - Target UX:
+    - Add a “Last scan” time + “Stale” badge (`>30m`, `>2h`, `>24h`) and a one-click **Rescan** CTA.
+    - Add contextual nudges (“Weather shifted”, “Lunch rush window”) once signals change.
+  - Implementation options:
+    - **Lightweight polling** for a “should rescan” hint (no full scan) OR scheduled background scan (credit-aware).
+    - Notifications/alerts **only** on meaningful events (threshold crossing, best-hour daily, signal degraded). See **Section 8**.
+
+- **Multi-zone scan progress feels like a black box (Perceived reliability gap)**:
+  - Current: button disables + spinner; multi-zone can take 30–60s.
+  - Target UX:
+    - Show step progress: “Scored 2/6 zones…”
+    - Show elapsed time + “still working” heartbeat.
+  - Implementation options:
+    - Backend returns a `job_id` and exposes `GET /recommend-zones/{job_id}/status` with counters.
+    - Or stream partial results (SSE/WebSocket) so zones appear incrementally.
+
+- **Persona split isn’t surfaced prominently (Most actionable output)**:
+  - Current: persona split exists but is visually buried relative to other panels.
+  - Target UX:
+    - Promote “Top persona now” near the caption/brief area (e.g., “60% Office Commuters”).
+    - Show persona-driven caption hints (“commute-time hook”, “lunch-break CTA”) or persona-aware template presets.
+    - Include personas in the exported campaign package (done).
+
+- **Closed-loop attribution missing (Learning gap)**:
+  - Current: the module generates briefs and packages, but does not learn from outcomes.
+  - Target:
+    - Capture “what was deployed” (creative + targeting) and link to results (CTR, CPM, CPA, ROAS).
+    - Feed outcomes back into weights/heuristics and into next brief generation.
+  - Implementation options:
+    - Manual outcome input (MVP) + later Meta Ads Insights ingestion (where permitted).
+    - Store an “experiment” entity: `zone + signals + persona + caption + budget + objective + outcome`.
 
 ---
 
-*Last updated: 2026-04-20*
+*Last updated: 2026-04-21*
+
+---
+
+## 8. Geo-Intent Notifications — What We Send (and What We Don’t)
+
+The goal is **signal, not noise**. Geo-Intent already has frequent UI feedback (map, score, logs, modals). Notifications should only fire when they change what the operator should do **right now**.
+
+### 8.1 Notifications worth sending (only 3)
+
+#### 1) Heat spike in your zone (threshold crossings only)
+
+- **Trigger**: A *new* scan’s urgency crosses upward into a higher band compared to the **previous scan for the same business + radius**.
+  - Example crossings:
+    - `Medium → High`
+    - `High → Critical`
+- **Do not trigger**:
+  - If urgency stays the same (prevents repeated flat-score spam like the “54/100 again” dashboard issue)
+  - On `Low → Medium` (too frequent / low stakes)
+- **Suggested copy**:
+  - “Your 18km zone just crossed into Critical (91/100). Good window to run now.”
+
+#### 2) Best time to post — daily (quiet scheduled utility)
+
+- **Trigger**: Once per day per business, based on `/api/v1/geo/best-posting-time/{business_id}`.
+  - Schedule: local time (e.g., morning), **one** notification only.
+- **Suggested copy**:
+  - “Peak intent window starting in Gulberg area. Today’s best hour: 5–6pm.”
+
+#### 3) Signal degraded — score may be off (trust/quality warning)
+
+- **Trigger**: In a scan, **2 or more** signals are not healthy (e.g. `limited`, `failed`, `neutral`, or otherwise non-`ok`) in `signals_status`.
+  - Rationale: warns only when the fused score is more likely to be a conservative/neutral blend.
+- **Suggested copy**:
+  - “Today’s scan used limited signals. Heat score may be conservative.”
+
+### 8.2 What we should NOT notify on (explicit non-goals)
+
+- Every scan completion (noise)
+- Multi-zone scan finished (they triggered it and are watching the screen)
+- Brief generated (they are already in the modal)
+- Medium urgency scores (too frequent, too low stakes)
+- Score staying flat across scans (prevents repeated-notification loops)

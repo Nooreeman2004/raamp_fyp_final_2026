@@ -26,6 +26,7 @@ import {
   BookOpen,
   Scale,
   Images,
+  MessageSquare,
   LifeBuoy,
   type LucideIcon
 } from "lucide-react";
@@ -78,6 +79,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Creative Studio", icon: Sparkles, href: "/dashboard/creative" },
     { label: "Asset Library", icon: Images, href: "/dashboard/assets" },
     { label: "Trend Arbitrage", icon: TrendIcon, href: "/dashboard/trends" },
+    { label: "Auto Replies", icon: MessageSquare, href: "/dashboard/auto-replies" },
     { label: "A/B Testing", icon: Flask, href: "/dashboard/ab-testing" },
   ];
 
@@ -87,6 +89,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Edit Business Details", icon: Building2, href: "/profile/business-setup" },
     { label: "Brand Settings", icon: Palette, href: "/profile/brand-settings" },
     { label: "Notification Preferences", icon: Bell, href: "/settings/notifications" },
+    { label: "Auto Replies", icon: MessageSquare, href: "/settings/auto-replies" },
     { label: "Integrations", icon: Link2, href: "/settings/integrations" },
     { label: "Account & Security", icon: Shield, href: "/settings/security" },
   ];

@@ -36,6 +36,7 @@ const RestaurantProfile = lazy(() => import("./pages/RestaurantProfile"));
 // Billing module removed (demo scope)
 const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const DataDeletion = lazy(() => import("./pages/DataDeletion.tsx"));
 const About = lazy(() => import("./pages/About"));
 const Resources = lazy(() => import("./pages/Resources"));
 const Legal = lazy(() => import("./pages/Legal"));
@@ -52,6 +53,8 @@ const AssetLibrary = lazy(() => import("./pages/AssetLibrary"));
 const SettingsIntegrations = lazy(() => import("./pages/SettingsIntegrations"));
 const AdminComplaints = lazy(() => import("./pages/AdminComplaints"));
 const CampaignApprovals = lazy(() => import("./pages/CampaignApprovals"));
+const AutoReplies = lazy(() => import("./pages/AutoReplies"));
+const AutoReplySettings = lazy(() => import("./pages/AutoReplySettings"));
 const Complaints = lazy(() => import("./pages/Complaints"));
 
 const queryClient = new QueryClient({
@@ -93,10 +96,12 @@ const App = () => (
                     <Route path="/reset-password/:token" element={<ResetPassword />} />
                     <Route path="/terms" element={<TermsAndConditions />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/data-deletion" element={<DataDeletion />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/resources" element={<Resources />} />
                     <Route path="/legal" element={<Legal />} />
                     <Route path="/lusion-demo" element={<LusionDemo />} />
+                    <Route path="/demo" element={<LusionDemo />} />
                     <Route path="/pricing" element={<Navigate to="/#pricing" replace />} />
 
                     {/* Protected Routes - Dashboard & Modules (Require Profile Completion) */}
@@ -186,6 +191,16 @@ const App = () => (
                         <ProtectedRoute>
                           <ProfileGuard>
                             <CampaignApprovals />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/auto-replies"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <AutoReplies />
                           </ProfileGuard>
                         </ProtectedRoute>
                       }
@@ -308,6 +323,16 @@ const App = () => (
                         <ProtectedRoute>
                           <ProfileGuard>
                             <SettingsIntegrations />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings/auto-replies"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <AutoReplySettings />
                           </ProfileGuard>
                         </ProtectedRoute>
                       }

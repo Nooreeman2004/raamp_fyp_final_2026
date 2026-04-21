@@ -149,6 +149,26 @@ class InstagramGraphAPIClient:
             operation="publish_media"
         )
 
+    async def reply_to_comment(self, user_id: str, comment_id: str, message: str) -> str:
+        """
+        Reply to an Instagram comment via Graph API using the stored Page access token.
+
+        Endpoint: POST /{comment-id}/replies
+        Returns: reply_id
+        """
+        access_token, _ = await self.get_access_token(user_id)
+        url = f"{self.BASE_URL}/{comment_id}/replies"
+        payload = {
+            "access_token": access_token,
+            "message": message,
+        }
+        return await self._execute_with_retry(
+            method="POST",
+            url=url,
+            data=payload,
+            operation="reply_to_comment",
+        )
+
     async def check_media_status(self, user_id: str, creation_id: str) -> Dict[str, Any]:
         """
         Check status of media container (for video processing).

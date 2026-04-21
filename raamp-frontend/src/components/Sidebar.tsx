@@ -18,6 +18,7 @@ import {
     Calendar,
     Images,
     ShieldCheck,
+    MessageSquare,
     LifeBuoy
 } from "lucide-react";
 import { authService } from "@/services/authService";
@@ -45,6 +46,7 @@ const menuItems = [
     { icon: Calendar, label: "Smart Scheduling", href: "/dashboard/smart-scheduling" },
     { icon: TrendingUp, label: "Trend Arbitrage", href: "/dashboard/trends" },
     { icon: ShieldCheck, label: "Approvals", href: "/dashboard/approvals" },
+    { icon: MessageSquare, label: "Auto Replies", href: "/dashboard/auto-replies" },
     { icon: FlaskConical, label: "A/B Testing", href: "/dashboard/ab-testing" },
 ];
 

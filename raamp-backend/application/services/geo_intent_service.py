@@ -9,10 +9,12 @@ from typing import Any, Dict, List, Optional
 from fastapi import BackgroundTasks
 
 from application.services.geo_intent_fetchers import ingest_all_signals
+from application.services.notification_service import NotificationService
 from infrastructure.database.models.heat_score_model import HeatScoreModel
 from infrastructure.database.models.campaign_log_model import CampaignLogModel
 from infrastructure.database.models.campaign_brief_model import CampaignBriefModel
 from infrastructure.database.models.user_model import UserModel
+from infrastructure.database.models.notification_model import NotificationType
 from application.services.credit_service import get_credit_service
 
 logger = logging.getLogger(__name__)
@@ -72,6 +74,113 @@ class GeoIntentService:
 
     def __init__(self):
         self.credit_service = get_credit_service()
+        self._notification_service = NotificationService()
+
+    @staticmethod
+    def _count_degraded_signals(signals_status: Dict[str, str]) -> int:
+        """
+        Count signals that are not healthy (`ok`).
+        We treat any non-`ok` string as degraded (e.g. limited/failed/neutral/historical).
+        """
+        if not isinstance(signals_status, dict):
+            return 0
+        degraded = 0
+        for v in signals_status.values():
+            if str(v or "").lower() != "ok":
+                degraded += 1
+        return degraded
+
+    async def _maybe_send_geo_intent_notifications(
+        self,
+        *,
+        user_id: str,
+        business_id: str,
+        radius_m: int,
+        score: int,
+        urgency: str,
+        signals_status: Dict[str, str],
+    ) -> None:
+        """
+        Implements Geo-Intent notifications policy (high-signal only):
+        1) Heat spike on threshold crossing: Medium→High or High→Critical (same business + radius)
+        2) Signal degraded: only if 2+ signals are non-`ok` in the same scan
+
+        Explicitly does NOT notify on scan completion, zone scan completion, brief generation,
+        medium urgency, or flat scores.
+        """
+        try:
+            # Previous scan for same business + radius (newest first)
+            prev = (
+                await CampaignLogModel.find(
+                    CampaignLogModel.business_id == business_id,
+                    CampaignLogModel.radius == radius_m,
+                )
+                .sort(-CampaignLogModel.timestamp)
+                .limit(1)
+                .to_list()
+            )
+            prev_urgency = prev[0].urgency if prev else None
+            prev_score = prev[0].final_score if prev else None
+
+            # 1) Heat spike threshold crossings only
+            crossing = (
+                (prev_urgency == "Medium" and urgency == "High")
+                or (prev_urgency == "High" and urgency == "Critical")
+            )
+            if crossing:
+                radius_km = int(round((radius_m or 0) / 1000))
+                title = "Heat spike in your zone"
+                message = (
+                    f"Your {radius_km}km zone just crossed into {urgency} ({score}/100). "
+                    f"Good window to run now."
+                )
+                await self._notification_service.create_and_send(
+                    user_id=user_id,
+                    type=NotificationType.CAMPAIGN,
+                    title=title,
+                    message=message,
+                    related_entity_id=f"geo_intent_heat_spike:{business_id}:{radius_m}:{score}:{urgency}",
+                    metadata={
+                        "sub_type": "geo_intent_heat_spike",
+                        "business_id": business_id,
+                        "radius_m": radius_m,
+                        "score": score,
+                        "urgency": urgency,
+                        "prev_score": prev_score,
+                        "prev_urgency": prev_urgency,
+                        "signals_status": signals_status or {},
+                    },
+                    priority=10,
+                )
+
+            # 3) Signal degraded — only if 2+ sources degraded
+            degraded_count = self._count_degraded_signals(signals_status or {})
+            if degraded_count >= 2:
+                await self._notification_service.create_and_send(
+                    user_id=user_id,
+                    type=NotificationType.ALERT,
+                    title="Signal degraded — score may be off",
+                    message="Today's scan used limited signals. Heat score may be conservative.",
+                    related_entity_id=f"geo_intent_signal_degraded:{business_id}:{radius_m}:{score}:{urgency}",
+                    metadata={
+                        "sub_type": "geo_intent_signal_degraded",
+                        "business_id": business_id,
+                        "radius_m": radius_m,
+                        "score": score,
+                        "urgency": urgency,
+                        "signals_status": signals_status or {},
+                        "degraded_count": degraded_count,
+                    },
+                    priority=5,
+                )
+        except Exception as exc:
+            # Never fail the scan due to notifications
+            logger.warning(
+                "Geo-Intent notifications failed (non-fatal) user=%s business_id=%s: %s",
+                user_id,
+                business_id,
+                exc,
+            )
 
     async def compute(
         self,
@@ -189,6 +298,17 @@ class GeoIntentService:
             radius=radius,
             is_critical=is_critical,
             timestamp=timestamp,
+        )
+
+        # ── Step 5b: High-signal notifications (non-blocking) ───────────────
+        background_tasks.add_task(
+            self._maybe_send_geo_intent_notifications,
+            user_id=user_id,
+            business_id=business_id,
+            radius_m=radius,
+            score=score,
+            urgency=urgency,
+            signals_status=signals_status,
         )
 
         logger.info(

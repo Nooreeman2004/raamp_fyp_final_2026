@@ -27,7 +27,7 @@ export default function TermsAndConditions() {
             <h1 className="text-4xl font-bold text-foreground mb-2">Terms & Conditions</h1>
           </Reveal>
           <Reveal variant="fadeIn" delay={0.3}>
-            <p className="text-gray-400">Last Updated: November 25, 2025</p>
+            <p className="text-gray-400">Effective Date: 21 April 2026</p>
           </Reveal>
         </div>
 
@@ -60,15 +60,12 @@ export default function TermsAndConditions() {
 
             <h3 className="text-xl font-semibold text-primary mb-3 mt-6">2.1 AI-Driven Automation</h3>
             <p className="leading-relaxed">
-              RAAMP uses advanced artificial intelligence, Bayesian analytics, machine learning models (including TensorFlow),
-              and generative intelligence (including Stable Diffusion and BERT) to:
+              RAAMP includes AI-assisted features intended to help with marketing tasks and automation. Outputs may be
+              inaccurate or incomplete and should be reviewed by you.
             </p>
             <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
-              <li>Predict customer intent and behavior patterns</li>
-              <li>Optimize marketing campaigns and ad spend allocation</li>
-              <li>Generate creative content and campaign recommendations</li>
-              <li>Provide attribution analytics and performance insights</li>
-              <li>Deliver hyperlocal targeting through geolocation analysis</li>
+              <li>You are responsible for decisions you make using the Service.</li>
+              <li>RAAMP does not guarantee results or outcomes.</li>
             </ul>
             <p className="leading-relaxed mt-4">
               <strong className="text-foreground">Important Disclaimer:</strong> All AI-generated outputs, predictions, and
@@ -193,35 +190,10 @@ export default function TermsAndConditions() {
 
           {/* Section 5 */}
           <motion.section variants={fadeInUp}>
-            <h2 className="text-2xl font-bold text-foreground mb-4">5. Financial Terms & Billing</h2>
-
-            <h3 className="text-xl font-semibold text-primary mb-3 mt-6">5.1 Account Funding & Payment</h3>
+            <h2 className="text-2xl font-bold text-foreground mb-4">5. Payments</h2>
             <p className="leading-relaxed">
-              Users must maintain sufficient funds in their RAAMP account to support active campaigns and platform services.
-              You are responsible for:
-            </p>
-            <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
-              <li>Ensuring adequate account balance for campaign budgets and platform fees</li>
-              <li>Providing valid payment methods for automatic billing and top-ups</li>
-              <li>Monitoring account usage and spending through the RAAMP dashboard</li>
-              <li>Understanding that campaigns may pause if funds are insufficient</li>
-            </ul>
-
-            <h3 className="text-xl font-semibold text-primary mb-3 mt-6">5.2 A/B Auto-Optimization & Budget Allocation</h3>
-            <p className="leading-relaxed">
-              RAAMP's A/B Auto-Optimization Layer uses AI to automatically test campaign variations and reallocate budgets
-              based on performance. By enabling this feature, you authorize RAAMP to:
-            </p>
-            <ul className="list-disc list-inside ml-4 mt-3 space-y-2">
-              <li>Automatically distribute ad spend across campaign variants</li>
-              <li>Shift budget allocation to higher-performing creatives and audiences</li>
-              <li>Pause underperforming campaigns or increase spending on successful ones</li>
-              <li>Make real-time optimization decisions within your specified budget limits</li>
-            </ul>
-            <p className="leading-relaxed mt-4">
-              All financial transactions, fees, refund policies, and billing terms are governed by RAAMP's Billing & Payments
-              Policy, which is incorporated into these Terms by reference. Subscription fees are non-refundable except as
-              explicitly stated in the Billing Policy.
+              RAAMP is provided as a final year project demonstration and does not include paid subscriptions or payment
+              processing unless explicitly stated in the Service.
             </p>
           </motion.section>
 
@@ -276,8 +248,7 @@ export default function TermsAndConditions() {
             </p>
             <div className="mt-4 p-4 bg-foreground/5 rounded-lg">
               <p className="font-semibold text-foreground">RAAMP Support</p>
-              <p className="text-primary">Email: legal@raamp.ai</p>
-              <p className="text-primary">Website: www.raamp.ai</p>
+              <p className="text-primary">Email: malik.noor.eman@gmail.com</p>
             </div>
           </motion.section>
 

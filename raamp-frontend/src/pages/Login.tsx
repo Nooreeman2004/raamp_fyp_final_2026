@@ -191,7 +191,10 @@ const Login = () => {
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
+          className="w-full max-w-md relative rounded-3xl border border-border/50 bg-card/60 backdrop-blur-xl p-8 shadow-sm
+            before:content-[''] before:absolute before:inset-0 before:rounded-[inherit] before:pointer-events-none
+            before:shadow-[0_0_0_1px_rgba(0,224,208,0.35),0_0_55px_rgba(0,224,208,0.22)] before:opacity-100
+            dark:bg-transparent dark:border-border/50 dark:before:opacity-0"
         >
           <div className="mb-8">
             <motion.div

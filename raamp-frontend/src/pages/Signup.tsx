@@ -353,11 +353,21 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-neutral-950 relative flex flex-col items-center justify-center antialiased">
+    <div className="min-h-screen w-full bg-background relative flex flex-col items-center justify-center antialiased">
       <BackgroundBeams className="opacity-40" />
 
       <div className="relative z-10 w-full max-w-lg p-4">
-        <Ultra3DCard className="w-full backdrop-blur-3xl bg-card border-border/50 shadow-2xl" disableHoverEffects={true}>
+        <Ultra3DCard
+          className={cn(
+            "w-full backdrop-blur-3xl bg-card border-border/50 shadow-2xl",
+            // Light-mode edge glow to match the rest of the product’s “green energy”.
+            "relative",
+            "before:content-[''] before:absolute before:inset-0 before:rounded-[inherit] before:pointer-events-none",
+            "before:shadow-[0_0_0_1px_rgba(0,224,208,0.35),0_0_55px_rgba(0,224,208,0.22)] before:opacity-100",
+            "dark:before:opacity-0"
+          )}
+          disableHoverEffects={true}
+        >
           <div className="p-8">
             <div className="text-center mb-8">
               <motion.div
@@ -467,7 +477,7 @@ const Signup = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-white/80 transition-colors z-10"
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground/80 transition-colors z-10"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -590,7 +600,7 @@ const Signup = () => {
                 <span className="w-full border-t border-border/50" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-black/50 px-2 text-muted-foreground backdrop-blur-sm">Or continue with</span>
+                <span className="bg-background/60 px-2 text-muted-foreground backdrop-blur-sm">Or continue with</span>
               </div>
             </div>
 

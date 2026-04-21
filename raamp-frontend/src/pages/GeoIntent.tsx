@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -24,7 +24,7 @@ import { businessService } from "@/services/businessService";
 import { geoIntentService, HeatScoreResponse, HeatmapResponse, CampaignLogEntry, CampaignBrief, ZoneResult } from "@/services/geoIntentService";
 import GeoIntentMap, { GeoIntentMapRef } from "@/components/GeoIntentMap";
 import GeoCampaignBriefModal from "@/components/GeoCampaignBriefModal";
-import MetaDeployModal, { FBPage as MetaFBPage } from "@/components/MetaDeployModal";
+import MetaDeployModal from "@/components/MetaDeployModal";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -34,6 +34,39 @@ import { apiClient } from "@/services/api";
 
 /** Stable id so loading toast updates in place (success/error). */
 const FIND_ZONES_TOAST_ID = "geo-intent-find-zones";
+
+const GEO_ZONE_CACHE_KEY = "raamp_geo_top_zones_cache_v1";
+
+function readZoneCache(): {
+  business_id: string;
+  radius_m: number;
+  timestamp: string;
+  zones: ZoneResult[];
+} | null {
+  try {
+    const raw = localStorage.getItem(GEO_ZONE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (!Array.isArray((parsed as any).zones)) return null;
+    return parsed as any;
+  } catch {
+    return null;
+  }
+}
+
+function writeZoneCache(payload: {
+  business_id: string;
+  radius_m: number;
+  timestamp: string;
+  zones: ZoneResult[];
+}) {
+  try {
+    localStorage.setItem(GEO_ZONE_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
 
 /** Maps API status strings to UI — free tier uses `limited` for trends/weather. */
 function signalUi(status: string | undefined) {
@@ -76,6 +109,80 @@ function resolveGeoBusinessId(
   return `demo_business_${name.toLowerCase().replace(/\s+/g, "_")}`;
 }
 
+function sanitizeCaptionNoDashes(raw: string): string {
+  // Convert dash-bullets to dot-bullets and remove lone leading dashes.
+  // Keeps hyphenated words (e.g. "end-to-end") intact by only targeting line-start bullets.
+  return String(raw || "")
+    .split("\n")
+    .map((line) => {
+      const l = line.replace(/\s+$/g, "");
+      if (/^\s*-\s+/.test(l)) return l.replace(/^\s*-\s+/, "• ");
+      if (/^\s*-\s*$/.test(l)) return "";
+      return l;
+    })
+    .filter((l) => l.trim().length > 0)
+    .join("\n");
+}
+
+type AreaCacheEntry = { label: string; updated_at: number };
+const GEO_AREA_CACHE_KEY = "raamp_geo_area_cache_v1";
+
+function coordKey(lat: number, lng: number) {
+  // Round to reduce cache fragmentation but keep neighborhood-level accuracy.
+  return `${lat.toFixed(4)},${lng.toFixed(4)}`;
+}
+
+function readAreaCache(): Record<string, AreaCacheEntry> {
+  try {
+    const raw = localStorage.getItem(GEO_AREA_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as any) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeAreaCache(cache: Record<string, AreaCacheEntry>) {
+  try {
+    localStorage.setItem(GEO_AREA_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // ignore
+  }
+}
+
+async function reverseGeocodeAreaLabel(lat: number, lng: number): Promise<string | null> {
+  // Best-effort: uses Google Maps JS Geocoder if available.
+  // If Maps key/script isn’t available, we return null.
+  const g = (window as any)?.google;
+  if (!g?.maps?.Geocoder) return null;
+
+  const geocoder = new g.maps.Geocoder();
+  const result: any = await new Promise((resolve) => {
+    geocoder.geocode({ location: { lat, lng } }, (results: any, status: string) => {
+      if (status !== "OK" || !results?.length) return resolve(null);
+      resolve(results[0]);
+    });
+  });
+  if (!result) return null;
+
+  // Prefer neighborhood-ish labels.
+  const comps: any[] = Array.isArray(result.address_components) ? result.address_components : [];
+  const pick = (types: string[]) =>
+    comps.find((c) => Array.isArray(c.types) && types.every((t) => c.types.includes(t)))?.long_name;
+
+  const neighborhood =
+    pick(["neighborhood"]) ||
+    pick(["sublocality", "sublocality_level_1"]) ||
+    pick(["locality"]) ||
+    pick(["administrative_area_level_2"]) ||
+    pick(["administrative_area_level_1"]);
+
+  const country = pick(["country"]);
+  const label = [neighborhood, country].filter(Boolean).join(", ");
+  return label || null;
+}
+
 const GeoIntent = () => {
   const { user } = useAuth();
   const [showSignalBanner, setShowSignalBanner] = useState(() => {
@@ -108,23 +215,146 @@ const GeoIntent = () => {
   const [strategyHistory, setStrategyHistory] = useState<CampaignBrief[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [recommendedZones, setRecommendedZones] = useState<ZoneResult[]>([]);
+  const [zoneScanMeta, setZoneScanMeta] = useState<{ radius_m: number; timestamp: string } | null>(null);
   const [zonesLoading, setZonesLoading] = useState(false);
   const mapRef = useRef<GeoIntentMapRef>(null);
   const skipRadiusDebounceOnce = useRef(true);
   const [deployZone, setDeployZone] = useState<ZoneResult | null>(null);
   const [deployBrief, setDeployBrief] = useState<CampaignBrief | null>(null);
-  const [fbPages, setFbPages] = useState<MetaFBPage[]>([]);
+  const [fbPages, setFbPages] = useState<Array<{ id: string; name?: string | null }>>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+
+  const [areaLabels, setAreaLabels] = useState<Record<string, AreaCacheEntry>>(() => readAreaCache());
+  const pendingAreaKeys = useRef<Set<string>>(new Set());
+
+  const getAreaLabel = useCallback((lat?: number, lng?: number) => {
+    if (typeof lat !== "number" || typeof lng !== "number") return null;
+    const key = coordKey(lat, lng);
+    return areaLabels[key]?.label || null;
+  }, [areaLabels]);
+
+  const formatLatLngShort = useCallback((lat?: number, lng?: number) => {
+    if (typeof lat !== "number" || typeof lng !== "number") return null;
+    const ns = lat >= 0 ? "N" : "S";
+    const ew = lng >= 0 ? "E" : "W";
+    return `${Math.abs(lat).toFixed(2)}°${ns}, ${Math.abs(lng).toFixed(2)}°${ew}`;
+  }, []);
+
+  const getAreaDisplay = useCallback(
+    (lat?: number, lng?: number) => getAreaLabel(lat, lng) || formatLatLngShort(lat, lng),
+    [getAreaLabel, formatLatLngShort]
+  );
+
+  const ensureAreaLabel = useCallback(async (lat: number, lng: number) => {
+    const key = coordKey(lat, lng);
+    if (areaLabels[key]?.label) return;
+    if (pendingAreaKeys.current.has(key)) return;
+    pendingAreaKeys.current.add(key);
+    try {
+      const label = await Promise.race<string | null>([
+        reverseGeocodeAreaLabel(lat, lng),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+      ]);
+      if (!label) return;
+      setAreaLabels((prev) => {
+        if (prev[key]?.label) return prev;
+        const next = { ...prev, [key]: { label, updated_at: Date.now() } };
+        writeAreaCache(next);
+        return next;
+      });
+    } finally {
+      pendingAreaKeys.current.delete(key);
+    }
+  }, [areaLabels]);
+
+  const personaValidity = useMemo(() => {
+    const list = Array.isArray(persona) ? persona : [];
+    const cleaned = list
+      .map((p) => ({ type: String(p?.type || "").trim(), pct: Number(p?.pct ?? 0) || 0 }))
+      .filter((p) => p.type && p.pct > 0);
+    if (cleaned.length < 2) return { valid: false, reason: "insufficient" as const };
+    const sum = cleaned.reduce((a, b) => a + b.pct, 0);
+    const max = Math.max(...cleaned.map((p) => p.pct));
+    if (max >= 95) return { valid: false, reason: "single_dominant" as const };
+    if (sum < 80 || sum > 120) return { valid: false, reason: "sum_off" as const };
+    return { valid: true, reason: null as any };
+  }, [persona]);
+
+  const topPersonaSummary = useMemo(() => {
+    if (!personaValidity.valid) return null;
+    const sorted = [...persona].sort((a, b) => b.pct - a.pct);
+    const top = sorted[0];
+    if (!top) return null;
+    return `${top.type} ${top.pct}%`;
+  }, [persona, personaValidity.valid]);
 
   const tier = (user as any)?.subscriptionTier || "free";
   const isPremium = String(tier).toLowerCase() === "premium";
 
   const latestBrief = campaignBrief || (strategyHistory.length > 0 ? strategyHistory[0] : null);
+
+  const heuristicCaption = useMemo(() => {
+    const centerLat = setup?.latitude;
+    const centerLng = setup?.longitude;
+    const area = getAreaDisplay(
+      typeof centerLat === "number" ? centerLat : undefined,
+      typeof centerLng === "number" ? centerLng : undefined
+    );
+
+    const sig = ((data as any)?.signals || {}) as any;
+    const st = ((data as any)?.signals_status || {}) as any;
+    const placesOk = String(st?.places || "ok").toLowerCase() === "ok";
+    const trendsOk = String(st?.trends || "ok").toLowerCase() === "ok";
+    const weatherOk = String(st?.weather || "ok").toLowerCase() === "ok";
+
+    const places = Number(sig?.places_score ?? 0) || 0;
+    const trends = Number(sig?.trends_score ?? 0) || 0;
+    const weather = Number(sig?.weather_score ?? 0) || 0;
+
+    const candidates: Array<{ k: "places" | "trends" | "weather"; v: number; ok: boolean }> = [
+      { k: "places", v: places, ok: placesOk },
+      { k: "trends", v: trends, ok: trendsOk },
+      { k: "weather", v: weather, ok: weatherOk },
+    ];
+
+    // Prefer signals that are actually healthy.
+    const dominant =
+      [...candidates]
+        .filter((c) => c.ok)
+        .sort((a, b) => b.v - a.v)[0] ||
+      [...candidates].sort((a, b) => b.v - a.v)[0] ||
+      { k: "places" as const, v: 0, ok: false };
+
+    const km = radius?.[0] ?? 10;
+    const businessType = String(setup?.business_type || "").trim();
+    const offer =
+      businessType.toLowerCase().includes("fashion") || businessType.toLowerCase().includes("clothing")
+        ? "new arrivals"
+        : businessType
+          ? businessType
+          : "today’s offer";
+
+    const personaHint = topPersonaSummary ? ` Built for ${topPersonaSummary}.` : "";
+
+    if (dominant.k === "places") {
+      return `High local foot traffic detected${area ? ` near ${area}` : ""}. ${businessName} is optimized for walk-ins within ${km}km — promote ${offer} with a clear “visit now” CTA.${personaHint}`;
+    }
+    if (dominant.k === "trends") {
+      return `Search interest is trending up${area ? ` around ${area}` : ""}. Run a short, direct creative within ${km}km and anchor it with your strongest offer (${offer}).${personaHint}`;
+    }
+    if (dominant.k === "weather") {
+      return `Conditions look favorable for going out${area ? ` near ${area}` : ""}. Keep the message simple: highlight ${offer} and drive immediate walk-ins within ${km}km.${personaHint}`;
+    }
+    return `Run a simple local offer within ${km}km and optimize for walk-ins. Lead with what’s verifiable on-ground (places density) and keep claims conservative.${personaHint}`;
+  }, [data?.signals, data?.signals_status, setup?.latitude, setup?.longitude, setup?.business_type, businessName, radius, topPersonaSummary, getAreaDisplay]);
+
   const previewCaption =
-    latestBrief?.caption ||
-    latestBrief?.caption_variants?.aggressive ||
-    latestBrief?.caption_variants?.urgency ||
-    `"Hey! ${(data?.signals?.weather_score ?? 0) > 0.5 ? "Perfect weather alert!" : "Limited time opportunity!"} Get a free sample of ${setup?.business_type || "our special"} at ${businessName}. Just ${radius[0]}KM away from you right now."`;
+    sanitizeCaptionNoDashes(
+      latestBrief?.caption ||
+      latestBrief?.caption_variants?.aggressive ||
+      latestBrief?.caption_variants?.urgency ||
+      heuristicCaption
+    );
 
   const status = data?.signals_status;
   const hasAnySignalIssues =
@@ -288,7 +518,22 @@ const GeoIntent = () => {
         radius: radius[0] * 1000,
         is_indoor: true,
       });
-      setRecommendedZones(result.zones);
+      const zones = Array.isArray(result?.zones) ? result.zones : [];
+      setRecommendedZones(zones);
+      // Resolve friendly area labels in background.
+      zones.forEach((z) => {
+        ensureAreaLabel(z.latitude, z.longitude).catch(() => {});
+      });
+      setZoneScanMeta({
+        radius_m: radius[0] * 1000,
+        timestamp: result?.timestamp || new Date().toISOString(),
+      });
+      writeZoneCache({
+        business_id: businessId,
+        radius_m: radius[0] * 1000,
+        timestamp: result?.timestamp || new Date().toISOString(),
+        zones,
+      });
       toast.success(`Ranked ${result.zones.length} high-intent zones around your scan radius.`, {
         id: FIND_ZONES_TOAST_ID,
       });
@@ -462,6 +707,22 @@ const GeoIntent = () => {
     const init = async () => {
       setLoading(true);
       const activeSetup = await fetchSetup();
+      // Restore last Top Zones (if it matches current business + radius).
+      const nameForId = activeSetup?.business_name || businessName;
+      const bid = resolveGeoBusinessId(activeSetup, nameForId);
+      const cached = readZoneCache();
+      if (
+        cached &&
+        cached.business_id === bid &&
+        Array.isArray(cached.zones) &&
+        cached.zones.length > 0
+      ) {
+        setRecommendedZones(cached.zones);
+        setZoneScanMeta({ radius_m: cached.radius_m, timestamp: cached.timestamp });
+        cached.zones.forEach((z) => {
+          ensureAreaLabel(z.latitude, z.longitude).catch(() => {});
+        });
+      }
       await fetchData(activeSetup);
       
       if (activeSetup) {
@@ -501,14 +762,41 @@ const GeoIntent = () => {
   // Update real-time UI lists when data arrives
   useEffect(() => {
     if (data) {
-      if (data.radar_feed) {
-        setScanLogs(data.radar_feed);
+      const nextLogs = Array.isArray(data.radar_feed) ? data.radar_feed : [];
+      // Add actionable system notes about signal quality (trust-critical).
+      const status = data?.signals_status as any;
+      if (status) {
+        const bad = ["trends", "places", "weather"]
+          .filter((k) => String(status?.[k] || "").toLowerCase() !== "ok")
+          .map((k) => `${k.toUpperCase()}: ${String(status?.[k] || "UNKNOWN").toUpperCase()}`);
+        if (bad.length) {
+          nextLogs.unshift({
+            id: `sig-${Date.now()}`,
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            msg: `Signal quality: ${bad.join(" • ")}. Score may be conservative.`,
+            type: "alert",
+          });
+        }
       }
-      if (data.persona_split) {
-        setPersona(data.persona_split);
-      }
+
+      setScanLogs(nextLogs.slice(0, 14));
+
+      const split = Array.isArray(data.persona_split) ? data.persona_split : [];
+      setPersona(split);
     }
   }, [data]);
+
+  // Reverse geocode strategic history brief locations (for human-readable history rows).
+  useEffect(() => {
+    const list = Array.isArray(strategyHistory) ? strategyHistory : [];
+    list.slice(0, 20).forEach((b) => {
+      const lat = b?.location?.coordinates?.[1];
+      const lng = b?.location?.coordinates?.[0];
+      if (typeof lat === "number" && typeof lng === "number") {
+        ensureAreaLabel(lat, lng).catch(() => {});
+      }
+    });
+  }, [strategyHistory, ensureAreaLabel]);
 
   // Debounced re-fetch when radius changes (skip once after initial load — init already scanned)
   useEffect(() => {
@@ -652,7 +940,7 @@ const GeoIntent = () => {
               </div>
 
               {/* Functional Map View */}
-              <div className="aspect-video bg-background/60 rounded border border-border/50 mb-6 relative overflow-hidden group">
+              <div className="h-[360px] md:h-[420px] lg:h-[520px] bg-background/60 rounded border border-border/50 mb-6 relative overflow-hidden group">
                 <GeoIntentMap 
                   ref={mapRef}
                   center={{ lat: setup?.latitude || 33.7215, lng: setup?.longitude || 73.0433 }}
@@ -781,7 +1069,7 @@ const GeoIntent = () => {
                   </Button>
                 </motion.div>
                 <p className="text-[10px] text-muted-foreground font-mono">
-                  Tip: adjust the radius slider or use Find Best Zones to explore intent. Custom polygon drawing was removed for demo stability (Maps Drawing library deprecation).
+                  Tip: adjust the radius slider or use Find Best Zones to explore intent.
                 </p>
               </div>
             </HolographicCard>
@@ -890,22 +1178,49 @@ const GeoIntent = () => {
             </motion.div>
 
             {/* Top Zones (dedicated card, separate from "WHY HOT") */}
-            {recommendedZones.length > 0 && (
-              <motion.div variants={fadeInUp}>
-                <HolographicCard className="p-6 border-amber-500/30">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold font-mono text-amber-600 dark:text-amber-300 flex items-center gap-2">
-                      <Layers className="w-4 h-4" />
-                      TOP ZONES (MULTI-ZONE SCAN)
-                    </h3>
-                    <Badge
-                      variant="outline"
-                      className="text-[9px] font-mono border-amber-500/30 text-amber-700 dark:text-amber-300"
-                    >
-                      {recommendedZones.length} ZONES
-                    </Badge>
-                  </div>
+            <motion.div variants={fadeInUp}>
+              <HolographicCard className="p-6 border-amber-500/30">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold font-mono text-amber-600 dark:text-amber-300 flex items-center gap-2">
+                    <Layers className="w-4 h-4" />
+                    TOP ZONES (MULTI-ZONE SCAN)
+                  </h3>
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] font-mono border-amber-500/30 text-amber-700 dark:text-amber-300"
+                  >
+                    {recommendedZones.length > 0
+                      ? `${recommendedZones.length} ZONES${zoneScanMeta?.radius_m ? ` • ${(zoneScanMeta.radius_m / 1000).toFixed(0)}KM` : ""}`
+                      : "NOT RUN"}
+                  </Badge>
+                </div>
 
+                {recommendedZones.length === 0 ? (
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
+                    <p className="text-[11px] font-mono text-foreground mb-2">
+                      Run a multi-zone scan to rank the best areas inside your radius.
+                    </p>
+                    <p className="text-[10px] font-mono text-muted-foreground mb-3 leading-relaxed">
+                      Click <span className="text-amber-700 dark:text-amber-300 font-bold">Find Best Zones</span> and wait for the scan to finish. The results will appear here and as pins on the map.
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRecommendZones}
+                      disabled={loading || refreshing || zonesLoading}
+                      aria-busy={zonesLoading}
+                      className="w-full border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 font-mono font-bold tracking-wider h-9"
+                    >
+                      {zonesLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin shrink-0" aria-hidden />
+                      ) : (
+                        <Layers className="w-4 h-4 mr-2 shrink-0" aria-hidden />
+                      )}
+                      {zonesLoading ? "SCANNING ZONES…" : "FIND BEST ZONES"}
+                    </Button>
+                  </div>
+                ) : (
                   <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
                     {recommendedZones.map((zone) => (
                       <div
@@ -919,7 +1234,7 @@ const GeoIntent = () => {
                               {zone.score}/100
                             </span>
                             <div className="mt-1 text-[9px] font-mono text-muted-foreground/80">
-                              {zone.latitude.toFixed(5)}, {zone.longitude.toFixed(5)}{" "}
+                              {getAreaDisplay(zone.latitude, zone.longitude)}{" "}
                               <a
                                 className="ml-2 text-primary hover:underline"
                                 href={`https://www.google.com/maps?q=${zone.latitude},${zone.longitude}`}
@@ -942,6 +1257,17 @@ const GeoIntent = () => {
                             {zone.urgency}
                           </Badge>
                         </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-background/50 border border-border/60 text-muted-foreground">
+                            Trends {(zone.signals?.trends_score ?? 0) * 100 | 0}%
+                          </span>
+                          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-background/50 border border-border/60 text-muted-foreground">
+                            Places {(zone.signals?.places_score ?? 0) * 100 | 0}%
+                          </span>
+                          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-background/50 border border-border/60 text-muted-foreground">
+                            Weather {(zone.signals?.weather_score ?? 0) * 100 | 0}%
+                          </span>
+                        </div>
                         <p className="text-[10px] font-mono text-muted-foreground leading-snug">{zone.reason}</p>
                         <Button
                           type="button"
@@ -957,9 +1283,9 @@ const GeoIntent = () => {
                       </div>
                     ))}
                   </div>
-                </HolographicCard>
-              </motion.div>
-            )}
+                )}
+              </HolographicCard>
+            </motion.div>
 
             {/* Detailed Analysis Metrics */}
             <motion.div variants={fadeInUp}>
@@ -1002,17 +1328,29 @@ const GeoIntent = () => {
                    {/* Additional Stats */}
                    <div className="p-4 bg-primary/5 rounded border border-primary/20">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase opacity-70">Projected Reach</span>
-                        <span className="text-[10px] font-mono text-primary font-bold">~{(data?.signals?.places_score ?? 0) * 1200 + 450} USERS</span>
+                        <span className="text-[9px] font-mono text-muted-foreground uppercase opacity-70">Projected reach (est.)</span>
+                        <span className="text-[10px] font-mono text-primary font-bold">
+                          {(() => {
+                            const raw = (data?.signals?.places_score ?? 0) * 1200 + 450;
+                            const rounded = Math.max(0, Math.round(raw / 50) * 50);
+                            return `~${rounded} users`;
+                          })()}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase opacity-70">Conv. Probability</span>
-                        <span className="text-[10px] font-mono text-primary font-bold">{(data?.score || 0) * 0.85}% BOOST</span>
+                        <span className="text-[9px] font-mono text-muted-foreground uppercase opacity-70">Expected lift (est.)</span>
+                        <span className="text-[10px] font-mono text-primary font-bold">
+                          {(() => {
+                            const raw = (data?.score || 0) * 0.85;
+                            const rounded = Math.max(0, Math.round(raw / 5) * 5);
+                            return `+${rounded}%`;
+                          })()}
+                        </span>
                       </div>
                    </div>
 
                    <p className="text-[10px] font-mono text-muted-foreground/80 italic leading-relaxed">
-                      * This {radius[0]}KM region is currently showing {(data?.score || 0)}% higher receptivity compared to your 7-day average baseline.
+                      Estimates are derived from the current scan’s signal mix (especially Places density) and score. They are not measured conversions.
                    </p>
                 </div>
               </HolographicCard>
@@ -1038,7 +1376,9 @@ const GeoIntent = () => {
                 {scanLogs.length === 0 ? (
                     <p className="opacity-40 italic">Waiting for signal pings...</p>
                 ) : (
-                    scanLogs.map(log => (
+                    scanLogs
+                      .filter((l) => l.type !== "info" || String(l.msg || "").toLowerCase().includes("signal"))
+                      .map(log => (
                         <div key={log.id} className="border-l-2 border-primary/20 pl-3 py-1 bg-primary/5 rounded-r">
                             <span className="text-primary/50 mr-2">[{log.time}]</span>
                             <span className="text-foreground/90">{log.msg}</span>
@@ -1069,16 +1409,16 @@ const GeoIntent = () => {
                   </Tooltip>
               </div>
               <div className="space-y-4">
-                 {persona.length === 0 && (
+                 {(!personaValidity.valid || persona.length === 0) && (
                    <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
                      {loading
                        ? "Inferring visitor mix from POI signals…"
                        : data
-                         ? "No persona split for this run — try a larger radius or rescan when Places data is strong."
+                        ? "Visitor personality is unavailable for this scan (low signal confidence). Try rescan or a smaller radius."
                          : "Run a radar scan to estimate visitor personas from local POI density."}
                    </p>
                  )}
-                 {persona.map((p, i) => (
+                 {personaValidity.valid && persona.map((p, i) => (
                      <div key={i} className="group">
                         <div className="flex justify-between items-end mb-1">
                             <span className="text-[10px] font-bold text-foreground font-mono">{p.type}</span>
@@ -1090,8 +1430,9 @@ const GeoIntent = () => {
                      </div>
                  ))}
 
-                 {/* Signal Context explanation */}
-                 <div className="pt-2 border-t border-primary/10">
+                {/* Signal Context explanation (only when split is valid) */}
+                {personaValidity.valid && (
+                <div className="pt-2 border-t border-primary/10">
                     <p className="text-[9px] font-mono text-muted-foreground uppercase mb-2 opacity-60 flex items-center gap-2">
                        <Layers className="w-3 h-3" />
                        Signals Inferred From:
@@ -1109,6 +1450,7 @@ const GeoIntent = () => {
                        ))}
                     </div>
                  </div>
+                )}
               </div>
             </HolographicCard>
           </motion.div>
@@ -1128,7 +1470,7 @@ const GeoIntent = () => {
                     <Megaphone className="w-3 h-3" />
                     SUGGESTED CREATIVE
                  </p>
-                 <p className="text-xs font-mono text-foreground leading-relaxed italic mb-3">
+                 <p className="text-xs text-foreground leading-relaxed italic mb-3">
                     {previewCaption}
                  </p>
                   <div className="flex justify-between items-center text-[10px] font-mono text-muted-foreground mt-4">
@@ -1169,8 +1511,23 @@ const GeoIntent = () => {
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-primary/5">
-                      {history.length > 0 ? (
-                        history.map((log, i) => (
+                     {history.length > 0 ? (() => {
+                        // Collapse identical repeated scans (trust: avoid 10 identical lines).
+                        const groups: Array<{ key: string; last: CampaignLogEntry; count: number }> = [];
+                        const mk = (l: CampaignLogEntry) => `${l.radius}|${l.final_score}|${l.urgency || ""}`;
+                        for (const l of history) {
+                          const key = mk(l);
+                          const last = groups[groups.length - 1];
+                          if (last && last.key === key) {
+                            last.count += 1;
+                            last.last = l;
+                          } else {
+                            groups.push({ key, last: l, count: 1 });
+                          }
+                        }
+                        return groups.slice(0, 12).map((g, i) => {
+                          const log = g.last;
+                          return (
                            <tr key={i} className="hover:bg-primary/5 transition-colors group">
                               <td className="py-4 text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                               <td className="py-4 text-foreground font-bold">{log.radius / 1000} KM</td>
@@ -1180,6 +1537,9 @@ const GeoIntent = () => {
                                        <div className="h-full bg-primary" style={{ width: `${log.final_score}%` }} />
                                     </div>
                                     <span className="font-bold text-primary">{log.final_score}</span>
+                                    {g.count > 1 && (
+                                      <span className="text-[10px] text-muted-foreground/70 font-mono">×{g.count}</span>
+                                    )}
                                  </div>
                               </td>
                               <td className="py-4">
@@ -1188,8 +1548,9 @@ const GeoIntent = () => {
                                  </span>
                               </td>
                            </tr>
-                        ))
-                      ) : (
+                          );
+                        });
+                      })() : (
                         <tr>
                             <td colSpan={4} className="py-10 text-center text-muted-foreground opacity-50 italic">No recent sweeps recorded.</td>
                         </tr>
@@ -1218,7 +1579,44 @@ const GeoIntent = () => {
                         No saved strategies found. Generate a brief to see history.
                     </div>
                 ) : (
-                    strategyHistory.map((brief) => (
+                    <>
+                    {strategyHistory.map((brief) => {
+                      const lat = brief?.location?.coordinates?.[1];
+                      const lng = brief?.location?.coordinates?.[0];
+                      const inferTone = (b: any) => {
+                        const cap = String(b?.caption || "").trim();
+                        const v = b?.caption_variants || {};
+                        const soft = String(v?.soft || "").trim();
+                        const urgency = String(v?.urgency || "").trim();
+                        const aggressive = String(v?.aggressive || "").trim();
+                        if (cap && soft && cap === soft) return "SOFT";
+                        if (cap && urgency && cap === urgency) return "URGENCY";
+                        if (cap && aggressive && cap === aggressive) return "AGGRESSIVE";
+                        // Fallback: prefer the first non-empty variant as the implied tone.
+                        if (soft) return "SOFT";
+                        if (urgency) return "URGENCY";
+                        if (aggressive) return "AGGRESSIVE";
+                        return "—";
+                      };
+                      const tone = inferTone(brief);
+                      const zoneDir = String(brief?.zone_label || "").trim() || "—";
+                      const personaTop = (() => {
+                        const split = Array.isArray((brief as any)?.persona_split) ? (brief as any).persona_split : [];
+                        const cleaned = split
+                          .map((p: any) => ({ type: String(p?.type || "").trim(), pct: Number(p?.pct ?? 0) || 0 }))
+                          .filter((p: any) => p.type && p.pct > 0)
+                          .sort((a: any, b: any) => b.pct - a.pct);
+                        if (cleaned.length < 2) return null;
+                        if (cleaned[0].pct >= 95) return null;
+                        return `${cleaned[0].type} ${cleaned[0].pct}%`;
+                      })();
+                      const area =
+                        typeof lat === "number" && typeof lng === "number"
+                          ? (getAreaLabel(lat, lng) || formatLatLngShort(lat, lng) || "—")
+                          : "—";
+                      const objective = String(brief.meta_objective || "BRIEF").toUpperCase();
+                      const title = `${objective} • ${zoneDir} • ${area} • ${brief.radius_km}km • ${tone}${personaTop ? ` • ${personaTop}` : ""}`;
+                      return (
                         <div 
                             key={brief.id} 
                             onClick={() => handleReplayCampaign(brief)}
@@ -1226,13 +1624,14 @@ const GeoIntent = () => {
                         >
                             <div className="flex justify-between items-start mb-2">
                                 <div className="space-y-0.5">
-                                    <p className="text-[10px] font-bold text-foreground group-hover:text-primary transition-colors">{brief.meta_objective} - {brief.radius_km}KM</p>
+                                    <p className="text-[10px] font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                                      {title}
+                                    </p>
                                     <p className="text-[9px] font-mono text-muted-foreground">{new Date(brief.timestamp).toLocaleDateString()} @ {new Date(brief.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                                 </div>
                                 <Badge className="text-[9px] bg-primary/10 text-primary border-primary/20 h-5">SCORE: {brief.heat_score}</Badge>
                             </div>
                             <div className="flex flex-wrap gap-1.5 mt-2">
-                                <span className="text-[8px] font-mono px-1.5 py-0.5 bg-foreground/5 rounded text-muted-foreground border border-border/50 uppercase">ID: {brief.id?.substring(0, 8)}</span>
                                 <span className={cn(
                                     "text-[8px] font-mono px-1.5 py-0.5 rounded border uppercase",
                                     brief.urgency === 'Critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-primary/5 text-primary border-primary/20'
@@ -1243,7 +1642,9 @@ const GeoIntent = () => {
                                 <ArrowRight className="w-3 h-3 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                         </div>
-                    ))
+                      );
+                    })}
+                    </>
                 )}
              </div>
           </HolographicCard>
@@ -1278,9 +1679,9 @@ const GeoIntent = () => {
           <MetaDeployModal
             zone={deployZone}
             brief={deployBrief}
-            pageId={selectedPageId}
-            fbPages={fbPages}
             radiusMeters={radius[0] * 1000}
+            personaSplit={persona}
+            areaName={getAreaLabel(deployZone.latitude, deployZone.longitude)}
             onClose={() => {
               setDeployZone(null);
               setDeployBrief(null);

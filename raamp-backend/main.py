@@ -1,7 +1,23 @@
 # FastAPI Application Entry Point
 # Load environment variables FIRST before any other imports
+import os
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
+
+# Pin .env to this file's directory so it loads correctly regardless of the CWD
+# (i.e. starting uvicorn from the repo root, parent folder, etc. all work)
+_ENV_FILE = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=_ENV_FILE, override=True)
+
+# --- Startup sanity check (safe to leave in — prints only to server console) ---
+_token_loaded = bool(os.getenv("META_WEBHOOK_VERIFY_TOKEN"))
+_secret_loaded = bool(os.getenv("FACEBOOK_APP_SECRET"))
+print(f"[ENV CHECK] META_WEBHOOK_VERIFY_TOKEN loaded: {_token_loaded}")
+print(f"[ENV CHECK] FACEBOOK_APP_SECRET loaded: {_secret_loaded}")
+print(f"[ENV CHECK] .env path used: {_ENV_FILE} (exists={_ENV_FILE.exists()})")
+if not _token_loaded or not _secret_loaded:
+    print("[ENV CHECK] ⚠️  WARNING: One or more required webhook env vars are missing. Webhooks will fail.")
+    print(f"[ENV CHECK]    Hint: Make sure {_ENV_FILE} exists and contains META_WEBHOOK_VERIFY_TOKEN and FACEBOOK_APP_SECRET.")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,8 +50,11 @@ from application.services.job_health_monitor_service import check_scheduler_heal
 from application.services.trend_detection_service import TrendDetectionService
 from application.services.instagram_roi_service import scheduled_roi_refresh
 from application.services.caption_roi_join_service import backfill_caption_log_engagement_rates
+from application.services.geo_intent_notification_scheduler import send_daily_best_posting_time_notifications
 from tasks.trend_retry_worker import process_due_trend_retries
 from tasks.trend_expiry_worker import expire_old_trend_detections
+from tasks.auto_reply_worker import process_due_auto_replies
+from tasks.auto_reply_draft_expiry_worker import expire_auto_reply_drafts
 from infrastructure.database.models.instagram_connection_model import InstagramConnectionModel
 
 # External service instances for scheduling
@@ -161,6 +180,26 @@ async def lifespan(app: FastAPI):
     )
     logging.info("Trend retry worker configured (every minute)")
 
+    # Auto reply worker (every minute)
+    scheduler.add_job(
+        process_due_auto_replies,
+        CronTrigger(minute='*'),
+        id='process_due_auto_replies',
+        name='Process due auto reply events',
+        replace_existing=True
+    )
+    logging.info("Auto reply worker configured (every minute)")
+
+    # Auto reply draft expiry (every hour)
+    scheduler.add_job(
+        expire_auto_reply_drafts,
+        CronTrigger(minute=0),  # hourly at :00
+        id='expire_auto_reply_drafts',
+        name='Expire auto reply drafts and notify users',
+        replace_existing=True
+    )
+    logging.info("Auto reply draft expiry configured (hourly)")
+
     # Expire old trend detections (every 10 minutes)
     scheduler.add_job(
         run_trend_expiry,
@@ -191,6 +230,16 @@ async def lifespan(app: FastAPI):
         replace_existing=True
     )
     logging.info("Caption ROI join scheduler configured (every 6 hours at :15)")
+
+    # Geo-Intent daily best time to post (daily at 9:05 UTC)
+    scheduler.add_job(
+        send_daily_best_posting_time_notifications,
+        CronTrigger(hour=9, minute=5),
+        id="geo_intent_daily_best_time",
+        name="Geo-Intent: daily best time to post notification",
+        replace_existing=True,
+    )
+    logging.info("Geo-Intent daily best-time notification configured (daily at 9:05 UTC)")
 
     # Startup RAG Health Check (validates Pinecone and OpenAI)
     try:
@@ -347,6 +396,8 @@ from presentation.routers import dashboard_analytics_router
 from presentation.routers import ml_router
 from presentation.routers import activity_router
 from presentation.routers.meta_ads_router import router as meta_ads_router
+from presentation.routers import meta_webhook_router
+from presentation.routers import auto_reply_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
@@ -404,6 +455,8 @@ app.include_router(dashboard_analytics_router.router)
 app.include_router(activity_router.router)
 app.include_router(ml_router.router)  # ML Caption Intelligence endpoints
 app.include_router(meta_ads_router)
+app.include_router(meta_webhook_router.router)
+app.include_router(auto_reply_router.router)
 
 # Mount static files for uploaded content
 os.makedirs("uploaded_files", exist_ok=True)

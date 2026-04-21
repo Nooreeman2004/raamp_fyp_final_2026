@@ -102,7 +102,7 @@ export default function CampaignApprovals() {
                 placeholder="Search by keyword, caption, platform..."
                 className="bg-foreground/5 border-border/50"
               />
-              <div className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-widest">
+              <div className="shrink-0 h-10 flex items-center whitespace-nowrap text-[10px] leading-none font-mono text-muted-foreground/50 uppercase tracking-widest">
                 Pending: {filtered.length}
               </div>
             </div>

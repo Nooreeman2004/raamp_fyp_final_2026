@@ -67,7 +67,9 @@ class NotificationModel(Document):
             "created_at",
             "priority",
             ("user_id", "read"),  # Compound index for fetching unread
-            # Retention: auto-delete notifications after N seconds.
-            # Production note: tune this (e.g., 90–180 days) based on product requirements.
-            IndexModel([("created_at", 1)], expireAfterSeconds=60 * 60 * 24 * 180),
+            # NOTE:
+            # A TTL index on created_at is useful in production, but can conflict with
+            # pre-existing non-TTL indexes (IndexOptionsConflict) in existing databases.
+            # If you want retention, add it via a controlled migration (drop/recreate index),
+            # or switch to an explicit `expires_at` field with a TTL index on that field.
         ]

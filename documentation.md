@@ -1,32 +1,40 @@
-# RAAMP Feature Documentation
+# RAAMP — Feature Documentation
 
-This document provides a feature-by-feature breakdown of currently implemented functionality within the RAAMP (Revolutionary AI-powered Autonomous Marketing Platform) project.
+This document is a feature-by-feature overview of what’s currently implemented in **RAAMP (Revolutionary AI-powered Autonomous Marketing Platform)**.
 
-**Note**: Some areas (especially Geo-Intent + Trends) are implemented with specific fallbacks, caching, and tier-gating. This document reflects the current code behavior.
+- **Scope**: product-facing features + the “shape” of how they work
+- **Behavior note**: Some modules (notably **Geo-Intent** and parts of **Trends**) include fallbacks, caching, and tier/credit gating. This file aims to reflect *current code behavior*.
+
+### Related docs (deeper module references)
+
+- `README.md` — local setup (backend + frontend)
+- `content_generation.md` — Creative Studio (text/images) + credits + contracts
+- `geo_intent.md` — Geo-Intent engine (signals, scoring, zones, briefs)
+- `supporting_modules.md` — Notifications, Support/Complaints, Settings
+- `chatbot.md` — RAAMP Assistant architecture
 
 ---
 
 ## 1. AI Creative Studio
-**Purpose**: To provide a centralized environment for generating high-quality marketing assets including text, images, and video content.
 
-**How it works**: Uses advanced AI models (via backend routers like `/api/content/*` and `/api/media/*`) to process natural language prompts and parameters (aspect ratio, tone) to create multiple variants of marketing material.
+- **Purpose**: Generate marketing assets (text, images, reels/videos) from a campaign idea.
+- **How it works**: The frontend sends prompts + parameters (e.g. aspect ratio, tone) to backend routers:
+  - **Text + Images**: `/api/content/*`
+  - **Reels/Videos**: `/api/media/*`
+- **Module doc**: `content_generation.md` (endpoints, contracts, credits, and frontend flow).
 
-**Module doc**: See `content_generation.md` for the full API/contracts/credits/frontend flow for Creative Studio content generation.
+- **User interaction**:
+  - Enter a campaign idea in natural language
+  - Choose a content type (captions / hashtags / WhatsApp / emails / all)
+  - Optionally generate standalone images or reels/videos
+  - Copy, download, and save generated variants to the asset library
 
-**Supporting modules doc**: See `supporting_modules.md` for Notifications, Support/Complaints, and Settings (features, routes, UX rules, and gaps).
+- **Data/API involved (high level)**:
+  - `raamp-backend/presentation/routers/content_generation_router.py` (prefix `/api/content`)
+  - `raamp-backend/presentation/routers/media_generation_router.py` (prefix `/api/media`)
+  - Asset usage tracking + saved history (see `content_generation.md` for specifics)
 
-**User interaction**: 
-- Users input a "Campaign Idea" in natural language.
-- Users select content types (Captions, Hashtags, WhatsApp, Emails, or All).
-- Users can trigger generation for specific assets like standalone images or AI-generated Reels/Videos.
-- Users can view, copy, and download generated variants.
-
-**Data/API involved**: 
-- `content-generation-router`: For text and image generation.
-- `media-generation-router`: For Reel and Video generation.
-- `asset-service`: For tracking usage and saving generated content.
-
-**Output/Result**: Multiple variants of captions, hashtag sets, business messages (WhatsApp/Email), AI-generated images, and short-form vertical/horizontal videos.
+- **Output/Result**: Caption variants, hashtag sets, business message variants, AI-generated images, and short-form videos.
 
 ---
 
