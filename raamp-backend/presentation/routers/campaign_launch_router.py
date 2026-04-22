@@ -42,6 +42,9 @@ async def create_launch_request(
             facebook_page_id=request.facebook_page_id,
             trend_keyword=request.trend_keyword,
             trend_signal_id=request.trend_signal_id,
+            source=(request.source or "trend"),
+            campaign_plan_id=request.campaign_plan_id,
+            planned_post_id=request.planned_post_id,
         )
         return CampaignLaunchCreateResponse(
             request_id=str(req.id),
@@ -99,6 +102,9 @@ async def list_launch_requests(
             media_url=r.media_url,
             caption=r.caption,
             scheduled_time=r.scheduled_time,
+            source=getattr(r, "source", None),
+            campaign_plan_id=getattr(r, "campaign_plan_id", None),
+            planned_post_id=getattr(r, "planned_post_id", None),
             trend_keyword=r.trend_keyword,
             trend_signal_id=r.trend_signal_id,
             created_at=r.created_at.isoformat(),

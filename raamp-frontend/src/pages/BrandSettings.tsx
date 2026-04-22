@@ -43,6 +43,7 @@ import { InputSpotlight } from "@/components/ui/input-spotlight";
 import { MagneticButton } from "@/components/ui/magnetic-button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PasswordVerificationDialog } from "@/components/PasswordVerificationDialog";
+import { Progress } from "@/components/ui/progress";
 
 const PALETTE_TEMPLATES = [
     { name: "Neon Cyan", colors: ["#00E0D0", "#00A396", "#09151E", "#FFFFFF"], source: "template" },
@@ -53,6 +54,59 @@ const PALETTE_TEMPLATES = [
 ];
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+
+const TONE_SCORE_THRESHOLD = 45;
+
+const wordCount = (s: string) => {
+    return (s || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean).length;
+};
+
+const calcToneScore = (profile: {
+    personality: string;
+    audience: string;
+    language_rules: string;
+    platforms: string[];
+    content_types: string[];
+}) => {
+    const hasConstraintHints = (s: string) => /\b(do not|don't|avoid|must|always|never|example|e\.g\.)\b/i.test(s || "");
+    const ptsFor = (s: string, minWords: number, maxPoints: number) => {
+        const text = (s || "").trim();
+        if (!text) return 0;
+        let pts = 0;
+        if (wordCount(text) >= minWords) pts += Math.floor(maxPoints / 2);
+        if (text.length >= 60) pts += Math.ceil(maxPoints / 2);
+        if (hasConstraintHints(text)) pts += 6;
+        return Math.min(maxPoints, pts);
+    };
+
+    let score = 0;
+    score += ptsFor(profile.personality, 3, 28);
+    score += ptsFor(profile.audience, 4, 28);
+    score += ptsFor(profile.language_rules, 6, 34);
+    if ((profile.platforms || []).length > 0) score += 5;
+    if ((profile.content_types || []).length > 0) score += 5;
+    score = Math.max(0, Math.min(100, score));
+
+    const label =
+        score < 45 ? "Too vague" :
+            score < 70 ? "Good" : "Best";
+
+    const indicatorClassName =
+        score < 45 ? "bg-destructive" :
+            score < 70 ? "bg-amber-500" : "bg-emerald-500";
+
+    const missingHints: string[] = [];
+    if (!profile.personality.trim() || profile.personality.trim().length < 12) missingHints.push("Add a clearer personality (at least ~2 short phrases).");
+    if (!profile.audience.trim() || profile.audience.trim().length < 12) missingHints.push("Describe the audience (who exactly are we talking to?).");
+    if (!profile.language_rules.trim() || wordCount(profile.language_rules) < 6) missingHints.push("Add language rules (do/don’t + a mini example).");
+    if ((profile.platforms || []).length === 0) missingHints.push("Pick at least one platform (helps formatting).");
+    if ((profile.content_types || []).length === 0) missingHints.push("Pick at least one content type (caption, reply, story...).");
+
+    return { score, label, indicatorClassName, missingHints };
+};
 
 const BrandSettings = () => {
     const navigate = useNavigate();
@@ -75,7 +129,11 @@ const BrandSettings = () => {
         tagline: "",
         primaryColor: "#00E0D0",
         secondaryColor: "#09151E",
-        toneOfVoice: "",
+        tonePersonality: "",
+        toneAudience: "",
+        toneRules: "",
+        tonePlatforms: [] as string[],
+        toneContentTypes: [] as string[],
         restaurant_theme: "",
         brandLogoUrl: "",
         brand_colors: ["#00E0D0", "#09151E"],
@@ -85,20 +143,44 @@ const BrandSettings = () => {
     const [touched, setTouched] = useState({
         brandName: false,
         restaurant_theme: false,
-        toneOfVoice: false
+        tonePersonality: false,
+        toneAudience: false,
+        toneRules: false
     });
+
+    const toneProfile = {
+        personality: formData.tonePersonality || "",
+        audience: formData.toneAudience || "",
+        language_rules: formData.toneRules || "",
+        platforms: (formData.tonePlatforms || []) as string[],
+        content_types: (formData.toneContentTypes || []) as string[],
+    };
+
+    const toneQuality = calcToneScore(toneProfile);
+
+    const toggleChoice = (key: "tonePlatforms" | "toneContentTypes", value: string) => {
+        const arr = (formData[key] || []) as string[];
+        const exists = arr.includes(value);
+        const next = exists ? arr.filter(v => v !== value) : [...arr, value];
+        setValues({ ...formData, [key]: next });
+    };
 
     useEffect(() => {
         const fetchBrandSettings = async () => {
             try {
                 const data = await businessService.getBrandAlignment();
                 if (data) {
+                    const tp = data.tone_profile || null;
                     setValues({
                         brandName: "",
                         tagline: data.tagline || "",
                         primaryColor: data.primary_color || "#00E0D0",
                         secondaryColor: data.secondary_color || "#09151E",
-                        toneOfVoice: data.tone_of_voice || "",
+                        tonePersonality: tp?.personality || "",
+                        toneAudience: tp?.audience || "",
+                        toneRules: tp?.language_rules || data.tone_of_voice || "",
+                        tonePlatforms: tp?.platforms || [],
+                        toneContentTypes: tp?.content_types || [],
                         restaurant_theme: data.restaurant_theme || "",
                         brandLogoUrl: data.brand_logo_url || "",
                         brand_colors: data.brand_colors && data.brand_colors.length > 0 ? data.brand_colors : ["#00E0D0", "#09151E"],
@@ -267,7 +349,10 @@ const BrandSettings = () => {
     const isFormValid = () => {
         return (
             formData.restaurant_theme?.trim().length > 0 &&
-            formData.toneOfVoice?.trim().length > 0 &&
+            formData.tonePersonality?.trim().length > 0 &&
+            formData.toneAudience?.trim().length > 0 &&
+            formData.toneRules?.trim().length > 0 &&
+            toneQuality.score >= TONE_SCORE_THRESHOLD &&
             formData.brandLogoUrl
         );
     };
@@ -278,12 +363,14 @@ const BrandSettings = () => {
         setTouched({
             brandName: true,
             restaurant_theme: true,
-            toneOfVoice: true
+            tonePersonality: true,
+            toneAudience: true,
+            toneRules: true
         });
 
         if (!isFormValid()) {
             sonner.error("Incomplete Setup", {
-                description: "Logo, Theme, and Tone of Voice parameters are required.",
+                description: "Logo, Theme, and a clear Tone Profile are required (not vague / single-word).",
             });
             return;
         }
@@ -296,7 +383,13 @@ const BrandSettings = () => {
                 primary_color: formData.brand_colors[0] || formData.primaryColor,
                 secondary_color: formData.brand_colors[1] || formData.secondaryColor,
                 tagline: formData.tagline,
-                tone_of_voice: formData.toneOfVoice,
+                tone_profile: {
+                    personality: formData.tonePersonality,
+                    audience: formData.toneAudience,
+                    language_rules: formData.toneRules,
+                    platforms: formData.tonePlatforms,
+                    content_types: formData.toneContentTypes,
+                },
                 restaurant_theme: formData.restaurant_theme,
                 brand_colors: formData.brand_colors,
                 palette_source: formData.palette_source
@@ -604,24 +697,157 @@ const BrandSettings = () => {
 
                                 <div className="space-y-2">
                                     <Label className="text-[10px] font-mono text-muted-foreground uppercase">
-                                        Tone of Voice <span className="text-red-500">*</span>
+                                        Tone of Voice System <span className="text-red-500">*</span>
                                     </Label>
-                                    <Textarea
-                                        name="toneOfVoice"
-                                        value={formData.toneOfVoice}
-                                        onChange={handleChange}
-                                        onBlur={() => setTouched(prev => ({ ...prev, toneOfVoice: true }))}
-                                        readOnly={!isEditing}
-                                        className={cn(
-                                            "w-full h-40 bg-card border-border/50 resize-none font-mono text-[11px] p-4 focus:border-primary/50 transition-colors scrollbar-none",
-                                            touched.toneOfVoice && !formData.toneOfVoice && "border-destructive/50",
-                                            !isEditing && "cursor-not-allowed opacity-60"
+
+                                    <div className="space-y-4">
+                                        {/* Quality Meter */}
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Quality</span>
+                                                <span className={cn(
+                                                    "text-[10px] font-mono uppercase tracking-widest",
+                                                    toneQuality.score < 45 ? "text-destructive" : toneQuality.score < 70 ? "text-amber-400" : "text-emerald-400"
+                                                )}>
+                                                    {toneQuality.label}
+                                                </span>
+                                            </div>
+                                            <Progress value={toneQuality.score} indicatorClassName={toneQuality.indicatorClassName} className="h-2" />
+                                            <p className="text-[10px] text-muted-foreground font-mono leading-relaxed">
+                                                Aim for “Good” or “Best”. Short is fine, vague is not.
+                                            </p>
+                                        </div>
+
+                                        {/* Who are we? */}
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-mono text-muted-foreground uppercase">Who are we? (Personality)</Label>
+                                            <InputSpotlight
+                                                name="tonePersonality"
+                                                value={formData.tonePersonality}
+                                                onChange={handleChange}
+                                                onBlur={() => setTouched(prev => ({ ...prev, tonePersonality: true }))}
+                                                readOnly={!isEditing}
+                                                placeholder="e.g. Bold, premium, witty — confident but never arrogant"
+                                                className={cn(
+                                                    "bg-card h-10 text-xs font-mono",
+                                                    touched.tonePersonality && !formData.tonePersonality && "border-destructive/50",
+                                                    !isEditing && "cursor-not-allowed opacity-60"
+                                                )}
+                                            />
+                                        </div>
+
+                                        {/* Who are we talking to? */}
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-mono text-muted-foreground uppercase">Who are we talking to? (Audience)</Label>
+                                            <InputSpotlight
+                                                name="toneAudience"
+                                                value={formData.toneAudience}
+                                                onChange={handleChange}
+                                                onBlur={() => setTouched(prev => ({ ...prev, toneAudience: true }))}
+                                                readOnly={!isEditing}
+                                                placeholder="e.g. Busy students + young professionals who want quick, affordable meals"
+                                                className={cn(
+                                                    "bg-card h-10 text-xs font-mono",
+                                                    touched.toneAudience && !formData.toneAudience && "border-destructive/50",
+                                                    !isEditing && "cursor-not-allowed opacity-60"
+                                                )}
+                                            />
+                                        </div>
+
+                                        {/* How do we speak? */}
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-mono text-muted-foreground uppercase">How do we speak? (Language rules)</Label>
+                                            <Textarea
+                                                name="toneRules"
+                                                value={formData.toneRules}
+                                                onChange={handleChange}
+                                                onBlur={() => setTouched(prev => ({ ...prev, toneRules: true }))}
+                                                readOnly={!isEditing}
+                                                className={cn(
+                                                    "w-full h-36 bg-card border-border/50 resize-none font-mono text-[11px] p-4 focus:border-primary/50 transition-colors scrollbar-none",
+                                                    touched.toneRules && !formData.toneRules && "border-destructive/50",
+                                                    !isEditing && "cursor-not-allowed opacity-60"
+                                                )}
+                                                placeholder={[
+                                                    "Do: short punchy sentences, friendly CTA, 1 emoji max.",
+                                                    "Don't: slang overload, guilt-trips, or fake urgency.",
+                                                    "Example: “Fresh bowls in 5 minutes — drop by after class.”"
+                                                ].join("\n")}
+                                            />
+                                        </div>
+
+                                        {/* Where are we speaking? */}
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-mono text-muted-foreground uppercase">Where are we speaking? (Platforms)</Label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["instagram", "facebook", "tiktok", "google", "website"].map((p) => {
+                                                    const active = (formData.tonePlatforms || []).includes(p);
+                                                    return (
+                                                        <button
+                                                            key={p}
+                                                            type="button"
+                                                            onClick={() => toggleChoice("tonePlatforms", p)}
+                                                            disabled={!isEditing}
+                                                            className={cn(
+                                                                "px-3 py-1 rounded-full border text-[10px] font-mono uppercase tracking-widest transition-all",
+                                                                active ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                                                                !isEditing && "opacity-50 cursor-not-allowed"
+                                                            )}
+                                                        >
+                                                            {p}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* What are we saying? */}
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-mono text-muted-foreground uppercase">What are we saying? (Content types)</Label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["caption", "ad", "story", "comment_reply", "dm", "reel_script"].map((t) => {
+                                                    const active = (formData.toneContentTypes || []).includes(t);
+                                                    return (
+                                                        <button
+                                                            key={t}
+                                                            type="button"
+                                                            onClick={() => toggleChoice("toneContentTypes", t)}
+                                                            disabled={!isEditing}
+                                                            className={cn(
+                                                                "px-3 py-1 rounded-full border text-[10px] font-mono uppercase tracking-widest transition-all",
+                                                                active ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                                                                !isEditing && "opacity-50 cursor-not-allowed"
+                                                            )}
+                                                        >
+                                                            {t}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Friendly guidance (only when editing) */}
+                                        {isEditing && toneQuality.score < 70 && (
+                                            <div className={cn(
+                                                "rounded-xl border p-3 bg-foreground/5",
+                                                toneQuality.score < 45 ? "border-destructive/30" : "border-amber-500/20"
+                                            )}>
+                                                <p className={cn(
+                                                    "text-[10px] font-mono uppercase tracking-widest mb-2",
+                                                    toneQuality.score < 45 ? "text-destructive" : "text-amber-400"
+                                                )}>
+                                                    To improve:
+                                                </p>
+                                                <ul className="space-y-1">
+                                                    {toneQuality.missingHints.slice(0, 3).map((h, idx) => (
+                                                        <li key={idx} className="text-[10px] text-muted-foreground font-mono leading-relaxed">
+                                                            - {h}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         )}
-                                        placeholder="How should your AI speak? Friendly, Elite, Sarcastic, Professional..."
-                                    />
-                                    {touched.toneOfVoice && !formData.toneOfVoice && (
-                                        <p className="text-[9px] text-destructive font-mono uppercase tracking-tighter mt-1">Semantics Required</p>
-                                    )}
+                                    </div>
                                 </div>
 
                                 <TooltipProvider>

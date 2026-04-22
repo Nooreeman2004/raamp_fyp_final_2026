@@ -23,6 +23,9 @@ class AutoReplyDraftItem(BaseModel):
     # Minimal context for UI (safe + optional)
     comment_text: Optional[str] = None
 
+    # Social escalation (optional)
+    escalation_ticket_id: Optional[str] = None
+
 
 class AutoReplyDraftListResponse(BaseModel):
     drafts: List[AutoReplyDraftItem]

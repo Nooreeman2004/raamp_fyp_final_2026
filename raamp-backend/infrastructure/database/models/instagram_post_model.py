@@ -46,6 +46,7 @@ class InstagramPostModel(Document):
 
     # Trend attribution (optional)
     trend_signal_id: Optional[str] = Field(None, description="Associated TrendSignal id for attribution")
+    asset_id: Optional[str] = Field(None, description="Asset this post was created from")
 
     class Settings:
         name = "instagram_posts"
@@ -78,6 +79,7 @@ class ScheduledInstagramPostModel(Document):
 
     # Trend attribution (optional)
     trend_signal_id: Optional[str] = Field(None, description="Associated TrendSignal id for attribution")
+    asset_id: Optional[str] = Field(None, description="Asset this post was created from")
 
     class Settings:
         name = "scheduled_instagram_posts"

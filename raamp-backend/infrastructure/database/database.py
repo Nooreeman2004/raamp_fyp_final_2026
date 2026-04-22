@@ -157,6 +157,7 @@ async def init_db():
         AutoReplySentModel,
     )
     from infrastructure.database.models.auto_reply_settings_model import AutoReplySettingsModel
+    from infrastructure.database.models.social_escalation_ticket_model import SocialEscalationTicketModel
     from application.services.job_health_monitor_service import JobExecutionLogModel
     from infrastructure.database.models.trend_signal_model import TrendSignalModel
     from infrastructure.database.models.trend_detection_model import TrendDetectionModel
@@ -173,6 +174,8 @@ async def init_db():
     from infrastructure.database.models.posting_log_model import PostingLogModel
     from infrastructure.database.models.trend_activity_model import TrendActivityModel
     from infrastructure.database.models.campaign_draft_model import CampaignDraftModel
+    from infrastructure.database.models.campaign_plan_model import CampaignPlanModel
+    from infrastructure.database.models.campaign_planned_post_model import CampaignPlannedPostModel
     from infrastructure.database.models.chat_session_model import ChatSessionModel
     from infrastructure.database.models.chat_interaction_model import ChatInteractionModel
     from infrastructure.database.models.performance_analytics_model import (
@@ -217,6 +220,7 @@ async def init_db():
             AutoReplyDraftModel,
             AutoReplySentModel,
             AutoReplySettingsModel,
+            SocialEscalationTicketModel,
             # Job health monitoring
             JobExecutionLogModel,
             # Trend models
@@ -243,6 +247,9 @@ async def init_db():
             PostingLogModel,
             # Drafts (Create Pack)
             CampaignDraftModel,
+            # Campaign Planner (brand-driven)
+            CampaignPlanModel,
+            CampaignPlannedPostModel,
             # Chatbot Sessions & Interactions
             ChatSessionModel,
             ChatInteractionModel,

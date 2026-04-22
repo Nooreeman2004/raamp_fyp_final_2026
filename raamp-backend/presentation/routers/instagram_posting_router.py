@@ -139,6 +139,20 @@ async def create_instagram_post(
                 media_type=MediaType.IMAGE  # Could be enhanced to detect from URL
             )
             logger.info(f"Instagram Post Now Result: {result}")
+
+            # Asset A/B tracking: link created post -> asset usage
+            if result.get("status") == "published" and request.asset_id:
+                from infrastructure.repositories.asset_repository import AssetRepository
+                asset_repo = AssetRepository()
+                asset = await asset_repo.get_by_asset_id(request.asset_id)
+                if asset:
+                    internal_post_id = result.get("post_id")  # the internal MongoDB ID
+                    if internal_post_id and internal_post_id not in asset.instagram_post_ids:
+                        asset.instagram_post_ids.append(internal_post_id)
+                        asset.times_used += 1
+                        asset.last_used_at = datetime.utcnow()
+                        asset.updated_at = datetime.utcnow()
+                        await asset.save()
             
             # Log Activity (Non-blocking)
             if result.get("status") == "published":
@@ -169,6 +183,20 @@ async def create_instagram_post(
                 media_type=MediaType.IMAGE
             )
             logger.info(f"Instagram Schedule Result: {result}")
+
+            # Asset A/B tracking: link scheduled intent -> asset usage
+            if result.get("status") == "scheduled" and request.asset_id:
+                from infrastructure.repositories.asset_repository import AssetRepository
+                asset_repo = AssetRepository()
+                asset = await asset_repo.get_by_asset_id(request.asset_id)
+                if asset:
+                    internal_post_id = result.get("scheduled_post_id")  # internal MongoDB ID
+                    if internal_post_id and internal_post_id not in asset.instagram_post_ids:
+                        asset.instagram_post_ids.append(internal_post_id)
+                        asset.times_used += 1
+                        asset.last_used_at = datetime.utcnow()
+                        asset.updated_at = datetime.utcnow()
+                        await asset.save()
             
             # Log Activity (Non-blocking)
             if result.get("status") == "scheduled":

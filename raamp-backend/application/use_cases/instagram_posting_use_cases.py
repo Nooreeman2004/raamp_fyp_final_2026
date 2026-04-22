@@ -336,7 +336,7 @@ class SchedulePostUseCase:
             
             # Persist to database
             scheduled_post = await self.scheduled_repository.create(scheduled_post)
-            scheduled_post_id = str(scheduled_post.created_at.timestamp())
+            scheduled_post_id = str(scheduled_post.id)
             
             logger.info(f"Post scheduled for {scheduled_time}: {scheduled_post_id}")
             

@@ -16,10 +16,12 @@ import {
     Bell,
     Search,
     Calendar,
+    CalendarDays,
     Images,
     ShieldCheck,
     MessageSquare,
-    LifeBuoy
+    LifeBuoy,
+    AlertTriangle
 } from "lucide-react";
 import { authService } from "@/services/authService";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -44,9 +46,11 @@ const menuItems = [
     { icon: Sparkles, label: "Creative Studio", href: "/dashboard/creative" },
     { icon: Images, label: "Asset Library", href: "/dashboard/assets" },
     { icon: Calendar, label: "Smart Scheduling", href: "/dashboard/smart-scheduling" },
+    { icon: CalendarDays, label: "Campaign Planner", href: "/dashboard/campaign-planner" },
     { icon: TrendingUp, label: "Trend Arbitrage", href: "/dashboard/trends" },
     { icon: ShieldCheck, label: "Approvals", href: "/dashboard/approvals" },
     { icon: MessageSquare, label: "Auto Replies", href: "/dashboard/auto-replies" },
+    { icon: AlertTriangle, label: "Escalations", href: "/dashboard/escalations" },
     { icon: FlaskConical, label: "A/B Testing", href: "/dashboard/ab-testing" },
 ];
 

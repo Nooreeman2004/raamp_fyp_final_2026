@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Check, X, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { Check, X, RefreshCw, Search, ShieldCheck, TrendingUp, CalendarDays } from "lucide-react";
 import { campaignLaunchService, CampaignLaunchItem } from "@/services/campaignLaunchService";
 
 function isPending(status: string) {
@@ -45,6 +45,24 @@ export default function CampaignApprovals() {
       return kw.includes(q) || cap.includes(q) || plat.includes(q);
     });
   }, [rows, search]);
+
+  function sourceBadge(r: CampaignLaunchItem) {
+    const src = String((r as any)?.source || "trend").toLowerCase();
+    if (src === "planner") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-primary">
+          <CalendarDays className="w-3 h-3" />
+          Brand-driven Planner
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-foreground/5 px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+        <TrendingUp className="w-3 h-3" />
+        Trend-driven Arbitrage
+      </span>
+    );
+  }
 
   const approve = async (id: string) => {
     try {
@@ -125,6 +143,7 @@ export default function CampaignApprovals() {
                       <div className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
                         {r.platform} · {r.mode} · {new Date(r.created_at).toLocaleString()}
                       </div>
+                      <div className="pt-1">{sourceBadge(r)}</div>
                       <div className="text-lg font-heading font-semibold text-foreground">
                         {r.trend_keyword || "Campaign launch request"}
                       </div>

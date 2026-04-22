@@ -18,6 +18,11 @@ class CampaignLaunchCreateRequest(BaseModel):
     scheduled_time: Optional[str] = Field(None, description="ISO datetime if scheduling")
     facebook_page_id: Optional[str] = Field(None, description="Optional FB page id override")
 
+    # Source attribution (Trend-driven vs Brand-driven planner)
+    source: Optional[str] = Field(default=None, description="trend | planner")
+    campaign_plan_id: Optional[str] = Field(default=None, description="CampaignPlanModel.id if created from planner")
+    planned_post_id: Optional[str] = Field(default=None, description="CampaignPlannedPostModel.id if created from planner")
+
     trend_keyword: Optional[str] = Field(None, description="Associated trend keyword")
     trend_signal_id: Optional[str] = Field(None, description="Associated TrendSignal id")
 
@@ -72,6 +77,9 @@ class CampaignLaunchItem(BaseModel):
     media_url: str
     caption: Optional[str] = None
     scheduled_time: Optional[str] = None
+    source: Optional[str] = None
+    campaign_plan_id: Optional[str] = None
+    planned_post_id: Optional[str] = None
     trend_keyword: Optional[str] = None
     trend_signal_id: Optional[str] = None
     fetch_status: Optional[str] = None

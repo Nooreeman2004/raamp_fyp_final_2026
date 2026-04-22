@@ -571,32 +571,53 @@ class TrendDetectionService:
 
                 # High-priority: best trend gets actionable campaign launch
                 if top:
-                    best = top[0]["keyword"]
-                    await self.notification_service.create_and_send(
-                        user_id=trend_signal.user_email,
-                        type=NotificationType.TREND_SPIKE,
-                        title="Current Trend Opportunity",
-                        message=f"Current trend: '{best}' is hot right now in {trend_signal.location}. Launch a campaign?",
-                        related_entity_id=str(trend_signal_id),
-                        metadata={
-                            "sub_type": "trend",
-                            "trend_id": str(trend_signal_id),
-                            "keyword": best,
-                            "niche": trend_signal.niche,
-                            "location": trend_signal.location,
-                            "z_score": round(float(top[0]["score"]) / 20.0, 1),
-                            "action": "launch_campaign",
-                            "campaign_prefill": {
-                                "keyword": best,
-                                "niche": trend_signal.niche,
-                                "location": trend_signal.location,
-                                "suggested_platforms": ["instagram"] if ig_connected else [],
-                                "hashtags": [f"#{best.replace(' ', '')}"],
-                                "lifecycle_stage": "Current",
-                            },
-                        },
-                        priority=10,
-                    )
+                    best = (top[0].get("keyword") or "").strip()
+                    if best:
+                        # Dedupe: do not spam identical "Current Trend Opportunity" notifications if the
+                        # scheduler runs frequently or multiple scans overlap.
+                        # Default window: 60 minutes (override via config.TREND_SPIKE_DEDUPE_MINUTES).
+                        try:
+                            dedupe_minutes = int(getattr(app_config, "TREND_SPIKE_DEDUPE_MINUTES", 60) or 60)
+                        except Exception:
+                            dedupe_minutes = 60
+                        dedupe_cutoff = now - timedelta(minutes=max(1, dedupe_minutes))
+                        best_norm = best.lower()
+
+                        existing_spike = await NotificationModel.find_one(
+                            NotificationModel.user_id == trend_signal.user_email,
+                            NotificationModel.type == NotificationType.TREND_SPIKE,
+                            NotificationModel.metadata["sub_type"] == "trend",
+                            NotificationModel.metadata["keyword_norm"] == best_norm,
+                            NotificationModel.created_at >= dedupe_cutoff,
+                        )
+
+                        if not existing_spike:
+                            await self.notification_service.create_and_send(
+                                user_id=trend_signal.user_email,
+                                type=NotificationType.TREND_SPIKE,
+                                title="Current Trend Opportunity",
+                                message=f"Current trend: '{best}' is hot right now in {trend_signal.location}. Launch a campaign?",
+                                related_entity_id=str(trend_signal_id),
+                                metadata={
+                                    "sub_type": "trend",
+                                    "trend_id": str(trend_signal_id),
+                                    "keyword": best,
+                                    "keyword_norm": best_norm,
+                                    "niche": trend_signal.niche,
+                                    "location": trend_signal.location,
+                                    "z_score": round(float(top[0]["score"]) / 20.0, 1),
+                                    "action": "launch_campaign",
+                                    "campaign_prefill": {
+                                        "keyword": best,
+                                        "niche": trend_signal.niche,
+                                        "location": trend_signal.location,
+                                        "suggested_platforms": ["instagram"] if ig_connected else [],
+                                        "hashtags": [f"#{best.replace(' ', '')}"],
+                                        "lifecycle_stage": "Current",
+                                    },
+                                },
+                                priority=10,
+                            )
             except Exception:
                 pass
 
@@ -1388,6 +1409,7 @@ class TrendDetectionService:
                 # Phase 2 required payload
                 "trend_id": str(trend_id) if trend_id else None,
                 "keyword": spike.keyword,
+                "keyword_norm": (spike.keyword or "").strip().lower(),
                 "niche": spike.niche,
                 "location": spike.location,
                 "z_score": z_rounded,
@@ -1407,15 +1429,37 @@ class TrendDetectionService:
                 "hashtags": top_hashtags,
                 "lifecycle_stage": lifecycle_stage,
             }
-            
-            await self.notification_service.create_and_send(
-                user_id=user_email,
-                type=NotificationType.TREND_SPIKE,
-                title=title,
-                message=message,
-                related_entity_id=str(trend_id) if trend_id else None,
-                metadata=metadata
-            )
+
+            # Dedupe: prevent repeated "spike" notifications for the same keyword in a short window.
+            try:
+                dedupe_minutes = int(getattr(app_config, "TREND_SPIKE_DEDUPE_MINUTES", 60) or 60)
+            except Exception:
+                dedupe_minutes = 60
+            dedupe_cutoff = datetime.utcnow() - timedelta(minutes=max(1, dedupe_minutes))
+            kw_norm = (spike.keyword or "").strip().lower()
+            existing_spike = None
+            try:
+                from infrastructure.database.models.notification_model import NotificationModel
+
+                existing_spike = await NotificationModel.find_one(
+                    NotificationModel.user_id == user_email,
+                    NotificationModel.type == NotificationType.TREND_SPIKE,
+                    NotificationModel.metadata["sub_type"] == "trend",
+                    NotificationModel.metadata["keyword_norm"] == kw_norm,
+                    NotificationModel.created_at >= dedupe_cutoff,
+                )
+            except Exception:
+                existing_spike = None
+
+            if not existing_spike:
+                await self.notification_service.create_and_send(
+                    user_id=user_email,
+                    type=NotificationType.TREND_SPIKE,
+                    title=title,
+                    message=message,
+                    related_entity_id=str(trend_id) if trend_id else None,
+                    metadata=metadata
+                )
             
             # Log Activity (Non-blocking)
             asyncio.create_task(log_activity(

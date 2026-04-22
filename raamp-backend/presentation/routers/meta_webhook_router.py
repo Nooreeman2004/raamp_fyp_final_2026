@@ -27,6 +27,7 @@ from infrastructure.database.models.auto_reply_models import (
     CommentEventStatus,
 )
 from infrastructure.utils.obs import emit_event
+from tasks import auto_reply_worker
 
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,21 @@ def _safe_trunc(s: Optional[str], limit: int = 500) -> Optional[str]:
         return None
     s = str(s)
     return s[:limit]
+
+
+@router.get("/health")
+async def webhook_health():
+    """
+    Lightweight health endpoint for webhook + worker pipeline.
+    """
+    pending = await CommentEventModel.find(CommentEventModel.status == CommentEventStatus.RECEIVED).count()
+    last_run = getattr(auto_reply_worker, "LAST_RUN_AT", None)
+    backend_url = (os.getenv("BACKEND_URL") or "").strip()
+    return {
+        "worker_last_run_at": (last_run.isoformat() + "Z") if last_run else None,
+        "pending_events": int(pending or 0),
+        "backend_url": backend_url or None,
+    }
 
 
 def _extract_comment_event(payload: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], str]:

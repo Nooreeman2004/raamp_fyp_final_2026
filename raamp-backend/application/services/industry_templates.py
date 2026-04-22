@@ -20,20 +20,27 @@ INDUSTRY_TEMPLATES = {
             "Our secret ingredient? {bold_claim}",
             "Hungry? This will change everything 👀",
             "POV: You just discovered the best [cuisine] in [city]",
-            "Warning: This will make you crave [dish] instantly 🤤"
+            "Warning: This will make you crave [dish] instantly 🤤",
+            "Lunch plans? Consider them handled ✅",
+            "The crunch… the drip… the flavor. 😮‍💨",
+            "If you love [dish], you NEED this version.",
+            "Your next bite is waiting 🍴"
         ],
         "cta_templates": [
             "Tag your foodie friend who needs to try this!",
             "Save this spot for your next date night 💕",
             "Drop a 🍕 if you're hungry now",
             "Double tap if you'd order this right now",
-            "Share with someone who loves [cuisine type]"
+            "Share with someone who loves [cuisine type]",
+            "Comment your go-to order and we’ll recommend a pairing!",
+            "DM us “MENU” for today’s highlights.",
+            "Reserve your table for tonight — limited seats!"
         ],
         "hashtag_bank": {
-            "large": ["#FoodPorn", "#FoodPhotography", "#Food", "#InstaFood", "#Foodie"],
-            "medium": ["#FoodBlogger", "#RestaurantLife", "#ChefLife", "#FoodLover", "#Yummy"],
-            "small": ["#LocalEats", "#FoodieSpot", "#HiddenGem", "#FoodComa", "#FoodHeaven"],
-            "trending_categories": ["DineLocal", "FoodTok", "FoodieFriday", "CheatMeal"]
+            "large": ["#FoodPorn", "#FoodPhotography", "#InstaFood", "#Foodie", "#Yummy"],
+            "medium": ["#Restaurant", "#RestaurantLife", "#FoodLover", "#DinnerTime", "#LunchTime"],
+            "small": ["#LocalEats", "#HiddenGem", "#DineLocal", "#FoodieSpot", "#TasteOfTheCity"],
+            "trending_categories": ["FoodTok", "FoodieFriday", "CheatMeal", "DateNight", "StreetFood"]
         },
         "content_types": {
             "menu_drop": "New menu item announcement with mouth-watering description",
@@ -41,7 +48,9 @@ INDUSTRY_TEMPLATES = {
             "behind_the_scenes": "Chef at work, kitchen prep, ingredient sourcing",
             "customer_review": "User-generated content, testimonials, food reactions",
             "chef_story": "Meet the chef, culinary philosophy, signature dishes",
-            "ingredient_spotlight": "Fresh ingredients, local sourcing, quality focus"
+            "ingredient_spotlight": "Fresh ingredients, local sourcing, quality focus",
+            "combo_deal": "Combo/meal deals with clear value framing",
+            "event_night": "Live music, game night, tasting menu, themed nights"
         },
         "tone_modifiers": {
             "casual_dining": "Friendly, approachable, family-oriented",
@@ -53,7 +62,9 @@ INDUSTRY_TEMPLATES = {
             "Ask: 'What's your go-to order here?'",
             "Poll: 'Appetizer or Dessert first?'",
             "Challenge: 'Tag someone who can't resist [dish]'",
-            "Save-worthy: 'Our full menu guide (save for later!)'"
+            "Save-worthy: 'Our full menu guide (save for later!)'",
+            "Question: 'Spicy level 1–10… how brave are you?'",
+            "UGC: 'Post your plate and tag us to get featured!'"
         ]
     },
     

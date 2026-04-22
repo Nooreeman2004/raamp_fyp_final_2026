@@ -15,6 +15,7 @@ export interface AutoReplyDraftItem {
   updated_at: string;
   approval_nonce: string;
   comment_text?: string | null;
+  escalation_ticket_id?: string | null;
 }
 
 export interface AutoReplyDraftListResponse {
@@ -33,6 +34,38 @@ export interface AutoReplyApproveResponse {
 export interface AutoReplySkipResponse {
   success: boolean;
   status: string;
+}
+
+export interface SocialEscalationTicket {
+  id: string;
+  business_id: string;
+  social_account_id: string;
+  owner_user_id?: string | null;
+  external_ref: string;
+  comment_event_id: string;
+  draft_id?: string | null;
+  platform: "instagram" | "facebook" | string;
+  comment_id: string;
+  intent?: string | null;
+  confidence?: number | null;
+  priority: "critical" | "high" | "medium" | string;
+  status: "open" | "acknowledged" | "resolved" | string;
+  created_at: string;
+  updated_at: string;
+  first_viewed_at?: string | null;
+  acknowledged_at?: string | null;
+  resolved_at?: string | null;
+  sla_seconds: number;
+  sla_due_at?: string | null;
+  admin_notification_sent_at?: string | null;
+  context?: Record<string, any>;
+}
+
+export interface AutoReplyDashboardStats {
+  window_hours: number;
+  comments: { total: number; facebook: number; instagram: number };
+  escalations: { open: number; soonest_sla_due_at?: string | null };
+  generated_at: string;
 }
 
 export const autoReplyService = {
@@ -85,6 +118,22 @@ export const autoReplyService = {
     updated_at: string;
   }> => {
     return apiClient.patch(`/auto-replies/settings`, payload);
+  },
+
+  getEscalationTicket: async (ticketId: string): Promise<SocialEscalationTicket> => {
+    return apiClient.get(`/social-escalations/${ticketId}`);
+  },
+
+  ackEscalationTicket: async (ticketId: string): Promise<{ ok: boolean; status: string }> => {
+    return apiClient.post(`/social-escalations/${ticketId}/ack`, {});
+  },
+
+  resolveEscalationTicket: async (ticketId: string): Promise<{ ok: boolean; status: string }> => {
+    return apiClient.post(`/social-escalations/${ticketId}/resolve`, {});
+  },
+
+  getDashboardStats: async (): Promise<AutoReplyDashboardStats> => {
+    return apiClient.get(`/auto-replies/dashboard-stats`);
   },
 };
 

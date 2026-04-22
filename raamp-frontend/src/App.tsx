@@ -53,8 +53,11 @@ const AssetLibrary = lazy(() => import("./pages/AssetLibrary"));
 const SettingsIntegrations = lazy(() => import("./pages/SettingsIntegrations"));
 const AdminComplaints = lazy(() => import("./pages/AdminComplaints"));
 const CampaignApprovals = lazy(() => import("./pages/CampaignApprovals"));
+const CampaignPlanner = lazy(() => import("./pages/CampaignPlanner"));
+const CampaignPlannerDetail = lazy(() => import("./pages/CampaignPlannerDetail"));
 const AutoReplies = lazy(() => import("./pages/AutoReplies"));
 const AutoReplySettings = lazy(() => import("./pages/AutoReplySettings"));
+const SocialEscalations = lazy(() => import("./pages/SocialEscalations"));
 const Complaints = lazy(() => import("./pages/Complaints"));
 
 const queryClient = new QueryClient({
@@ -196,11 +199,41 @@ const App = () => (
                       }
                     />
                     <Route
+                      path="/dashboard/campaign-planner"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <CampaignPlanner />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/campaign-planner/:id"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <CampaignPlannerDetail />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
                       path="/dashboard/auto-replies"
                       element={
                         <ProtectedRoute>
                           <ProfileGuard>
                             <AutoReplies />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/escalations"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <SocialEscalations />
                           </ProfileGuard>
                         </ProtectedRoute>
                       }

@@ -155,6 +155,9 @@ class CampaignLaunchService:
         facebook_page_id: Optional[str],
         trend_keyword: Optional[str],
         trend_signal_id: Optional[str],
+        source: str = "trend",
+        campaign_plan_id: Optional[str] = None,
+        planned_post_id: Optional[str] = None,
     ) -> CampaignLaunchRequestModel:
         now = datetime.utcnow()
         req = CampaignLaunchRequestModel(
@@ -165,6 +168,9 @@ class CampaignLaunchService:
             caption=caption,
             scheduled_time=scheduled_time,
             facebook_page_id=facebook_page_id,
+            source=(source or "trend").strip().lower(),
+            campaign_plan_id=campaign_plan_id,
+            planned_post_id=planned_post_id,
             trend_keyword=trend_keyword,
             trend_signal_id=trend_signal_id,
             status=CampaignLaunchStatus.PENDING,

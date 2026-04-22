@@ -169,6 +169,19 @@ class InstagramGraphAPIClient:
             operation="reply_to_comment",
         )
 
+    async def like_comment(self, user_id: str, comment_id: str) -> bool:
+        """
+        Like an Instagram comment (best-effort).
+
+        Endpoint: POST /{comment-id}/likes
+        Returns: True on success.
+        """
+        # NOTE: Instagram Graph API does not reliably support "liking" comments via API
+        # across app types/permissions. We keep this as a stub returning False so callers
+        # can degrade gracefully without spamming logs or failing reply flows.
+        _ = (user_id, comment_id)
+        return False
+
     async def check_media_status(self, user_id: str, creation_id: str) -> Dict[str, Any]:
         """
         Check status of media container (for video processing).

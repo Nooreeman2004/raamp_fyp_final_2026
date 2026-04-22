@@ -100,6 +100,22 @@ async def save_brand_alignment(
     try:
         # Create repository instance
         business_repo = BusinessRepository()
+
+        def build_legacy_tone_string() -> str:
+            if request.tone_profile:
+                p = request.tone_profile
+                platforms = ", ".join(p.platforms) if p.platforms else "any platform"
+                content_types = ", ".join(p.content_types) if p.content_types else "general content"
+                return (
+                    f"Personality: {p.personality}\n"
+                    f"Audience: {p.audience}\n"
+                    f"Language rules: {p.language_rules}\n"
+                    f"Platforms: {platforms}\n"
+                    f"Content types: {content_types}"
+                ).strip()
+            return (request.tone_of_voice or "").strip()
+
+        legacy_tone = build_legacy_tone_string()
         
         # Save to database
         business = await business_repo.update_brand_alignment(
@@ -108,7 +124,8 @@ async def save_brand_alignment(
             primary_color=request.primary_color,
             secondary_color=request.secondary_color,
             tagline=request.tagline,
-            tone_of_voice=request.tone_of_voice,
+            tone_of_voice=legacy_tone,
+            tone_profile=request.tone_profile.model_dump() if request.tone_profile else None,
             restaurant_theme=request.restaurant_theme,
             brand_colors=request.brand_colors,
             palette_source=request.palette_source
@@ -120,6 +137,7 @@ async def save_brand_alignment(
             secondary_color=business.secondary_color,
             tagline=business.tagline,
             tone_of_voice=business.tone_of_voice,
+            tone_profile=business.tone_profile,
             restaurant_theme=business.restaurant_theme,
             brand_colors=business.brand_colors,
             palette_source=business.palette_source,
@@ -156,6 +174,7 @@ async def get_brand_alignment(
         secondary_color=business.secondary_color,
         tagline=business.tagline,
         tone_of_voice=business.tone_of_voice,
+        tone_profile=business.tone_profile,
         restaurant_theme=business.restaurant_theme,
         brand_colors=business.brand_colors,
         palette_source=business.palette_source,

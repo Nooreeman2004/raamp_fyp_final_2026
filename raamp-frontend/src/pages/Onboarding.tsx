@@ -192,7 +192,7 @@ const Onboarding = () => {
         } else if (platform === 'instagram') {
             if (!status.facebook_connected) {
                 toast.error("Prerequisite Required", {
-                    description: "Please connect Facebook Ads first.",
+                    description: "Please connect Facebook first.",
                 });
                 return;
             }
@@ -436,8 +436,8 @@ const Onboarding = () => {
                                                 <FacebookLogo />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold font-heading font-semibold text-lg text-foreground">Facebook Ads</h3>
-                                                <p className="text-sm text-muted-foreground font-mono">Connect your ad account</p>
+                                                <h3 className="font-bold font-heading font-semibold text-lg text-foreground">Facebook</h3>
+                                                <p className="text-sm text-muted-foreground font-mono">Connect your pages & assets</p>
                                             </div>
                                         </div>
                                         <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
@@ -487,7 +487,7 @@ const Onboarding = () => {
                                                 <div className="flex flex-col">
                                                     <p className="text-sm text-muted-foreground font-mono">Connect for organic insights</p>
                                                     {!status.facebook_connected && (
-                                                        <span className="text-[10px] text-amber-500/80 uppercase mt-1 font-mono">Requires Facebook Ads Connection First</span>
+                                                        <span className="text-[10px] text-amber-500/80 uppercase mt-1 font-mono">Requires Facebook Connection First</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -536,8 +536,8 @@ const Onboarding = () => {
                                                     <GoogleLogo />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold font-heading font-semibold text-lg text-foreground">Google Business</h3>
-                                                    <p className="text-sm text-muted-foreground/80 font-mono">Connect for search intent</p>
+                                                    <h3 className="font-bold font-heading font-semibold text-lg text-foreground">Google Business Location</h3>
+                                                    <p className="text-sm text-muted-foreground/80 font-mono">Connect and select your location</p>
                                                 </div>
                                             </div>
                                             <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">

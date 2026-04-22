@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import os
 
 # Generate a valid short-lived token using the project's secret key
-secret = "raamp-jwt-secret-key-change-in-production-2024"
+secret = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
 payload = {
     "sub": "test@example.com",
     "exp": datetime.utcnow() + timedelta(minutes=15)

@@ -2,9 +2,17 @@
 Business Model for MongoDB - stores all business/restaurant information including brand alignment
 """
 from beanie import Document
-from pydantic import Field
-from typing import Optional
+from pydantic import Field, BaseModel
+from typing import Optional, List
 from datetime import datetime
+
+
+class ToneOfVoiceProfileModel(BaseModel):
+    personality: str
+    audience: str
+    language_rules: str
+    platforms: List[str] = []
+    content_types: List[str] = []
 
 
 class BusinessModel(Document):
@@ -19,6 +27,10 @@ class BusinessModel(Document):
     secondary_color: Optional[str] = Field(None, description="Secondary brand color (hex code)")
     tagline: Optional[str] = Field(None, max_length=100, description="Restaurant tagline")
     tone_of_voice: Optional[str] = Field(None, description="Tone of voice for AI-generated content")
+    tone_profile: Optional[ToneOfVoiceProfileModel] = Field(
+        None,
+        description="Structured tone-of-voice profile (personality, audience, language rules, platforms, content types)",
+    )
     restaurant_theme: Optional[str] = Field(None, description="Restaurant theme/ambiance")
     brand_colors: list[str] = Field(default_factory=list, description="List of brand hex colors")
     palette_source: str = Field(default="custom", description="Source of the palette (template, logo, custom)")

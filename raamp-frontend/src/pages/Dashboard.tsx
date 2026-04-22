@@ -36,7 +36,6 @@ import { CardSkeleton, ChartSkeleton } from "@/components/ui/card-skeleton";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
 import { ActionableIntelligence } from "@/components/dashboard/ActionableIntelligence";
-import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { instagramService } from "@/services/instagramService";
 
 type MapLocation = {
@@ -269,63 +268,9 @@ const Dashboard = () => {
           {/* 1. Real-time KPI Strip */}
           <KPIStrip businessId={activeBusinessId} />
 
-          {/* 2. Intelligence & Activity Surface */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <PerformanceCharts businessId={activeBusinessId} />
-            </div>
-            <div>
-              <ActivityFeed businessId={activeBusinessId} />
-            </div>
-          </div>
-
-          {/* Deployment Lifecycle Timeline (Next 24h) */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-bold text-foreground/70 font-heading uppercase tracking-[0.4em]">Deployment Lifecycle // Next 24H</h2>
-              </div>
-              <Badge variant="outline" className="border-primary/20 text-primary font-mono text-[10px] uppercase">
-                Synchronized: {analytics?.deployment_timeline.length || 0} Events
-              </Badge>
-            </div>
-
-            <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-              {loading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="min-w-[280px] h-32 rounded-xl bg-secondary/30 dark:bg-card/40 animate-pulse border border-border/10" />
-                ))
-              ) : (
-                analytics?.deployment_timeline.map((post) => (
-                  <HolographicCard key={post.id} className="min-w-[280px] p-3 border-primary/10 bg-secondary/20 dark:bg-card/20 group">
-                    <div className="flex gap-4 h-full">
-                      <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-border/50">
-                        <img src={post.media_url} alt="Post" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                      </div>
-                      <div className="flex flex-col justify-between overflow-hidden">
-                        <div>
-                          <p className="text-[10px] font-mono font-bold text-primary uppercase">{post.platform}</p>
-                          <p className="text-[11px] text-muted-foreground truncate w-full font-mono mt-1">{post.caption || "No caption"}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-foreground/5 text-muted-foreground border-0 text-[10px] font-mono px-0">
-                            {new Date(post.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </Badge>
-                          <div className="w-1 h-1 rounded-full bg-primary" />
-                          <span className="text-[10px] font-mono text-primary/80 uppercase tracking-tighter">Ready</span>
-                        </div>
-                      </div>
-                    </div>
-                  </HolographicCard>
-                ))
-              )}
-              {!loading && analytics?.deployment_timeline.length === 0 && (
-                <div className="w-full py-10 rounded-xl bg-foreground/5 border border-dashed border-border/30 flex items-center justify-center">
-                  <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-muted-foreground">No deployments pending for next 24H</p>
-                </div>
-              )}
-            </div>
+          {/* 2. Geo-Intent Intelligence Surface */}
+          <div>
+            <PerformanceCharts businessId={activeBusinessId} />
           </div>
 
 

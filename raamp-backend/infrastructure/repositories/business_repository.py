@@ -1,7 +1,7 @@
 """
 Business Repository - handles database operations for businesses
 """
-from infrastructure.database.models.business_model import BusinessModel
+from infrastructure.database.models.business_model import BusinessModel, ToneOfVoiceProfileModel
 from infrastructure.database.models.user_model import UserModel
 from typing import Optional
 from datetime import datetime
@@ -28,13 +28,16 @@ class BusinessRepository:
         secondary_color: str,
         tagline: str,
         tone_of_voice: str,
+        tone_profile: Optional[dict] = None,
         restaurant_theme: Optional[str] = None,
-        brand_colors: list[str] = [],
+        brand_colors: Optional[list[str]] = None,
         palette_source: str = "custom"
     ) -> BusinessModel:
         """Update or create brand alignment settings"""
         business = await self.get_by_user_id(user_id)
         
+        safe_brand_colors = brand_colors or []
+
         if business:
             # Update existing
             business.brand_logo_url = brand_logo_url
@@ -42,8 +45,9 @@ class BusinessRepository:
             business.secondary_color = secondary_color
             business.tagline = tagline
             business.tone_of_voice = tone_of_voice
+            business.tone_profile = ToneOfVoiceProfileModel(**tone_profile) if tone_profile else None
             business.restaurant_theme = restaurant_theme
-            business.brand_colors = brand_colors
+            business.brand_colors = safe_brand_colors
             business.palette_source = palette_source
             business.updated_at = datetime.utcnow()
             await business.save()
@@ -56,8 +60,9 @@ class BusinessRepository:
                 "secondary_color": secondary_color,
                 "tagline": tagline,
                 "tone_of_voice": tone_of_voice,
+                "tone_profile": ToneOfVoiceProfileModel(**tone_profile) if tone_profile else None,
                 "restaurant_theme": restaurant_theme,
-                "brand_colors": brand_colors,
+                "brand_colors": safe_brand_colors,
                 "palette_source": palette_source
             })
         

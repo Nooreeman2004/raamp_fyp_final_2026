@@ -1,12 +1,13 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import os
 
 # Mailtrap SMTP Sandbox credentials
 SMTP_HOST = "sandbox.smtp.mailtrap.io"
 SMTP_PORT = 2525
-SMTP_USERNAME = "41576076e86242"
-SMTP_PASSWORD = "e9e14836df233c"
+SMTP_USERNAME = os.getenv("MAILTRAP_SMTP_USERNAME", "")
+SMTP_PASSWORD = os.getenv("MAILTRAP_SMTP_PASSWORD", "")
 
 # Email details
 sender_email = "hello@demomailtrap.com"
@@ -76,6 +77,8 @@ try:
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
         server.set_debuglevel(1)  # Show SMTP conversation
         server.starttls()
+        if not SMTP_USERNAME or not SMTP_PASSWORD:
+            raise RuntimeError("Missing MAILTRAP_SMTP_USERNAME / MAILTRAP_SMTP_PASSWORD in environment")
         server.login(SMTP_USERNAME, SMTP_PASSWORD)
         server.sendmail(sender_email, recipient_email, msg.as_string())
     

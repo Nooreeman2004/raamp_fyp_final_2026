@@ -37,6 +37,10 @@ class InstagramPostRequest(BaseModel):
         None,
         description="ISO 8601 datetime for scheduled posts"
     )
+    asset_id: Optional[str] = Field(
+        None,
+        description="Asset ID this post was created from (for A/B tracking)"
+    )
     
     @validator("media_url")
     def validate_media_url(cls, v):

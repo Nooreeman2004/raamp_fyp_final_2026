@@ -15,6 +15,42 @@ from infrastructure.repositories.notification_settings_repository import Notific
 from infrastructure.database.models.notification_model import NotificationType, NotificationStatus
 from presentation.schemas.notification_schemas import NotificationResponse
 
+# -------------------------
+# Notification de-duplication
+# -------------------------
+def _build_notification_dedupe_key(
+    *,
+    user_id: str,
+    type: NotificationType,
+    title: str,
+    related_entity_id: Optional[str],
+    metadata: Optional[dict],
+) -> Optional[str]:
+    """
+    Best-effort dedupe key to avoid spam when workers retry or users double-click.
+
+    We only dedupe when we have a stable identifier (comment_id/draft_id/sent_id/etc.).
+    """
+    md = metadata or {}
+    sub_type = str(md.get("sub_type") or "").strip().lower()
+    platform = str(md.get("platform") or "").strip().lower()
+
+    # Prefer domain identifiers if present (auto-replies, posting, etc.)
+    stable_id = (
+        md.get("comment_id")
+        or md.get("draft_id")
+        or md.get("sent_id")
+        or md.get("post_id")
+        or related_entity_id
+    )
+    if not stable_id:
+        return None
+
+    # If no subtype and no platform, fall back to title (still stable enough with stable_id)
+    core = f"{type}:{sub_type or title}:{platform}:{stable_id}"
+    return f"{user_id}:{core}".lower()
+
+
 # Connection Manager for WebSockets
 class ConnectionManager:
     def __init__(self):
@@ -111,6 +147,29 @@ class NotificationService:
             else:
                 priority = 0
 
+        # 1.5 De-dupe identical notifications (best-effort).
+        # This prevents repeated "Reply suggestion ready" / "Reply sent" spam on retries.
+        dedupe_key = _build_notification_dedupe_key(
+            user_id=user_id,
+            type=type,
+            title=title,
+            related_entity_id=related_entity_id,
+            metadata=metadata,
+        )
+        if dedupe_key:
+            try:
+                existing = await self.repo.find_by_dedupe_key(user_id=user_id, dedupe_key=dedupe_key)
+                if existing:
+                    return existing
+            except Exception:
+                # Never fail the main flow because of dedupe lookup
+                pass
+
+        # Persist dedupe_key for future suppression (do not mutate caller dict)
+        md_for_store = dict(metadata or {})
+        if dedupe_key and "dedupe_key" not in md_for_store:
+            md_for_store["dedupe_key"] = dedupe_key
+
         # 2. Persist to Database
         notification = await self.repo.create(
             user_id=user_id,
@@ -119,7 +178,7 @@ class NotificationService:
             title=title,
             message=message,
             related_entity_id=related_entity_id,
-            metadata=metadata,
+            metadata=md_for_store,
             priority=int(priority or 0),
         )
         

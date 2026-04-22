@@ -27,6 +27,7 @@ import {
   Scale,
   Images,
   MessageSquare,
+  AlertTriangle,
   LifeBuoy,
   type LucideIcon
 } from "lucide-react";
@@ -80,6 +81,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Asset Library", icon: Images, href: "/dashboard/assets" },
     { label: "Trend Arbitrage", icon: TrendIcon, href: "/dashboard/trends" },
     { label: "Auto Replies", icon: MessageSquare, href: "/dashboard/auto-replies" },
+    { label: "Escalations", icon: AlertTriangle, href: "/dashboard/escalations" },
     { label: "A/B Testing", icon: Flask, href: "/dashboard/ab-testing" },
   ];
 

@@ -2,8 +2,9 @@ import urllib.request
 import urllib.error
 import jwt
 from datetime import datetime, timedelta
+import os
 
-secret = "raamp-jwt-secret-key-change-in-production-2024"
+secret = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
 # Real user payload
 payload = {
     "email": "test@example.com",

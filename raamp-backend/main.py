@@ -384,6 +384,7 @@ from presentation.routers import variant_recommendation_router
 from presentation.routers import unified_posting_router
 from presentation.routers import campaign_launch_router
 from presentation.routers import campaign_drafts_router
+from presentation.routers import campaign_planner_router
 from presentation.routers import instagram_roi_router
 # Trend Signal router for Google Trends integration
 from presentation.routers import trend_signal_router
@@ -393,11 +394,13 @@ from presentation.routers import stripe_router
 # Geo-Intent Marketing Engine router (real-world signals, replaces simulation)
 from presentation.routers import geo_intent_engine_router
 from presentation.routers import dashboard_analytics_router
+from presentation.routers import dashboard_posting_recommendations_router
 from presentation.routers import ml_router
 from presentation.routers import activity_router
 from presentation.routers.meta_ads_router import router as meta_ads_router
 from presentation.routers import meta_webhook_router
 from presentation.routers import auto_reply_router
+from presentation.routers import social_escalation_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
@@ -443,6 +446,7 @@ app.include_router(variant_recommendation_router.router)
 app.include_router(unified_posting_router.router)
 app.include_router(campaign_launch_router.router)
 app.include_router(campaign_drafts_router.router)
+app.include_router(campaign_planner_router.router)
 # Trend Signal router for Google Trends integration
 app.include_router(trend_signal_router.router, prefix="/api")
 app.include_router(arbitrage_router.router, prefix="/api")
@@ -452,11 +456,13 @@ app.include_router(stripe_router.router, prefix="/api")
 app.include_router(geo_intent_engine_router.router)
 # Dashboard Analytics — Home Dashboard Real-time Support
 app.include_router(dashboard_analytics_router.router)
+app.include_router(dashboard_posting_recommendations_router.router)
 app.include_router(activity_router.router)
 app.include_router(ml_router.router)  # ML Caption Intelligence endpoints
 app.include_router(meta_ads_router)
 app.include_router(meta_webhook_router.router)
 app.include_router(auto_reply_router.router)
+app.include_router(social_escalation_router.router)
 
 # Mount static files for uploaded content
 os.makedirs("uploaded_files", exist_ok=True)

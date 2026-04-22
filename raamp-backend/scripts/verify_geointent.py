@@ -16,7 +16,7 @@ from infrastructure.database.models.campaign_brief_model import CampaignBriefMod
 # Configuration
 API_BASE = "http://127.0.0.1:8000/api/v1/geo"
 TEST_USER_EMAIL = "verify_test@raamp.ai"
-JWT_SECRET = "raamp-jwt-secret-key-change-in-production-2024"
+JWT_SECRET = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
 BUSINESS_ID = "demo_biz"
 
 def print_f(msg):

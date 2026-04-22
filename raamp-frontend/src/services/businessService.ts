@@ -38,6 +38,13 @@ export interface BrandAlignmentRequest {
     secondary_color?: string | null;
     tagline?: string | null;
     tone_of_voice?: string | null;
+    tone_profile?: {
+        personality: string;
+        audience: string;
+        language_rules: string;
+        platforms?: string[];
+        content_types?: string[];
+    } | null;
     restaurant_theme?: string | null;
     brand_colors?: string[];
     palette_source?: string;
@@ -49,6 +56,13 @@ export interface BrandAlignmentResponse {
     secondary_color?: string | null;
     tagline?: string | null;
     tone_of_voice?: string | null;
+    tone_profile?: {
+        personality: string;
+        audience: string;
+        language_rules: string;
+        platforms?: string[];
+        content_types?: string[];
+    } | null;
     restaurant_theme?: string | null;
     brand_colors?: string[];
     palette_source?: string;

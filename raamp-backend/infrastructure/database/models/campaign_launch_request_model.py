@@ -31,6 +31,11 @@ class CampaignLaunchRequestModel(Document):
 
     user_email: Indexed(str) = Field(..., description="User who owns this request")
 
+    # Source attribution (Trend-driven vs Brand-driven planner)
+    source: str = Field(default="trend", description="trend | planner")
+    campaign_plan_id: Optional[str] = Field(None, description="CampaignPlanModel.id if created from planner")
+    planned_post_id: Optional[str] = Field(None, description="CampaignPlannedPostModel.id if created from planner")
+
     # Trend attribution
     trend_keyword: Optional[str] = Field(None, description="Keyword associated with this launch")
     trend_signal_id: Optional[str] = Field(None, description="TrendSignal id associated with this launch")
@@ -61,9 +66,11 @@ class CampaignLaunchRequestModel(Document):
         name = "campaign_launch_requests"
         indexes = [
             "user_email",
+            "source",
             "status",
             "created_at",
             [("user_email", 1), ("created_at", -1)],
             [("user_email", 1), ("status", 1)],
+            [("user_email", 1), ("source", 1)],
         ]
 

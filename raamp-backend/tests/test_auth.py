@@ -3,8 +3,9 @@ import urllib.error
 import json
 import jwt
 from datetime import datetime, timedelta
+import os
 
-secret = "raamp-jwt-secret-key-change-in-production-2024"
+secret = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
 # The DB has a seed user "admin@example.com" or just something that exists
 payload = {
     "email": "test@example.com",

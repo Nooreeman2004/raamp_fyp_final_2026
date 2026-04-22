@@ -1,8 +1,9 @@
 import urllib.request
 import jwt
 from datetime import datetime, timedelta
+import os
 
-secret = "raamp-jwt-secret-key-change-in-production-2024"
+secret = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
 payload = {"email": "admin@example.com", "exp": datetime.utcnow() + timedelta(minutes=15)}
 token = jwt.encode(payload, secret, algorithm="HS256")
 

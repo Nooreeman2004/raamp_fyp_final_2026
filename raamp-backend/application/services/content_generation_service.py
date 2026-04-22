@@ -362,6 +362,24 @@ class ContentGenerationService:
             biz_name_req = (brand_context.get("business_name") or "").strip()
             tagline_req = (brand_context.get("tagline") or "").strip()
 
+            def _ensure_verbatim_line(text: str, *, required: str) -> str:
+                """
+                Ensure `required` appears in `text` verbatim (case-sensitive substring).
+                If missing, append as a new line while staying under Instagram caption limits.
+                """
+                if not required:
+                    return str(text or "").strip()
+                base = str(text or "").strip()
+                if required in base:
+                    return base
+                limit = 2200
+                addition = ("\n" if base else "") + required
+                if len(base) + len(addition) <= limit:
+                    return base + addition
+                keep = max(0, limit - len(addition))
+                truncated = base[:keep].rstrip()
+                return truncated + addition
+
             def _tagline_probe(tagline: str) -> str:
                 words = [w for w in re.split(r"\s+", tagline.strip()) if w]
                 if len(words) >= 10:
@@ -583,11 +601,15 @@ class ContentGenerationService:
                     while len(hashtags) < 5:
                         hashtags.append(defaults[len(hashtags) % len(defaults)])
 
+                caption_text = variant.get("caption", "")
+                if tagline_req:
+                    caption_text = _ensure_verbatim_line(caption_text, required=tagline_req)
+
                 normalized_captions.append({
                     "id": variant.get("id", i + 1),
                     "caption_id": caption_id,  # Add caption_id to variant
                     "tone": variant.get("tone", f"Variant {i + 1}"),
-                    "caption": variant.get("caption", ""),
+                    "caption": caption_text,
                     "hashtags": hashtags,
                     "predicted_performance": variant.get("predicted_performance", "Good")
                 })
@@ -804,6 +826,10 @@ class ContentGenerationService:
 
                 if "regards" not in text.lower() and "best" not in text.lower() and "cheers" not in text.lower():
                     text += f"\n\nRegards, Team {biz_name}"
+
+                # Demo stability: always include the tagline verbatim.
+                if tagline_req:
+                    text = _ensure_verbatim_line(text, required=tagline_req)
                 
                 normalized_whatsapp.append({
                     "id": i + 1,
@@ -838,6 +864,9 @@ class ContentGenerationService:
 
                 if "subject:" not in text.lower():
                     text = f"Subject: Special Campaign Update\n\nBody: {text}\n\nRegards, Team {biz_name}"
+
+                if tagline_req:
+                    text = _ensure_verbatim_line(text, required=tagline_req)
                 
                 normalized_email.append({
                     "id": i + 1,

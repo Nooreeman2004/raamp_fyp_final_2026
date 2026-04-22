@@ -11,7 +11,7 @@ class Config:
     MONGO_URI: str = os.getenv("MONGODB_URL", os.getenv("MONGO_URI", "mongodb://localhost:27017/raamp_db"))
     
     # JWT Configuration
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production-use-openssl-rand-hex-32")
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     JWT_EXPIRATION_DAYS: int = int(os.getenv("JWT_EXPIRATION_DAYS", "7"))
     
@@ -24,7 +24,7 @@ class Config:
             # Development fallback: generate a stable key from JWT secret
             from cryptography.fernet import Fernet
             # Create stable key from JWT_SECRET for development
-            jwt_secret = os.getenv("JWT_SECRET_KEY", "development-secret-key-32bytes")
+            jwt_secret = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
             key_material = hashlib.sha256(jwt_secret.encode()).digest()
             key = base64.urlsafe_b64encode(key_material).decode()
         return key
@@ -35,11 +35,11 @@ class Config:
     # SMTP Sandbox for Testing (emails go to Mailtrap inbox, not real recipients)
     MAILTRAP_SMTP_HOST: str = "sandbox.smtp.mailtrap.io"
     MAILTRAP_SMTP_PORT: int = int(os.getenv("MAILTRAP_SMTP_PORT", "2525"))
-    MAILTRAP_SMTP_USERNAME: str = os.getenv("MAILTRAP_SMTP_USERNAME", "daaad2fab206e4")
-    MAILTRAP_SMTP_PASSWORD: str = os.getenv("MAILTRAP_SMTP_PASSWORD", "08f05079b826ec")
+    MAILTRAP_SMTP_USERNAME: str = os.getenv("MAILTRAP_SMTP_USERNAME", "")
+    MAILTRAP_SMTP_PASSWORD: str = os.getenv("MAILTRAP_SMTP_PASSWORD", "")
     
     # Fallback API configuration (not used with SMTP)
-    MAILTRAP_API_TOKEN: str = os.getenv("MAILTRAP_API_TOKEN", "78049356a1e16f8ffe78c57832a34eed")
+    MAILTRAP_API_TOKEN: str = os.getenv("MAILTRAP_API_TOKEN", "")
     MAILTRAP_ENDPOINT: str = os.getenv("MAILTRAP_ENDPOINT", "https://send.api.mailtrap.io/api/send")
     
     SENDER_EMAIL: str = os.getenv("MAIL_FROM", "hello@demomailtrap.com")

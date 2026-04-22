@@ -98,6 +98,20 @@ class NotificationRepository:
         await notification.insert()
         return notification
 
+    async def find_by_dedupe_key(self, user_id: str, dedupe_key: str) -> Optional[NotificationModel]:
+        """
+        Best-effort lookup for deduping repeated notifications.
+        Stored at `metadata.dedupe_key` (no schema migration required).
+        """
+        if not dedupe_key:
+            return None
+        return await NotificationModel.find_one(
+            {
+                "user_id": user_id,
+                "metadata.dedupe_key": str(dedupe_key),
+            }
+        )
+
     async def create_notification(self, *args, **kwargs) -> NotificationModel:
         """Alias for create() to support legacy calls"""
         return await self.create(*args, **kwargs)

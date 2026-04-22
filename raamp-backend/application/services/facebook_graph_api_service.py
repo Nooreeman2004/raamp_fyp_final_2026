@@ -253,6 +253,28 @@ class FacebookGraphAPIClient:
         except Exception as e:
             logger.error("Failed to reply to comment: %s", str(e))
             raise FacebookAPIError(f"Failed to reply to comment: {str(e)}")
+
+    async def like_comment(self, *, comment_id: str, page_access_token: str) -> bool:
+        """
+        Like a Facebook comment (best-effort).
+
+        Endpoint: POST /{comment-id}/likes
+        Returns: True on success.
+        """
+        url = f"{self.BASE_URL}/{comment_id}/likes"
+        payload = {"access_token": page_access_token}
+        try:
+            response = await self.client.post(url, data=payload)
+            response.raise_for_status()
+            data = response.json()
+            # Graph usually returns {"success": true}
+            if isinstance(data, dict) and data.get("success") is True:
+                return True
+            # Some variants may return an id-like payload; treat 2xx as success.
+            return True
+        except Exception as e:
+            logger.warning("Failed to like comment %s: %s", str(comment_id), str(e)[:200])
+            return False
     
     async def get_page_access_token(
         self,

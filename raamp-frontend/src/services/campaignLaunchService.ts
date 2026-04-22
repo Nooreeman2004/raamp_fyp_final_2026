@@ -10,6 +10,9 @@ export interface CampaignLaunchCreateRequest {
   caption?: string | null;
   scheduled_time?: string | null;
   facebook_page_id?: string | null;
+  source?: "trend" | "planner" | null;
+  campaign_plan_id?: string | null;
+  planned_post_id?: string | null;
   trend_keyword?: string | null;
   trend_signal_id?: string | null;
 }
@@ -29,6 +32,9 @@ export interface CampaignLaunchItem {
   media_url: string;
   caption?: string | null;
   scheduled_time?: string | null;
+  source?: "trend" | "planner" | null;
+  campaign_plan_id?: string | null;
+  planned_post_id?: string | null;
   trend_keyword?: string | null;
   trend_signal_id?: string | null;
   created_at: string;

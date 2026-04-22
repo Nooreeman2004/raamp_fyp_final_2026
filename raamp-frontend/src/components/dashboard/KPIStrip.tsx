@@ -1,11 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Activity, Target, Zap, ExternalLink } from "lucide-react";
+import { Users, Target, ExternalLink, MessageSquare, AlertTriangle } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { instagramService } from '@/services/instagramService';
-import { geoIntentService } from '@/services/geoIntentService';
 import { trendService } from '@/services/trendService';
-import { businessService } from '@/services/businessService';
+import { autoReplyService } from "@/services/autoReplyService";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -13,6 +12,18 @@ import { Link } from "react-router-dom";
 interface KPIStripProps {
   businessId: string;
 }
+
+type KPIItem = {
+  label: string;
+  value: number;
+  subValue?: string | null;
+  cta?: { label: string; route: string } | null;
+  icon: any;
+  color: string;
+  bg: string;
+  loading: boolean;
+  suffix?: string;
+};
 
 export const KPIStrip = ({ businessId }: KPIStripProps) => {
   // 1. ROI & Reach
@@ -30,15 +41,12 @@ export const KPIStrip = ({ businessId }: KPIStripProps) => {
     refetchInterval: 30000
   });
 
-  // 3. Current Heat Score
-  const { data: geoHistory, isLoading: geoLoading } = useQuery({
-    queryKey: ['geo-history-recent', businessId],
-    queryFn: () => geoIntentService.getHistory(businessId, 1),
-    enabled: !!businessId
+  // 3. Comment & Escalation stats
+  const { data: commentStats, isLoading: statsLoading } = useQuery({
+    queryKey: ['auto-reply-dashboard-stats'],
+    queryFn: () => autoReplyService.getDashboardStats(),
+    refetchInterval: 30000,
   });
-  // API returns { business_id, total, logs } — newest log first
-  const recentLog = geoHistory?.logs?.[0];
-  const heatScore = recentLog?.final_score ?? 0;
 
   // 4. Connection Statuses
   const { data: socialStatus, isLoading: statusLoading } = useQuery({
@@ -46,12 +54,7 @@ export const KPIStrip = ({ businessId }: KPIStripProps) => {
     queryFn: () => instagramService.getSocialConnectionStatus(),
   });
 
-  const { data: hyperlocalSetup, isLoading: setupLoading } = useQuery({
-    queryKey: ['hyperlocal-setup-kpi'],
-    queryFn: () => businessService.getHyperlocalSetup(),
-  });
-
-  const kpis = [
+  const kpis: KPIItem[] = [
     {
       label: "Total Reach",
       value: roiSummary?.total_reach || 0,
@@ -63,26 +66,27 @@ export const KPIStrip = ({ businessId }: KPIStripProps) => {
       loading: roiLoading || statusLoading
     },
     {
-      label: "Avg Engagement",
-      value: roiSummary?.avg_engagement_rate || 0,
-      suffix: "%",
-      subValue: roiSummary?.avg_engagement_rate ? "Monitoring signals..." : (socialStatus?.instagram_connected ? "Awaiting insights" : null),
-      cta: !socialStatus?.instagram_connected && !statusLoading ? { label: "Verify Connections", route: "/profile/onboarding" } : null,
-      icon: Activity,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-      loading: roiLoading || statusLoading
+      label: "Total Comments",
+      value: (commentStats as any)?.comments_all_time?.total || 0,
+      subValue: `FB ${(commentStats as any)?.comments_all_time?.facebook || 0} · IG ${(commentStats as any)?.comments_all_time?.instagram || 0} · All-time`,
+      cta: { label: "View Auto Replies", route: "/dashboard/auto-replies" },
+      icon: MessageSquare,
+      color: "text-cyan-400",
+      bg: "bg-cyan-500/10",
+      loading: statsLoading
     },
 
     {
-      label: "Market Heat Index",
-      value: heatScore,
-      subValue: recentLog?.urgency ? `Urgency: ${recentLog.urgency}` : (hyperlocalSetup?.has_setup ? "No active scans" : null),
-      cta: !hyperlocalSetup?.has_setup && !setupLoading ? { label: "Configure Location", route: "/profile/onboarding" } : (!heatScore && !geoLoading ? { label: "Run Market Scan", route: "/dashboard/geo-intent" } : null),
-      icon: Zap,
-      color: "text-indigo-400",
-      bg: "bg-indigo-500/10",
-      loading: geoLoading || setupLoading
+      label: "Escalations (Open)",
+      value: commentStats?.escalations?.open || 0,
+      subValue: commentStats?.escalations?.soonest_sla_due_at
+        ? `Next SLA: ${new Date(commentStats.escalations.soonest_sla_due_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+        : "No SLA due",
+      cta: { label: "View Escalations", route: "/dashboard/escalations" },
+      icon: AlertTriangle,
+      color: "text-destructive",
+      bg: "bg-destructive/10",
+      loading: statsLoading
     },
     {
       label: "Active Trends",

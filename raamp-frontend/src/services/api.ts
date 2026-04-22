@@ -87,6 +87,7 @@ class ApiClient {
 
     // Geo-intent (Trends + Places + Weather in parallel, or multi-zone recommend) often exceeds 20s under API latency.
     const isGeoEndpoint = endpoint.includes('/v1/geo/');
+    const isCampaignPlanner = endpoint.includes('/campaign-planner/');
 
     // Social posting, trends, chatbot RAG, and media generation can run 60s+ on the backend
     const baseDefault = isAuthEndpoint
@@ -95,6 +96,8 @@ class ApiClient {
         ? 60000
         : isMediaGeneration
           ? 120000
+          : isCampaignPlanner
+            ? 25000
           : 20000;
 
     // recommend-zones runs 4–8 parallel full signal ingests — often slower than a single heat-score.
