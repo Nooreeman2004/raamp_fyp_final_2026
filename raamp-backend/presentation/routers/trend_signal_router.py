@@ -1327,7 +1327,14 @@ async def get_viral_audio(
     key = f"v1:{platform.lower()}:{geo.upper()}:{niche.lower()}"
     cached = await _cached_get(namespace, key)
     if cached is not None:
-        return {"source": "apple_music_rss", "label": "Trending Audio (charting)", "tracks": cached}
+        # IMPORTANT: Frontend reads `recommended_tracks`. Keep `tracks` for backward compatibility.
+        return {
+            "source": "spotify_or_apple",
+            "label": "Trending Audio (charting)",
+            "recommended_tracks": cached,
+            "tracks": cached,
+            "cached": True,
+        }
 
     tracks = await ViralAudioProvider().get_tracks(
         platform=platform,

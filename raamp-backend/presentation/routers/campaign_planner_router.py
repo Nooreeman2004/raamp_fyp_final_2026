@@ -120,6 +120,24 @@ async def get_plan(
     )
 
 
+@router.delete("/plans/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_plan(
+    plan_id: str,
+    current_user_email: str = Depends(get_current_user_email),
+):
+    plan = await CampaignPlanModel.get(plan_id)
+    if not plan or plan.user_email != current_user_email:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    await CampaignPlannedPostModel.find(
+        CampaignPlannedPostModel.campaign_plan_id == plan_id,
+        CampaignPlannedPostModel.user_email == current_user_email
+    ).delete()
+    
+    await plan.delete()
+
+
+
 @router.get("/plans/{plan_id}/calendar", response_model=CalendarQueryResponse)
 async def calendar_for_plan(
     plan_id: str,

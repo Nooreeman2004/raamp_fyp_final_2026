@@ -2,7 +2,7 @@
 
 **Sentiment Analysis & Competitive Intelligence Engine**
 
-Final Year Project --- Module Scope Document
+Final Year Project --- Module Scope Document (Revised MVP)
 
 **1. Module Overview**
 
@@ -22,8 +22,8 @@ Final Year Project --- Module Scope Document
                         SerpAPI (competitor discovery)
 
   **ML Components**     Supervised: Sentiment Classification (TF-IDF +
-                        Logistic Regression) \| Unsupervised: Topic
-                        Extraction (LDA)
+                        Logistic Regression) | Rule-Based: Keyword
+                        Extraction & Insight Detection
 
   **Integration         Competitor Benchmarking Radar (Module 4), AI
   Points**              Creative Studio (Module 1), Performance Dashboard
@@ -45,14 +45,14 @@ This module solves that by:
 -   Automatically reading and classifying reviews and comments as
     positive, negative, or neutral
 
--   Identifying the specific topics driving praise or complaints (food
+-   Identifying the specific keywords driving praise or complaints (food
     quality, delivery, pricing, etc.)
 
--   Comparing the client restaurant\'s sentiment profile against local
+-   Comparing the client restaurant's sentiment profile against local
     competitors
 
 -   Translating those insights into concrete campaign suggestions inside
-    RAAMP\'s existing Creative Studio
+    RAAMP's existing Creative Studio
 
 **3. Data Sources & Availability**
 
@@ -97,10 +97,14 @@ This module solves that by:
                                             for synthetic data.
   ------------------ ---------------------- ------------------------------
 
+**Expected Data Volume:** 70-100 total reviews per restaurant (aggregated
+across all 4 sources), sufficient for sentiment classification and keyword
+analysis.
+
 **4. ML Training Pipeline**
 
-The module contains two distinct ML components, each with its own
-training and inference pipeline.
+The module contains one supervised ML component for sentiment
+classification and a rule-based system for insight extraction.
 
 **4.1 Component 1 --- Sentiment Classifier (Supervised)**
 
@@ -130,27 +134,39 @@ training and inference pipeline.
                         runtime to score live reviews
   --------------------- -------------------------------------------------
 
-**4.2 Component 2 --- Topic Extractor (Unsupervised)**
+**4.2 Component 2 --- Keyword Insight Extractor (Rule-Based)**
 
   --------------------- -------------------------------------------------
-  **Goal**              Identify recurring themes in reviews (e.g., food
-                        quality, delivery speed, pricing, ambiance)
+  **Goal**              Identify recurring keywords and themes in
+                        positive vs negative reviews (e.g., food quality,
+                        delivery speed, pricing)
 
-  **Input**             Preprocessed review text corpus
+  **Input**             Preprocessed review text corpus, separated by
+                        sentiment class
 
-  **Model**             Latent Dirichlet Allocation (LDA) --- sklearn
-                        implementation
+  **Method**            Domain-specific keyword dictionaries + frequency
+                        analysis. No training required.
 
-  **Configuration**     Number of topics: 6--8 (tuned using coherence
-                        score). Topics manually labeled after training
-                        based on top keywords.
+  **Keyword             Food Quality: [delicious, fresh, tasty,
+  Categories**          amazing], Delivery: [late, slow, cold,
+                        delivered], Service: [friendly, rude, attentive,
+                        waited], Pricing: [expensive, cheap, value,
+                        overpriced], Ambiance: [cozy, clean, noisy,
+                        atmosphere]
 
-  **Evaluation**        Topic coherence score (UMass / CV). Human
-                        validation of topic labels.
+  **Evaluation**        Human validation of extracted keywords. Sample
+                        review inspection.
 
-  **Output**            Per-review topic distribution → aggregated into
-                        restaurant-level topic scores
+  **Output**            Top 5-10 keywords per sentiment class (positive,
+                        negative) with frequency counts and percentage
+                        mentions
   --------------------- -------------------------------------------------
+
+**Rationale for Rule-Based Approach:** LDA topic modeling requires 100+
+documents per topic for statistical stability. With typical review volumes
+of 70-100 total reviews, LDA would produce unstable topics. Rule-based
+keyword extraction is more appropriate for small sample sizes and provides
+interpretable results.
 
 **4.3 Pipeline Flow**
 
@@ -166,16 +182,17 @@ training and inference pipeline.
   **3**      Sentiment Scoring       Run each review through trained Logistic
                                      Regression classifier
 
-  **4**      Topic Extraction        Run LDA on review corpus, assign dominant
-                                     topic per review
+  **4**      Keyword Extraction      Extract frequent keywords from positive
+                                     and negative review sets using domain
+                                     dictionaries
 
-  **5**      Aggregation             Compute per-business sentiment scores and
-                                     topic distribution percentages
+  **5**      Aggregation             Compute per-business sentiment scores,
+                                     keyword frequencies, and sample size
 
   **6**      Comparison              Diff own restaurant vs competitor
-                                     averages per topic
+                                     sentiment scores and ranking
 
-  **7**      Action Generation       Map complaint/praise patterns to campaign
+  **7**      Action Generation       Map keyword patterns to campaign
                                      templates in Creative Studio
   ---------- ----------------------- -----------------------------------------
 
@@ -185,39 +202,45 @@ training and inference pipeline.
 
 -   Overall sentiment score for own restaurant (0--100 scale)
 
--   Trend line: sentiment over last 30 / 60 / 90 days
+-   Last scan timestamp (e.g., "Last updated: 2 days ago")
+
+-   Sample size display (e.g., "Based on 87 reviews")
 
 -   Breakdown: % Positive / Neutral / Negative
 
-**5.2 Topic Intelligence Panel**
+**5.2 Keyword Insights Panel**
 
--   Top 3 praise topics this week (e.g., \'Food Quality 78% positive\')
+-   **Top Praise Keywords:** Most frequent words in positive reviews
+    (e.g., "delicious" - mentioned in 34% of positive reviews,
+    "friendly" - 28%, "fresh" - 21%)
 
--   Top 3 complaint topics this week (e.g., \'Delivery Speed 61%
-    negative\')
+-   **Top Complaint Keywords:** Most frequent words in negative reviews
+    (e.g., "slow" - mentioned in 45% of negative reviews, "cold" - 30%,
+    "expensive" - 25%)
 
--   Topic sentiment trend over time
+-   Keyword category detection: highlights if delivery, service, food,
+    or pricing issues dominate
 
 **5.3 Competitor Comparison Panel**
 
 -   Side-by-side sentiment score: own restaurant vs top 3 competitors
+    (bar chart format)
 
--   Topic-level comparison table --- where you are ahead, where you are
-    behind
+-   Competitive ranking: "You rank #2 among 4 local competitors"
 
--   \'Competitive gap\' highlight: topics where you outperform
-    competitors
+-   Sentiment gap highlights: where you are ahead or behind in overall
+    positive percentage
 
 **5.4 Campaign Recommendation Engine**
 
--   If delivery complaints spike → suggest \'We Improved Our Delivery\'
-    campaign in Creative Studio
+-   If "delivery" or "slow" keywords dominate negative reviews →
+    suggest 'We Improved Our Delivery' campaign in Creative Studio
 
--   If pricing sentiment drops vs competitors → suggest discount/value
-    campaign
+-   If "expensive" or "price" keywords appear frequently → suggest
+    discount/value campaign
 
--   If food quality praise is high → suggest \'Our Customers Love Our
-    Food\' social proof campaign
+-   If "delicious" or "amazing" keywords dominate positive reviews →
+    suggest 'Our Customers Love Our Food' social proof campaign
 
 -   Each recommendation is one-click to generate content in the existing
     AI Creative Studio
@@ -238,7 +261,7 @@ training and inference pipeline.
                                           sentiment issues.
 
   Module 10 ---          Adds widget      Sentiment score and top
-  Performance Dashboard                   complaint topic appear as new
+  Performance Dashboard                   complaint keyword appear as new
                                           KPI cards on the existing
                                           dashboard.
 
@@ -255,16 +278,29 @@ training and inference pipeline.
 
   Google Places API returns   SerpAPI Google Reviews endpoint used as
   max 5 reviews per business  supplement for competitor data (10--20
-                              reviews). Limitation acknowledged in FYP
-                              documentation.
+                              reviews). Aggregate across 4 sources (Google,
+                              SerpAPI, Instagram, Facebook) to reach
+                              70-100+ reviews total. Limitation
+                              acknowledged in FYP documentation.
 
-  Small restaurants may have  Module shows \'insufficient data\' state
+  Small restaurants may have  Module shows 'insufficient data' state
   low comment volume on       gracefully. Sentiment scores require
-  social media                minimum 10 data points to render.
+  social media                minimum 10 data points to render. Sample
+                              size is displayed prominently to users.
 
-  LDA topic labels require    Topics are pre-labeled after training based
-  manual interpretation       on top keywords. Labels are hardcoded to
-                              restaurant-domain themes.
+  No time-series trend data   Google Places API does not provide
+                              continuous review streams. System displays
+                              "last scanned" timestamp instead of trend
+                              lines. Weekly scan schedule implemented to
+                              capture new reviews over time.
+
+  Keyword extraction is       Deliberate design choice: rule-based keyword
+  rule-based, not learned     detection is interpretable, requires no
+                              training, and works reliably with small
+                              sample sizes. LDA topic modeling requires
+                              100+ documents per topic and would be
+                              unstable with typical review volumes
+                              (70-100 reviews).
 
   Yelp training data may not  Acknowledged as a generalization
   fully represent             limitation. Scope is English-language
@@ -283,22 +319,24 @@ training and inference pipeline.
   **Backend Language**  Python (FastAPI --- consistent with existing
                         RAAMP backend)
 
-  **ML Libraries**      scikit-learn (TF-IDF, Logistic Regression, LDA),
-                        pandas, numpy, joblib (model serialization)
+  **ML Libraries**      scikit-learn (TF-IDF, Logistic Regression),
+                        pandas, numpy, joblib (model serialization),
+                        nltk (stopwords, tokenization)
 
   **New Router**        sentiment_router.py --- prefix /api/sentiment
 
   **New Service**       sentiment_service.py --- orchestrates ingestion,
-                        scoring, topic extraction, comparison
+                        scoring, keyword extraction, comparison
 
-  **Model Storage**     Trained models saved as .pkl files, loaded at
-                        startup
+  **Model Storage**     Trained sentiment classifier saved as .pkl file,
+                        loaded at startup
 
   **Frontend**          New SentimentDashboard.tsx page +
                         SentimentWidget.tsx for dashboard KPI strip
 
-  **Database**          MongoDB --- stores aggregated sentiment scores
-                        and topic distributions per business per scan
+  **Database**          MongoDB --- stores aggregated sentiment scores,
+                        keyword frequencies, and scan metadata per
+                        business
 
   **External APIs**     Google Places API (existing), SerpAPI (existing),
                         Instagram Graph API (existing), Facebook Graph
@@ -308,13 +346,13 @@ training and inference pipeline.
 **9. Deliverables**
 
   -------- ------------------------ ---------------------- -------------------
-  **\#**   **Deliverable**          **Type**               **Status**
+  **#**    **Deliverable**          **Type**               **Status**
 
   **1**    Trained Sentiment        ML Model               To be built
            Classifier (.pkl)                               
 
-  **2**    Trained LDA Topic Model  ML Model               To be built
-           (.pkl)                                          
+  **2**    Keyword extraction       Backend Code           To be built
+           module (rule-based)                             
 
   **3**    sentiment_router.py +    Backend Code           To be built
            sentiment_service.py                            
@@ -327,7 +365,8 @@ training and inference pipeline.
 
   **6**    Evaluation report        Documentation          To be built
            (metrics + confusion                            
-           matrix)                                         
+           matrix + keyword                                
+           validation)                                     
   -------- ------------------------ ---------------------- -------------------
 
 **10. FYP Defense Talking Points**
@@ -353,19 +392,40 @@ research. The domain mismatch between training (Yelp) and inference
 **Q: How is this different from just showing star ratings?**
 
 Star ratings give an aggregate score. This module tells you WHY the
-score is what it is, which specific topics are driving it, how it
-compares to competitors on each topic, and what marketing action to take
-in response. That is the value add.
+score is what it is, which specific keywords are driving it, how it
+compares to competitors, and what marketing action to take in response.
+That is the value add.
 
 **Q: What is the ML pipeline exactly?**
 
 Data ingestion from APIs → text preprocessing → TF-IDF feature
-extraction → Logistic Regression inference (supervised) → LDA topic
-modeling (unsupervised) → aggregation and comparison → campaign action
-mapping. Two distinct ML models, both trained on real data, with
-documented evaluation metrics.
+extraction → Logistic Regression inference (supervised) → keyword
+extraction (rule-based) → aggregation and comparison → campaign action
+mapping. One trained ML model (sentiment classifier) plus rule-based
+keyword detection, with documented evaluation metrics.
+
+**Q: Why didn't you use topic modeling (LDA)?**
+
+Initial scope included LDA, but after analyzing API data volume
+constraints (5 reviews from Google Places, 10-20 from SerpAPI), I
+determined that topic modeling requires 100+ documents per topic for
+statistical stability. With typical volumes of 70-100 total reviews
+across 6-8 topics, LDA would produce unstable, unreliable topics that
+change on every retrain. Rule-based keyword extraction provides
+interpretable insights without overfitting to small samples, and is more
+appropriate for the available data volume.
+
+**Q: How do you handle new reviews over time?**
+
+The system runs a weekly scan and stores sentiment snapshots in MongoDB.
+While individual restaurants don't get many new Google reviews, social
+media comments refresh more frequently. Each scan displays "Last updated:
+X days ago" and sample size to set user expectations. Over multiple
+weeks, the system builds a historical record of sentiment changes.
+
+---
 
 RAAMP --- Final Year Project
 
-Module Scope Document \| Sentiment Analysis & Competitive Intelligence
-Engine
+Module Scope Document | Sentiment Analysis & Competitive Intelligence
+Engine (MVP)

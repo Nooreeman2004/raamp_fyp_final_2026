@@ -478,6 +478,18 @@ const GeoIntent = () => {
       // Also fetch heatmap and strategy history
       await fetchHeatmap(activeSetup);
       await fetchStrategyHistory(activeSetup);
+      
+      // Restore Top Zones from cache if they match current business (preserve zones during refresh)
+      const cached = readZoneCache();
+      if (
+        cached &&
+        cached.business_id === businessId &&
+        Array.isArray(cached.zones) &&
+        cached.zones.length > 0
+      ) {
+        setRecommendedZones(cached.zones);
+        setZoneScanMeta({ radius_m: cached.radius_m, timestamp: cached.timestamp });
+      }
     } catch (error: any) {
       console.error("Failed to fetch geo intent data", error);
       setErrorMsg(error?.message || "Our satellite link timed out. Please try a smaller radius or refresh the radar.");

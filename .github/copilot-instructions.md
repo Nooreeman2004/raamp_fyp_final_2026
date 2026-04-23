@@ -21,11 +21,11 @@ We are building a decoupled application (RAAMP) split into two domains:
 
 ## 🛠 Workflow Orchestration
 
-### 1. Plan Node Default
-- Enter **Plan Mode** for ANY non-trivial task (3+ steps or architectural decisions).
+### 1. Smart Planning (When Needed)
+- **ONLY plan for**: Multi-file refactors, new module implementations, complex architectural changes
+- **Skip planning for**: Bug fixes, single-file edits, documentation updates, simple feature additions
 - If a fix goes sideways, **STOP** and re-plan immediately—do not "brute force" a solution.
-- Use plan mode for verification steps, not just building.
-- Write detailed specs upfront to reduce ambiguity.
+- Default to action first, plan only when truly complex (5+ interconnected steps)
 
 ### 2. Subagent Strategy
 - Use subagents liberally to keep the main context window clean.
@@ -61,12 +61,10 @@ We are building a decoupled application (RAAMP) split into two domains:
 
 ##  Task Management
 
-1. **Plan First**: Write the plan to `tasks/todo.md` with checkable items.
-2. **Verify Plan**: Check in with the user before starting implementation.
-3. **Track Progress**: Mark items complete as you go.
-4. **Explain Changes**: Provide a high-level summary at each step.
-5. **Document Results**: Add a review section to `tasks/todo.md`.
-6. **Capture Lessons**: Update `tasks/lessons.md` after every user correction.
+1. **Track When Useful**: For multi-step work, use `tasks/todo.md` with checkable items. Skip for simple tasks.
+2. **Act Fast**: Start implementation immediately for clear requests. Only verify plan if truly ambiguous.
+3. **Explain Changes**: Provide a high-level summary at each step.
+4. **Capture Lessons**: Update `tasks/lessons.md` after every user correction.
 
 ---
 

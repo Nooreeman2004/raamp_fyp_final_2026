@@ -195,6 +195,13 @@ const CreativeStudio = () => {
 
     setIsGenerating(true);
     try {
+      console.log("🚀 Starting content generation:", {
+        campaign_idea: campaignIdea.trim().substring(0, 50) + "...",
+        aspect_ratio: aspectRatio,
+        content_type: contentType,
+        timestamp: new Date().toISOString()
+      });
+
       toast.info("Generating Content...", {
         description: `AI is creating your ${contentType} content. This may take 10-15 seconds.`,
         duration: 15000
@@ -204,6 +211,16 @@ const CreativeStudio = () => {
         campaign_idea: campaignIdea.trim(),
         aspect_ratio: aspectRatio,
         content_type: contentType
+      });
+
+      console.log("✅ Content generation response:", {
+        success: response.success,
+        caption_variants: response.caption_variants?.length || 0,
+        hashtag_sets: response.hashtag_sets?.length || 0,
+        whatsapp_variants: response.whatsapp_variants?.length || 0,
+        email_variants: response.email_variants?.length || 0,
+        image_paths: response.image_paths?.length || 0,
+        generated_at: response.generated_at
       });
 
       setGeneratedContent(response);
@@ -235,9 +252,19 @@ const CreativeStudio = () => {
         duration: 5000
       });
     } catch (error) {
-      console.error("Content generation failed:", error);
+      console.error("❌ Content generation failed:", {
+        error: error,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      });
+      
+      const msg = error instanceof Error ? error.message : String(error);
+      
+      // Show detailed error to user
       toast.error("Content Generation Failed", {
-        description: "Unable to create content. Please check your connection and try again."
+        description: msg || "Unable to create content. Check console for details.",
+        duration: 10000
       });
     } finally {
       setIsGenerating(false);
@@ -619,7 +646,7 @@ const CreativeStudio = () => {
                     <SelectTrigger className="w-full bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0d1b26] border-border/50">
+                    <SelectContent className="bg-card border-border/50">
                       <SelectItem value="all" className="font-mono text-sm text-foreground"><ThemeEmoji name="sparkles" className="mr-1" /> All Types</SelectItem>
                       <SelectItem value="captions" className="font-mono text-sm text-foreground"><ThemeEmoji name="pencil" className="mr-1" /> Captions</SelectItem>
                       <SelectItem value="hashtags" className="font-mono text-sm text-foreground"><ThemeEmoji name="tag" className="mr-1" /> Hashtags</SelectItem>
@@ -873,7 +900,7 @@ const CreativeStudio = () => {
                     <SelectTrigger className="w-full bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0d1b26] border-border/50">
+                    <SelectContent className="bg-card border-border/50">
                       <SelectItem value="1:1" className="font-mono text-sm text-foreground"><ThemeEmoji name="square" className="mr-1" /> 1:1 — Square</SelectItem>
                       <SelectItem value="9:16" className="font-mono text-sm text-foreground"><ThemeEmoji name="ruler" className="mr-1" /> 9:16 — Vertical</SelectItem>
                       <SelectItem value="4:5" className="font-mono text-sm text-foreground"><ThemeEmoji name="frame" className="mr-1" /> 4:5 — Portrait</SelectItem>
@@ -1085,7 +1112,7 @@ const CreativeStudio = () => {
                     <SelectTrigger className="w-full bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0d1b26] border-border/50">
+                    <SelectContent className="bg-card border-border/50">
                       <SelectItem value="4" className="font-mono text-sm text-foreground">4 seconds</SelectItem>
                       <SelectItem value="5" className="font-mono text-sm text-foreground">5 seconds</SelectItem>
                       <SelectItem value="6" className="font-mono text-sm text-foreground">6 seconds</SelectItem>

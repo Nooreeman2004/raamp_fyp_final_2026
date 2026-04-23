@@ -46,10 +46,13 @@ class ContentGenerationUseCase:
                 "business_name": None,
                 "tagline": None,
                 "tone_of_voice": None,
+                "tone_profile": None,
                 "restaurant_theme": None,
                 "business_type": None,
                 "primary_color": None,
                 "secondary_color": None,
+                "brand_colors": [],
+                "palette_source": None,
                 "brand_logo_url": None,
                 "specialties": []
             }
@@ -58,10 +61,13 @@ class ContentGenerationUseCase:
             "business_name": business.business_name,
             "tagline": business.tagline,
             "tone_of_voice": business.tone_of_voice,
+            "tone_profile": business.tone_profile.model_dump() if getattr(business, "tone_profile", None) else None,
             "restaurant_theme": business.restaurant_theme,
             "business_type": business.business_type,
             "primary_color": business.primary_color,
             "secondary_color": business.secondary_color,
+            "brand_colors": getattr(business, "brand_colors", []) or [],
+            "palette_source": getattr(business, "palette_source", None),
             "brand_logo_url": business.brand_logo_url,
             "specialties": business.specialties
         }
@@ -111,12 +117,16 @@ class ContentGenerationUseCase:
         brand_context = await self.get_brand_context(user_id)
 
         # Brand field gate: reject early (before credits) if required fields are missing.
-        required_fields = ["business_name", "tagline", "tone_of_voice"]
+        # "Brand-lock": for strict brand relevance across text+images+videos,
+        # require full brand identity fields (logo + palette) in addition to name/tagline/tone.
+        required_fields = ["business_name", "tagline", "tone_of_voice", "restaurant_theme", "brand_logo_url"]
         missing: List[str] = []
         for f in required_fields:
             v = brand_context.get(f)
             if v is None or not str(v).strip():
                 missing.append(f)
+        if not (brand_context.get("brand_colors") and len(brand_context.get("brand_colors") or []) >= 2):
+            missing.append("brand_colors")
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

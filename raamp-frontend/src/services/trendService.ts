@@ -350,13 +350,31 @@ export const trendService = {
         return apiClient.post(`/trends/${trendId}/ai-analysis/regenerate`, {});
     },
 
-    // --- INTELLIGENCE (Module 3 placeholders: no backend routes yet; avoid 404 noise in demo) ---
-    getViralAudio: async (_platform: string, _geo: string, _niche: string): Promise<{ recommended_tracks: unknown[] }> => {
-        return Promise.resolve({ recommended_tracks: [] });
+    // --- INTELLIGENCE ---
+    getViralAudio: async (platform: string, geo: string, niche: string): Promise<{ recommended_tracks: unknown[] }> => {
+        const qs = new URLSearchParams();
+        qs.set("platform", platform || "instagram");
+        qs.set("geo", geo || "GLOBAL");
+        qs.set("niche", niche || "general");
+        const data = await apiClient.get<any>(`/trends/viral-audio?${qs.toString()}`);
+        return {
+            recommended_tracks: Array.isArray((data as any)?.recommended_tracks)
+                ? (data as any).recommended_tracks
+                : Array.isArray((data as any)?.tracks)
+                  ? (data as any).tracks
+                  : [],
+        };
     },
 
-    getInfluencerRadar: async (_geo: string, _niche: string, _keyword?: string): Promise<{ influencers: unknown[] }> => {
-        return Promise.resolve({ influencers: [] });
+    getInfluencerRadar: async (geo: string, niche: string, keyword?: string): Promise<{ influencers: unknown[] }> => {
+        const qs = new URLSearchParams();
+        qs.set("geo", geo || "GLOBAL");
+        qs.set("niche", niche || "general");
+        if (keyword) qs.set("keyword", keyword);
+        const data = await apiClient.get<any>(`/trends/influencer-radar?${qs.toString()}`);
+        return {
+            influencers: Array.isArray((data as any)?.influencers) ? (data as any).influencers : [],
+        };
     },
 
     // --- EXECUTE (STREAMING) ---

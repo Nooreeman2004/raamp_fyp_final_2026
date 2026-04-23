@@ -99,6 +99,10 @@ export const campaignPlannerService = {
     return apiClient.get<CampaignPlanDetailResponse>(`/campaign-planner/plans/${planId}`);
   },
 
+  deletePlan: async (planId: string): Promise<void> => {
+    return apiClient.delete(`/campaign-planner/plans/${planId}`);
+  },
+
   getCalendar: async (startIso: string, endIso: string, params?: { campaign_ids?: string[]; tz?: string; status?: string }) => {
     const tz = params?.tz || "UTC";
     const ids = params?.campaign_ids?.length ? `&campaign_ids=${encodeURIComponent(params.campaign_ids.join(","))}` : "";

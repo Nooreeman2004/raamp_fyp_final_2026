@@ -145,13 +145,19 @@ class ContentGenerationService:
         if brand_context.get("business_type"):
             sections.append(f"Business Type: {brand_context['business_type']}")
         
-        if brand_context.get("primary_color") or brand_context.get("secondary_color"):
-            colors = []
+        palette: list[str] = []
+        if brand_context.get("brand_colors"):
+            try:
+                palette = [str(c).strip() for c in (brand_context.get("brand_colors") or []) if str(c).strip()]
+            except Exception:
+                palette = []
+        if not palette and (brand_context.get("primary_color") or brand_context.get("secondary_color")):
             if brand_context.get("primary_color"):
-                colors.append(f"Primary: {brand_context['primary_color']}")
+                palette.append(str(brand_context["primary_color"]).strip())
             if brand_context.get("secondary_color"):
-                colors.append(f"Secondary: {brand_context['secondary_color']}")
-            sections.append(f"Brand Colors: {', '.join(colors)}")
+                palette.append(str(brand_context["secondary_color"]).strip())
+        if palette:
+            sections.append(f"Brand Color Palette (HEX): {', '.join(palette[:6])}")
         
         if brand_context.get("brand_logo_url"):
             sections.append(f"Brand Logo: {brand_context['brand_logo_url']} (incorporate visual brand identity into image prompts)")
@@ -178,6 +184,16 @@ class ContentGenerationService:
             constraints.append(f'- Tagline MUST be incorporated verbatim (do not paraphrase): "{tagline}".')
         if tone:
             constraints.append(f'- Tone MUST be followed strictly: "{tone}".')
+        if palette:
+            constraints.append(
+                "- Visual direction MUST use the brand palette. "
+                f"Every image prompt MUST explicitly mention these HEX colors: {', '.join(palette[:6])}. "
+                "Avoid introducing unrelated brand colors (except black/white/neutral grays)."
+            )
+        if brand_context.get("brand_logo_url"):
+            constraints.append(
+                "- Image prompts MUST incorporate the brand logo identity cues (logo placement, end-card, watermark, or typography cues)."
+            )
         constraints.extend([
             "- Do NOT produce generic content. Every line must reflect the specific campaign idea.",
             "- If a brand field is missing, do NOT invent one; use only what is provided.",

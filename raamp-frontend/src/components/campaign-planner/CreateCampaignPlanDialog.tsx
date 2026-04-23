@@ -36,8 +36,8 @@ export function CreateCampaignPlanDialog({
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = useMemo(() => {
-    return idea.trim().length >= 10 && !!startDate && !!endDate;
-  }, [idea, startDate, endDate]);
+    return idea.trim().length >= 10 && !!startDate && !!endDate && !!timezone.trim();
+  }, [idea, startDate, endDate, timezone]);
 
   const submit = async () => {
     // Hard lock to prevent same-frame double clicks (state updates are async).
@@ -51,7 +51,7 @@ export function CreateCampaignPlanDialog({
     try {
       setSubmitting(true);
       const toastId = toast.loading("Generating plan…", {
-        description: "This can take 10–15 seconds. Please don’t refresh.",
+        description: "This can take 15–20 seconds. Please don't refresh.",
       });
       const payload = {
         idea: idea.trim(),
@@ -68,10 +68,35 @@ export function CreateCampaignPlanDialog({
         constraints: constraints.trim() || null,
       } as const;
 
+      console.log("🚀 Creating campaign plan:", {
+        idea_length: idea.trim().length,
+        objective,
+        date_range: `${startDate} → ${endDate}`,
+        frequency,
+        platform,
+        timestamp: new Date().toISOString()
+      });
+
       const res = await campaignPlannerService.createPlan(payload as any);
+      
+      console.log("✅ Campaign plan created:", {
+        plan_id: res.plan_id,
+        generation_status: res.generation_status,
+        timestamp: new Date().toISOString()
+      });
+
       toast.success("Campaign plan generated", { id: toastId, description: `Status: ${res.generation_status}` });
       onCreated();
     } catch (e: any) {
+      console.error("❌ Campaign plan generation failed:", {
+        error: e,
+        message: e?.message || String(e),
+        response: e?.response,
+        status: e?.status,
+        stack: e?.stack,
+        timestamp: new Date().toISOString()
+      });
+
       const msg = String(e?.message || "");
       const isOffline =
         msg.toLowerCase().includes("failed to fetch") ||
@@ -79,8 +104,9 @@ export function CreateCampaignPlanDialog({
         msg.toLowerCase().includes("econnrefused");
       toast.error("Failed to generate plan", {
         description: isOffline
-          ? "Can’t reach the server right now. Start the backend (port 8000) and try again."
-          : msg || "Please try again.",
+          ? "Can't reach the server right now. Start the backend (port 8000) and try again."
+          : msg || "Check console for details.",
+        duration: 10000
       });
     } finally {
       setSubmitting(false);
@@ -93,7 +119,7 @@ export function CreateCampaignPlanDialog({
       <DialogContent className="border border-border/50 text-foreground w-[calc(100vw-2rem)] max-w-2xl rounded-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading font-semibold text-xl tracking-wide">Create Brand-Driven Campaign Plan</DialogTitle>
-          <DialogDescription className="text-muted-foreground/70 text-sm">
+          <DialogDescription className="text-muted-foreground text-sm font-medium">
             This planner uses your Brand Settings + Specialties to build a posting calendar. It does not rely on trends.
           </DialogDescription>
         </DialogHeader>
@@ -101,7 +127,7 @@ export function CreateCampaignPlanDialog({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 min-w-0">
           <Card className="p-4 bg-card/40 border-border/50 space-y-3">
             <div className="space-y-2">
-              <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Campaign idea</Label>
+              <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Campaign idea <span className="text-red-500">*</span></Label>
               <Textarea
                 value={idea}
                 onChange={(e) => setIdea(e.target.value)}
@@ -113,7 +139,7 @@ export function CreateCampaignPlanDialog({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Objective</Label>
+                <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Objective <span className="text-red-500">*</span></Label>
                 <Select value={objective} onValueChange={(v) => setObjective(v as any)}>
                   <SelectTrigger className="bg-foreground/5 border-border/50 w-full min-w-0">
                     <SelectValue placeholder="Objective" />
@@ -129,7 +155,7 @@ export function CreateCampaignPlanDialog({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Platform</Label>
+                <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Platform <span className="text-red-500">*</span></Label>
                 <Select value={platform} onValueChange={(v) => setPlatform(v as any)}>
                   <SelectTrigger className="bg-foreground/5 border-border/50 w-full min-w-0">
                     <SelectValue placeholder="Platform" />
@@ -147,32 +173,36 @@ export function CreateCampaignPlanDialog({
           <Card className="p-4 bg-card/40 border-border/50 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Start</Label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-foreground/5 border-border/50 w-full min-w-0 pr-10 [color-scheme:dark]"
-                />
+                <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Start <span className="text-red-500">*</span></Label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="bg-foreground/5 border-border/50 w-full min-w-0 dark:[color-scheme:dark] focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">End</Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-foreground/5 border-border/50 w-full min-w-0 pr-10 [color-scheme:dark]"
-                />
+                <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">End <span className="text-red-500">*</span></Label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="bg-foreground/5 border-border/50 w-full min-w-0 dark:[color-scheme:dark] focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
+                  />
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Timezone</Label>
+                <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Timezone <span className="text-red-500">*</span></Label>
                 <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="UTC / Asia/Karachi" className="bg-foreground/5 border-border/50 w-full min-w-0" />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Frequency</Label>
+                <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Frequency <span className="text-red-500">*</span></Label>
                 <Select value={frequency} onValueChange={(v) => setFrequency(v as any)}>
                   <SelectTrigger className="bg-foreground/5 border-border/50 w-full min-w-0">
                     <SelectValue placeholder="Frequency" />
@@ -189,30 +219,33 @@ export function CreateCampaignPlanDialog({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Budget min</Label>
+                <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Budget min (optional)</Label>
                 <Input type="number" min={0} value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} placeholder="0" className="bg-foreground/5 border-border/50 w-full min-w-0" />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Budget max</Label>
+                <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Budget max (optional)</Label>
                 <Input type="number" min={0} value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} placeholder="0" className="bg-foreground/5 border-border/50 w-full min-w-0" />
               </div>
             </div>
+            <p className="text-xs font-medium text-muted-foreground leading-relaxed">
+              Budget is only used if you plan to run paid ads. Leave it empty for an organic-only plan.
+            </p>
           </Card>
         </div>
 
         <Card className="p-4 bg-card/30 border-border/50 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Target audience (optional)</Label>
+              <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Target audience (optional)</Label>
               <Input value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="e.g. families in Islamabad" className="bg-foreground/5 border-border/50 w-full min-w-0" />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Offer / CTA (optional)</Label>
+              <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Offer / CTA (optional)</Label>
               <Input value={offerOrCta} onChange={(e) => setOfferOrCta(e.target.value)} placeholder="e.g. 15% off family platter" className="bg-foreground/5 border-border/50 w-full min-w-0" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Constraints (optional)</Label>
+            <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Constraints (optional)</Label>
             <Textarea value={constraints} onChange={(e) => setConstraints(e.target.value)} rows={3} placeholder="Do not mention alcohol, keep it premium, etc." className="bg-foreground/5 border-border/50 resize-none" />
           </div>
         </Card>

@@ -103,14 +103,26 @@ Be specific about shots, timing, visuals, and brand integration."""
         if brand_context.get("target_audience"):
             sections.append(f"Target Audience: {brand_context['target_audience']}")
         
-        if brand_context.get("primary_color"):
-            sections.append(f"Primary Brand Color: {brand_context['primary_color']}")
+        palette: list[str] = []
+        try:
+            palette = [str(c).strip() for c in (brand_context.get("brand_colors") or []) if str(c).strip()]
+        except Exception:
+            palette = []
+        if not palette:
+            if brand_context.get("primary_color"):
+                palette.append(str(brand_context["primary_color"]).strip())
+            if brand_context.get("secondary_color"):
+                palette.append(str(brand_context["secondary_color"]).strip())
+        if palette:
+            sections.append(f"Brand Color Palette (HEX): {', '.join(palette[:6])} (use for set design, overlays, end card)")
         
         if brand_context.get("tagline"):
             sections.append(f"Brand Tagline: {brand_context['tagline']}")
         
         if brand_context.get("brand_logo_url"):
-            sections.append(f"Brand Logo: {brand_context['brand_logo_url']} (place logo watermarks or brand cues naturally)")
+            sections.append(
+                f"Brand Logo: {brand_context['brand_logo_url']} (MUST show logo/end-card or watermark; do not invent logos)"
+            )
             
         if brand_context.get("specialties"):
             sections.append(f"Specialties: {', '.join(brand_context['specialties'])}")

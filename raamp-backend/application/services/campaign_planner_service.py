@@ -58,8 +58,22 @@ class CampaignPlannerService:
             "specialties": business.specialties,
         }
 
+    def _serialize_for_json(self, obj: Any) -> Any:
+        """Convert datetime objects to ISO strings for JSON serialization."""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, dict):
+            return {k: self._serialize_for_json(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._serialize_for_json(item) for item in obj]
+        return obj
+
     def _build_prompt(self, *, brief: Dict[str, Any], brand: Dict[str, Any]) -> str:
         # Keep prompt short but strict; we validate/repair times server-side.
+        # Serialize datetime objects for JSON compatibility
+        serialized_brief = self._serialize_for_json(brief)
+        serialized_brand = self._serialize_for_json(brand)
+        
         return f"""
 You are a senior brand strategist and campaign planner for a RESTAURANT brand.
 
@@ -70,10 +84,10 @@ HARD RULES:
 - Use ISO 8601 datetime strings for scheduled_time (include timezone offset if known).
 
 BRAND_DNA:
-{json.dumps(brand, ensure_ascii=False)}
+{json.dumps(serialized_brand, ensure_ascii=False)}
 
 CAMPAIGN_BRIEF:
-{json.dumps(brief, ensure_ascii=False)}
+{json.dumps(serialized_brief, ensure_ascii=False)}
 
 OUTPUT_JSON_SCHEMA:
 {{
@@ -176,9 +190,10 @@ OUTPUT_JSON_SCHEMA:
         plan.updated_at = datetime.utcnow()
         await plan.save()
 
-        # Create planned posts
+        # Create planned posts - use bulk insert for better performance
         posts = payload.get("posts") or []
-        saved: List[CampaignPlannedPostModel] = []
+        docs_to_insert: List[CampaignPlannedPostModel] = []
+        
         for p in posts:
             try:
                 scheduled_utc = self._parse_dt_utc(p.get("scheduled_time"), fallback_tz=plan.timezone)
@@ -200,7 +215,7 @@ OUTPUT_JSON_SCHEMA:
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),
                 )
-                saved.append(await doc.insert())
+                docs_to_insert.append(doc)
             except Exception as e:
                 # Escape hatch: persist a failed planned post instead of losing it.
                 doc = CampaignPlannedPostModel(
@@ -223,7 +238,12 @@ OUTPUT_JSON_SCHEMA:
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),
                 )
-                saved.append(await doc.insert())
+                docs_to_insert.append(doc)
+
+        # Bulk insert all posts in one operation
+        saved: List[CampaignPlannedPostModel] = []
+        if docs_to_insert:
+            saved = await CampaignPlannedPostModel.insert_many(docs_to_insert)
 
         logger.info("Campaign plan created: user=%s plan_id=%s posts=%d", user_email, str(plan.id), len(saved))
         return plan
@@ -232,7 +252,7 @@ OUTPUT_JSON_SCHEMA:
         # Run LLM call in thread to avoid blocking event loop.
         import asyncio
 
-        timeout_s = float(os.getenv("CAMPAIGN_PLANNER_LLM_TIMEOUT_S", "25"))
+        timeout_s = float(os.getenv("CAMPAIGN_PLANNER_LLM_TIMEOUT_S", "35"))
         try:
             resp = await asyncio.wait_for(
                 asyncio.to_thread(
@@ -241,8 +261,8 @@ OUTPUT_JSON_SCHEMA:
                         contents=prompt,
                         config=genai_types.GenerateContentConfig(
                             temperature=0.6,
-                            # Keep outputs bounded for latency; planned posts are short.
-                            max_output_tokens=2048,
+                            # Increased for complex campaigns with many posts
+                            max_output_tokens=4096,
                             response_mime_type="application/json",
                         ),
                     )

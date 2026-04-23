@@ -29,22 +29,36 @@ class InstagramROIFetchError(Exception):
         self.code = code
         super().__init__(self.message)
 
-async def fetch_post_insights(instagram_post_id: str, access_token: str) -> Dict[str, Any]:
+async def fetch_post_insights(instagram_post_id: str, access_token: str, ig_business_id: str = None) -> Dict[str, Any]:
     """
     Calls the Meta Graph API insights endpoint and normalizes the response.
+    
+    Args:
+        instagram_post_id: The Instagram media ID
+        access_token: The access token with insights permission
+        ig_business_id: The Instagram Business Account ID (optional)
+        
+    Note: Meta API v22.0 supported insights metrics are:
+    impressions, reach, replies, saved, video_views, likes, comments, shares,
+    plays, total_interactions, follows, profile_visits, etc.
     """
     base_url = "https://graph.facebook.com/v22.0"
     
-    # Insights metrics to fetch
-    metrics = "reach,impressions,total_interactions,likes,comments,shares,saved"
-    insights_url = f"{base_url}/{instagram_post_id}/insights"
+    # Try both formats: with and without business account ID prefix
+    media_id_formatted = f"{ig_business_id}_{instagram_post_id}" if ig_business_id else instagram_post_id
+    
+    # Use only v22.0 supported metrics for insights
+    # Note: impressions is listed as supported but may fail on some media types
+    metrics = "reach,likes,comments,shares,saved,total_interactions"
+    insights_url = f"{base_url}/{media_id_formatted}/insights"
     insights_params = {
         "metric": metrics,
         "access_token": access_token
     }
     
     # Fields to fetch directly (for baseline counts)
-    fields_url = f"{base_url}/{instagram_post_id}"
+    # Use formatted media ID for consistency
+    fields_url = f"{base_url}/{media_id_formatted}"
     fields_params = {
         "fields": "like_count,comments_count",
         "access_token": access_token
@@ -58,39 +72,73 @@ async def fetch_post_insights(instagram_post_id: str, access_token: str) -> Dict
             
             insights_res, fields_res = await asyncio.gather(insights_task, fields_task)
             
-            # Check for API errors
+            # Check for API errors on insights endpoint
             if insights_res.status_code != 200:
                 error_data = insights_res.json().get("error", {})
                 error_code = error_data.get("code")
                 error_msg = error_data.get("message", "Unknown insights error")
                 
-                # Code 100 is overloaded (can mean "not enough data" OR "invalid param/metric").
-                # Only treat it as pending when the message clearly indicates insufficient data.
+                # Code 100 is overloaded - handles multiple error scenarios
                 if error_code == 100:
                     msg_lower = (error_msg or "").lower()
-                    if "not enough" in msg_lower or "insufficient" in msg_lower or "temporarily unavailable" in msg_lower:
-                        logger.info(f"Insufficient data for post {instagram_post_id}: {error_msg}")
-                        return {"status": "pending"}
+                    
+                    # Check for permission/access issues
+                    if any(phrase in msg_lower for phrase in [
+                        "not enough",
+                        "insufficient",
+                        "temporarily unavailable",
+                        "insufficient permissions",
+                        "permission denied",
+                        "does not exist",
+                        "cannot be loaded"
+                    ]):
+                        # Try with unformatted media ID if we used formatted one
+                        if ig_business_id and "_" in media_id_formatted:
+                            logger.info(
+                                f"Formatted media ID failed ({media_id_formatted}), "
+                                f"retrying with plain media ID ({instagram_post_id}): {error_msg}"
+                            )
+                            # Retry with plain media ID
+                            insights_url_fallback = f"{base_url}/{instagram_post_id}/insights"
+                            insights_res_retry = await client.get(insights_url_fallback, params=insights_params)
+                            
+                            if insights_res_retry.status_code == 200:
+                                # Success with fallback - continue with the retry response
+                                insights_res = insights_res_retry
+                                logger.info(f"Fallback to plain media ID succeeded for post {instagram_post_id}")
+                            else:
+                                # Both attempts failed - mark as pending
+                                logger.info(
+                                    f"Insufficient data, permission, or invalid media ID for post {instagram_post_id}: {error_msg}"
+                                )
+                                return {"status": "pending"}
+                        else:
+                            logger.info(
+                                f"Insufficient data, permission, or invalid media ID for post {instagram_post_id}: {error_msg}"
+                            )
+                            return {"status": "pending"}
+                    else:
+                        raise InstagramROIFetchError(error_msg, error_code)
+                else:
                     raise InstagramROIFetchError(error_msg, error_code)
                 
-                raise InstagramROIFetchError(error_msg, error_code)
-                
-            if fields_res.status_code != 200:
-                error_data = fields_res.json().get("error", {})
-                raise InstagramROIFetchError(error_data.get("message", "Unknown fields error"))
-            
             insights_data = insights_res.json().get("data", [])
             fields_data = fields_res.json()
             
             # Map insights array to a flat dict
+            # Format: [{"name": "reach", "values": [{"value": 123}]}, ...]
             metrics_map = {m["name"]: m["values"][0]["value"] for m in insights_data if m.get("values")}
             
-            # Normalize fields
+            # Extract metrics - all are now from the supported v22.0 list
             reach = metrics_map.get("reach", 0)
             impressions = metrics_map.get("impressions", 0)
+            
+            # For engagement, use total_interactions if available, otherwise calculate
             engagement = metrics_map.get("total_interactions", 0)
-            likes = metrics_map.get("likes", fields_data.get("like_count", 0))
-            comments = metrics_map.get("comments", fields_data.get("comments_count", 0))
+            
+            # Get individual counts
+            likes = metrics_map.get("likes", 0) or fields_data.get("like_count", 0)
+            comments = metrics_map.get("comments", 0) or fields_data.get("comments_count", 0)
             shares = metrics_map.get("shares", 0)
             saved = metrics_map.get("saved", 0)
             
@@ -98,7 +146,9 @@ async def fetch_post_insights(instagram_post_id: str, access_token: str) -> Dict
             # engagement_rate = (likes + comments + shares) / reach * 100
             engagement_rate = 0.0
             if reach > 0:
-                engagement_rate = ((likes + comments + shares) / reach) * 100
+                # Use total_interactions metric if available, otherwise sum individual counts
+                total_engagement = engagement if engagement > 0 else (likes + comments + shares)
+                engagement_rate = (total_engagement / reach) * 100
             
             return {
                 "status": "success",
@@ -186,8 +236,8 @@ async def refresh_post_roi(post_id: str, db=None) -> Optional[ROIMetrics]:
         encrypted_token = connection.user_access_token or connection.page_access_token
         access_token = encryption_service.decrypt(encrypted_token)
         
-        # 4. Fetch insights
-        result = await fetch_post_insights(instagram_post_id, access_token)
+        # 4. Fetch insights (pass ig_business_id for proper media ID formatting)
+        result = await fetch_post_insights(instagram_post_id, access_token, getattr(post, "ig_business_id", None))
         
         if result["status"] == "pending":
             post.roi_metrics.fetch_status = "pending"

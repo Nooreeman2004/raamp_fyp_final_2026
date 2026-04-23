@@ -194,10 +194,10 @@ export const PostingHistoryTable: React.FC<PostingHistoryTableProps> = ({
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col leading-snug">
-                                                <span className="text-sm text-white/90 font-black tracking-tight">
+                                                <span className="text-sm text-foreground/90 dark:text-white/90 font-black tracking-tight">
                                                     {format(new Date(post.created_at), "MMM dd, yyyy")}
                                                 </span>
-                                                <span className="text-[11px] text-muted-foreground/60 font-medium mt-0.5">
+                                                <span className="text-[11px] text-muted-foreground/70 dark:text-muted-foreground/60 font-medium mt-0.5">
                                                     {format(new Date(post.created_at), "h:mm a")} ({formatHistoryTimestamp(post.created_at).split(" (")[1].replace(")", "")})
                                                 </span>
                                             </div>

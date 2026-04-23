@@ -29,10 +29,13 @@ async def get_user_brand_context(user_email: str) -> dict:
             "business_name": business.business_name,
             "tagline": business.tagline,
             "tone_of_voice": business.tone_of_voice,
+            "tone_profile": business.tone_profile.model_dump() if getattr(business, "tone_profile", None) else None,
             "restaurant_theme": business.restaurant_theme,
             "business_type": business.business_type,
             "primary_color": business.primary_color,
             "secondary_color": business.secondary_color,
+            "brand_colors": getattr(business, "brand_colors", []) or [],
+            "palette_source": getattr(business, "palette_source", None),
             "brand_logo_url": business.brand_logo_url,
             "specialties": business.specialties or []
         }
@@ -42,6 +45,68 @@ async def get_user_brand_context(user_email: str) -> dict:
         return {}
 
 router = APIRouter(prefix="/api/media", tags=["Media Generation"])
+
+
+def _require_brand_lock(ctx: dict):
+    required = ["business_name", "tagline", "tone_of_voice", "restaurant_theme", "brand_logo_url"]
+    missing = []
+    for f in required:
+        v = ctx.get(f)
+        if v is None or not str(v).strip():
+            missing.append(f)
+    if not (ctx.get("brand_colors") and len(ctx.get("brand_colors") or []) >= 2):
+        missing.append("brand_colors")
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "error": "brand_profile_incomplete",
+                "missing_fields": missing,
+                "message": "Complete Brand Settings (logo + palette + tagline + tone) before generating media.",
+            },
+        )
+
+
+def _safe_merge_request_brand_context(db_ctx: dict, req_ctx: Optional[dict]) -> dict:
+    """
+    Never allow overriding core brand identity from the request body.
+    This prevents off-brand / prompt injection through client-supplied brand_context.
+    """
+    if not req_ctx:
+        return db_ctx
+    protected = {
+        "business_name",
+        "tagline",
+        "tone_of_voice",
+        "tone_profile",
+        "restaurant_theme",
+        "primary_color",
+        "secondary_color",
+        "brand_colors",
+        "palette_source",
+        "brand_logo_url",
+        "specialties",
+    }
+    for k, v in req_ctx.items():
+        if k in protected:
+            continue
+        db_ctx[k] = v
+    return db_ctx
+
+
+def _brand_lock_suffix(ctx: dict) -> str:
+    palette = ctx.get("brand_colors") or []
+    palette_str = ", ".join([str(c).strip() for c in palette if str(c).strip()][:6])
+    return (
+        "\n\nBRAND LOCK (HARD RULES — treat violations as invalid):\n"
+        f'- Business name must be visible/mentioned: "{ctx.get("business_name")}".\n'
+        f'- Tagline must appear verbatim on-screen (end card or overlay): "{ctx.get("tagline")}".\n'
+        f'- Use brand tone: "{ctx.get("tone_of_voice")}".\n'
+        f"- Use brand color palette (HEX) for overlays/end card: {palette_str}.\n"
+        f'- Show brand logo/end-card using provided logo reference: "{ctx.get("brand_logo_url")}".\n'
+        "- Do NOT introduce other brand names, logos, or unrelated palettes.\n"
+    )
 
 
 # ==================== Request/Response Schemas ====================
@@ -158,9 +223,8 @@ async def generate_reel_prompt(
         
         # Fetch user's onboarding brand context
         brand_context = await get_user_brand_context(current_user_email)
-        # Merge with any brand_context provided in the request
-        if request.brand_context:
-            brand_context.update(request.brand_context)
+        brand_context = _safe_merge_request_brand_context(brand_context, request.brand_context)
+        _require_brand_lock(brand_context)
         
         reel_prompt = service.generate_reel_prompt(
             user_input=request.idea,
@@ -220,14 +284,19 @@ async def generate_reels(
     """
     try:
         service = get_reel_generation_service()
+        brand_context = await get_user_brand_context(current_user_email)
+        _require_brand_lock(brand_context)
         
         # Generate campaign ID if not provided
         campaign_id = request.campaign_id or f"reel_{uuid.uuid4().hex[:12]}"
+
+        # Enforce brand lock on any user-provided prompt by appending constraints.
+        reel_prompt = (request.reel_prompt or "").strip() + _brand_lock_suffix(brand_context)
         
         # Generate Reels synchronously (frontend will wait)
         # For production, consider using background tasks or webhooks
         results = service.generate_reels_sync(
-            reel_prompt=request.reel_prompt,
+            reel_prompt=reel_prompt,
             output_folder=f"generated_reels/{campaign_id}",
             count=request.count,
             duration_seconds=request.duration_seconds
@@ -248,7 +317,7 @@ async def generate_reels(
             asset_ids = await service.save_reels_as_assets(
                 reel_paths=results,
                 user_id=current_user_email,
-                reel_prompt=request.reel_prompt,
+                reel_prompt=reel_prompt,
                 campaign_idea=request.campaign_id or campaign_id,
                 duration_seconds=request.duration_seconds
             )
@@ -315,9 +384,8 @@ async def generate_video_prompt(
         
         # Fetch user's onboarding brand context
         brand_context = await get_user_brand_context(current_user_email)
-        # Merge with any brand_context provided in the request
-        if request.brand_context:
-            brand_context.update(request.brand_context)
+        brand_context = _safe_merge_request_brand_context(brand_context, request.brand_context)
+        _require_brand_lock(brand_context)
         
         video_prompt = service.generate_video_prompt(
             user_input=request.idea,
@@ -380,13 +448,18 @@ async def generate_videos(
     """
     try:
         service = get_video_generation_service()
+        brand_context = await get_user_brand_context(current_user_email)
+        _require_brand_lock(brand_context)
         
         # Generate campaign ID if not provided
         campaign_id = request.campaign_id or f"video_{uuid.uuid4().hex[:12]}"
+
+        # Enforce brand lock on any user-provided prompt by appending constraints.
+        video_prompt = (request.video_prompt or "").strip() + _brand_lock_suffix(brand_context)
         
         # Generate videos synchronously
         results = service.generate_videos_sync(
-            video_prompt=request.video_prompt,
+            video_prompt=video_prompt,
             output_folder=f"generated_videos/{campaign_id}",
             count=request.count,
             aspect_ratio=request.aspect_ratio,
@@ -409,7 +482,7 @@ async def generate_videos(
             asset_ids = await service.save_videos_as_assets(
                 video_paths=results,
                 user_id=current_user_email,
-                video_prompt=request.video_prompt,
+                video_prompt=video_prompt,
                 campaign_idea=request.campaign_id or campaign_id,
                 aspect_ratio=request.aspect_ratio,
                 duration_seconds=request.duration_seconds
@@ -476,6 +549,7 @@ async def generate_quick_reel(
         
         # Fetch user's onboarding brand context for richer prompts
         brand_context = await get_user_brand_context(current_user_email)
+        _require_brand_lock(brand_context)
         
         # Step 1: Generate prompt enriched with brand context
         reel_prompt = service.generate_reel_prompt(

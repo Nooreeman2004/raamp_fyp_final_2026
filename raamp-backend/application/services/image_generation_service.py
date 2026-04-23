@@ -96,19 +96,24 @@ IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never a
         if brand_context.get("restaurant_theme"):
             sections.append(f"Brand Style/Theme: {brand_context['restaurant_theme']}")
         
-        if brand_context.get("primary_color") or brand_context.get("secondary_color"):
-            palette = []
+        palette: list[str] = []
+        if brand_context.get("brand_colors"):
+            try:
+                palette = [str(c).strip() for c in (brand_context.get("brand_colors") or []) if str(c).strip()]
+            except Exception:
+                palette = []
+        if not palette:
             if brand_context.get("primary_color"):
                 palette.append(str(brand_context["primary_color"]).strip())
             if brand_context.get("secondary_color"):
                 palette.append(str(brand_context["secondary_color"]).strip())
-            palette_str = ", ".join([p for p in palette if p])
-            if palette_str:
-                sections.append(
-                    "COLOR CONSTRAINT (HARD RULE): "
-                    f"Dominant palette MUST be: {palette_str}. "
-                    "Avoid off-brand palettes (e.g., neon/pastel/warm tones) unless explicitly required by the campaign request."
-                )
+        palette_str = ", ".join([p for p in palette if p])
+        if palette_str:
+            sections.append(
+                "COLOR CONSTRAINT (HARD RULE): "
+                f"Dominant palette MUST be: {palette_str}. "
+                "Avoid off-brand palettes (except black/white/neutral grays) unless explicitly required by the campaign request."
+            )
         
         if brand_context.get("tagline"):
             sections.append(f"Brand Tagline: {brand_context['tagline']}")
@@ -147,6 +152,12 @@ IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never a
             logo_url = brand_context.get("brand_logo_url") or brand_context.get("logo_url")
             logo_used = False
             logo_warning = None
+
+            # Support relative URLs stored by our API (e.g. /api/static/...).
+            # We need a resolvable absolute URL for server-side fetching.
+            if isinstance(logo_url, str) and logo_url.startswith("/"):
+                public_base = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
+                logo_url = f"{public_base}{logo_url}"
             
             user_message = f"""{brand_section}
 

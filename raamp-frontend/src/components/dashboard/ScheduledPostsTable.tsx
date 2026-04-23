@@ -191,10 +191,10 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col leading-snug">
-                                                <span className="text-sm text-white/90 font-black tracking-tight">
+                                                <span className="text-sm text-foreground/90 dark:text-white/90 font-black tracking-tight">
                                                     {formatHistoryTimestamp(post.scheduled_time).split(" (")[0]}
                                                 </span>
-                                                <span className="text-[11px] text-muted-foreground/60 font-medium mt-0.5 uppercase tracking-tighter">
+                                                <span className="text-[11px] text-muted-foreground/70 dark:text-muted-foreground/60 font-medium mt-0.5 uppercase tracking-tighter">
                                                     Scheduled in {getTimezone()}
                                                 </span>
                                             </div>
