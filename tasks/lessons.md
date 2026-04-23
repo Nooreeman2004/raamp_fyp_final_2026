@@ -1,5 +1,45 @@
 # RAAMP Agent Lessons
 
+## Critical Backend Issues
+
+### 2026-04-24: Python Server Zombie Process & Cached Modules
+**Problem:** Backend server serving old/phantom routes even after file edits and "restarts"  
+**Symptoms:**
+- OpenAPI docs show routes that don't exist in code (e.g., `/test-analyse`)
+- Router imports correctly in isolation but server loads different version
+- Hot-reload crashes with Windows multiprocessing errors
+- Test endpoint returns 404 even after code is added
+
+**Root Causes:**
+1. Python bytecode cache (`.pyc`, `__pycache__`) persists old code
+2. Uvicorn auto-reload fails on Windows with multiprocessing issues
+3. Zombie processes remain on port 8000 after manual restarts
+
+**Solution (ALWAYS follow this order):**
+```powershell
+# 1. Kill ALL Python processes
+Get-Process python | Stop-Process -Force
+
+# 2. Clear bytecode cache
+Get-ChildItem -Recurse -Filter "__pycache__" | Remove-Item -Recurse -Force
+Get-ChildItem -Recurse -Filter "*.pyc" | Remove-Item -Force
+
+# 3. Start fresh
+cd raamp-backend
+python main.py
+```
+
+**Verification:**
+- Check OpenAPI: `curl http://localhost:8000/openapi.json | jq '.paths | keys'`  
+- Test import separately: Run `python -c "from presentation.routers import comment_analysis_router"` to verify code
+- Expect **401** (auth required) not **404** (not found) for protected endpoints
+
+### 2026-04-24: Frontend Double API Prefix Bug
+**Problem:** Frontend requests fail with 404: `/api/api/comments/moderation` (double `/api/`)  
+**Root Cause:** `apiClient` base URL is `/api`, but services also added `/api/` prefix in endpoint paths  
+**Fix:** Remove `/api/` prefix from service endpoint paths - use `/comments/moderation` not `/api/comments/moderation`  
+**Rule:** When API client has base URL, endpoints should be relative without repeating the prefix
+
 ## Performance Lessons
 
 ### 2026-04-23: Campaign Planner JSON Serialization Error

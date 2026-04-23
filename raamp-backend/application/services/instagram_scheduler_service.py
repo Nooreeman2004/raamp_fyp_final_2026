@@ -28,10 +28,7 @@ from infrastructure.repositories.instagram_post_repository_impl import (
 )
 from domain.entities.instagram_post_entity import ScheduledPost
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Use the global logging configuration
 logger = logging.getLogger(__name__)
 
 

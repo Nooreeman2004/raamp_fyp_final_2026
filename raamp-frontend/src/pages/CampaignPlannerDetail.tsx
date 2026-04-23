@@ -5,7 +5,7 @@ import Reveal from "@/components/ui/Reveal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { CalendarDays, ChevronLeft, ChevronRight, Sparkles, TrendingUp } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
 import { campaignPlannerService, CampaignPlanDetailResponse, PlannedPostItem } from "@/services/campaignPlannerService";
 import { PlannedPostDrawer } from "@/components/campaign-planner/PlannedPostDrawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,9 +39,12 @@ export default function CampaignPlannerDetail() {
     try {
       const res = await campaignPlannerService.getPlan(id);
       setPlan(res);
-      const sd = res?.start_date ? new Date(res.start_date) : null;
-      if (sd && !Number.isNaN(sd.getTime())) {
-        setCursorMonth(startOfMonth(sd));
+      // Only set initial cursor month if we don't have one yet or it's a new plan
+      if (!plan) {
+        const sd = res?.start_date ? new Date(res.start_date) : null;
+        if (sd && !Number.isNaN(sd.getTime())) {
+          setCursorMonth(startOfMonth(sd));
+        }
       }
     } catch (e: any) {
       toast.error("Failed to load campaign plan", { description: e?.message || "Please try again." });
@@ -54,6 +57,16 @@ export default function CampaignPlannerDetail() {
     fetchPlan();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Auto-polling if plan is still running
+  useEffect(() => {
+    if (plan?.generation_status === "running") {
+      const interval = setInterval(() => {
+        fetchPlan();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [plan?.generation_status, id]);
 
   const allowedMonths = useMemo(() => {
     const sd = plan?.start_date ? new Date(plan.start_date) : null;
@@ -134,10 +147,11 @@ export default function CampaignPlannerDetail() {
     >
       <div className="space-y-6 px-6 pt-6 pb-24">
         <Reveal variant="fadeInUp">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold font-heading tracking-[0.12em] uppercase flex items-center gap-3">
-                <CalendarDays className="w-6 h-6 text-primary" /> {name}
+              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent flex items-center gap-3">
+                <CalendarDays className="w-8 h-8 text-primary shadow-[0_0_20px_rgba(0,224,208,0.2)]" />
+                {name}
               </h1>
               <div className="space-y-1">
                 <p className="text-xs font-mono text-muted-foreground/70 uppercase tracking-widest flex items-center gap-2">
@@ -157,7 +171,7 @@ export default function CampaignPlannerDetail() {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                className="border-border/50"
+                className="bg-foreground/5 border-border/50 hover:bg-foreground/10 transition-colors"
                 onClick={() => setCursorMonth(addMonths(cursorMonth, -1))}
                 disabled={!canPrev}
               >
@@ -165,14 +179,21 @@ export default function CampaignPlannerDetail() {
               </Button>
               <Button
                 variant="outline"
-                className="border-border/50"
+                className="bg-foreground/5 border-border/50 hover:bg-foreground/10 transition-colors"
                 onClick={() => setCursorMonth(addMonths(cursorMonth, 1))}
                 disabled={!canNext}
               >
                 Next <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
-              <Button variant="outline" className="border-border/50" onClick={fetchPlan} disabled={loading}>
-                Refresh
+              <Button
+                variant="outline"
+                size="icon"
+                className="bg-foreground/5 border-border/50 hover:bg-foreground/10 transition-colors"
+                onClick={fetchPlan}
+                disabled={loading}
+                title="Refresh Page"
+              >
+                <RefreshCw className={`w-4 h-4 shadow-[0_0_10px_rgba(255,255,255,0.1)] ${loading ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </div>

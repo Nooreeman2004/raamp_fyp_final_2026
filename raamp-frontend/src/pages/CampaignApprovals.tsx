@@ -24,7 +24,7 @@ export default function CampaignApprovals() {
       const res = await campaignLaunchService.listRequests(80, 0);
       setRows(Array.isArray(res?.requests) ? res.requests : []);
     } catch (e: any) {
-      toast.error("Failed to load approvals", { description: e?.message || "Please try again." });
+      console.error("Failed to load approvals", e);
     } finally {
       setLoading(false);
     }

@@ -26,7 +26,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const GeoIntent = lazy(() => import("./pages/GeoIntent"));
 const CreativeStudio = lazy(() => import("./pages/CreativeStudio"));
 const TrendArbitrage = lazy(() => import("./pages/TrendArbitrage"));
-const ABTesting = lazy(() => import("./pages/ABTesting"));
+const ABOptimizer = lazy(() => import("./pages/ABOptimizer"));
 const PersonalDetails = lazy(() => import("./pages/PersonalDetails"));
 const BusinessSetup = lazy(() => import("./pages/BusinessSetup"));
 const BrandSettings = lazy(() => import("./pages/BrandSettings"));
@@ -57,7 +57,7 @@ const CampaignPlanner = lazy(() => import("./pages/CampaignPlanner"));
 const CampaignPlannerDetail = lazy(() => import("./pages/CampaignPlannerDetail"));
 const AutoReplies = lazy(() => import("./pages/AutoReplies"));
 const AutoReplySettings = lazy(() => import("./pages/AutoReplySettings"));
-const SocialEscalations = lazy(() => import("./pages/SocialEscalations"));
+const SocialModeration = lazy(() => import("./pages/SocialModeration"));
 const Complaints = lazy(() => import("./pages/Complaints"));
 
 const queryClient = new QueryClient({
@@ -159,11 +159,11 @@ const App = () => (
                       }
                     />
                     <Route
-                      path="/dashboard/ab-testing"
+                      path="/dashboard/ab-optimizer"
                       element={
                         <ProtectedRoute>
                           <ProfileGuard>
-                            <ABTesting />
+                            <ABOptimizer />
                           </ProfileGuard>
                         </ProtectedRoute>
                       }
@@ -233,7 +233,7 @@ const App = () => (
                       element={
                         <ProtectedRoute>
                           <ProfileGuard>
-                            <SocialEscalations />
+                            <SocialModeration />
                           </ProfileGuard>
                         </ProtectedRoute>
                       }

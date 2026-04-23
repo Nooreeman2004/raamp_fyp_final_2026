@@ -120,7 +120,7 @@ async def get_plan(
     )
 
 
-@router.delete("/plans/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/plans/{plan_id}")
 async def delete_plan(
     plan_id: str,
     current_user_email: str = Depends(get_current_user_email),
@@ -135,6 +135,13 @@ async def delete_plan(
     ).delete()
     
     await plan.delete()
+
+    # Verify removal so client doesn't get false success.
+    verify = await CampaignPlanModel.get(plan_id)
+    if verify and verify.user_email == current_user_email:
+        raise HTTPException(status_code=500, detail="Plan could not be deleted")
+
+    return {"success": True, "deleted_plan_id": plan_id}
 
 
 

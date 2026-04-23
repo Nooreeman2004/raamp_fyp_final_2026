@@ -20,9 +20,10 @@ interface LayoutProps {
   showBreadcrumbs?: boolean;
   breadcrumbItems?: Array<{ label: string; href?: string }>;
   breadcrumbOverride?: Array<{ label: string; path: string }>;
+  headerActions?: ReactNode;
 }
 
-const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbOverride }: LayoutProps) => {
+const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbOverride, headerActions }: LayoutProps) => {
   const { user, sessionUncertain, dismissSessionWarning, refreshUser } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -109,6 +110,7 @@ const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbO
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+              {headerActions}
               {/* Hide status pill on narrow desktop columns to avoid crowding; unchanged on xl+ */}
               <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/5 dark:bg-foreground/5 border border-primary/20 dark:border-border/50 text-xs text-primary dark:text-muted-foreground shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" />
@@ -153,6 +155,7 @@ const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbO
               <BrandMark variant="navbar" size={32} className="shrink-0" />
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              {headerActions}
               <ThemeToggle />
               <div className="flex items-center gap-2 rounded-full border border-border/50 bg-background/60 px-2 py-1">
                 <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 dark:from-gray-800 dark:to-black flex items-center justify-center border border-primary/30 dark:border-border/50">

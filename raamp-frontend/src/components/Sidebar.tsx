@@ -50,8 +50,8 @@ const menuItems = [
     { icon: TrendingUp, label: "Trend Arbitrage", href: "/dashboard/trends" },
     { icon: ShieldCheck, label: "Approvals", href: "/dashboard/approvals" },
     { icon: MessageSquare, label: "Auto Replies", href: "/dashboard/auto-replies" },
-    { icon: AlertTriangle, label: "Escalations", href: "/dashboard/escalations" },
-    { icon: FlaskConical, label: "A/B Testing", href: "/dashboard/ab-testing" },
+    { icon: AlertTriangle, label: "Social Moderation", href: "/dashboard/escalations" },
+    { icon: FlaskConical, label: "The Lab (A/B)", href: "/dashboard/ab-optimizer" },
 ];
 
 const bottomItems = [

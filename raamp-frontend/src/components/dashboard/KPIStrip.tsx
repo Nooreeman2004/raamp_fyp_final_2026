@@ -82,7 +82,7 @@ export const KPIStrip = ({ businessId }: KPIStripProps) => {
       subValue: commentStats?.escalations?.soonest_sla_due_at
         ? `Next SLA: ${new Date(commentStats.escalations.soonest_sla_due_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
         : "No SLA due",
-      cta: { label: "View Escalations", route: "/dashboard/escalations" },
+      cta: { label: "View Moderation", route: "/dashboard/escalations" },
       icon: AlertTriangle,
       color: "text-destructive",
       bg: "bg-destructive/10",

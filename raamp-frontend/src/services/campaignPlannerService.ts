@@ -86,6 +86,17 @@ export interface CalendarResponse {
   items: PlannedPostItem[];
 }
 
+export interface ConvertToDraftResponse {
+  success: boolean;
+  draft_id: string;
+}
+
+export interface RequestApprovalResponse {
+  success: boolean;
+  request_id: string;
+  status: string;
+}
+
 export const campaignPlannerService = {
   createPlan: async (payload: CampaignPlannerCreateRequest): Promise<CampaignPlannerCreateResponse> => {
     return apiClient.post<CampaignPlannerCreateResponse>("/campaign-planner/plans", payload);
@@ -110,6 +121,21 @@ export const campaignPlannerService = {
     return apiClient.get<CalendarResponse>(
       `/campaign-planner/calendar?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}&tz=${encodeURIComponent(tz)}${ids}${st}`
     );
+  },
+
+  convertToDraft: async (postId: string): Promise<ConvertToDraftResponse> => {
+    return apiClient.post<ConvertToDraftResponse>(`/campaign-planner/planned-posts/${postId}/convert-to-draft`, {});
+  },
+
+  requestApproval: async (
+    postId: string,
+    params: { mode: "post_now" | "schedule_post" | "post_story"; platform: "instagram" | "facebook" | "both"; media_url: string }
+  ): Promise<RequestApprovalResponse> => {
+    const query =
+      `mode=${encodeURIComponent(params.mode)}` +
+      `&platform=${encodeURIComponent(params.platform)}` +
+      `&media_url=${encodeURIComponent(params.media_url)}`;
+    return apiClient.post<RequestApprovalResponse>(`/campaign-planner/planned-posts/${postId}/request-approval?${query}`, {});
   },
 };
 

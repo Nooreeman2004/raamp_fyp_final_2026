@@ -2,6 +2,13 @@
 import os
 import hashlib
 import base64
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (if it exists)
+_env_file = Path(__file__).parent / ".env"
+if _env_file.exists():
+    load_dotenv(dotenv_path=_env_file, override=True)
 
 
 class Config:

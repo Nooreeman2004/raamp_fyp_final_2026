@@ -9,6 +9,7 @@ import { CalendarDays, Plus, RefreshCw, Search, Sparkles, TrendingUp, Trash2 } f
 import { campaignPlannerService, CampaignPlanListItem } from "@/services/campaignPlannerService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CreateCampaignPlanDialog } from "@/components/campaign-planner/CreateCampaignPlanDialog";
+import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { Link } from "react-router-dom";
 
 export default function CampaignPlanner() {
@@ -17,20 +18,23 @@ export default function CampaignPlanner() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "past" | "failed">("all");
   const [open, setOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete the campaign "${name}"? This action cannot be undone.`)) {
-      return;
-    }
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
       setLoading(true);
-      await campaignPlannerService.deletePlan(id);
+      const deletedId = deleteTarget.id;
+      await campaignPlannerService.deletePlan(deletedId);
+      // Optimistic UI update so the deleted plan disappears immediately.
+      setRows((prev) => prev.filter((r) => r.id !== deletedId));
       toast.success("Campaign plan deleted");
       await fetchRows();
     } catch (e: any) {
       toast.error("Failed to delete plan", { description: e?.message || "Please try again." });
     } finally {
       setLoading(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -49,6 +53,18 @@ export default function CampaignPlanner() {
   useEffect(() => {
     fetchRows();
   }, []);
+
+  // Auto-polling for "running" plans
+  useEffect(() => {
+    const hasRunning = rows.some((r) => r.generation_status === "running");
+    if (!hasRunning) return;
+
+    const interval = setInterval(() => {
+      fetchRows();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [rows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -79,28 +95,8 @@ export default function CampaignPlanner() {
     });
   }, [rows, search, statusFilter]);
 
-  // De-dupe visually identical plans (common when generation fails and user retries).
-  // Keep the most recent by created_at.
-  const deduped = useMemo(() => {
-    const sorted = [...filtered].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
-    const seen = new Set<string>();
-    const out: CampaignPlanListItem[] = [];
-    for (const r of sorted) {
-      const key = [
-        (r.name || "").trim().toLowerCase(),
-        (r.objective || "").trim().toLowerCase(),
-        new Date(r.start_date).toISOString().slice(0, 10),
-        new Date(r.end_date).toISOString().slice(0, 10),
-        (r.timezone || "").trim().toLowerCase(),
-        (r.generation_status || "").trim().toLowerCase(),
-      ].join("|");
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(r);
-    }
-    // restore chronological reveal feel
-    return out.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
-  }, [filtered]);
+  // Keep 1:1 fidelity with backend records.
+  const visibleRows = filtered;
 
   return (
     <Layout breadcrumbItems={[{ label: "Dashboard", href: "/dashboard" }, { label: "Campaign Planner" }]}>
@@ -108,8 +104,9 @@ export default function CampaignPlanner() {
         <Reveal variant="fadeInUp">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold font-heading tracking-[0.12em] uppercase flex items-center gap-3">
-                <CalendarDays className="w-6 h-6 text-primary" /> Campaign Planner
+              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent flex items-center gap-3">
+                <CalendarDays className="w-8 h-8 text-primary shadow-[0_0_20px_rgba(0,224,208,0.2)]" />
+                Campaign Planner
               </h1>
               <div className="space-y-1">
                 <p className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -160,14 +157,14 @@ export default function CampaignPlanner() {
                 className="bg-foreground/5 border-border/50"
               />
               <div className="shrink-0 h-10 flex items-center whitespace-nowrap text-xs leading-none font-mono font-medium text-muted-foreground uppercase tracking-widest">
-                Plans: {deduped.length}
+                Plans: {visibleRows.length}
               </div>
             </div>
           </Card>
         </Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {deduped.map((r, idx) => (
+          {visibleRows.map((r, idx) => (
             <Reveal key={r.id} variant="fadeInUp" delay={0.03 * idx}>
               <Card className="p-5 bg-card/40 border-border/50 space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -181,7 +178,13 @@ export default function CampaignPlanner() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={() => handleDelete(r.id, r.name)} disabled={loading}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                      onClick={() => setDeleteTarget({ id: r.id, name: r.name })}
+                      disabled={loading}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                     <Button asChild variant="outline" className="border-border/50">
@@ -207,6 +210,17 @@ export default function CampaignPlanner() {
             setOpen(false);
             await fetchRows();
           }}
+        />
+
+        <ConfirmationDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+          onConfirm={handleDelete}
+          title="Delete Campaign Plan?"
+          description={`"${deleteTarget?.name ?? ""}" will be permanently deleted. This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Keep it"
+          variant="destructive"
         />
       </div>
     </Layout>

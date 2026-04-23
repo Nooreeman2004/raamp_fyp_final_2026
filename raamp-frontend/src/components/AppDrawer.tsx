@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   MapPin,
   Sparkles,
-  BarChart3,
   TrendingUp as TrendIcon,
   FlaskConical as Flask,
   User,
@@ -19,7 +18,6 @@ import {
   Bell,
   Link2,
   Shield,
-  CreditCard,
   LogOut,
   ChevronRight,
   Info,
@@ -29,6 +27,9 @@ import {
   MessageSquare,
   AlertTriangle,
   LifeBuoy,
+  Calendar,
+  CalendarDays,
+  ShieldCheck,
   type LucideIcon
 } from "lucide-react";
 import type { UserResponse } from "@/types";
@@ -79,10 +80,13 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Geo-Intent", icon: MapPin, href: "/dashboard/geo-intent" },
     { label: "Creative Studio", icon: Sparkles, href: "/dashboard/creative" },
     { label: "Asset Library", icon: Images, href: "/dashboard/assets" },
+    { label: "Smart Scheduling", icon: Calendar, href: "/dashboard/smart-scheduling" },
+    { label: "Campaign Planner", icon: CalendarDays, href: "/dashboard/campaign-planner" },
     { label: "Trend Arbitrage", icon: TrendIcon, href: "/dashboard/trends" },
+    { label: "Approvals", icon: ShieldCheck, href: "/dashboard/approvals" },
     { label: "Auto Replies", icon: MessageSquare, href: "/dashboard/auto-replies" },
-    { label: "Escalations", icon: AlertTriangle, href: "/dashboard/escalations" },
-    { label: "A/B Testing", icon: Flask, href: "/dashboard/ab-testing" },
+    { label: "Social Moderation", icon: AlertTriangle, href: "/dashboard/escalations" },
+    { label: "The Lab (A/B)", icon: Flask, href: "/dashboard/ab-optimizer" },
   ];
 
   // SETTINGS - All editable screens

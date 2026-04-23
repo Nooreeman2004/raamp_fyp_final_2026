@@ -33,6 +33,8 @@ class CampaignPlanModel(Document):
     generation_status: GenerationStatus = Field(default="queued")
     generation_error: Optional[str] = Field(default=None, description="Last generation failure reason")
 
+    reference_media_url: Optional[str] = Field(default=None, description="Optional reference image/video for the AI to consider")
+    
     status: CampaignPlanStatus = Field(default="generated")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)

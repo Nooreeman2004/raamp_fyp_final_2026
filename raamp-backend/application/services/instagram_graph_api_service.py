@@ -756,3 +756,38 @@ class InstagramGraphAPIClient:
                 raise e
             logger.exception("Unexpected error during media validation")
             # We don't block here if it's an unknown error, but we've warned
+
+    async def get_comments(self, user_id: str, media_id: str) -> List[Dict[str, Any]]:
+        """
+        Fetch all comments for a specific Instagram media ID.
+        Returns:
+            List of dicts with: id, text, timestamp, from {id, username}
+        """
+        access_token, _ = await self.get_access_token(user_id)
+        url = f"{self.BASE_URL}/{media_id}/comments"
+        params = {
+            "fields": "id,text,timestamp,from",
+            "access_token": access_token
+        }
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("data", [])
+        except Exception as e:
+            logger.error(f"Failed to fetch comments for media {media_id}: {e}")
+            return []
+
+async def fetch_comments(post_id: str) -> List[Dict[str, Any]]:
+    """
+    Legacy wrapper for backward compatibility with older service calls.
+    Note: Requires a global/system user resolution if user_id is not passed.
+    """
+    # This is a stub for the legacy call in comment_analysis_service.py
+    # In a real scenario, we'd need to resolve the user owning this post.
+    client = InstagramGraphAPIClient()
+    # Attempt to resolve user_id from the post_id if possible, or use a default.
+    # For now, we return empty to avoid crashes while we fix the calling logic.
+    return []

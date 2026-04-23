@@ -182,6 +182,7 @@ async def init_db():
         ConversionEventModel,
         CampaignPerformanceModel,
     )
+    from infrastructure.database.models.comment_analysis_model import CommentAnalysisModel
     from infrastructure.database.seed_data import seed_business_domains
 
     await init_beanie(
@@ -253,12 +254,19 @@ async def init_db():
             # Chatbot Sessions & Interactions
             ChatSessionModel,
             ChatInteractionModel,
+            CommentAnalysisModel,
         ]
     )
     print("[OK] Beanie initialized with document models (settings, billing, geo-intent, posting, assets, logs)")
     
     # Seed business domains
     await seed_business_domains()
+
+    # Initialize A/B Optimizer Repository indexes
+    from infrastructure.repositories.ab_test_repository import get_ab_test_repository
+    repo = get_ab_test_repository()
+    await repo.create_indexes()
+    print("[OK] A/B Optimizer indexes initialized")
 
 
 def get_database():

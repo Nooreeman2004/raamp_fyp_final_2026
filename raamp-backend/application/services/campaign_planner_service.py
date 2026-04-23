@@ -74,6 +74,10 @@ class CampaignPlannerService:
         serialized_brief = self._serialize_for_json(brief)
         serialized_brand = self._serialize_for_json(brand)
         
+        start_date = brief.get("start_date")
+        end_date = brief.get("end_date")
+        frequency = brief.get("posting_frequency", "3_per_week")
+        
         return f"""
 You are a senior brand strategist and campaign planner for a RESTAURANT brand.
 
@@ -82,6 +86,16 @@ HARD RULES:
 - Every post must align with the brand tone/theme/specialties.
 - Output MUST be valid JSON only. No markdown. No extra text.
 - Use ISO 8601 datetime strings for scheduled_time (include timezone offset if known).
+
+CALENDAR REQUIREMENTS:
+- Campaign Start: {start_date}
+- Campaign End: {end_date}
+- Frequency: {frequency}
+- REQUIRED: You MUST generate posts for the ENTIRE duration from start to end.
+- If frequency is "3_per_week", you must provide 3 unique posts for EVERY week of the campaign.
+- Ensure scheduled_time is spread logically across the weeks (e.g. Mon, Wed, Fri or Tue, Thu, Sat).
+- Do NOT stop after just a few days. Fill the entire duration.
+{"- REFERENCE MEDIA: Consider the visual style of this media: " + brief.get("reference_media_url") if brief.get("reference_media_url") else ""}
 
 BRAND_DNA:
 {json.dumps(serialized_brand, ensure_ascii=False)}
@@ -147,7 +161,7 @@ OUTPUT_JSON_SCHEMA:
         brand = await self._brand_context(user_email)
         business_id = brand["business_id"]
 
-        # Normalize brief datetime fields (they arrive as datetime already from Pydantic).
+        # Normalize brief datetime fields
         plan = CampaignPlanModel(
             user_email=user_email,
             business_id=business_id,
@@ -157,6 +171,7 @@ OUTPUT_JSON_SCHEMA:
             end_date=brief["end_date"],
             timezone=brief.get("timezone") or "UTC",
             posting_frequency=brief.get("posting_frequency") or "3_per_week",
+            reference_media_url=brief.get("reference_media_url"),
             generation_status="running",
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),

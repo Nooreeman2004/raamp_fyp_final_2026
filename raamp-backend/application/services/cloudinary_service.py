@@ -6,7 +6,7 @@ import cloudinary.uploader
 import logging
 import urllib.parse
 import httpx
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union, BinaryIO
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -97,6 +97,90 @@ class CloudinaryService:
             logger.error(f"URL accessibility check failed for {url}: {e}")
             return False
 
+    def upload_file(
+        self,
+        file: Union[str, BinaryIO, bytes],
+        folder: str = "raamp_assets",
+        filename: Optional[str] = None,
+        validate_aspect_ratio: bool = True,
+        optimize_for_stories: bool = False,
+        authenticated: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Upload a file (path, file object, or bytes) to Cloudinary.
+        
+        Args:
+            file: File path, file-like object, or raw bytes
+            folder: Cloudinary folder name
+            filename: Optional original filename
+            validate_aspect_ratio: Whether to validate for Instagram
+            optimize_for_stories: Whether to optimize for 9:16
+            authenticated: Whether to use authenticated delivery
+            
+        Returns:
+            Dict with upload details or None if failed
+        """
+        if not self.is_available:
+            logger.error("Cloudinary upload failed: Service not configured.")
+            return None
+            
+        try:
+            # Prepare upload options
+            upload_options = {
+                "folder": folder,
+                "resource_type": "auto",
+                "quality": "auto:best",
+                "flags": "preserve_transparency.lossy",
+            }
+
+            if authenticated:
+                upload_options["type"] = "authenticated"
+            
+            if optimize_for_stories:
+                upload_options["transformation"] = [
+                    {
+                        "width": 1080, 
+                        "height": 1920, 
+                        "crop": "limit",
+                        "gravity": "center",
+                        "quality": "auto:best",
+                        "fetch_format": "auto",
+                        "flags": "progressive"
+                    }
+                ]
+            
+            # Upload to Cloudinary
+            upload_result = cloudinary.uploader.upload(
+                file,
+                **upload_options
+            )
+            
+            secure_url = upload_result.get("secure_url")
+            width = upload_result.get("width")
+            height = upload_result.get("height")
+            
+            if not secure_url:
+                logger.error("Cloudinary upload succeeded but no secure_url returned")
+                return None
+            
+            response = {
+                "secure_url": secure_url,
+                "width": width,
+                "height": height,
+                "resource_type": upload_result.get("resource_type"),
+                "format": upload_result.get("format"),
+                "public_id": upload_result.get("public_id")
+            }
+            
+            if validate_aspect_ratio and width and height:
+                response["aspect_ratio_validation"] = self._validate_aspect_ratio(width, height)
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"⚠️  Cloudinary upload failed: {e}")
+            return None
+
     def upload_file_from_bytes(
         self, 
         file_content: bytes, 
@@ -107,114 +191,16 @@ class CloudinaryService:
         authenticated: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
-        Upload file content to Cloudinary
-        
-        Args:
-            file_content: Binary content of the file
-            folder: Cloudinary folder name
-            filename: Optional filename (will be URL-encoded)
-            validate_aspect_ratio: Whether to validate aspect ratio for Instagram
-            optimize_for_stories: If True, optimizes for Instagram Stories (9:16, 1080x1920)
-            
-        Returns:
-            Dict containing:
-                - secure_url: Public HTTPS URL
-                - width: Asset width (if image/video)
-                - height: Asset height (if image/video)
-                - resource_type: "image", "video", or "raw"
-                - format: file format (jpg, png, etc.)
-                - aspect_ratio_validation: Validation results (if enabled)
-            Returns None if upload fails
+        Backward compatibility wrapper for upload_file
         """
-        if not self.is_available:
-            logger.error("Cloudinary upload failed: Service not configured.")
-            return None
-            
-        try:
-            # Prepare upload options with MAXIMUM quality preservation
-            upload_options = {
-                "folder": folder,
-                "resource_type": "auto",  # Automatically detects if it's image or video
-                "quality": "auto:best",  # Best quality with minimal smart compression
-                "flags": "preserve_transparency.lossy",  # Preserve transparency, allow minimal lossy
-            }
-
-            # Use authenticated delivery for private assets (requires signed URLs)
-            if authenticated:
-                upload_options["type"] = "authenticated"
-            
-            # For stories, ensure optimal dimensions (1080x1920) with maximum quality
-            if optimize_for_stories:
-                upload_options["transformation"] = [
-                    {
-                        "width": 1080, 
-                        "height": 1920, 
-                        "crop": "limit",  # Don't upscale, only downscale if needed
-                        "gravity": "center",
-                        "quality": "auto:best",
-                        "fetch_format": "auto",  # Let Cloudinary choose best format
-                        "flags": "progressive"  # Progressive rendering
-                    }
-                ]
-                logger.info("Optimizing upload for Instagram Stories (1080x1920) with max quality")
-            
-            # Don't set public_id - let Cloudinary auto-generate to avoid path duplication
-            # Just rely on the folder parameter for organization
-            if filename:
-                logger.info(f"📁 Uploading to folder: {folder} | Original filename: {filename}")
-            
-            # Upload to Cloudinary
-            upload_result = cloudinary.uploader.upload(
-                file_content,
-                **upload_options
-            )
-            
-            secure_url = upload_result.get("secure_url")
-            width = upload_result.get("width")
-            height = upload_result.get("height")
-            public_id_returned = upload_result.get("public_id")
-            resource_type = upload_result.get("resource_type")
-            format_type = upload_result.get("format")
-            
-            if not secure_url:
-                logger.error("Cloudinary upload succeeded but no secure_url returned")
-                return None
-            
-            logger.info(f"✓ Cloudinary upload successful!")
-            logger.info(f"  🔗 URL: {secure_url}")
-            logger.info(f"  📊 Dimensions: {width}x{height}")
-            logger.info(f"  🆔 Public ID: {public_id_returned}")
-            logger.info(f"  📦 Type: {resource_type}/{format_type}")
-            
-            # Prepare response
-            response = {
-                "secure_url": secure_url,
-                "width": width,
-                "height": height,
-                "resource_type": upload_result.get("resource_type"),
-                "format": upload_result.get("format"),
-                "public_id": upload_result.get("public_id")
-            }
-            
-            # Validate aspect ratio if requested and dimensions available
-            if validate_aspect_ratio and width and height:
-                validation = self._validate_aspect_ratio(width, height)
-                response["aspect_ratio_validation"] = validation
-                
-                if not validation["valid"]:
-                    logger.warning(
-                        f"⚠️  Aspect ratio {validation['aspect_ratio_decimal']} not optimal for Instagram. "
-                        f"Recommended: {validation['recommended_ratio']}"
-                    )
-            
-            return response
-            
-        except cloudinary.exceptions.Error as e:
-            logger.error(f"⚠️  Cloudinary API error: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"⚠️  Cloudinary upload failed: {e}")
-            return None
+        return self.upload_file(
+            file=file_content,
+            folder=folder,
+            filename=filename,
+            validate_aspect_ratio=validate_aspect_ratio,
+            optimize_for_stories=optimize_for_stories,
+            authenticated=authenticated
+        )
 
     def build_authenticated_signed_url(self, public_id: str, resource_type: str = "image") -> Optional[str]:
         """

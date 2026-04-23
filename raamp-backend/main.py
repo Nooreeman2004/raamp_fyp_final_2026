@@ -55,6 +55,7 @@ from tasks.trend_retry_worker import process_due_trend_retries
 from tasks.trend_expiry_worker import expire_old_trend_detections
 from tasks.auto_reply_worker import process_due_auto_replies
 from tasks.auto_reply_draft_expiry_worker import expire_auto_reply_drafts
+from tasks.ab_test_schedule_worker import process_ab_test_schedule_transitions
 from infrastructure.database.models.instagram_connection_model import InstagramConnectionModel
 
 # External service instances for scheduling
@@ -199,6 +200,16 @@ async def lifespan(app: FastAPI):
         replace_existing=True
     )
     logging.info("Auto reply draft expiry configured (hourly)")
+
+    # A/B optimizer schedule transition worker (every minute)
+    scheduler.add_job(
+        process_ab_test_schedule_transitions,
+        CronTrigger(minute='*'),
+        id='process_ab_test_schedule_transitions',
+        name='A/B optimizer: status transitions + notifications',
+        replace_existing=True
+    )
+    logging.info("A/B optimizer schedule worker configured (every minute)")
 
     # Expire old trend detections (every 10 minutes)
     scheduler.add_job(
@@ -400,12 +411,14 @@ from presentation.routers import activity_router
 from presentation.routers.meta_ads_router import router as meta_ads_router
 from presentation.routers import meta_webhook_router
 from presentation.routers import auto_reply_router
+from presentation.routers import comment_analysis_router
 from presentation.routers import social_escalation_router
 from fastapi import Depends
 from presentation.routers.auth_router import get_current_user_email
 from application.services.onboarding_service import OnboardingService
 from presentation.routers import legacy_assets_router
 from presentation.routers import chatbot_router
+from presentation.routers import ab_optimizer_router
 # Instantiate a shared onboarding service for top-level routes
 onboarding_service = OnboardingService()
 
@@ -431,6 +444,7 @@ app.include_router(consultation_router.router)
 app.include_router(chatbot_router.router, prefix="/api")
 logging.info("Chatbot router loaded")
 
+app.include_router(ab_optimizer_router.router)
 app.include_router(content_generation_router.router)
 app.include_router(media_generation_router.router)  # Reel & Video generation
 app.include_router(complaints_router.router)
@@ -462,6 +476,8 @@ app.include_router(ml_router.router)  # ML Caption Intelligence endpoints
 app.include_router(meta_ads_router)
 app.include_router(meta_webhook_router.router)
 app.include_router(auto_reply_router.router)
+logger.info("🔌 Including Comment Analysis Router...")
+app.include_router(comment_analysis_router.router)
 app.include_router(social_escalation_router.router)
 
 # Mount static files for uploaded content

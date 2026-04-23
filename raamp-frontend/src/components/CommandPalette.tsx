@@ -70,11 +70,11 @@ const navigationItems: NavigationItem[] = [
     category: "Analytics"
   },
   {
-    id: "ab-testing",
-    label: "A/B Testing",
-    path: "/dashboard/ab-testing",
+    id: "ab-optimizer",
+    label: "The Lab (A/B)",
+    path: "/dashboard/ab-optimizer",
     icon: FlaskConical,
-    keywords: ["ab", "testing", "experiments", "variants", "optimization"],
+    keywords: ["ab", "testing", "experiments", "variants", "optimization", "lab"],
     category: "Analytics"
   },
   {

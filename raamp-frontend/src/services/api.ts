@@ -66,6 +66,7 @@ class ApiClient {
       ...options,
       headers,
       credentials: 'include', // Include cookies for CORS
+      cache: 'no-store',
     };
 
     // Allow configuring timeout via Vite env var VITE_API_TIMEOUT (ms)
@@ -88,6 +89,9 @@ class ApiClient {
     // Geo-intent (Trends + Places + Weather in parallel, or multi-zone recommend) often exceeds 20s under API latency.
     const isGeoEndpoint = endpoint.includes('/v1/geo/');
     const isCampaignPlanner = endpoint.includes('/campaign-planner/');
+    const method = (options.method || 'GET').toUpperCase();
+    const isCampaignPlannerCreate =
+      isCampaignPlanner && method === 'POST' && endpoint.includes('/campaign-planner/plans');
 
     // Social posting, trends, chatbot RAG, and media generation can run 60s+ on the backend
     const baseDefault = isAuthEndpoint
@@ -97,7 +101,7 @@ class ApiClient {
         : isMediaGeneration
           ? 120000
           : isCampaignPlanner
-            ? 25000
+            ? (isCampaignPlannerCreate ? 25000 : 10000)
           : 20000;
 
     // recommend-zones runs 4–8 parallel full signal ingests — often slower than a single heat-score.
@@ -124,11 +128,19 @@ class ApiClient {
 
       clearTimeout(id);
 
-      // Check if response is JSON
+      // Check if response is JSON; handle empty bodies safely (e.g. 204 No Content)
       const contentType = response.headers.get('content-type');
       const isJson = contentType && contentType.includes('application/json');
 
-      const data = isJson ? await response.json() : await response.text();
+      let data: any = undefined;
+      if (response.status !== 204 && response.status !== 205) {
+        if (isJson) {
+          const raw = await response.text();
+          data = raw && raw.trim().length > 0 ? JSON.parse(raw) : undefined;
+        } else {
+          data = await response.text();
+        }
+      }
 
       // Log Instagram posting responses (DISABLED to reduce duplicate notifications)
       // if (endpoint.includes('/instagram/posting')) {
@@ -162,6 +174,17 @@ class ApiClient {
           }
           // Priority 2: 'detail' array (e.g. from Pydantic 422)
           else if (Array.isArray(data.detail)) {
+            if (endpoint.includes('/campaign-planner/')) {
+              const plannerIssues = data.detail
+                .map((e: any) => {
+                  const path = Array.isArray(e?.loc) ? e.loc.filter((x: any) => x !== 'body').join('.') : 'field';
+                  const msg = e?.msg || 'Invalid value';
+                  return `${path}: ${msg}`;
+                })
+                .join(' | ');
+              errorMessage = plannerIssues || 'Campaign planner input is invalid. Please review your form values.';
+            }
+            else {
             const hasRadiusError = data.detail.some((e: any) => e.loc?.includes('radius'));
             const hasKeywordError = data.detail.some((e: any) => e.loc?.includes('keywords'));
             
@@ -171,6 +194,7 @@ class ApiClient {
                errorMessage = "Invalid audience keywords detected. Please update your business setup.";
             } else {
               errorMessage = "We encountered an issue with the provided form data. Please review your inputs and try again.";
+            }
             }
           }
           // Priority 3: 'detail' string
@@ -276,7 +300,9 @@ class ApiClient {
         };
 
         // Retry on retryable errors
-        const skipRetry = isSocialPosting && (error.status === 0 || error.errors?.timeout);
+        const skipRetry =
+          (isSocialPosting && (error.status === 0 || error.errors?.timeout)) ||
+          (isCampaignPlanner && !isCampaignPlannerCreate);
         if (isRetryableError(error) && retryAttempt < this.maxRetries && !skipRetry) {
           const delay = getRetryDelay(retryAttempt);
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -314,7 +340,7 @@ class ApiClient {
 
         // Retry on timeout if we haven't exceeded max retries (avoid triple-wait on slow geo endpoints)
         const skipTimeoutRetry =
-          isSocialPosting || (isGeoEndpoint && isGeoRecommendZones);
+          isSocialPosting || (isGeoEndpoint && isGeoRecommendZones) || (isCampaignPlanner && !isCampaignPlannerCreate);
         if (retryAttempt < this.maxRetries && !skipTimeoutRetry) {
           const delay = getRetryDelay(retryAttempt);
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -335,7 +361,7 @@ class ApiClient {
         };
 
         // Retry on network errors if we haven't exceeded max retries
-        if (retryAttempt < this.maxRetries && !isSocialPosting) {
+        if (retryAttempt < this.maxRetries && !isSocialPosting && !(isCampaignPlanner && !isCampaignPlannerCreate)) {
           const delay = getRetryDelay(retryAttempt);
           await new Promise(resolve => setTimeout(resolve, delay));
           return this.request<T>(endpoint, options, retryAttempt + 1, didTryJwtRefresh);
