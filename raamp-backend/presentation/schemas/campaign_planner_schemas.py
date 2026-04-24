@@ -80,14 +80,32 @@ class PlannedPostItem(BaseModel):
     title: str
     post_type: PostTypeEnum
     status: PlannedPostStatusEnum
-    prompts: Dict[str, Any] = Field(default_factory=dict)
+    caption: Optional[str] = None  # Actual usable caption text
+    prompts: Dict[str, Any] = Field(default_factory=dict)  # creative_prompt, etc.
     cta: Optional[str] = None
     hashtags: List[str] = Field(default_factory=list)
     why_it_fits_brand: Optional[str] = None
     draft_id: Optional[str] = None
     launch_request_id: Optional[str] = None
+    scheduled_post_id: Optional[str] = None  # Instagram/Facebook post ID after publishing
     last_error: Optional[str] = None
     last_error_at: Optional[str] = None
+
+
+class PlannedPostItemWithEnrichment(PlannedPostItem):
+    published_post_id: Optional[str] = None
+
+
+class GenerateImageFromPromptRequest(BaseModel):
+    """Request to generate a single image from a creative prompt."""
+    creative_prompt: str = Field(..., min_length=10, description="Detailed image generation prompt")
+
+
+class GenerateImageFromPromptResponse(BaseModel):
+    """Response containing the generated image URL."""
+    success: bool
+    image_url: Optional[str] = None
+    error: Optional[str] = None
 
 
 class CampaignPlanDetailResponse(BaseModel):
@@ -103,11 +121,11 @@ class CampaignPlanDetailResponse(BaseModel):
     status: str
     created_at: str
     updated_at: str
-    posts: List[PlannedPostItem] = Field(default_factory=list)
+    posts: List[PlannedPostItemWithEnrichment] = Field(default_factory=list)
 
 
 class CalendarQueryResponse(BaseModel):
-    items: List[PlannedPostItem]
+    items: List[PlannedPostItemWithEnrichment]
 
 
 class PlannedPostPatchRequest(BaseModel):

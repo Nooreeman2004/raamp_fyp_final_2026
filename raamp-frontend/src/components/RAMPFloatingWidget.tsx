@@ -508,6 +508,9 @@ const RAMPFloatingWidget = ({ userName, userId }: RAMPFloatingWidgetProps) => {
       });
     } catch (error) {
       console.error('Reset error:', error);
+      toast.warning("Reset partially failed", {
+        description: "History cleared locally, but server sync failed."
+      });
     }
 
     // Reset local state

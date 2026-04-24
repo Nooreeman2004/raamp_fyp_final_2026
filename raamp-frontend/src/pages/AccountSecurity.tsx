@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { apiClient } from "@/services/api";
 import { toast as sonner } from "sonner";
 import { authService } from "@/services/authService";
+import { MESSAGES } from "@/constants/messages";
 import {
   Dialog,
   DialogContent,
@@ -167,7 +168,7 @@ const AccountSecurity = () => {
         confirm_password: pwdConfirm,
       });
       sonner.success("Password Updated", {
-        description: resp?.message || "Your password was changed successfully.",
+        description: MESSAGES.AUTH.PASSWORD_UPDATED,
       });
       setShowPwdDialog(false);
       setPwdOtp("");
@@ -175,8 +176,8 @@ const AccountSecurity = () => {
       setPwdNew("");
       setPwdConfirm("");
     } catch {
-      sonner.error("Could not change password", {
-        description: "Please request a new code and try again.",
+      sonner.error("Could Not Change Password", {
+        description: MESSAGES.AUTH.PASSWORD_UPDATE_FAILED,
       });
     } finally {
       setPwdSaving(false);
@@ -489,7 +490,14 @@ const AccountSecurity = () => {
               Cancel
             </Button>
             <Button onClick={saveNewPassword} disabled={pwdSaving}>
-              {pwdSaving ? "Saving…" : "Update password"}
+              {pwdSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Update password"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -518,8 +526,15 @@ const AccountSecurity = () => {
             <Button variant="outline" onClick={() => setShowDeleteConfirmation(false)} className="font-mono text-xs">
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} className="font-mono text-xs">
-              Send Verification Code
+            <Button variant="destructive" onClick={handleConfirmDelete} className="font-mono text-xs" disabled={isSendingDeleteOtp}>
+              {isSendingDeleteOtp ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send Verification Code"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -568,8 +583,15 @@ const AccountSecurity = () => {
             >
               Cancel
             </Button>
-            <Button onClick={handleVerifyDeleteOtp} className="bg-red-600 text-white hover:bg-red-600/90 font-heading font-semibold">
-              Verify & Delete
+            <Button onClick={handleVerifyDeleteOtp} className="bg-red-600 text-white hover:bg-red-600/90 font-heading font-semibold" disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Verify & Delete"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

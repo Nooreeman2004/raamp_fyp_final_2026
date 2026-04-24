@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Zap, Sparkles, Image, FileText, MessageSquare, Copy, Check, Loader2, Trophy, AlertCircle, Download, Video, Film, Hash, Mail, Expand, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { API_ORIGIN, getMediaUrl } from "@/config/apiUtils";
 
 // Animation Imports
 import { motion } from "framer-motion";
@@ -110,11 +111,7 @@ const CreativeStudio = () => {
 
   // Helper to get full image URL
   const getImageUrl = (path: string | null | undefined) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    if (path.startsWith('/api')) return path;
-    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-    return `${import.meta.env.VITE_API_BASE_URL || '/api'}/${cleanPath}`;
+    return getMediaUrl(path || '');
   };
 
   // Convert generated content to variants for display
@@ -533,7 +530,9 @@ const CreativeStudio = () => {
           console.log(`✅ Caption usage tracked: ${variant.caption_id}`);
         } catch (trackError) {
           console.error("Failed to track caption usage:", trackError);
-          // Don't block the main flow if tracking fails
+          toast.warning("Caption tracking failed", {
+            description: "Your copy succeeded, but analytics for this caption might be delayed."
+          });
         }
       }
 
@@ -544,6 +543,9 @@ const CreativeStudio = () => {
           console.log(`✅ Hashtag usage tracked: ${variant.hashtag_id}`);
         } catch (trackError) {
           console.error("Failed to track hashtag usage:", trackError);
+          toast.warning("Hashtag tracking failed", {
+            description: "Your copy succeeded, but analytics for these hashtags might be delayed."
+          });
         }
       }
 
@@ -554,6 +556,9 @@ const CreativeStudio = () => {
           console.log(`✅ Message usage tracked: ${variant.message_id}`);
         } catch (trackError) {
           console.error("Failed to track message usage:", trackError);
+          toast.warning("Message tracking failed", {
+            description: "Your copy succeeded, but analytics for this message might be delayed."
+          });
         }
       }
       toast.success("Copied to clipboard!");
@@ -999,12 +1004,14 @@ const CreativeStudio = () => {
                                   onError={(e) => {
                                     const el = e.target as HTMLImageElement;
                                     el.style.display = 'none';
-                                    el.parentElement!.innerHTML = `
-                                      <div class="flex flex-col items-center justify-center w-full h-full gap-2 text-center px-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
-                                        <p class="text-[10px] text-white/30 font-mono">Failed to load</p>
-                                        <p class="text-[9px] text-white/20 font-mono">Retry generation</p>
-                                      </div>`;
+                                    if (el.parentElement) {
+                                      el.parentElement.innerHTML = `
+                                        <div class="flex flex-col items-center justify-center w-full h-full gap-2 text-center px-2">
+                                          <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
+                                          <p class="text-[10px] text-white/30 font-mono">Failed to load</p>
+                                          <p class="text-[9px] text-white/20 font-mono">Retry generation</p>
+                                        </div>`;
+                                    }
                                   }}
                                 />
 
@@ -1221,7 +1228,9 @@ const CreativeStudio = () => {
                                   console.log(`✅ Video asset usage tracked: ${generatedVideos.asset_ids[idx]}`);
                                 } catch (trackError) {
                                   console.error("Failed to track video asset usage:", trackError);
-                                  // Don't block the download if tracking fails
+                                  toast.warning("Usage tracking failed", {
+                                    description: "Your download will proceed, but analytics for this asset might be delayed."
+                                  });
                                 }
                               }
 
@@ -1310,7 +1319,10 @@ const CreativeStudio = () => {
                         className="w-full h-auto object-cover"
                         onError={(e) => {
                           // Fallback if image fails to load
-                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23000" width="400" height="400"/%3E%3Ctext fill="%2300f5d4" font-family="monospace" font-size="16" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EImage Loading...%3C/text%3E%3C/svg%3E';
+                          const img = e.target;
+                          if (img instanceof HTMLImageElement) {
+                            img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23000" width="400" height="400"/%3E%3Ctext fill="%2300f5d4" font-family="monospace" font-size="16" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EImage Loading...%3C/text%3E%3C/svg%3E';
+                          }
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3">
@@ -1330,6 +1342,9 @@ const CreativeStudio = () => {
                                 await assetService.markAssetUsed(assetId);
                               } catch (error) {
                                 console.error('Failed to track image usage:', error);
+                                toast.warning("Image tracking failed", {
+                                  description: "Your download will proceed, but analytics for this image might be delayed."
+                                });
                               }
                             }
 

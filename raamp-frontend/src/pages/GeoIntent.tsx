@@ -449,6 +449,9 @@ const GeoIntent = () => {
       setStrategyHistory(h);
     } catch (e) {
       console.error("Failed to fetch strategy history", e);
+      toast.warning("History unavailable", {
+        description: "Past campaign briefs couldn't be loaded."
+      });
     } finally {
       setHistoryLoading(false);
     }

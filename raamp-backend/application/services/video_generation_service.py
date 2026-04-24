@@ -18,6 +18,7 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
+from config import Config
 from infrastructure.repositories.asset_repository import AssetRepository
 from infrastructure.database.models.asset_model import AssetType, GenerationSource
 from application.services.cloudinary_service import CloudinaryService
@@ -80,7 +81,7 @@ Be specific about shots, timing, visuals, and brand integration."""
         self.client = genai.Client(api_key=self.api_key)
         self.text_model = os.getenv("GEMINI_TEXT_MODEL", "gemini-1.5-flash")
         self.video_model = os.getenv("VEO_MODEL", "veo-3.1-generate-preview")
-        self.output_folder = Path("generated_videos")
+        self.output_folder = Config.GENERATED_VIDEOS_DIR
         self.output_folder.mkdir(exist_ok=True)
         self.asset_repo = AssetRepository()
         self.cloudinary_service = CloudinaryService()

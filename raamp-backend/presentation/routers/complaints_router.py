@@ -8,7 +8,9 @@ from presentation.schemas.complaint_schemas import (
     ComplaintRatingRequest,
 )
 from application.services.complaint_service import ComplaintService
-from presentation.routers.auth_router import get_current_user_id, get_current_user_email
+from application.constants import FileLimits
+from presentation.routers.auth_router import get_current_user_id, get_current_user_email, require_admin_role
+from infrastructure.database.models.user_model import UserModel
 from fastapi.responses import JSONResponse
 from typing import Optional
 import logging
@@ -21,10 +23,7 @@ service = ComplaintService()
 user_repo = UserRepository()
 
 
-async def _require_admin(current_user_email: str) -> None:
-    user = await user_repo.find_by_email(current_user_email)
-    if not user or not getattr(user, "is_admin", False):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+# Admin endpoints use require_admin_role dependency
 
 
 @router.post("/submit", response_model=ComplaintSubmitResponse, status_code=status.HTTP_201_CREATED)
@@ -132,10 +131,13 @@ async def upload_attachment(
 ):
     """Upload an attachment to a complaint (optional, max 10MB)"""
     try:
-        # Validate file size (10MB max)
+        # Validate file size
         content = await file.read()
-        if len(content) > 10 * 1024 * 1024:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File size exceeds 10MB limit")
+        if len(content) > FileLimits.MAX_ATTACHMENT_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File size exceeds {FileLimits.MAX_ATTACHMENT_SIZE_BYTES // FileLimits.MB}MB limit"
+            )
 
         url = await service.upload_attachment(
             complaint_id=complaint_id,
@@ -159,10 +161,10 @@ async def upload_attachment(
 async def admin_resolve_complaint(
     complaint_id: str,
     payload: dict,
-    current_user_email: str = Depends(get_current_user_email),
+    admin_user: UserModel = Depends(require_admin_role),
 ):
     """Admin/support endpoint to resolve a complaint and set adminResponse."""
-    await _require_admin(current_user_email)
+    current_user_email = admin_user.email
     try:
         ok = await service.admin_update_status(
             complaint_id=complaint_id,
@@ -185,10 +187,10 @@ async def admin_resolve_complaint(
 async def admin_set_status(
     complaint_id: str,
     payload: dict,
-    current_user_email: str = Depends(get_current_user_email),
+    admin_user: UserModel = Depends(require_admin_role),
 ):
     """Admin/support endpoint to change status (pending|in_progress|resolved|rejected) and optionally set adminResponse."""
-    await _require_admin(current_user_email)
+    current_user_email = admin_user.email
     new_status = str(payload.get("status") or "").strip().lower()
     if new_status not in {"pending", "in_progress", "in progress", "resolved", "rejected"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status")
@@ -213,14 +215,13 @@ async def admin_set_status(
 
 @router.get("/admin", response_model=list[ComplaintResponseItem])
 async def admin_list_complaints(
-    current_user_email: str = Depends(get_current_user_email),
+    admin_user: UserModel = Depends(require_admin_role),
     limit: int = 50,
     offset: int = 0,
     status_filter: Optional[str] = None,
     q: Optional[str] = None,
 ):
     """Admin/support endpoint to list complaints as a ticket queue."""
-    await _require_admin(current_user_email)
     try:
         items = await service.admin_list_complaints(limit=limit, offset=offset, status=status_filter, q=q)
         return JSONResponse(status_code=status.HTTP_200_OK, content=items)

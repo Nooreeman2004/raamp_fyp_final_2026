@@ -47,7 +47,7 @@ export const ABAnalysisResult = ({
                     WEAK
                 </Badge>
             );
-        } else {
+        } else if (level === 'not_relevant') {
             return (
                 <Badge className="bg-red-500/20 text-red-400 border-red-500/50">
                     <XCircle className="w-3 h-3 mr-1" />
@@ -55,6 +55,13 @@ export const ABAnalysisResult = ({
                 </Badge>
             );
         }
+        // Fallback for undefined/unknown levels
+        return (
+            <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/50">
+                <AlertCircle className="w-3 h-3 mr-1" />
+                UNKNOWN
+            </Badge>
+        );
     };
 
     const getContentTypeIcon = (type: string) => {

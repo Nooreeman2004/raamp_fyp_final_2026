@@ -133,7 +133,7 @@ try:
             print(f"   ")
             print(f"   Option B - Use Local Storage (Development only):")
             print(f"   - No action needed - system automatically falls back")
-            print(f"   - Files saved to: raamp-backend/uploaded_files/")
+            print(f"   - Files saved to: raamp-backend/generated_assets/uploads/")
             print(f"   - Works perfectly for development")
             print(f"   - NOT recommended for production")
             print(f"   ")
@@ -166,7 +166,7 @@ try:
         print(f"  ✓ Brand logo uploads")
         print(f"  ✓ Media asset uploads")
         print(f"  ✓ Instagram post media")
-        print(f"\nFiles saved to: raamp-backend/uploaded_files/")
+        print(f"\nFiles saved to: raamp-backend/generated_assets/uploads/")
         print(f"\nWhen you're ready for production, upgrade to Blaze Plan to enable Firebase Storage.")
         print()
         sys.exit(0)  # Exit successfully - local storage fallback is working

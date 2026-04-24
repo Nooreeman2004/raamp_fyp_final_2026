@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
-from pathlib import Path
 import logging
+from config import Config
 from application.utils.file_manager import FileManager
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ async def get_legacy_asset(email: str, filename: str):
         sanitized_email = FileManager.sanitize_email_for_folder(email)
         
         # 2. Try 'content' subfolder (most common for these assets)
-        base_dir = Path("uploaded_files")
+        base_dir = Config.UPLOADED_FILES_DIR
         possible_paths = [
             base_dir / sanitized_email / "content" / filename,
             base_dir / sanitized_email / "logos" / filename,
@@ -29,12 +29,13 @@ async def get_legacy_asset(email: str, filename: str):
         
         for path in possible_paths:
             if path.exists() and path.is_file():
-                logger.info(f"✅ Legacy asset found: {email}/{filename} -> {path}")
                 return FileResponse(path)
         
-        logger.warning(f"❌ Legacy asset not found: {email}/{filename} (Tried sanitized: {sanitized_email})")
+        # Don't log - middleware will log the 404. Missing legacy assets are expected.
         raise HTTPException(status_code=404, detail="Asset not found")
         
+    except HTTPException:
+        raise  # Re-raise without additional logging
     except Exception as e:
-        logger.error(f"Error resolving legacy asset: {e}")
+        logger.error(f"Unexpected error resolving legacy asset {email}/{filename}: {e}")
         raise HTTPException(status_code=404, detail="Asset not found")

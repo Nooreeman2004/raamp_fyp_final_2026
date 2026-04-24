@@ -2,8 +2,10 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 import logging
 from typing import List, Optional
+from bson import ObjectId
 
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import PaginationDefaults, TimeRangeDefaults
 from presentation.schemas.instagram_roi_schemas import (
     ROIMetricsResponse,
     ROISummaryResponse,
@@ -15,26 +17,35 @@ from infrastructure.database.models.instagram_post_model import (
     ScheduledInstagramPostModel,
     InstagramStoryModel
 )
+from presentation.utils.validation import validate_object_id
+from presentation.schemas.error_response import ErrorResponse, ErrorCode
+import asyncio
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/api/instagram/roi", tags=["Instagram ROI"])
 
-@router.post("/refresh/{post_id}", response_model=ROIMetricsResponse)
+
+@router.post("/refresh/{post_id}", response_model=ROIMetricsResponse, status_code=202)
 async def refresh_post_metrics(
     post_id: str,
     current_user_email: str = Depends(get_current_user_email)
 ):
     """
     Manually trigger a metrics refresh for a single Instagram post.
+    Returns 202 Accepted since the refresh is async.
     """
+    validate_object_id(post_id, "post ID")  # Validate before hitting the DB
     metrics = await refresh_post_roi(post_id)
     if not metrics:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Post not found or ROI fetch failed"
+            detail=ErrorResponse(
+                error_code=ErrorCode.NOT_FOUND,
+                message="Post not found or ROI fetch failed"
+            ).model_dump()
         )
     return metrics
+
 
 @router.get("/{post_id}", response_model=ROIMetricsResponse)
 async def get_post_metrics(
@@ -44,17 +55,22 @@ async def get_post_metrics(
     """
     Returns stored ROI metrics for a specific post.
     """
+    validate_object_id(post_id, "post ID")  # Validate before hitting the DB
     post = await InstagramPostModel.get(post_id) or \
            await ScheduledInstagramPostModel.get(post_id) or \
            await InstagramStoryModel.get(post_id)
-           
+
     if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Post not found"
+            detail=ErrorResponse(
+                error_code=ErrorCode.NOT_FOUND,
+                message="Post not found"
+            ).model_dump()
         )
-        
+
     return post.roi_metrics
+
 
 @router.get("/summary/{business_id}", response_model=ROISummaryResponse)
 async def get_business_roi_summary(
@@ -64,11 +80,14 @@ async def get_business_roi_summary(
     """
     Returns aggregated ROI analytics for a business account.
     """
-    # Use business_id from posts
-    # Pull all relevant documents for this business
-    posts = await InstagramPostModel.find(InstagramPostModel.ig_business_id == business_id).to_list()
-    scheduled = await ScheduledInstagramPostModel.find(ScheduledInstagramPostModel.ig_business_id == business_id).to_list()
-    stories = await InstagramStoryModel.find(InstagramStoryModel.ig_business_id == business_id).to_list()
+    # Pull all relevant documents for this business concurrently (avoids sequential N+1)
+    tasks = [
+        InstagramPostModel.find(InstagramPostModel.ig_business_id == business_id).to_list(),
+        ScheduledInstagramPostModel.find(ScheduledInstagramPostModel.ig_business_id == business_id).to_list(),
+        InstagramStoryModel.find(InstagramStoryModel.ig_business_id == business_id).to_list()
+    ]
+    results = await asyncio.gather(*tasks)
+    posts, scheduled, stories = results
     
     all_content = posts + scheduled + stories
     
@@ -140,7 +159,7 @@ async def get_business_roi_summary(
 @router.get("/timeseries/{business_id}", response_model=List[dict])
 async def get_instagram_roi_timeseries(
     business_id: str,
-    days: int = Query(30, le=90),
+    days: int = Query(TimeRangeDefaults.DEFAULT_DAYS_MEDIUM, le=TimeRangeDefaults.MAX_DAYS_MEDIUM),
     current_user_email: str = Depends(get_current_user_email)
 ):
     """

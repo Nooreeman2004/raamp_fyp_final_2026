@@ -9,6 +9,7 @@ import { type Asset } from "@/services/assetService";
 
 // Hooks & Utils
 import { useABOptimizer } from "@/hooks/useABOptimizer";
+import { useToast } from "@/hooks/use-toast";
 import { generateABAnalysisPDF } from "@/utils/abPdfGenerator";
 
 // Types
@@ -49,13 +50,24 @@ const ABOptimizer = () => {
     resetAnalysis
   } = useABOptimizer();
 
+  const { toast } = useToast();
+
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
   
-  // Multi-stage workflow state
-  const [currentStage, setCurrentStage] = useState<WorkflowStage>(1);
-  const [scheduleRecommendation, setScheduleRecommendation] = useState<ScheduleRecommendation | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("instagram");
+  // Multi-stage workflow state - persist to sessionStorage to survive re-renders
+  const [currentStage, setCurrentStage] = useState<WorkflowStage>(() => {
+    const saved = sessionStorage.getItem('ab_optimizer_stage');
+    return saved ? (parseInt(saved) as WorkflowStage) : 1;
+  });
+  const [scheduleRecommendation, setScheduleRecommendation] = useState<ScheduleRecommendation | null>(() => {
+    const saved = sessionStorage.getItem('ab_optimizer_recommendation');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [selectedPlatform, setSelectedPlatform] = useState<string>(() => {
+    const saved = sessionStorage.getItem('ab_optimizer_platform');
+    return saved || "instagram";
+  });
   const [scheduleConfirmation, setScheduleConfirmation] = useState<ScheduleConfirmation | null>(null);
   const [winnerResult, setWinnerResult] = useState<WinnerResult | null>(null);
 
@@ -126,6 +138,11 @@ const ABOptimizer = () => {
     setScheduleRecommendation(recommendation);
     setSelectedPlatform(platform);
     setCurrentStage(3);
+    
+    // Persist to sessionStorage
+    sessionStorage.setItem('ab_optimizer_stage', '3');
+    sessionStorage.setItem('ab_optimizer_recommendation', JSON.stringify(recommendation));
+    sessionStorage.setItem('ab_optimizer_platform', platform);
   };
 
   const handleStage3Complete = (confirmation: ScheduleConfirmation) => {
@@ -155,10 +172,16 @@ const ABOptimizer = () => {
     setScheduleConfirmation(null);
     setWinnerResult(null);
     resetAnalysis();
+    
+    // Clear sessionStorage
+    sessionStorage.removeItem('ab_optimizer_stage');
+    sessionStorage.removeItem('ab_optimizer_recommendation');
+    sessionStorage.removeItem('ab_optimizer_platform');
   };
 
   const goBackToStage1 = () => {
     setCurrentStage(1);
+    sessionStorage.setItem('ab_optimizer_stage', '1');
   };
 
   // Dynamic breadcrumbs based on current stage
@@ -285,9 +308,29 @@ const ABOptimizer = () => {
               platform={selectedPlatform}
               recommendedPair={analysisResult.recommended_pair}
               images={analysisResult.images}
-              onBack={() => setCurrentStage(2)}
+              onBack={() => {
+                setCurrentStage(2);
+                sessionStorage.setItem('ab_optimizer_stage', '2');
+              }}
               onContinue={handleStage3Complete}
             />
+          )}
+          
+          {/* Fallback: If stage 3 but missing data, redirect back */}
+          {currentStage === 3 && (!analysisResult || !scheduleRecommendation) && (
+            (() => {
+              // Auto-redirect back to stage 1 if data is missing
+              setTimeout(() => {
+                setCurrentStage(1);
+                sessionStorage.setItem('ab_optimizer_stage', '1');
+                toast({
+                  title: "Session Lost",
+                  description: "Analysis data was lost. Please start over.",
+                  variant: "destructive",
+                });
+              }, 100);
+              return null;
+            })()
           )}
 
           {/* Stage 4: Monitor Schedule */}

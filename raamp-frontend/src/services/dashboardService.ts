@@ -84,8 +84,9 @@ class DashboardService {
   }
 
   getRealtimeSocket(token: string): WebSocket {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//localhost:8000/api/v1/dashboard-analytics/ws?token=${token}`;
+    const apiBase = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/api\/?$/, "");
+    const wsBase = apiBase.replace(/^http/, "ws");
+    const wsUrl = `${wsBase}/api/v1/dashboard-analytics/ws?token=${token}`;
     return new WebSocket(wsUrl);
   }
 }

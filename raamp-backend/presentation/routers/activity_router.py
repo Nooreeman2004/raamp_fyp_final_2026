@@ -1,44 +1,68 @@
-from fastapi import APIRouter, Depends, Query
-from typing import List, Optional
-from datetime import datetime
+from fastapi import APIRouter, Depends, Query, HTTPException
+from typing import List
 from infrastructure.database.database import get_database
 from presentation.routers.auth_router import get_current_user_email
+from application.use_cases.activity.get_activity_feed import GetActivityFeedUseCase
+from application.use_cases.activity.log_activity import LogActivityUseCase
+from application.constants import PaginationDefaults
 import logging
 
 router = APIRouter(prefix="/api/activity", tags=["Activity"])
 logger = logging.getLogger(__name__)
 
+
 async def get_activity_collection():
+    """Dependency to get activity collection."""
     db = get_database()
     return db.activity_log
 
-@router.get("/{business_id}", response_model=List[dict])
+
+async def get_activity_feed_use_case():
+    """Dependency to get GetActivityFeedUseCase instance."""
+    collection = await get_activity_collection()
+    return GetActivityFeedUseCase(collection)
+
+
+async def get_log_activity_use_case():
+    """Dependency to get LogActivityUseCase instance."""
+    collection = await get_activity_collection()
+    return LogActivityUseCase(collection)
+
+
+@router.get("/{business_id}")
 async def get_activity_feed(
     business_id: str,
-    limit: int = Query(10, le=50),
-    current_user: str = Depends(get_current_user_email)
+    skip: int = Query(PaginationDefaults.DEFAULT_SKIP, ge=0, description="Number of records to skip"),
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_SMALL, ge=1, le=PaginationDefaults.MAX_LIMIT_SMALL, description="Maximum records to return"),
+    current_user: str = Depends(get_current_user_email),
+    use_case: GetActivityFeedUseCase = Depends(get_activity_feed_use_case)
 ):
     """
-    Get the latest activity events for a business.
-    Each event includes a type, title, subtitle, and timestamp.
+    Get the latest activity events for a business, with pagination support.
+
+    Returns a paginated envelope:
+    - data: list of activity events
+    - pagination.skip: records skipped
+    - pagination.limit: page size
+    - pagination.total: total matching records
+    - pagination.has_more: whether more pages exist
     """
     try:
-        collection = await get_activity_collection()
-        # Find activities for this business, sort by newest first
-        cursor = collection.find({"business_id": business_id}).sort("created_at", -1).limit(limit)
-        activities = await cursor.to_list(length=limit)
-        
-        # Format the output (converting ObjectId to str)
-        for activity in activities:
-            activity["id"] = str(activity["_id"])
-            del activity["_id"]
-            if isinstance(activity.get("created_at"), datetime):
-                activity["created_at"] = activity["created_at"].isoformat()
-                
-        return activities
+        activities, total_count = await use_case.execute_paginated(business_id, skip, limit)
+        return {
+            "data": activities,
+            "pagination": {
+                "skip": skip,
+                "limit": limit,
+                "total": total_count,
+                "has_more": skip + limit < total_count,
+            },
+        }
     except Exception as e:
-        logger.error(f"Error fetching activity feed: {e}")
-        return []
+        logger.error(f"Error in activity feed endpoint: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch activity feed")
+
+
 
 async def log_activity(business_id: str, event_type: str, title: str, subtitle: str):
     """
@@ -46,18 +70,8 @@ async def log_activity(business_id: str, event_type: str, title: str, subtitle: 
     Should be called via asyncio.create_task to be non-blocking.
     """
     try:
-        db = get_database()
-        collection = db.activity_log
-        
-        activity = {
-            "business_id": business_id,
-            "event_type": event_type,
-            "title": title,
-            "subtitle": subtitle,
-            "created_at": datetime.utcnow()
-        }
-        
-        await collection.insert_one(activity)
-        logger.info(f"Activity logged: {event_type} for {business_id}")
+        collection = await get_activity_collection()
+        use_case = LogActivityUseCase(collection)
+        await use_case.execute(business_id, event_type, title, subtitle)
     except Exception as e:
         logger.error(f"Failed to log activity: {e}")

@@ -74,3 +74,4 @@ We are building a decoupled application (RAAMP) split into two domains:
 - **Simplicity First**: Make every change as simple as possible. Minimize the footprint on the codebase.
 - **No Laziness**: Find root causes. No temporary "band-aid" fixes. Adhere to senior developer standards.
 - **Minimal Impact**: Changes should only touch what is necessary. Avoid introducing regressions in unrelated modules.
+- **No Unsolicited Documentation**: Never create markdown files (`.md`) to document changes, summaries, or testing guides unless explicitly requested by the user. Provide concise inline responses instead.

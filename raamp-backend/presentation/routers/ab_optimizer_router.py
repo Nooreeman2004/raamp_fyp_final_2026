@@ -4,7 +4,7 @@ A/B Test Optimizer API Router
 REST API endpoints for restaurant marketing image A/B testing.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Body
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -16,10 +16,13 @@ import uuid
 from datetime import datetime, timedelta
 
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import PaginationDefaults, FileLimits
 from application.utils.rate_limiter import limiter
 from fastapi import Request
 from application.use_cases.ab_test_optimizer_use_case import get_ab_optimizer_use_case
 from application.services.cloudinary_service import CloudinaryService
+from application.utils.tier_restrictions import require_pro_or_premium
+from infrastructure.database.models.user_model import UserModel
 from infrastructure.services.scheduling_lookup_service import (
     get_schedule_recommendation,
     get_next_optimal_posting_time
@@ -32,7 +35,7 @@ from infrastructure.database.models.notification_model import NotificationType
 from domain.entities.ab_test_image import EngagementMetrics
 from infrastructure.repositories.asset_repository import AssetRepository
 from domain.utils.scoring_logic import get_scoring_config, generate_test_advice, is_irrelevant
-from config import settings
+from config import settings, Config
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ab-optimizer", tags=["ab-optimizer"])
@@ -170,7 +173,8 @@ async def get_ab_optimizer_config():
 async def upload_and_analyze_batch(
     request: Request,
     files: List[UploadFile] = File(..., description="2-5 images to analyze"),
-    current_user_email: str = Depends(get_current_user_email)
+    current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     """
     Upload 2-5 images and analyze them for A/B testing potential.
@@ -203,14 +207,13 @@ async def upload_and_analyze_batch(
             detail="Maximum 5 images allowed per batch"
         )
     
-    # Validate file sizes (10MB limit)
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    # Validate file sizes
     for file in files:
         # Check size if available (FastAPI UploadFile.size)
-        if file.size and file.size > MAX_FILE_SIZE:
+        if file.size and file.size > FileLimits.MAX_ATTACHMENT_SIZE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File {file.filename} is too large. Max size is 10MB."
+                detail=f"File {file.filename} is too large. Max size is {FileLimits.MAX_ATTACHMENT_SIZE_BYTES // FileLimits.MB}MB."
             )
     
     # Get services (lazy initialization)
@@ -228,7 +231,7 @@ async def upload_and_analyze_batch(
             )
     
     # Save files temporarily
-    temp_dir = Path("uploaded_files") / "ab_optimizer_temp" / str(uuid.uuid4())
+    temp_dir = Config.UPLOADED_FILES_DIR / "ab_optimizer_temp" / str(uuid.uuid4())
     temp_dir.mkdir(parents=True, exist_ok=True)
     
     images_data = []
@@ -297,7 +300,8 @@ async def upload_and_analyze_batch(
 async def analyze_from_library(
     request: Request,
     body: AnalyzeFromLibraryRequest = Body(...),
-    current_user_email: str = Depends(get_current_user_email)
+    current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     """
     Analyze images from the user's existing assets library.
@@ -319,30 +323,35 @@ async def analyze_from_library(
         
     asset_repo = AssetRepository()
     ab_optimizer = get_ab_optimizer_use_case()
-    
-    images_data = []
-    
+
+    # ── Batch-fetch all assets in ONE query (eliminates N+1) ──────────────────
+    fetched_assets = await asset_repo.get_by_asset_ids(image_ids)
+    asset_map = {a.asset_id: a for a in fetched_assets}
+
+    # Validate each requested id exists and belongs to the current user
     for asset_id in image_ids:
-        asset = await asset_repo.get_by_asset_id(asset_id)
+        asset = asset_map.get(asset_id)
         if not asset:
             raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found")
-        
         if asset.user_id != current_user_email:
             raise HTTPException(status_code=403, detail=f"Access denied to asset {asset_id}")
-            
+
+    images_data = []
+    for asset_id in image_ids:
+        asset = asset_map[asset_id]
         # Determine public URL (logic same as assets_router)
         url = asset.cloudinary_url or asset.firebase_url or asset.storage_url or ""
         if not (url.startswith("http://") or url.startswith("https://")):
             if url.startswith("/"):
                 base = settings.BACKEND_URL.rstrip("/")
                 url = f"{base}{url}"
-        
+
         images_data.append({
             "path": asset.file_path,
             "filename": asset.file_name,
             "url": url
         })
-        
+
     try:
         batch = await ab_optimizer.analyze_batch(images_data, current_user_email)
         
@@ -379,32 +388,46 @@ async def get_batch_results(
     return _build_batch_response(batch)
 
 
-@router.get("/batches", response_model=List[BatchSummary])
+@router.get("/batches")
 async def get_user_batches(
-    limit: int = 20,
+    skip: int = Query(PaginationDefaults.DEFAULT_SKIP, ge=0),
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_MEDIUM, ge=1, le=PaginationDefaults.MAX_LIMIT_SMALL),
     current_user_email: str = Depends(get_current_user_email)
 ):
     """
-    Get all A/B test batches for the current user.
-    
-    Returns a summary list without full image details.
-    Use GET /batch/{batch_id} to get full details.
+    Get all A/B test batches for the current user, with pagination.
+
+    Returns a paginated summary list without full image details.
     """
     ab_optimizer = get_ab_optimizer_use_case()
-    batches = await ab_optimizer.get_user_batches(current_user_email, limit)
-    
+
+    # We need a new method in Use Case or just use the repo directly if logic is simple.
+    # Assuming the Use Case currently just does find().limit().
+    # Let's adjust the Use Case call or implementation if needed.
+    # For now, let's assume we want to return a paginated object.
+
+    batches, total_count = await ab_optimizer.get_user_batches_paginated(current_user_email, skip, limit)
+
     summaries = []
     for batch in batches:
-        summaries.append(BatchSummary(
-            batch_id=batch["batch_id"],
-            image_count=batch.get("image_count", 0),
-            created_at=batch["created_at"].isoformat(),
-            recommended_pair=batch.get("recommended_pair"),
-            score_gap=batch.get("score_gap"),
-            schedule_id=batch.get("schedule_id")
-        ))
-    
-    return summaries
+        summaries.append({
+            "batch_id": batch["batch_id"],
+            "image_count": batch.get("image_count", 0),
+            "created_at": batch["created_at"].isoformat() if isinstance(batch["created_at"], datetime) else batch["created_at"],
+            "recommended_pair": batch.get("recommended_pair"),
+            "score_gap": batch.get("score_gap"),
+            "schedule_id": batch.get("schedule_id")
+        })
+
+    return {
+        "data": summaries,
+        "pagination": {
+            "skip": skip,
+            "limit": limit,
+            "total": total_count,
+            "has_more": skip + limit < total_count
+        }
+    }
 
 
 @router.get("/cost-estimate", response_model=CostEstimateResponse)
@@ -756,7 +779,8 @@ class WinnerResponse(BaseModel):
 @router.post("/calculate-winner", response_model=WinnerResponse)
 async def calculate_winner(
     req: CalculateWinnerRequest,
-    current_user_email: str = Depends(get_current_user_email)
+    current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     """
     **Stage 5: Determine A/B test winner based on engagement metrics.**
@@ -874,6 +898,7 @@ class AdBriefResponse(BaseModel):
 @router.post("/generate-ad-brief", response_model=AdBriefResponse)
 async def generate_ad_brief(
     req: GenerateAdBriefRequest,
+    user: UserModel = Depends(require_pro_or_premium),  # Pro/Premium only
     current_user_email: str = Depends(get_current_user_email)
 ):
     """

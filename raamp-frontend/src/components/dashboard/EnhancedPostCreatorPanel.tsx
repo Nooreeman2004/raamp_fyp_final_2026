@@ -174,6 +174,9 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                 setConnectionStatus(status);
             } catch (error) {
                 console.error("Failed to fetch social connection status:", error);
+                toast.warning("Connection status unavailable", {
+                    description: "Cannot verify Instagram/Facebook connection. Some features may be limited."
+                });
             }
         };
         if (open) {

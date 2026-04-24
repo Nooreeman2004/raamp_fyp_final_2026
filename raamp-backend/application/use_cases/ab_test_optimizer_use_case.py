@@ -234,6 +234,17 @@ class ABTestOptimizerUseCase:
         """
         # The repository now handles count enrichment via aggregation (fixes N+1)
         return await self.repository.get_user_batches(user_id, limit)
+
+    async def get_user_batches_paginated(
+        self,
+        user_id: str,
+        skip: int = 0,
+        limit: int = 20
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """
+        Get paginated batches for a user.
+        """
+        return await self.repository.get_user_batches_paginated(user_id, skip, limit)
     
     def estimate_cost(self, num_images: int) -> Dict[str, Any]:
         """

@@ -7,6 +7,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import PaginationDefaults
 from presentation.schemas.campaign_planner_schemas import (
     CampaignPlannerCreateRequest,
     CampaignPlannerCreateResponse,
@@ -15,9 +16,13 @@ from presentation.schemas.campaign_planner_schemas import (
     CampaignPlanDetailResponse,
     CalendarQueryResponse,
     PlannedPostItem,
+    PlannedPostItemWithEnrichment,
     PlannedPostPatchRequest,
+    GenerateImageFromPromptRequest,
+    GenerateImageFromPromptResponse,
 )
 from application.services.campaign_planner_service import CampaignPlannerService
+from application.services.image_generation_service import get_image_generation_service
 from infrastructure.database.models.campaign_plan_model import CampaignPlanModel
 from infrastructure.database.models.campaign_planned_post_model import CampaignPlannedPostModel
 from infrastructure.database.models.campaign_draft_model import CampaignDraftModel
@@ -45,8 +50,39 @@ def _post_item(p: CampaignPlannedPostModel) -> PlannedPostItem:
         why_it_fits_brand=p.why_it_fits_brand,
         draft_id=p.draft_id,
         launch_request_id=p.launch_request_id,
+        scheduled_post_id=p.scheduled_post_id,
         last_error=p.last_error,
         last_error_at=p.last_error_at.isoformat() if p.last_error_at else None,
+    )
+
+
+async def _post_item_enriched(p: CampaignPlannedPostModel) -> PlannedPostItemWithEnrichment:
+    from infrastructure.database.models.campaign_launch_request_model import CampaignLaunchRequestModel
+    
+    item = _post_item(p)
+    
+    # Prefer direct scheduled_post_id if available (new approach)
+    if p.scheduled_post_id:
+        published_post_id = p.scheduled_post_id
+    # Fallback to extracting from launch request result (legacy approach)
+    elif p.launch_request_id:
+        published_post_id = None
+        req = await CampaignLaunchRequestModel.get(p.launch_request_id)
+        if req and req.result:
+            # Result usually contains {"instagram": {"id": "..."}} or similar
+            res = req.result
+            if "instagram" in res and "id" in res["instagram"]:
+                published_post_id = res["instagram"]["id"]
+            elif "facebook" in res and "id" in res["facebook"]:
+                published_post_id = res["facebook"]["id"]
+            elif "id" in res:
+                published_post_id = res["id"]
+    else:
+        published_post_id = None
+
+    return PlannedPostItemWithEnrichment(
+        **item.model_dump(),
+        published_post_id=published_post_id
     )
 
 
@@ -62,8 +98,8 @@ async def create_plan(
 
 @router.get("/plans", response_model=CampaignPlanListResponse)
 async def list_plans(
-    limit: int = Query(50, ge=1, le=100),
-    skip: int = Query(0, ge=0),
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_LARGE, ge=1, le=PaginationDefaults.MAX_LIMIT_MEDIUM),
+    skip: int = Query(PaginationDefaults.DEFAULT_SKIP, ge=0),
     current_user_email: str = Depends(get_current_user_email),
 ):
     q = CampaignPlanModel.user_email == current_user_email
@@ -116,7 +152,7 @@ async def get_plan(
         status=plan.status,
         created_at=plan.created_at.isoformat(),
         updated_at=plan.updated_at.isoformat(),
-        posts=[_post_item(p) for p in posts],
+        posts=[await _post_item_enriched(p) for p in posts],
     )
 
 
@@ -274,7 +310,7 @@ async def request_approval(
         platform=platform,
         mode=mode,
         media_url=media_url,
-        caption=(post.prompts or {}).get("caption_prompt") or post.title,
+        caption=post.caption or post.title,  # Use actual caption field, not caption_prompt
         scheduled_time=post.scheduled_time.isoformat() if mode == "schedule_post" else None,
         facebook_page_id=None,
         trend_keyword=None,
@@ -291,4 +327,57 @@ async def request_approval(
     await post.save()
 
     return {"success": True, "request_id": str(req.id), "status": req.status}
+
+
+@router.post("/planned-posts/{post_id}/generate-image", response_model=GenerateImageFromPromptResponse)
+async def generate_image_for_post(
+    post_id: str,
+    body: GenerateImageFromPromptRequest,
+    current_user_email: str = Depends(get_current_user_email),
+):
+    """
+    Generate a single image from the creative_prompt for a planned post.
+    
+    This is optimized for campaign planner workflow:
+    - Generates 1 image (not 3) for speed
+    - Uses the creative_prompt directly
+    - Returns the image URL immediately
+    """
+    post = await CampaignPlannedPostModel.get(post_id)
+    if not post or post.user_email != current_user_email:
+        raise HTTPException(status_code=404, detail="Planned post not found")
+    
+    try:
+        logger.info("Generating single image for planned post %s", post_id)
+        image_service = get_image_generation_service()
+        
+        # Generate 1 image using the existing service (count=1)
+        image_urls = await image_service.generate_images(
+            image_prompt=body.creative_prompt,
+            campaign_id=post.campaign_plan_id,
+            count=1,  # Single image for campaign planner
+            aspect_ratio="1:1",
+        )
+        
+        if not image_urls or len(image_urls) == 0:
+            logger.error("No images generated for post %s", post_id)
+            return GenerateImageFromPromptResponse(
+                success=False,
+                error="Image generation failed. Please try again."
+            )
+        
+        image_url = image_urls[0]
+        logger.info("Image generated successfully: %s", image_url)
+        
+        return GenerateImageFromPromptResponse(
+            success=True,
+            image_url=image_url
+        )
+    
+    except Exception as e:
+        logger.exception("Image generation failed for post %s: %s", post_id, e)
+        return GenerateImageFromPromptResponse(
+            success=False,
+            error=str(e)
+        )
 

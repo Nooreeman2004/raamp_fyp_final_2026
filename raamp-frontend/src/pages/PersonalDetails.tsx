@@ -153,7 +153,10 @@ const PersonalDetails = () => {
 
   const getFieldError = (field: string): string => {
     if (!touched[field as keyof typeof touched]) return '';
-    const value = (formData as any)[field] || '';
+    const value = (() => {
+        const hasField = typeof formData === 'object' && formData !== null && field in formData;
+        return hasField ? String((formData as Record<string, unknown>)[field] || '') : '';
+    })();
     return validateField(field, value);
   };
 
@@ -206,15 +209,18 @@ const PersonalDetails = () => {
       await refreshUser();
       clearPersistence();
 
-      sonner.success("Matrix Synchronized", {
-        description: "Your professional parameters have been locked in.",
-      });
-
       // Use API response so navigation does not rely on stale hook state or localStorage cache.
       const nextRoute = getNextOnboardingRouteFromUser(response.user);
-      if (nextRoute !== null && nextRoute !== location.pathname) {
-        setTimeout(() => navigate(nextRoute), 500);
-      }
+      
+      sonner.success("Matrix Synchronized", {
+        description: "Your professional parameters have been locked in.",
+        onAutoClose: () => {
+          // Navigate after toast auto-closes (ensures user sees the success message)
+          if (nextRoute !== null && nextRoute !== location.pathname) {
+            navigate(nextRoute);
+          }
+        },
+      });
     } catch (error: any) {
       console.error("Profile update error:", error);
       sonner.error("Sync Failed", {

@@ -231,7 +231,10 @@ export const trendService = {
         const query = qs.toString() ? `?${qs.toString()}` : "";
         const data = await apiClient.get<{ trends: TrendSpike[]; count: number }>(`/trends/live${query}`);
         console.log('[trendService] getLiveTrends raw response:', data);
-        const trends = (data as any)?.trends ?? (Array.isArray(data) ? data : []);
+        // Type-safe extraction: Check if data has trends array, otherwise assume data IS the array
+        const trends = (typeof data === 'object' && data !== null && 'trends' in data && Array.isArray(data.trends))
+            ? data.trends
+            : (Array.isArray(data) ? data : []);
         console.log(`[trendService] getLiveTrends parsed: ${trends.length} trends`);
         return trends;
     },
@@ -243,11 +246,13 @@ export const trendService = {
         if (limit) qs.set("limit", String(limit));
         const query = qs.toString() ? `?${qs.toString()}` : "";
         const data = await apiClient.get<TrendingNowResponse>(`/trends/trending_now${query}`);
+        // Type-safe fallback: Extract fields with proper checks
+        const isValidData = typeof data === 'object' && data !== null;
         return {
-            geo: (data as any)?.geo ?? null,
-            terms: Array.isArray((data as any)?.terms) ? (data as any).terms : [],
-            relevant: Array.isArray((data as any)?.relevant) ? (data as any).relevant : [],
-            count: Number((data as any)?.count ?? 0) || 0,
+            geo: isValidData && 'geo' in data ? data.geo : null,
+            terms: isValidData && 'terms' in data && Array.isArray(data.terms) ? data.terms : [],
+            relevant: isValidData && 'relevant' in data && Array.isArray(data.relevant) ? data.relevant : [],
+            count: isValidData && 'count' in data ? Number(data.count) || 0 : 0,
         };
     },
 
@@ -256,15 +261,15 @@ export const trendService = {
         qs.set("niche", niche);
         qs.set("scope", scope);
         qs.set("timeframe", timeframe);
-        qs.set("limit", String(limit));
-        const data = await apiClient.get<IndustryTrendsResponse>(`/trends/industry_trends?${qs.toString()}`);
+        // Type-safe extraction with proper checks
+        const isValidData = typeof data === 'object' && data !== null;
         return {
-            scope: String((data as any)?.scope || scope),
-            niche: String((data as any)?.niche || niche),
-            seed_keywords: Array.isArray((data as any)?.seed_keywords) ? (data as any).seed_keywords : [],
-            terms: Array.isArray((data as any)?.terms) ? (data as any).terms : [],
-            count: Number((data as any)?.count ?? 0) || 0,
-            data_quality: (data as any)?.data_quality || undefined,
+            scope: isValidData && 'scope' in data ? String(data.scope) : scope,
+            niche: isValidData && 'niche' in data ? String(data.niche) : niche,
+            seed_keywords: isValidData && 'seed_keywords' in data && Array.isArray(data.seed_keywords) ? data.seed_keywords : [],
+            terms: isValidData && 'terms' in data && Array.isArray(data.terms) ? data.terms : [],
+            count: isValidData && 'count' in data ? Number(data.count) || 0 : 0,
+            data_quality: isValidData && 'data_quality' in data ? data.data_quality : undefined,
         };
     },
 
@@ -272,12 +277,16 @@ export const trendService = {
         const query = location ? `?location=${location}` : '';
         const data = await apiClient.get<GeoHeatmapResponse>(`/trends/heatmap${query}`);
         console.log('[trendService] getGeoHeatmap raw response:', data);
-        const regions = (data as any)?.regions ?? (Array.isArray(data) ? data : []);
-        const isReal = Boolean((data as any)?.is_real_geo);
+        // Type-safe extraction
+        const isValidData = typeof data === 'object' && data !== null;
+        const regions = isValidData && 'regions' in data && Array.isArray(data.regions)
+            ? data.regions
+            : (Array.isArray(data) ? data : []);
+        const isReal = isValidData && 'is_real_geo' in data ? Boolean(data.is_real_geo) : false;
         console.log(`[trendService] getGeoHeatmap parsed: ${regions.length} regions (is_real_geo=${isReal})`);
         return {
             regions,
-            count: Number((data as any)?.count ?? regions.length) || regions.length,
+            count: isValidData && 'count' in data ? Number(data.count) || regions.length : regions.length,
             is_real_geo: isReal,
         };
     },
@@ -306,7 +315,14 @@ export const trendService = {
         const query = location ? `?location=${location}` : '';
         const data = await apiClient.get<{ opportunities: MarketGap[]; count: number }>(`/trends/bubble_chart${query}`);
         console.log('[trendService] getMarketGapData raw response:', data);
-        const opportunities = (data as any)?.opportunities ?? (Array.isArray(data) ? data : []);
+        // Type guard for opportunities response
+        const isOpportunitiesResponse = (obj: unknown): obj is { opportunities?: unknown[] } => {
+            return typeof obj === 'object' && obj !== null;
+        };
+        
+        const opportunities = isOpportunitiesResponse(data) && Array.isArray(data.opportunities)
+            ? data.opportunities
+            : (Array.isArray(data) ? data : []);
         console.log(`[trendService] getMarketGapData parsed: ${opportunities.length} opportunities`);
         return opportunities;
     },
@@ -358,11 +374,18 @@ export const trendService = {
         qs.set("niche", niche || "general");
         const data = await apiClient.get<any>(`/trends/viral-audio?${qs.toString()}`);
         return {
-            recommended_tracks: Array.isArray((data as any)?.recommended_tracks)
-                ? (data as any).recommended_tracks
-                : Array.isArray((data as any)?.tracks)
-                  ? (data as any).tracks
-                  : [],
+            recommended_tracks: (() => {
+                const hasRecommendedTracks = typeof data === 'object' && data !== null && 'recommended_tracks' in data;
+                const hasTracks = typeof data === 'object' && data !== null && 'tracks' in data;
+                
+                if (hasRecommendedTracks && Array.isArray((data as { recommended_tracks: unknown }).recommended_tracks)) {
+                    return (data as { recommended_tracks: unknown[] }).recommended_tracks;
+                }
+                if (hasTracks && Array.isArray((data as { tracks: unknown }).tracks)) {
+                    return (data as { tracks: unknown[] }).tracks;
+                }
+                return [];
+            })(),
         };
     },
 
@@ -373,7 +396,12 @@ export const trendService = {
         if (keyword) qs.set("keyword", keyword);
         const data = await apiClient.get<any>(`/trends/influencer-radar?${qs.toString()}`);
         return {
-            influencers: Array.isArray((data as any)?.influencers) ? (data as any).influencers : [],
+            influencers: (() => {
+                const hasInfluencers = typeof data === 'object' && data !== null && 'influencers' in data;
+                return hasInfluencers && Array.isArray((data as { influencers: unknown }).influencers)
+                    ? (data as { influencers: unknown[] }).influencers
+                    : [];
+            })(),
         };
     },
 

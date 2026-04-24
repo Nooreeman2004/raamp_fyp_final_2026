@@ -67,7 +67,10 @@ import { UrgencyWidget } from "@/components/trends/UrgencyWidget";
 const TrendArbitrage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const userPlatform = (user as any)?.primary_platform || "instagram";
+  const userPlatform = (() => {
+    const hasPlatform = user && typeof user === 'object' && 'primary_platform' in user;
+    return hasPlatform ? String((user as { primary_platform: unknown }).primary_platform) : "instagram";
+  })();
   const [liveTrends, setLiveTrends] = useState<TrendSpike[]>([]);
   const [rawTrends, setRawTrends] = useState<TrendSpike[]>([]);
   const [geoData, setGeoData] = useState<GeoTrend[]>([]);
@@ -98,8 +101,14 @@ const TrendArbitrage = () => {
   const [deployContentType, setDeployContentType] = useState<"carousel" | "reel" | "story">("carousel");
 
   // Filter States
-  const [location, setLocation] = useState<string>((user as any)?.business_location || "PK");
-  const [searchQuery, setSearchQuery] = useState<string>((user as any)?.business_location || "PK");
+  const [location, setLocation] = useState<string>(() => {
+    const hasLocation = user && typeof user === 'object' && 'business_location' in user;
+    return hasLocation ? String((user as { business_location: unknown }).business_location) : "PK";
+  });
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    const hasLocation = user && typeof user === 'object' && 'business_location' in user;
+    return hasLocation ? String((user as { business_location: unknown }).business_location) : "PK";
+  });
   const [category, setCategory] = useState<string>("all");
   const [customKeywordInput, setCustomKeywordInput] = useState<string>("");
   const [customKeywords, setCustomKeywords] = useState<string[]>([]);
@@ -289,6 +298,9 @@ const TrendArbitrage = () => {
         setBusinessDetails(business);
       } catch (err) {
         console.error("Failed to fetch brand/business profile", err);
+        toast.warning("Profile data unavailable", {
+          description: "Some personalization features may be limited."
+        });
       }
     };
     fetchGlobalData();

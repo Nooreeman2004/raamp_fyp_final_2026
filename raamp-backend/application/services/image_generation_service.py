@@ -19,6 +19,7 @@ from google.genai import types as genai_types
 from dotenv import load_dotenv
 import httpx  # for fetching brand logos
 
+from config import Config
 from infrastructure.repositories.asset_repository import AssetRepository
 from infrastructure.database.models.asset_model import AssetType, GenerationSource
 from application.services.cloudinary_service import CloudinaryService
@@ -73,7 +74,7 @@ IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never a
         self.client = genai.Client(api_key=self.api_key)
         self.text_model = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
         self.image_model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image-preview")
-        self.output_folder = Path("generated_images")
+        self.output_folder = Config.GENERATED_IMAGES_DIR
         self.output_folder.mkdir(exist_ok=True)
         self.asset_repo = AssetRepository()
         self.cloudinary_service = CloudinaryService()

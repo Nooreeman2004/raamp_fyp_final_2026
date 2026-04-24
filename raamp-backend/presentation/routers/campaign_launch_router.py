@@ -11,6 +11,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import PaginationDefaults
+from application.utils.tier_restrictions import require_pro_or_premium
+from infrastructure.database.models.user_model import UserModel
 from presentation.schemas.campaign_launch_schemas import (
     CampaignLaunchCreateRequest,
     CampaignLaunchCreateResponse,
@@ -30,6 +33,7 @@ service = CampaignLaunchService()
 async def create_launch_request(
     request: CampaignLaunchCreateRequest,
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     try:
         req = await service.create_request(
@@ -60,6 +64,7 @@ async def create_launch_request(
 async def approve_launch_request(
     request_id: str,
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     req = await service.approve_and_execute(user_email=current_user_email, request_id=request_id)
     return CampaignLaunchApproveResponse(
@@ -75,6 +80,7 @@ async def reject_launch_request(
     request_id: str,
     body: CampaignLaunchRejectRequest,
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     req = await service.reject_request(user_email=current_user_email, request_id=request_id, reason=body.reason)
     return CampaignLaunchApproveResponse(
@@ -87,9 +93,10 @@ async def reject_launch_request(
 
 @router.get("", response_model=CampaignLaunchListResponse)
 async def list_launch_requests(
-    limit: int = Query(50, ge=1, le=100),
-    skip: int = Query(0, ge=0),
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_LARGE, ge=1, le=PaginationDefaults.MAX_LIMIT_MEDIUM),
+    skip: int = Query(PaginationDefaults.DEFAULT_SKIP, ge=0),
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     data = await service.list_requests(user_email=current_user_email, limit=limit, skip=skip)
     rows = data["rows"]

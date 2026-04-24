@@ -12,6 +12,7 @@ from application.services.subscription_service import (
     mark_subscription_past_due
 )
 from config import Config
+from presentation.schemas.error_response import ErrorResponse, ErrorCode
 
 
 router = APIRouter(prefix="/stripe", tags=["stripe"])
@@ -32,13 +33,25 @@ async def create_checkout_session_controller(user_id: str, email: str, plan: str
         return {"url": session.url}
     except Exception:
         logging.exception("Stripe checkout error")
-        raise HTTPException(status_code=500, detail="Failed to start checkout")
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error_code=ErrorCode.EXTERNAL_SERVICE_ERROR,
+                message="Failed to start checkout"
+            ).model_dump()
+        )
 
 
 async def create_portal_session_controller(customer_id: str):
     """Create a Stripe billing portal session"""
     if not customer_id:
-        raise HTTPException(status_code=400, detail="No customer ID attached to user")
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(
+                error_code=ErrorCode.VALIDATION_ERROR,
+                message="No customer ID attached to user"
+            ).model_dump()
+        )
     try:
         session = create_portal_session(customer_id)
         return {"url": session.url}

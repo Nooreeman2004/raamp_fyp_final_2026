@@ -8,7 +8,6 @@ import logging
 from presentation.schemas.auth_schemas import (
     SignupRequest,
     SignupResponse,
-    ErrorResponse,
     GoogleSignupRequest,
     SignInRequest,
     SignInResponse,
@@ -39,6 +38,7 @@ from presentation.schemas.auth_schemas import (
     DeleteProfilePictureResponse,
     OnboardingStatus,
 )
+from presentation.schemas.error_response import ErrorResponse, ErrorCode
 from application.use_cases.signup_use_case import SignupUseCase
 from application.use_cases.signin_use_case import SignInUseCase
 from application.use_cases.verify_email_use_case import VerifyEmailUseCase
@@ -194,12 +194,12 @@ async def signup(
     
     if current_user:
         logger.warning(f"❌ BLOCKED: Authenticated user {current_user} attempted to signup for {request.email}")
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            content={
-                "success": False,
-                "message": "You are already logged in. Please log out before creating a new account."
-            }
+            detail=ErrorResponse(
+                error_code=ErrorCode.FORBIDDEN,
+                message="You are already logged in. Please log out before creating a new account."
+            ).model_dump()
         )
     
     logger.info(f"✅ ALLOWED: No authenticated user - proceeding with signup for {request.email}")
@@ -212,13 +212,13 @@ async def signup(
     )
     
     if errors:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                "success": False,
-                "errors": errors,
-                "message": "Signup failed due to validation errors"
-            }
+            detail=ErrorResponse(
+                error_code=ErrorCode.VALIDATION_ERROR,
+                message="Signup failed due to validation errors",
+                details={"errors": errors}
+            ).model_dump()
         )
     
     return SignupResponse(
@@ -267,13 +267,13 @@ async def signup_with_google(request: GoogleSignupRequest):
     # Check if user already exists
     existing_user = await user_repository.find_by_email(request.email)
     if existing_user:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                "success": False,
-                "errors": {"email": "Email is already registered"},
-                "message": "User already exists"
-            }
+            detail=ErrorResponse(
+                error_code=ErrorCode.CONFLICT,
+                message="User already exists",
+                details={"email": "Email is already registered"}
+            ).model_dump()
         )
     
     # Generate username from display name or email
@@ -364,13 +364,13 @@ async def signin(
     )
     
     if errors:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                "success": False,
-                "errors": errors,
-                "message": "Sign in failed"
-            }
+            detail=ErrorResponse(
+                error_code=ErrorCode.VALIDATION_ERROR,
+                message="Sign in failed",
+                details={"errors": errors}
+            ).model_dump()
         )
     
     # Update last login timestamp
@@ -754,6 +754,35 @@ async def get_current_user_email(request: Request) -> str:
         )
     
     return payload["email"]
+
+
+async def get_current_user(email: str = Depends(get_current_user_email)) -> UserModel:
+    """
+    Retrieves the full user document for the currently authenticated user.
+    """
+    user = await UserModel.find_one(UserModel.email == email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+    return user
+
+
+async def require_admin_role(user: UserModel = Depends(get_current_user)) -> UserModel:
+    """
+    Restricts access to users with the is_admin flag set.
+    """
+    if not user.is_admin:
+        logger.warning(f"🚨 Security Alert: Unauthorized admin access attempt by {user.email}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ErrorResponse(
+                error_code=ErrorCode.FORBIDDEN,
+                message="Admin access required"
+            ).model_dump()
+        )
+    return user
 
 
 async def get_current_user_id(request: Request) -> str:

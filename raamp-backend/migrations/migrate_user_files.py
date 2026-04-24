@@ -44,7 +44,7 @@ def migrate_files():
     print("   4. Move the file to the new location")
     print()
     print("📁 New folder structure will be:")
-    print("   /uploaded_files/")
+    print("   /generated_assets/uploads/")
     print("       /john_doe_gmail_com/")
     print("           /logos/")
     print("           /content/")
@@ -57,7 +57,7 @@ def migrate_files():
     print()
     
     # Show current files
-    base_dir = Path("uploaded_files")
+    base_dir = Config.UPLOADED_FILES_DIR
     if base_dir.exists():
         print("Current files found:")
         for subdir in ['assets', 'brand_logos']:
@@ -75,9 +75,10 @@ def migrate_files():
 from application.utils.file_manager import FileManager
 from pathlib import Path
 import shutil
+from config import Config
 
 user_email = "john@example.com"
-old_logo_path = Path("uploaded_files/brand_logos/old_logo.png")
+old_logo_path = Config.UPLOADED_FILES_DIR / "brand_logos" / "old_logo.png"
 
 # Get new path
 new_logo_dir = FileManager.get_user_upload_path(

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/Layout";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/services/api";
 import { Card } from "@/components/ui/card";
@@ -8,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import { MESSAGES } from "@/constants/messages";
 
 type Complaint = {
   id: string;
@@ -30,7 +33,8 @@ const AdminComplaints = () => {
   const [adminResponse, setAdminResponse] = useState("");
   const [comment, setComment] = useState("");
 
-  const isAdmin = Boolean((user as any)?.is_admin);
+  // Type guard: Check if user has is_admin field
+  const isAdmin = Boolean(user && 'is_admin' in user && user.is_admin);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -51,7 +55,7 @@ const AdminComplaints = () => {
       const data = await apiClient.get<Complaint[]>("/complaints/admin?limit=100&offset=0");
       setItems(data || []);
     } catch {
-      toast.error("Could not load complaints");
+      toast.error("Load Failed", { description: MESSAGES.COMPLAINTS.LOAD_FAILED });
     } finally {
       setLoading(false);
     }
@@ -71,14 +75,14 @@ const AdminComplaints = () => {
       const data = await apiClient.get<Complaint[]>(`/complaints/admin?limit=1&offset=0&q=${encodeURIComponent(id)}`);
       const found = (data || [])[0];
       if (!found) {
-        toast.error("Not found", { description: "No complaint matched that id." });
+        toast.error("Not Found", { description: MESSAGES.COMPLAINTS.NOT_FOUND });
         return;
       }
       setItems((prev) => {
         const exists = prev.some((p) => p.id === found.id);
         return exists ? prev : [found, ...prev];
       });
-      toast.success("Loaded", { description: `Loaded ticket #${found.id}` });
+      toast.success("Ticket Loaded", { description: MESSAGES.COMPLAINTS.LOADED(found.id) });
     } catch {
       toast.error("Could not load complaint");
     }
@@ -92,9 +96,9 @@ const AdminComplaints = () => {
         adminResponse,
         comment,
       });
-      toast.success("Updated", { description: `Status set to ${status}` });
+      toast.success(MESSAGES.COMPLAINTS.STATUS_UPDATE_SUCCESS);
     } catch {
-      toast.error("Update failed", { description: "Could not update complaint." });
+      toast.error("Update Failed", { description: MESSAGES.COMPLAINTS.UPDATE_FAILED });
     } finally {
       setUpdatingId(null);
     }
@@ -111,7 +115,7 @@ const AdminComplaints = () => {
   }
 
   return (
-    <Layout breadcrumbItems={[{ label: "Dashboard", href: "/dashboard" }, { label: "Admin Support" }]}>
+    <Layout breadcrumbItems={[{ label: "Admin" }, { label: "Complaints" }]}>
       <div className="max-w-3xl mx-auto space-y-4">
         <Card className="p-5 space-y-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -120,7 +124,14 @@ const AdminComplaints = () => {
               <span className="text-sm font-medium">Complaints</span>
             </div>
             <Button variant="outline" onClick={fetchAll} disabled={loading}>
-              Refresh
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                "Refresh"
+              )}
             </Button>
           </div>
 
@@ -143,14 +154,31 @@ const AdminComplaints = () => {
           </div>
 
           <div className="flex gap-2 flex-wrap">
-            <Button disabled={!targetId.trim() || updatingId === targetId.trim()} onClick={() => setStatus(targetId.trim(), "in_progress")}>
-              Set In Progress
+            <Button
+              disabled={!targetId.trim() || updatingId === targetId.trim()}
+              onClick={() => setStatus(targetId.trim(), "in_progress")}
+            >
+              {updatingId === targetId.trim() ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
+              ) : "Set In Progress"}
             </Button>
-            <Button disabled={!targetId.trim() || updatingId === targetId.trim()} variant="outline" onClick={() => setStatus(targetId.trim(), "resolved")}>
-              Resolve
+            <Button
+              disabled={!targetId.trim() || updatingId === targetId.trim()}
+              variant="outline"
+              onClick={() => setStatus(targetId.trim(), "resolved")}
+            >
+              {updatingId === targetId.trim() ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
+              ) : "Resolve"}
             </Button>
-            <Button disabled={!targetId.trim() || updatingId === targetId.trim()} variant="destructive" onClick={() => setStatus(targetId.trim(), "rejected")}>
-              Reject
+            <Button
+              disabled={!targetId.trim() || updatingId === targetId.trim()}
+              variant="destructive"
+              onClick={() => setStatus(targetId.trim(), "rejected")}
+            >
+              {updatingId === targetId.trim() ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
+              ) : "Reject"}
             </Button>
           </div>
         </Card>

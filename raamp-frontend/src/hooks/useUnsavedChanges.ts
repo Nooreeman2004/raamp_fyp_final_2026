@@ -34,7 +34,7 @@ export function useUnsavedChanges({
     };
   }, [hasUnsavedChanges, message]);
 
-  // No blocker object to return in this simplified implementation
-  return null as any;
+  // This hook only provides beforeunload warning, no return value needed
+  return;
 }
 

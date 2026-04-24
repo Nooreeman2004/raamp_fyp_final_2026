@@ -10,6 +10,7 @@ import { apiClient } from "@/services/api";
 import { businessService } from "@/services/businessService";
 import { trendService } from "@/services/trendService";
 import { cn } from "@/lib/utils";
+import { API_BASE_URL } from "@/config/apiBase";
 import GoogleLocationPicker from "@/components/GoogleLocationPicker";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -187,8 +188,9 @@ const Onboarding = () => {
             const height = 700;
             const left = window.screen.width / 2 - width / 2;
             const top = window.screen.height / 2 - height / 2;
-
-            window.open('/api/profile/onboarding/facebook/auth', 'facebook_auth', `width=${width},height=${height},left=${left},top=${top}`);
+            // Use API_BASE_URL to work in all deployment environments
+            const authUrl = `${API_BASE_URL.replace(/\/api\/?$/, '')}/profile/onboarding/facebook/auth`;
+            window.open(authUrl, 'facebook_auth', `width=${width},height=${height},left=${left},top=${top}`);
         } else if (platform === 'instagram') {
             if (!status.facebook_connected) {
                 toast.error("Prerequisite Required", {
@@ -200,7 +202,9 @@ const Onboarding = () => {
             const height = 800;
             const left = window.screen.width / 2 - width / 2;
             const top = window.screen.height / 2 - height / 2;
-            window.open('/api/profile/onboarding/instagram/auth', 'instagram_auth', `width=${width},height=${height},left=${left},top=${top}`);
+            // Use API_BASE_URL to work in all deployment environments
+            const authUrl = `${API_BASE_URL.replace(/\/api\/?$/, '')}/profile/onboarding/instagram/auth`;
+            window.open(authUrl, 'instagram_auth', `width=${width},height=${height},left=${left},top=${top}`);
         } else if (platform === 'google') {
             toggleGoogleLocationEditor();
         }

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Upload, Library, Link2, X, CheckCircle2, Loader2, ImageIcon } from "lucide-react";
 import { assetService, Asset } from "@/services/assetService";
 
-const API_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/api\/?$/, "");
+import { API_ORIGIN } from "@/config/apiUtils";
 const getAuthToken = () => localStorage.getItem("token") || sessionStorage.getItem("token");
 
 export type MediaTab = "upload" | "library" | "url";
@@ -84,7 +84,7 @@ export function DeviceUploadPicker({ onSelect }: { onSelect: (url: string) => vo
       if (!token) throw new Error("Not authenticated");
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch(`${API_URL}/api/assets/upload`, {
+      const res = await fetch(`${API_ORIGIN}/api/assets/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -94,7 +94,7 @@ export function DeviceUploadPicker({ onSelect }: { onSelect: (url: string) => vo
         throw new Error((err as any).detail || "Upload failed");
       }
       const data = await res.json();
-      const url: string = data.cloudinary_url || data.storage_url || data.url || "";
+      const url: string = data.cloudinary_url || data.public_url || "";
       if (!url) throw new Error("No URL in upload response");
       toast.success("Uploaded!", { description: "Media ready for use." });
       onSelect(url);

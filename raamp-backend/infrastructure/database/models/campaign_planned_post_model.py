@@ -35,9 +35,14 @@ class CampaignPlannedPostModel(Document):
     title: str = Field(..., min_length=1, max_length=120, description="Title shown in calendar cell")
     post_type: PostType = Field(default="static")
 
+    # Content fields
+    caption: Optional[str] = Field(
+        default=None,
+        description="Actual usable caption text (ready to post)",
+    )
     prompts: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Prompt payloads: caption_prompt, creative_prompt, shot_list, etc.",
+        description="Prompt payloads: creative_prompt (for image generation), etc.",
     )
     cta: Optional[str] = None
     hashtags: List[str] = Field(default_factory=list)

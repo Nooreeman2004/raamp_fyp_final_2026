@@ -227,9 +227,17 @@ class ABTestBatch(BaseModel):
         # Filter to only relevant restaurant content
         relevant = [img for img in self.images if get_relevance_level(img.scores.restaurant_relevance) == RelevanceLevel.RELEVANT]
         
+        # If we have at least 2 relevant images, use those
         if len(relevant) >= 2:
-            # Sort by composite score
             sorted_images = sorted(relevant, key=lambda x: x.scores.composite_score, reverse=True)
+            top_two = sorted_images[:2]
+            
+            self.recommended_pair = (top_two[0].image_id, top_two[1].image_id)
+            self.score_gap = abs(top_two[0].scores.composite_score - top_two[1].scores.composite_score)
+        # Fallback: If not enough relevant images, use best 2 by composite score anyway
+        # (Users may want to test even non-restaurant content)
+        elif len(self.images) >= 2:
+            sorted_images = sorted(self.images, key=lambda x: x.scores.composite_score, reverse=True)
             top_two = sorted_images[:2]
             
             self.recommended_pair = (top_two[0].image_id, top_two[1].image_id)

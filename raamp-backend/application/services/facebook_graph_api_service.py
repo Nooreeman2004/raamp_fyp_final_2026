@@ -254,6 +254,29 @@ class FacebookGraphAPIClient:
             logger.error("Failed to reply to comment: %s", str(e))
             raise FacebookAPIError(f"Failed to reply to comment: {str(e)}")
 
+    async def delete_comment(
+        self,
+        *,
+        comment_id: str,
+        page_access_token: str,
+    ) -> bool:
+        """
+        Delete a Facebook comment.
+
+        Endpoint: DELETE /{comment-id}
+        Returns: True on success.
+        """
+        url = f"{self.BASE_URL}/{comment_id}"
+        params = {"access_token": page_access_token}
+        try:
+            response = await self.client.delete(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("success") is True
+        except Exception as e:
+            logger.error("Failed to delete Facebook comment: %s", str(e))
+            raise FacebookAPIError(f"Failed to delete comment: {str(e)}")
+
     async def like_comment(self, *, comment_id: str, page_access_token: str) -> bool:
         """
         Like a Facebook comment (best-effort).

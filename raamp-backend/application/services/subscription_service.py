@@ -40,6 +40,11 @@ async def update_user_subscription(
             logging.error(f"User not found for id: {user_id}")
             return False
 
+        # DEMO USER PROTECTION: Never modify demo user's subscription via webhooks
+        if user.email.lower() == "abdullah@gmail.com":
+            logging.warning(f"🛡️ DEMO PROTECTION: Ignoring subscription update for demo user {user.email}")
+            return True
+
         # Check if event was already processed (idempotency)
         if event_id and user.processed_stripe_events and event_id in user.processed_stripe_events:
             logging.info(f"Stripe event {event_id} already processed for user {user_id}. Skipping.")
@@ -117,6 +122,11 @@ async def cancel_user_subscription(user_id: str, event_id: str = None):
             logging.error(f"User not found for id: {user_id}")
             return False
 
+        # DEMO USER PROTECTION: Never cancel demo user's subscription
+        if user.email.lower() == "abdullah@gmail.com":
+            logging.warning(f"🛡️ DEMO PROTECTION: Ignoring cancellation for demo user {user.email}")
+            return True
+
         # Check if event was already processed
         if event_id and user.processed_stripe_events and event_id in user.processed_stripe_events:
             logging.info(f"Stripe event {event_id} already processed for user {user_id}. Skipping.")
@@ -158,7 +168,12 @@ async def mark_subscription_past_due(user_id: str, event_id: str = None):
         bool: True if successful, False otherwise
     """
     try:
-        user = await UserModel.get(PydanticObjectId(user_id))
+        # DEMO USER PROTECTION: Never mark demo user as past due
+        if user.email.lower() == "abdullah@gmail.com":
+            logging.warning(f"🛡️ DEMO PROTECTION: Ignoring past_due status for demo user {user.email}")
+            return True
+
+        # er = await UserModel.get(PydanticObjectId(user_id))
         if not user:
             logging.error(f"User not found for id: {user_id}")
             return False

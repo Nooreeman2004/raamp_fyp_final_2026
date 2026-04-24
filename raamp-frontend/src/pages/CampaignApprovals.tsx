@@ -25,6 +25,9 @@ export default function CampaignApprovals() {
       setRows(Array.isArray(res?.requests) ? res.requests : []);
     } catch (e: any) {
       console.error("Failed to load approvals", e);
+      toast.error("Failed to load approval queue", {
+        description: "Could not retrieve pending campaign requests. Please refresh."
+      });
     } finally {
       setLoading(false);
     }
@@ -47,7 +50,10 @@ export default function CampaignApprovals() {
   }, [rows, search]);
 
   function sourceBadge(r: CampaignLaunchItem) {
-    const src = String((r as any)?.source || "trend").toLowerCase();
+    const src = (() => {
+        const hasSource = typeof r === 'object' && r !== null && 'source' in r;
+        return String(hasSource ? (r as { source: unknown }).source : "trend").toLowerCase();
+    })();
     if (src === "planner") {
       return (
         <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-primary">
@@ -68,7 +74,18 @@ export default function CampaignApprovals() {
     try {
       const res = await campaignLaunchService.approveRequest(id);
       if (String(res.status || "").toLowerCase() === "failed" || res.success === false) {
-        const err = (res as any)?.result?.error || (res as any)?.result?.message || "Execution failed";
+        const err = (() => {
+            const hasResult = typeof res === 'object' && res !== null && 'result' in res;
+            if (!hasResult) return "Execution failed";
+            
+            const result = (res as { result: unknown }).result;
+            const hasError = typeof result === 'object' && result !== null && 'error' in result;
+            const hasMessage = typeof result === 'object' && result !== null && 'message' in result;
+            
+            if (hasError) return (result as { error: unknown }).error;
+            if (hasMessage) return (result as { message: unknown }).message;
+            return "Execution failed";
+        })();
         toast.error("Approved but execution failed", { description: String(err) });
       } else {
         toast.success("Approved & executed", { description: `Status: ${res.status}` });

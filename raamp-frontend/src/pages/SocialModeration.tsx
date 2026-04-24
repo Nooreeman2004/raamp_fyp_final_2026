@@ -215,19 +215,42 @@ export default function SocialModeration() {
     setSelectedComments(newSet);
   };
 
-  const bulkDeleteComments = () => {
+  const bulkDeleteComments = async () => {
     if (selectedComments.size === 0) {
       toast.error("No comments selected");
       return;
     }
-    // TODO: Implement bulk delete API call
-    toast.success(`Deleted ${selectedComments.size} comment(s)`);
-    setSelectedComments(new Set());
+    
+    const idsToDelete = Array.from(selectedComments);
+    const loadingToast = toast.loading(`Deleting ${idsToDelete.length} comment(s)...`);
+    
+    try {
+      const res = await commentModerationService.bulkDelete(idsToDelete);
+      toast.dismiss(loadingToast);
+      
+      if (res.success) {
+        toast.success(`Successfully deleted ${res.deleted_count} comment(s)`);
+        setSelectedComments(new Set());
+        // Refresh comment list
+        await fetchComments();
+      } else {
+        toast.error("Failed to delete some comments");
+      }
+    } catch (e: any) {
+      toast.dismiss(loadingToast);
+      toast.error("Bulk delete failed", { description: e?.message || "Please try again." });
+    }
   };
 
-  const markAsLegitimate = (commentId: string) => {
-    // TODO: Implement mark as legitimate API call
-    toast.success("Marked as legitimate");
+  const markAsLegitimate = async (commentId: string) => {
+    try {
+      await commentModerationService.markAsLegitimate(commentId);
+      toast.success("Marked as legitimate");
+      // Optimistically update UI or refresh
+      await fetchComments();
+    } catch (e: any) {
+      toast.error("Operation failed", { description: e?.message || "Please try again." });
+    }
   };
 
   // Sentiment distribution chart data

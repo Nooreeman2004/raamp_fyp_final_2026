@@ -44,6 +44,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       }
 
+      // Only verify with backend if we have a stored user or token
+      // This prevents unnecessary API calls on initial load when not logged in
+      const hasToken = localStorage.getItem("token") || sessionStorage.getItem("token");
+      if (!stored && !hasToken) {
+        setIsLoading(false);
+        return;
+      }
+
       // Verify with backend if we have a token (usually handled by cookies/interceptor)
       // But we call getProfile to ensure user data is fresh
       const profile = await authService.getProfile();

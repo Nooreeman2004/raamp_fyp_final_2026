@@ -405,12 +405,13 @@ const BrandSettings = () => {
 
             sonner.success("Brand DNA Locked In", {
                 description: "Your autonomous marketing identity is ready and synchronized.",
+                onAutoClose: () => {
+                    // Only navigate to dashboard if user is NOT fully onboarded (new user in onboarding flow)
+                    if (!isFullyOnboarded) {
+                        navigate("/dashboard");
+                    }
+                },
             });
-
-            // Only navigate to dashboard if user is NOT fully onboarded (new user in onboarding flow)
-            if (!isFullyOnboarded) {
-                setTimeout(() => navigate("/dashboard"), 1000);
-            }
         } catch (error) {
             console.error("Failed to save brand settings", error);
             sonner.error("Sync Failed");

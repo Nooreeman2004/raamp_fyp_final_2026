@@ -78,6 +78,21 @@ class CampaignPlannerService:
         end_date = brief.get("end_date")
         frequency = brief.get("posting_frequency", "3_per_week")
         
+        # Extract brand elements for HARD RULES
+        biz_name = brand.get("business_name", "")
+        tagline = brand.get("tagline", "")
+        tone = brand.get("tone_of_voice", "")
+        
+        brand_rules = ["BRAND CONSTRAINTS (HARD RULES — violations are INVALID output):"]
+        if biz_name:
+            brand_rules.append(f'- Business name MUST appear in caption: "{biz_name}"')
+        if tagline:
+            brand_rules.append(f'- Tagline MUST be referenced where relevant: "{tagline}"')
+        if tone:
+            brand_rules.append(f'- Tone MUST be strictly followed: "{tone}"')
+        
+        brand_constraints_text = "\n".join(brand_rules) if len(brand_rules) > 1 else ""
+        
         return f"""
 You are a senior brand strategist and campaign planner for a RESTAURANT brand.
 
@@ -86,6 +101,8 @@ HARD RULES:
 - Every post must align with the brand tone/theme/specialties.
 - Output MUST be valid JSON only. No markdown. No extra text.
 - Use ISO 8601 datetime strings for scheduled_time (include timezone offset if known).
+
+{brand_constraints_text}
 
 CALENDAR REQUIREMENTS:
 - Campaign Start: {start_date}
@@ -103,6 +120,12 @@ BRAND_DNA:
 CAMPAIGN_BRIEF:
 {json.dumps(serialized_brief, ensure_ascii=False)}
 
+CAPTION REQUIREMENTS:
+- Generate ACTUAL USABLE CAPTIONS, not just prompts about what to write.
+- Each caption should be 2-4 lines, catchy, brand-aligned.
+- Include 5-8 relevant hashtags at the end of each caption.
+- Captions should be ready to copy/paste and use directly.
+
 OUTPUT_JSON_SCHEMA:
 {{
   "campaign_name": "string",
@@ -114,8 +137,8 @@ OUTPUT_JSON_SCHEMA:
       "title": "string (short, calendar-friendly)",
       "post_type": "static|carousel|reel|story",
       "scheduled_time": "ISO datetime string",
-      "caption_prompt": "string",
-      "creative_prompt": "string",
+      "caption": "string (ACTUAL USABLE CAPTION with hashtags, ready to post)",
+      "creative_prompt": "string (description of image/video to create)",
       "cta": "string",
       "hashtags": ["#tag1", "#tag2"],
       "why_it_fits_brand": "string"
@@ -219,9 +242,9 @@ OUTPUT_JSON_SCHEMA:
                     timezone=plan.timezone,
                     title=str(p.get("title") or "Planned post").strip()[:120],
                     post_type=(p.get("post_type") or "static"),
+                    caption=p.get("caption"),  # Store actual caption, not prompt
                     prompts={
-                        "caption_prompt": p.get("caption_prompt"),
-                        "creative_prompt": p.get("creative_prompt"),
+                        "creative_prompt": p.get("creative_prompt"),  # Keep for image generation
                     },
                     cta=p.get("cta"),
                     hashtags=list(p.get("hashtags") or []),
@@ -240,8 +263,8 @@ OUTPUT_JSON_SCHEMA:
                     timezone=plan.timezone,
                     title=str(p.get("title") or "Invalid planned post").strip()[:120],
                     post_type=(p.get("post_type") or "static"),
+                    caption=p.get("caption"),
                     prompts={
-                        "caption_prompt": p.get("caption_prompt"),
                         "creative_prompt": p.get("creative_prompt"),
                     },
                     cta=p.get("cta"),

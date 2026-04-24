@@ -364,6 +364,51 @@ app.add_middleware(
     max_age=3600,
 )
 
+# Request Logging Middleware
+@app.middleware("http")
+async def log_requests(request, call_next):
+    """Log all HTTP requests and responses for debugging and monitoring"""
+    import time
+    
+    start_time = time.time()
+    
+    # Get client IP
+    client_ip = get_remote_address(request)
+    
+    # Log request (avoid logging sensitive data in query params)
+    logger.info(
+        f"→ {request.method} {request.url.path} client={client_ip} "
+        f"user_agent={request.headers.get('user-agent', 'unknown')[:50]}"
+    )
+    
+    # Process request
+    response = await call_next(request)
+    
+    # Calculate duration
+    duration_ms = (time.time() - start_time) * 1000
+    
+    # Log response - suppress warnings for expected 404s (legacy assets, missing ROI data)
+    if response.status_code >= 400:
+        # Don't log as WARNING for expected 404 paths
+        expected_404_paths = [
+            "/api/static/assets/",  # Legacy assets that may not exist
+            "/api/instagram/roi/",  # ROI data may not exist yet
+        ]
+        is_expected_404 = response.status_code == 404 and any(
+            request.url.path.startswith(path) for path in expected_404_paths
+        )
+        log_level = logging.DEBUG if is_expected_404 else logging.WARNING
+    else:
+        log_level = logging.INFO
+        
+    logger.log(
+        log_level,
+        f"← {request.method} {request.url.path} status={response.status_code} "
+        f"duration={duration_ms:.2f}ms"
+    )
+    
+    return response
+
 # Include routers
 
 from presentation.routers import business_domain_router
@@ -379,7 +424,6 @@ from presentation.routers import facebook_posting_router
 from presentation.routers import brand_alignment_router
 from presentation.routers import hyperlocal_setup_router
 from presentation.routers import consultation_router
-from presentation.routers import admin_router
 from presentation.routers import content_generation_router
 from presentation.routers import complaints_router
 from presentation.routers import media_generation_router
@@ -426,7 +470,6 @@ app.include_router(auth_router.router, prefix="/api")
 app.include_router(legacy_assets_router.router)
 app.include_router(business_domain_router.router, prefix="/api")
 app.include_router(logout_router.router, prefix="/api")
-app.include_router(admin_router.router, prefix="/api")
 app.include_router(onboarding_router.router)
 app.include_router(profile_connections_router.router)
 app.include_router(maps_router.router)
@@ -480,19 +523,16 @@ logger.info("🔌 Including Comment Analysis Router...")
 app.include_router(comment_analysis_router.router)
 app.include_router(social_escalation_router.router)
 
+# Ensure all asset directories exist
+Config.ensure_asset_directories()
+
 # Mount static files for uploaded content
-os.makedirs("uploaded_files", exist_ok=True)
-app.mount("/api/static", StaticFiles(directory="uploaded_files"), name="static")
+app.mount("/api/static", StaticFiles(directory=str(Config.UPLOADED_FILES_DIR)), name="static")
 
-# Mount static files for AI-generated images
-os.makedirs("generated_images", exist_ok=True)
-
-# Mount static files for AI-generated videos and reels
-os.makedirs("generated_videos", exist_ok=True)
-app.mount("/api/videos", StaticFiles(directory="generated_videos"), name="videos")
-os.makedirs("generated_reels", exist_ok=True)
-app.mount("/api/reels", StaticFiles(directory="generated_reels"), name="reels")
-app.mount("/api/generated", StaticFiles(directory="generated_images"), name="generated")
+# Mount static files for AI-generated assets
+app.mount("/api/videos", StaticFiles(directory=str(Config.GENERATED_VIDEOS_DIR)), name="videos")
+app.mount("/api/reels", StaticFiles(directory=str(Config.GENERATED_REELS_DIR)), name="reels")
+app.mount("/api/generated", StaticFiles(directory=str(Config.GENERATED_IMAGES_DIR)), name="generated")
 
 
 @app.get("/profile/onboarding")

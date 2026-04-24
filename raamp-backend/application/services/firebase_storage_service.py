@@ -6,6 +6,7 @@ import os
 import base64
 import logging
 from pathlib import Path
+from config import Config
 from application.utils.file_manager import FileManager
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ class FirebaseStorageService:
     """Service for uploading files to Firebase Storage with local fallback"""
     
     def __init__(self):
-        self._local_storage_path = Path("uploaded_files")
+        self._local_storage_path = Config.UPLOADED_FILES_DIR
         # Create local storage directory
         self._local_storage_path.mkdir(exist_ok=True)
         self._bucket = None
@@ -86,10 +87,10 @@ class FirebaseStorageService:
         if file_extension not in allowed_extensions:
             raise ValueError(f"Invalid file type. Allowed: {', '.join(allowed_extensions)}")
         
-        # Validate file size (max 5MB)
-        max_size = 5 * 1024 * 1024 
-        if len(file_content) > max_size:
-            raise ValueError("File size exceeds 5MB limit")
+        # Validate file size (use FileLimits constant)
+        from application.constants import FileLimits
+        if len(file_content) > FileLimits.MAX_LOGO_SIZE_BYTES:
+            raise ValueError(f"File size exceeds {FileLimits.MAX_LOGO_SIZE_MB}MB limit")
         
         # Use organized folder structure if email provided
         if user_email:
@@ -118,7 +119,9 @@ class FirebaseStorageService:
         if local_path:
             with open(local_path, 'wb') as f:
                 f.write(file_content)
-            local_result = self._build_local_url(str(local_path).replace('uploaded_files/', ''))
+            # Build URL path relative to UPLOADED_FILES_DIR (strip generated_assets/uploads/ → use only the suffix)
+            relative_path = str(local_path).replace(str(Config.UPLOADED_FILES_DIR) + '\\', '').replace(str(Config.UPLOADED_FILES_DIR) + '/', '')
+            local_result = self._build_local_url(relative_path)
         else:
             local_result = self._save_locally(file_content, local_filename)
         
@@ -165,10 +168,10 @@ class FirebaseStorageService:
         if file_extension not in allowed_extensions:
             raise ValueError(f"Invalid file type. Allowed: {', '.join(allowed_extensions)}")
         
-        # Validate file size (max 5MB for profile pictures)
-        max_size = 5 * 1024 * 1024  # 5MB
-        if len(file_content) > max_size:
-            raise ValueError("File size exceeds 5MB limit")
+        # Validate file size (use FileLimits constant)
+        from application.constants import FileLimits
+        if len(file_content) > FileLimits.MAX_PROFILE_SIZE_BYTES:
+            raise ValueError(f"File size exceeds {FileLimits.MAX_PROFILE_SIZE_MB}MB limit")
         
         # Upload to Firebase Storage if available
         bucket = self.bucket
@@ -259,17 +262,17 @@ class FirebaseStorageService:
         if file_extension not in allowed_extensions:
             raise ValueError(f"Invalid file type. Allowed: {', '.join(allowed_extensions)}")
         
-        # Validate file size (max 10MB for attachments)
-        max_size = 10 * 1024 * 1024  # 10MB
-        if len(file_content) > max_size:
-            raise ValueError("File size exceeds 10MB limit")
+        # Validate file size (use FileLimits constant)
+        from application.constants import FileLimits
+        if len(file_content) > FileLimits.MAX_ATTACHMENT_SIZE_BYTES:
+            raise ValueError(f"File size exceeds {FileLimits.MAX_ATTACHMENT_SIZE_MB}MB limit")
         
         # 1. Save locally first (optional, but good for tracking)
         # For now, we'll just try Firebase
         bucket = self.bucket
         if not bucket:
-             # If no Firebase, save locally and return a local path or data URL
-             return self._save_locally(file_content, unique_filename)
+            # If no Firebase, save locally and return a local path or data URL
+            return self._save_locally(file_content, unique_filename)
 
         try:
             # Upload to Firebase Storage

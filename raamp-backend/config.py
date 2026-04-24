@@ -176,6 +176,29 @@ class Config:
     PRO_PRICE_ID: str = os.getenv("PRO_PRICE_ID", "price_dummy")
     PREMIUM_PRICE_ID: str = os.getenv("PREMIUM_PRICE_ID", "price_dummy")
     
+    # File Storage Paths Configuration
+    # All generated and uploaded assets are now centralized under generated_assets/
+    _BASE_DIR = Path(__file__).parent  # raamp-backend directory
+    GENERATED_ASSETS_DIR = _BASE_DIR / "generated_assets"
+    
+    # Subdirectories for different asset types
+    GENERATED_IMAGES_DIR = GENERATED_ASSETS_DIR / "images"
+    GENERATED_VIDEOS_DIR = GENERATED_ASSETS_DIR / "videos"
+    GENERATED_REELS_DIR = GENERATED_ASSETS_DIR / "reels"
+    UPLOADED_FILES_DIR = GENERATED_ASSETS_DIR / "uploads"
+    
+    @classmethod
+    def ensure_asset_directories(cls) -> None:
+        """Create all required asset directories if they don't exist"""
+        directories = [
+            cls.GENERATED_IMAGES_DIR,
+            cls.GENERATED_VIDEOS_DIR,
+            cls.GENERATED_REELS_DIR,
+            cls.UPLOADED_FILES_DIR,
+        ]
+        for directory in directories:
+            directory.mkdir(parents=True, exist_ok=True)
+    
     @classmethod
     def is_production(cls) -> bool:
         """Check if running in production"""

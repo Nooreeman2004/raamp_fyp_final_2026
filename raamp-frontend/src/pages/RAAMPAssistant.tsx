@@ -230,6 +230,9 @@ const RAAMPAssistant = () => {
       sonner.success("Session Reset", { description: "Conversation history cleared." });
     } catch (err) {
       console.error("Reset failed", err);
+      sonner.warning("Reset partially failed", {
+        description: "History cleared locally, but server sync failed. You may see old context in next session."
+      });
     }
   };
 

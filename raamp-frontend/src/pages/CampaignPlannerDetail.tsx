@@ -135,7 +135,10 @@ export default function CampaignPlannerDetail() {
     return map;
   }, [plan?.posts]);
 
-  const name = (plan?.generated as any)?.campaign_name || "Campaign Plan";
+  const name = 
+    (typeof plan?.generated === 'object' && plan.generated !== null && 'campaign_name' in plan.generated)
+      ? String(plan.generated.campaign_name)
+      : "Campaign Plan";
 
   return (
     <Layout

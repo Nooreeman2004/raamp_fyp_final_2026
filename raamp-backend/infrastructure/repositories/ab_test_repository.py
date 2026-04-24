@@ -213,6 +213,48 @@ class ABTestImageRepository:
         
         cursor = self.batches_collection.aggregate(pipeline)
         return await cursor.to_list(length=limit)
+
+    async def get_user_batches_paginated(
+        self,
+        user_id: str,
+        skip: int = 0,
+        limit: int = 20
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """
+        Get paginated batches for a user with image counts.
+        Returns (batches, total_count).
+        """
+        total_count = await self.batches_collection.count_documents({"user_id": user_id})
+        
+        pipeline = [
+            {"$match": {"user_id": user_id}},
+            {"$sort": {"created_at": -1}},
+            {"$skip": skip},
+            {"$limit": limit},
+            {
+                "$lookup": {
+                    "from": "ab_test_images",
+                    "localField": "batch_id",
+                    "foreignField": "ab_test_batch_id",
+                    "as": "batch_images"
+                }
+            },
+            {
+                "$project": {
+                    "batch_id": 1,
+                    "user_id": 1,
+                    "created_at": 1,
+                    "recommended_pair": 1,
+                    "score_gap": 1,
+                    "schedule_id": 1,
+                    "image_count": {"$size": "$batch_images"}
+                }
+            }
+        ]
+        
+        cursor = self.batches_collection.aggregate(pipeline)
+        batches = await cursor.to_list(length=limit)
+        return batches, total_count
     
     async def delete_image(self, image_id: str) -> bool:
         """

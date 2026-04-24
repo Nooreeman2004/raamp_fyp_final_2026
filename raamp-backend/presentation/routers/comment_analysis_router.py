@@ -8,6 +8,9 @@ real-time analysis for the frontend.
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import PaginationDefaults
+from application.utils.tier_restrictions import require_pro_or_premium
+from infrastructure.database.models.user_model import UserModel
 from typing import Optional
 from pymongo import DESCENDING
 
@@ -25,8 +28,9 @@ async def test_moderation_simple():
 @router.get("/moderation", summary="Get all analyzed comments for moderation dashboard")
 async def get_moderation_comments(
     _current_user: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium),  # Pro/Premium only
     sentiment: Optional[str] = Query(None, description="Filter by sentiment: POSITIVE, NEUTRAL, NEGATIVE"),
-    limit: int = Query(100, le=500, description="Max comments to return")
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_COMMENTS, le=PaginationDefaults.MAX_LIMIT_COMMENTS, description="Max comments to return")
 ):
     """
     Fetch all analyzed comments from the database for the Social Moderation dashboard.
@@ -99,6 +103,7 @@ async def get_moderation_comments(
 async def get_comment_summary(
     post_id: str,
     _current_user: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium),  # Pro/Premium only
 ):
     """
     Fetch all comments for a specific post and perform bulk sentiment/spam analysis.
@@ -117,6 +122,7 @@ async def get_comment_summary(
 async def analyse_single_comment(
     payload: dict,
     _current_user: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium),  # Pro/Premium only
 ):
     """
     Real-time analysis for a single piece of text.
@@ -136,3 +142,89 @@ async def analyse_single_comment(
     except Exception as exc:
         logger.error("Single comment analysis failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(exc)}") from exc
+
+@router.delete("/bulk-delete", summary="Bulk delete comments from platform and database")
+async def bulk_delete_comments(
+    payload: dict,
+    current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium),
+):
+    """
+    Deletes multiple comments from both the social platform (Meta) and our analysis database.
+    """
+    from infrastructure.database.models.comment_analysis_model import CommentAnalysisModel
+    from infrastructure.database.models.auto_reply_models import CommentEventModel
+    from application.services.instagram_graph_api_service import InstagramGraphAPIClient
+    from application.services.facebook_graph_api_service import FacebookGraphAPIClient
+    from infrastructure.database.models.facebook_connection_model import FacebookConnectionModel
+
+    comment_ids = payload.get("comment_ids", [])
+    if not comment_ids:
+        return {"success": True, "deleted_count": 0}
+
+    logger.info("🗑️ Bulk delete request for %d comments from %s", len(comment_ids), current_user_email)
+    
+    deleted_count = 0
+    errors = []
+
+    ig_client = InstagramGraphAPIClient()
+    
+    for cid in comment_ids:
+        try:
+            # 1. Find the platform context from CommentEventModel
+            event = await CommentEventModel.find_one(CommentEventModel.comment_id == cid)
+            if not event:
+                # If no event, we can only delete from our analysis DB
+                logger.warning("⚠️ No CommentEvent found for %s, deleting from local DB only", cid)
+            else:
+                # 2. Delete from platform
+                try:
+                    if event.platform == "instagram":
+                        await ig_client.delete_comment(current_user_email, cid)
+                    elif event.platform == "facebook":
+                        # For FB, we need the page access token
+                        fb_conn = await FacebookConnectionModel.find_one(FacebookConnectionModel.user_id == current_user_email)
+                        if fb_conn and event.page_id:
+                            async with FacebookGraphAPIClient() as fb_client:
+                                page_token = await fb_client.get_page_access_token(fb_conn.access_token, str(event.page_id))
+                                await fb_client.delete_comment(comment_id=cid, page_access_token=page_token)
+                except Exception as meta_err:
+                    logger.error("❌ Meta deletion failed for %s: %s", cid, meta_err)
+                    # We continue to delete from our DB even if Meta fails (maybe it was already deleted there)
+
+            # 3. Delete from CommentAnalysisModel
+            analysis = await CommentAnalysisModel.find_one(CommentAnalysisModel.comment_id == cid)
+            if analysis:
+                await analysis.delete()
+                deleted_count += 1
+                
+        except Exception as e:
+            logger.error("❌ Failed to process deletion for %s: %s", cid, e)
+            errors.append(str(e))
+
+    return {
+        "success": True, 
+        "deleted_count": deleted_count,
+        "errors": errors if errors else None
+    }
+
+@router.post("/{comment_id}/mark-valid", summary="Mark a comment as legitimate (not spam)")
+async def mark_comment_as_valid(
+    comment_id: str,
+    current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium),
+):
+    """
+    Clears the spam flag for a comment in our database.
+    """
+    from infrastructure.database.models.comment_analysis_model import CommentAnalysisModel
+    
+    analysis = await CommentAnalysisModel.find_one(CommentAnalysisModel.comment_id == comment_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Comment analysis not found")
+    
+    analysis.is_spam = False
+    analysis.spam_confidence = 0.0  # Reset confidence
+    await analysis.save()
+    
+    return {"success": True, "message": "Comment marked as legitimate"}

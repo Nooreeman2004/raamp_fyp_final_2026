@@ -76,6 +76,31 @@ class CommentModerationService {
     );
     return response.data;
   }
+
+  /**
+   * Bulk delete comments from platform and database
+   */
+  async bulkDelete(commentIds: string[]): Promise<{ success: boolean; deleted_count: number }> {
+    const response = await apiClient.request<{ success: boolean; deleted_count: number }>(
+      "/api/comments/bulk-delete",
+      {
+        method: "DELETE",
+        body: JSON.stringify({ comment_ids: commentIds }),
+      }
+    );
+    return response;
+  }
+
+  /**
+   * Mark a comment as legitimate (not spam)
+   */
+  async markAsLegitimate(commentId: string): Promise<{ success: boolean }> {
+    const response = await apiClient.post<{ success: boolean }>(
+      `/api/comments/${commentId}/mark-valid`,
+      {}
+    );
+    return response;
+  }
 }
 
 export const commentModerationService = new CommentModerationService();

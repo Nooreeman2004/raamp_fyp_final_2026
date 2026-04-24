@@ -40,14 +40,17 @@ export interface PlannedPostItem {
   title: string;
   post_type: PlannedPostType;
   status: PlannedPostStatus;
-  prompts: any;
+  caption?: string | null;  // Actual usable caption text
+  prompts: any;  // Contains creative_prompt for image generation
   cta?: string | null;
   hashtags: string[];
   why_it_fits_brand?: string | null;
   draft_id?: string | null;
   launch_request_id?: string | null;
+  scheduled_post_id?: string | null;  // Instagram/Facebook post ID after publishing
   last_error?: string | null;
   last_error_at?: string | null;
+  published_post_id?: string | null;  // Enriched field from launch request
 }
 
 export interface CampaignPlanListItem {
@@ -97,6 +100,16 @@ export interface RequestApprovalResponse {
   status: string;
 }
 
+export interface GenerateImageRequest {
+  creative_prompt: string;
+}
+
+export interface GenerateImageResponse {
+  success: boolean;
+  image_url?: string | null;
+  error?: string | null;
+}
+
 export const campaignPlannerService = {
   createPlan: async (payload: CampaignPlannerCreateRequest): Promise<CampaignPlannerCreateResponse> => {
     return apiClient.post<CampaignPlannerCreateResponse>("/campaign-planner/plans", payload);
@@ -136,6 +149,13 @@ export const campaignPlannerService = {
       `&platform=${encodeURIComponent(params.platform)}` +
       `&media_url=${encodeURIComponent(params.media_url)}`;
     return apiClient.post<RequestApprovalResponse>(`/campaign-planner/planned-posts/${postId}/request-approval?${query}`, {});
+  },
+
+  generateImage: async (postId: string, creativePrompt: string): Promise<GenerateImageResponse> => {
+    return apiClient.post<GenerateImageResponse>(
+      `/campaign-planner/planned-posts/${postId}/generate-image`,
+      { creative_prompt: creativePrompt }
+    );
   },
 };
 

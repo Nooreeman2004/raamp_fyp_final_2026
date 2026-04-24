@@ -2,13 +2,15 @@
 Instagram Posting API Router.
 Presentation layer endpoints for Instagram auto-posting functionality.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
 import logging
 import asyncio
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from presentation.routers.activity_router import log_activity
-
+from application.utils.background_tasks import create_background_task
 from presentation.routers.auth_router import get_current_user_email
 from presentation.schemas.instagram_posting_schemas import (
     InstagramPostRequest,
@@ -36,9 +38,11 @@ from infrastructure.repositories.instagram_post_repository_impl import (
 from infrastructure.repositories.social_media_repository import SocialMediaRepository
 from infrastructure.repositories.instagram_repository import InstagramRepository
 from application.services.notification_service import NotificationService
+from presentation.schemas.error_response import ErrorResponse, ErrorCode
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/instagram/posting", tags=["instagram-posting"])
+limiter = Limiter(key_func=get_remote_address)
 
 # Dependencies will be initialized on first use to avoid import-time errors
 _api_client = None
@@ -93,8 +97,11 @@ def get_notification_service():
 
 
 @router.post("/post", response_model=InstagramPostResponse)
+@limiter.limit("25/hour")
 async def create_instagram_post(
+    http_request: Request,
     request: InstagramPostRequest,
+    background_tasks: BackgroundTasks,
     current_user_email: str = Depends(get_current_user_email)
 ):
     """
@@ -108,7 +115,7 @@ async def create_instagram_post(
     - `schedule_post`: Schedule for future publishing (requires scheduled_time)
     - `post_story`: Publish immediately to Instagram stories
     
-    **Rate Limits**: Max 25 posts/hour per account
+    **Rate Limits**: Max 25 posts/hour per account (enforced)
     """
     try:
         # Verify Instagram connection exists
@@ -117,7 +124,10 @@ async def create_instagram_post(
         if not ig_account or not ig_account.ig_business_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Instagram account not connected. Please connect Instagram first."
+                detail=ErrorResponse(
+                    error_code=ErrorCode.EXTERNAL_SERVICE_ERROR,
+                    message="Instagram account not connected. Please connect Instagram first."
+                ).model_dump()
             )
         
         ig_business_id = ig_account.ig_business_id
@@ -154,14 +164,15 @@ async def create_instagram_post(
                         asset.updated_at = datetime.utcnow()
                         await asset.save()
             
-            # Log Activity (Non-blocking)
+            # Log Activity (Reliable Background Task)
             if result.get("status") == "published":
-                asyncio.create_task(log_activity(
+                background_tasks.add_task(
+                    log_activity,
                     business_id=ig_business_id,
                     event_type="post_published",
                     title="Instagram Post Published",
                     subtitle="Feed post is now live"
-                ))
+                )
             
             return InstagramPostResponse(**result)
         
@@ -169,7 +180,10 @@ async def create_instagram_post(
             if not request.scheduled_time:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="scheduled_time is required for schedule_post mode"
+                    detail=ErrorResponse(
+                        error_code=ErrorCode.VALIDATION_ERROR,
+                        message="scheduled_time is required for schedule_post mode"
+                    ).model_dump()
                 )
             
             scheduled_dt = datetime.fromisoformat(request.scheduled_time.replace("Z", "+00:00"))
@@ -198,14 +212,17 @@ async def create_instagram_post(
                         asset.updated_at = datetime.utcnow()
                         await asset.save()
             
-            # Log Activity (Non-blocking)
+            # Log Activity (Non-blocking with error handling)
             if result.get("status") == "scheduled":
-                asyncio.create_task(log_activity(
-                    business_id=ig_business_id,
-                    event_type="post_published",
-                    title="Instagram Post Scheduled",
-                    subtitle=f"Queued for {request.scheduled_time}"
-                ))
+                create_background_task(
+                    log_activity(
+                        business_id=ig_business_id,
+                        event_type="post_published",
+                        title="Instagram Post Scheduled",
+                        subtitle=f"Queued for {request.scheduled_time}"
+                    ),
+                    task_name="log_scheduled_post"
+                )
             
             return InstagramPostResponse(
                 status=result["status"],
@@ -225,14 +242,17 @@ async def create_instagram_post(
             )
             logger.info(f"Instagram Story Result: {result}")
             
-            # Log Activity (Non-blocking)
+            # Log Activity (Non-blocking with error handling)
             if result.get("status") == "published":
-                asyncio.create_task(log_activity(
-                    business_id=ig_business_id,
-                    event_type="post_published",
-                    title="Instagram Story Published",
-                    subtitle="Story is now live"
-                ))
+                create_background_task(
+                    log_activity(
+                        business_id=ig_business_id,
+                        event_type="post_published",
+                        title="Instagram Story Published",
+                        subtitle="Story is now live"
+                    ),
+                    task_name="log_story_published"
+                )
             
             return InstagramPostResponse(
                 status=result["status"],
@@ -245,7 +265,10 @@ async def create_instagram_post(
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid mode: {request.mode}"
+                detail=ErrorResponse(
+                    error_code=ErrorCode.VALIDATION_ERROR,
+                    message=f"Invalid mode: {request.mode}"
+                ).model_dump()
             )
     
     except HTTPException:

@@ -12,6 +12,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from config import Config
 from application.services.firebase_storage_service import FirebaseStorageService
 import uuid
 
@@ -72,7 +73,7 @@ def upload_image():
         print("\n⚠️  Fallback: Saving to local storage...")
         
         # Save to local storage
-        local_dir = Path("uploaded_files/instagram_posts")
+        local_dir = Config.UPLOADED_FILES_DIR / "instagram_posts"
         local_dir.mkdir(parents=True, exist_ok=True)
         
         local_file = local_dir / f"{uuid.uuid4()}{file_ext}"
@@ -83,7 +84,7 @@ def upload_image():
         print("\n⚠️  To use this with Instagram:")
         print("   1. Install ngrok: https://ngrok.com/download")
         print("   2. Run: ngrok http 8000")
-        print("   3. Use the ngrok URL + /uploaded_files/instagram_posts/[filename]")
+        print("   3. Use the ngrok URL + /api/static/instagram_posts/[filename]")
         
         return None
 

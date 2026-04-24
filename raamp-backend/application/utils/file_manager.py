@@ -5,13 +5,15 @@ Handles user-specific file organization with proper sanitization and structure
 import re
 from pathlib import Path
 import logging
+from config import Config
+from application.constants import FileLimits
 
 logger = logging.getLogger(__name__)
 
 class FileManager:
     """Manages user-specific file uploads with organized folder structure"""
     
-    BASE_UPLOAD_DIR = Path("uploaded_files")
+    BASE_UPLOAD_DIR = Config.UPLOADED_FILES_DIR
     
     @staticmethod
     def sanitize_email_for_folder(email: str) -> str:
@@ -162,18 +164,18 @@ class FileManager:
             True if valid, raises ValueError otherwise
         """
         max_sizes = {
-            'logos': 5 * 1024 * 1024,      # 5MB for logos
-            'content': 50 * 1024 * 1024,   # 50MB for content (videos)
-            'profiles': 5 * 1024 * 1024,   # 5MB for profiles
-            'temp': 50 * 1024 * 1024       # 50MB for temp
+            'logos': FileLimits.MAX_LOGO_SIZE_BYTES,
+            'content': FileLimits.MAX_CONTENT_SIZE_BYTES,
+            'profiles': FileLimits.MAX_PROFILE_SIZE_BYTES,
+            'temp': FileLimits.MAX_TEMP_FILE_SIZE_BYTES
         }
         
-        max_size = max_sizes.get(subfolder, 10 * 1024 * 1024)
+        max_size = max_sizes.get(subfolder, FileLimits.MAX_ATTACHMENT_SIZE_BYTES)
         
         if file_size > max_size:
             raise ValueError(
-                f"File size {file_size / (1024*1024):.2f}MB exceeds "
-                f"maximum {max_size / (1024*1024):.0f}MB for '{subfolder}'"
+                f"File size {file_size / FileLimits.MB:.2f}MB exceeds "
+                f"maximum {max_size / FileLimits.MB:.0f}MB for '{subfolder}'"
             )
         
         return True

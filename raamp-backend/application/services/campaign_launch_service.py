@@ -15,7 +15,7 @@ import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 
 from infrastructure.database.models.campaign_launch_request_model import (
     CampaignLaunchRequestModel,
@@ -233,6 +233,11 @@ class CampaignLaunchService:
             req.completed_at = datetime.utcnow()
             req.updated_at = datetime.utcnow()
             await req.save()
+            
+            # Update planned post status and store post ID (if from planner)
+            if req.planned_post_id:
+                await self._update_planned_post_after_execution(req, result)
+            
             if req.status == CampaignLaunchStatus.COMPLETED:
                 await self._update_related_trend_detections(
                     user_email=user_email,
@@ -299,6 +304,63 @@ class CampaignLaunchService:
             logger.warning("Failed attaching trend attribution to posts (non-fatal): %s", str(e))
 
         return payload
+
+    async def _update_planned_post_after_execution(
+        self, req: CampaignLaunchRequestModel, result: Dict[str, Any]
+    ) -> None:
+        """
+        Update CampaignPlannedPostModel status and post ID after execution.
+        
+        Status logic:
+        - If mode = schedule_post → status = "scheduled"
+        - If mode = post_now/post_story → status = "published" 
+        - If execution failed → status = "failed"
+        """
+        from infrastructure.database.models.campaign_planned_post_model import CampaignPlannedPostModel
+        
+        try:
+            post = await CampaignPlannedPostModel.get(req.planned_post_id)
+            if not post or post.user_email != req.user_email:
+                logger.warning(
+                    "Cannot update planned post %s: not found or user mismatch",
+                    req.planned_post_id
+                )
+                return
+            
+            # Determine final status
+            if req.status == CampaignLaunchStatus.FAILED:
+                post.status = "failed"
+                post.last_error = req.status_reason or "Execution failed"
+                post.last_error_at = datetime.utcnow()
+            elif req.mode == "schedule_post":
+                post.status = "scheduled"
+            else:  # post_now or post_story
+                post.status = "published"
+            
+            # Extract and store post ID from result
+            results = result.get("results") or []
+            if results:
+                # Get first successful result (Instagram or Facebook)
+                for r in results:
+                    post_id = r.get("post_id") or r.get("id")
+                    if post_id:
+                        post.scheduled_post_id = str(post_id)
+                        logger.info(
+                            "Linked planned post %s to published post %s",
+                            req.planned_post_id,
+                            post_id
+                        )
+                        break
+            
+            post.updated_at = datetime.utcnow()
+            await post.save()
+            
+        except Exception as e:
+            logger.warning(
+                "Failed to update planned post %s after execution (non-fatal): %s",
+                req.planned_post_id,
+                str(e)
+            )
 
     async def list_requests(self, *, user_email: str, limit: int = 50, skip: int = 0) -> Dict[str, Any]:
         rows = (

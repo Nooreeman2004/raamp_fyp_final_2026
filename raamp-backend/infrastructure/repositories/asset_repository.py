@@ -5,6 +5,9 @@ from infrastructure.database.models.asset_model import AssetModel, AssetType, Ge
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from beanie.operators import In
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AssetRepository:
@@ -19,7 +22,20 @@ class AssetRepository:
     async def get_by_asset_id(self, asset_id: str) -> Optional[AssetModel]:
         """Get asset by asset_id"""
         return await AssetModel.find_one(AssetModel.asset_id == asset_id)
-    
+
+    async def get_by_asset_ids(self, asset_ids: List[str]) -> List[AssetModel]:
+        """
+        Batch-fetch multiple assets by their asset_ids in a single query.
+
+        Eliminates N+1 query patterns when processing multiple assets.
+        Returns assets in the order found (not guaranteed to match input order).
+        Use {a.asset_id: a for a in assets} to build a lookup dict if order matters.
+        """
+        if not asset_ids:
+            return []
+        return await AssetModel.find(In(AssetModel.asset_id, asset_ids)).to_list()
+
+
     async def get_by_user_id(
         self,
         user_id: str,

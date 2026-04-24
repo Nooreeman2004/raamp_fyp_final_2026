@@ -20,6 +20,9 @@ from infrastructure.database.models.auto_reply_models import (
 from infrastructure.database.models.facebook_connection_model import FacebookConnectionModel
 from infrastructure.database.models.notification_model import NotificationType
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import PaginationDefaults
+from application.utils.tier_restrictions import require_pro_or_premium
+from infrastructure.database.models.user_model import UserModel
 from infrastructure.database.models.auto_reply_settings_model import AutoReplyMode, AutoReplySettingsModel
 from infrastructure.database.models.social_escalation_ticket_model import SocialEscalationTicketModel
 from presentation.schemas.auto_reply_schemas import (
@@ -44,6 +47,7 @@ MAX_REPLIES_PER_COMMENT = 2
 @router.get("/dashboard-stats")
 async def auto_reply_dashboard_stats(
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     """
     Lightweight dashboard stats for comments + escalations.
@@ -128,6 +132,7 @@ async def _get_or_create_settings(user_id: str) -> AutoReplySettingsModel:
 @router.get("/settings", response_model=AutoReplySettingsResponse)
 async def get_auto_reply_settings(
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     s = await _get_or_create_settings(current_user_email)
     return AutoReplySettingsResponse(
@@ -144,6 +149,7 @@ async def get_auto_reply_settings(
 async def patch_auto_reply_settings(
     body: AutoReplySettingsPatchRequest,
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     s = await _get_or_create_settings(current_user_email)
 
@@ -182,9 +188,10 @@ async def patch_auto_reply_settings(
 @router.get("/drafts", response_model=AutoReplyDraftListResponse)
 async def list_auto_reply_drafts(
     status_filter: Optional[str] = Query("active", description="active/expired/sent/skipped"),
-    limit: int = Query(50, ge=1, le=100),
-    skip: int = Query(0, ge=0),
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_LARGE, ge=1, le=PaginationDefaults.MAX_LIMIT_MEDIUM),
+    skip: int = Query(PaginationDefaults.DEFAULT_SKIP, ge=0),
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     q = {"user_id": current_user_email}
     if status_filter:
@@ -250,6 +257,7 @@ async def skip_auto_reply_draft(
     draft_id: str,
     body: AutoReplySkipRequest,
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium)  # Pro/Premium only
 ):
     draft = await AutoReplyDraftModel.get(draft_id)
     if not draft or draft.user_id != current_user_email:
@@ -291,6 +299,7 @@ async def approve_and_send_auto_reply(
     draft_id: str,
     body: AutoReplyApproveRequest,
     current_user_email: str = Depends(get_current_user_email),
+    user: UserModel = Depends(require_pro_or_premium),  # Pro/Premium only
 ):
     draft = await AutoReplyDraftModel.get(draft_id)
     if not draft or draft.user_id != current_user_email:

@@ -54,6 +54,11 @@ export function IntelligenceGrid({ trendId, aiAnalysisStatus, aiAnalysisData, lo
         }
       } catch (err) {
         console.error("Dynamics fetch error", err);
+        if (active) {
+          toast.warning("Intelligence data unavailable", {
+            description: "Viral audio and influencer insights couldn't be loaded."
+          });
+        }
       } finally {
         if (active) {
             setAudioLoading(false);

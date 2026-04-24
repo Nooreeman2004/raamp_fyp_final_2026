@@ -308,7 +308,7 @@ const UserProfile = () => {
       await authService.updateProfile({
         ...userData,
         profile_picture: downloadURL,
-      } as any);
+      } satisfies Partial<UpdateUserRequest>);
 
       setUserData({ ...userData, profilePicture: downloadURL });
       sonner.success("Success", {
@@ -322,7 +322,7 @@ const UserProfile = () => {
   };
 
   return (
-    <Layout breadcrumbItems={[{ label: "Settings", href: "/settings" }, { label: "Profile" }]}>
+    <Layout breadcrumbItems={[{ label: "Profile" }, { label: "User" }]}>
       <div className="max-w-3xl mx-auto space-y-6">
         <Reveal variant="blurInUp">
           <div className="flex items-center justify-between mb-2">

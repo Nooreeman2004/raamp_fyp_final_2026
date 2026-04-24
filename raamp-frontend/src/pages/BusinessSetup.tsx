@@ -45,6 +45,8 @@ const BusinessSetup = () => {
     const [isFetching, setIsFetching] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [hasExistingData, setHasExistingData] = useState(false);
+    // Controls deferred navigation after successful save (for new-user onboarding)
+    const [shouldNavigateNext, setShouldNavigateNext] = useState(false);
 
     // Verification Gate State
     const [showPasswordGate, setShowPasswordGate] = useState(false);
@@ -98,6 +100,16 @@ const BusinessSetup = () => {
         fetchCurrentSetup();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isFullyOnboarded]);
+
+    // ── Deferred navigation with proper cleanup to prevent memory leaks ────────
+    useEffect(() => {
+        if (!shouldNavigateNext) return;
+        const timeoutId = setTimeout(() => {
+            navigate("/profile/brand-settings");
+        }, 1000);
+        // Cleanup: if the component unmounts before 1 s, cancel navigation
+        return () => clearTimeout(timeoutId);
+    }, [shouldNavigateNext, navigate]);
 
     const handleEdit = () => {
         if (isEditing || !user?.email) return;
@@ -186,7 +198,7 @@ const BusinessSetup = () => {
 
                 // Only navigate to next onboarding step if user is NOT fully onboarded (new user in onboarding flow)
                 if (!isFullyOnboarded) {
-                    setTimeout(() => navigate("/profile/brand-settings"), 1000);
+                    setShouldNavigateNext(true);
                 }
             }
         } catch (error: unknown) {

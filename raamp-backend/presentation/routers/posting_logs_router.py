@@ -12,6 +12,7 @@ from datetime import datetime
 import logging
 
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import PaginationDefaults
 from infrastructure.database.models.posting_log_model import PostingLogModel
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ class PostingLogsListResponse(BaseModel):
 async def get_posting_logs(
     platform: Optional[str] = Query(None, description="Filter by platform (instagram/facebook)"),
     status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (PUBLISHED/FAILED/SCHEDULED)"),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_LARGE, ge=1, le=PaginationDefaults.MAX_LIMIT_LARGE),
     current_user_email: str = Depends(get_current_user_email)
 ):
     """

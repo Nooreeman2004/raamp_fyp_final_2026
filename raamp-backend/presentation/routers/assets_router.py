@@ -13,13 +13,14 @@ from datetime import datetime
 from pathlib import Path
 
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import PaginationDefaults
 from application.services.cloudinary_service import CloudinaryService
 from application.utils.file_manager import FileManager
 from infrastructure.repositories.asset_repository import AssetRepository
 from infrastructure.repositories.caption_log_repository import CaptionLogRepository
 from infrastructure.database.models.asset_model import AssetType, GenerationSource, AssetModel
 from infrastructure.database.models.caption_log_model import AssetTypeEnum
-from config import settings
+from config import settings, Config
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/assets", tags=["creative-assets"])
@@ -299,7 +300,7 @@ def _public_asset_url(asset: AssetModel) -> str:
 @router.get("/media", response_model=MediaAssetsResponse)
 async def get_media_assets(
     current_user_email: str = Depends(get_current_user_email),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_LARGE, ge=1, le=PaginationDefaults.MAX_LIMIT_MEDIUM),
     asset_type: Optional[str] = Query(None, regex="^(image|video)$")
 ):
     """
@@ -365,7 +366,7 @@ async def get_media_assets(
 @router.get("/captions", response_model=CaptionAssetsResponse)
 async def get_caption_assets(
     current_user_email: str = Depends(get_current_user_email),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_LARGE, ge=1, le=PaginationDefaults.MAX_LIMIT_MEDIUM),
     asset_type: Optional[str] = Query(None, description="Filter by asset type: post, story, reel"),
     campaign_id: Optional[str] = Query(None, description="Filter by campaign ID")
 ):
@@ -564,8 +565,8 @@ class AssetsLibraryResponse(BaseModel):
 @router.get("/library", response_model=AssetsLibraryResponse)
 async def get_asset_library(
     current_user_email: str = Depends(get_current_user_email),
-    page: int = Query(1, ge=1),
-    per_page: int = Query(50, ge=1, le=100),
+    page: int = Query(PaginationDefaults.DEFAULT_PAGE, ge=1),
+    per_page: int = Query(PaginationDefaults.DEFAULT_PER_PAGE, ge=1, le=PaginationDefaults.MAX_PER_PAGE),
     asset_type: Optional[str] = Query(None),
     source: Optional[str] = Query(None)
 ):
@@ -673,12 +674,12 @@ async def rescan_generated_files(
     errors = 0
 
     scan_dirs = [
-        ("generated_reels", AssetType.GENERATED_REEL, "/api/reels/"),
-        ("generated_videos", AssetType.GENERATED_VIDEO, "/api/videos/"),
+        (Config.GENERATED_REELS_DIR, AssetType.GENERATED_REEL, "/api/reels/"),
+        (Config.GENERATED_VIDEOS_DIR, AssetType.GENERATED_VIDEO, "/api/videos/"),
     ]
 
-    for folder_name, asset_type, url_prefix in scan_dirs:
-        folder = Path(folder_name)
+    for folder_path, asset_type, url_prefix in scan_dirs:
+        folder = Path(folder_path)
         if not folder.exists():
             continue
 

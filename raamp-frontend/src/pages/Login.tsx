@@ -90,11 +90,13 @@ const Login = () => {
       clearLoginDraft();
       toast.success("Welcome back to the command center.");
 
-      if (response.user && !response.user.profile_completed) {
-        navigate("/profile/personal-details");
-      } else {
-        navigate("/dashboard");
-      }
+      setTimeout(() => {
+        if (response.user && !response.user.profile_completed) {
+          navigate("/profile/personal-details");
+        } else {
+          navigate("/dashboard");
+        }
+      }, 800);
     } catch (error: unknown) {
       const apiError = error as {
         message?: string;

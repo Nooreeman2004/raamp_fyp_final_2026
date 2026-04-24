@@ -110,7 +110,17 @@ const FloatingTeam = () => {
                                                     <img
                                                         src={member.image}
                                                         alt={member.name}
-                                                        className={cn("w-full h-full object-cover", (member as any).objectPosition || "object-center", (member as any).imageScale || "")}
+                                                        className={cn(
+                                                            "w-full h-full object-cover",
+                                                            (() => {
+                                                                const hasObjectPosition = 'objectPosition' in member;
+                                                                return hasObjectPosition ? String((member as { objectPosition: unknown }).objectPosition) : "object-center";
+                                                            })(),
+                                                            (() => {
+                                                                const hasImageScale = 'imageScale' in member;
+                                                                return hasImageScale ? String((member as { imageScale: unknown }).imageScale) : "";
+                                                            })()
+                                                        )}
                                                     />
                                                 ) : (
                                                     <User className="w-12 h-12 text-primary/80 group-hover:text-primary transition-colors" />

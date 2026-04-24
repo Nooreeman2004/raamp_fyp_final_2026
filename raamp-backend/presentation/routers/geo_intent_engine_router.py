@@ -10,10 +10,12 @@ import json
 import re
 from urllib.parse import urlencode
 from presentation.routers.activity_router import log_activity
+from application.utils.background_tasks import create_background_task
 from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel, Field
 
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import TimeRangeDefaults
 from application.services.credit_service import get_credit_service
 from presentation.schemas.geo_intent_schemas import (
     CampaignHistoryResponse,
@@ -168,12 +170,15 @@ async def compute_heat_score(
     )
 
     if result["urgency"] in ["High", "Critical"]:
-        asyncio.create_task(log_activity(
-            business_id=request.business_id,
-            event_type="heat_spike",
-            title="Market Heat Spike",
-            subtitle=f"Urgency: {result['urgency']} score detected"
-        ))
+        create_background_task(
+            log_activity(
+                business_id=request.business_id,
+                event_type="heat_spike",
+                title="Market Heat Spike",
+                subtitle=f"Urgency: {result['urgency']} score detected"
+            ),
+            task_name="log_heat_spike"
+        )
 
     return HeatScoreResponse(
         score=result["score"],
@@ -387,7 +392,7 @@ async def get_campaign_history(
 )
 async def get_heat_score_history(
     business_id: str,
-    days: int = Query(7, le=30),
+    days: int = Query(TimeRangeDefaults.DEFAULT_DAYS_SHORT, le=TimeRangeDefaults.DEFAULT_DAYS_MEDIUM),
     current_user_email: str = Depends(get_current_user_email),
     service: GeoIntentService = Depends(get_geo_intent_service),
 ):

@@ -169,18 +169,27 @@ class InstagramGraphAPIClient:
             operation="reply_to_comment",
         )
 
-    async def like_comment(self, user_id: str, comment_id: str) -> bool:
+    async def delete_comment(self, user_id: str, comment_id: str) -> bool:
         """
-        Like an Instagram comment (best-effort).
+        Delete an Instagram comment.
 
-        Endpoint: POST /{comment-id}/likes
+        Endpoint: DELETE /{comment-id}
         Returns: True on success.
         """
-        # NOTE: Instagram Graph API does not reliably support "liking" comments via API
-        # across app types/permissions. We keep this as a stub returning False so callers
-        # can degrade gracefully without spamming logs or failing reply flows.
-        _ = (user_id, comment_id)
-        return False
+        access_token, _ = await self.get_access_token(user_id)
+        url = f"{self.BASE_URL}/{comment_id}"
+        params = {
+            "access_token": access_token,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.delete(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("success") is True
+        except Exception as e:
+            logger.error(f"Failed to delete Instagram comment {comment_id}: {e}")
+            raise InstagramAPIError(f"Failed to delete comment: {str(e)}")
 
     async def check_media_status(self, user_id: str, creation_id: str) -> Dict[str, Any]:
         """

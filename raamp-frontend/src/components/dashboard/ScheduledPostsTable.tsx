@@ -31,6 +31,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { MESSAGES } from "@/constants/messages";
 import { instagramService } from "@/services/instagramService";
 import { facebookService } from "@/services/facebookService";
 import { useMemo } from "react";
@@ -111,14 +112,14 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
                 : await instagramService.cancelScheduledPost(post.post_id);
 
             if (response.success) {
-                toast.success("Scheduled post cancelled successfully");
+                toast.success(MESSAGES.SCHEDULED.POST_CANCELLED);
                 onRefresh?.();
             } else {
-                toast.error(response.message || "Failed to cancel post");
+                toast.error(response.message || MESSAGES.SCHEDULED.CANCEL_FAILED);
             }
         } catch (error: any) {
             console.error("Error cancelling post:", error);
-            toast.error(error.message || "Failed to cancel post");
+            toast.error(error.message || MESSAGES.SCHEDULED.CANCEL_FAILED);
         } finally {
             setCancellingPostId(null);
             setPostToCancel(null);

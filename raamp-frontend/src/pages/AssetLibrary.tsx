@@ -104,7 +104,7 @@ const AssetLibrary = () => {
             toast.success(`Rescan Complete`, { description: result.message });
             if (result.imported > 0) fetchAssets();
         } catch (error: any) {
-            toast.error("Rescan Failed", { description: error.message });
+            toast.error("Rescan Failed", { description: MESSAGES.ASSETS.RESCAN_FAILED });
         } finally {
             setIsRescanning(false);
         }
@@ -264,7 +264,7 @@ const AssetLibrary = () => {
             }
             toast.success(result.is_favorite ? "Added to Favorites" : "Removed from Favorites");
         } catch (error: any) {
-            toast.error("Failed to update favorite", { description: error.message });
+            toast.error("Update Failed", { description: MESSAGES.ASSETS.FAVORITE_UPDATE_FAILED });
         }
     };
 
@@ -456,18 +456,32 @@ const AssetLibrary = () => {
                                                 muted
                                                 loop
                                                 playsInline
-                                                onMouseEnter={(e) => { e.stopPropagation(); (e.target as HTMLVideoElement).play(); }}
+                                                onMouseEnter={(e) => {
+                                                    e.stopPropagation();
+                                                    const video = e.target;
+                                                    if (video instanceof HTMLVideoElement) {
+                                                        video.play().catch(() => {/* Ignore play errors */});
+                                                    }
+                                                }}
                                                 onMouseLeave={(e) => {
-                                                    const v = e.target as HTMLVideoElement;
-                                                    v.pause(); v.currentTime = 0;
+                                                    const video = e.target;
+                                                    if (video instanceof HTMLVideoElement) {
+                                                        video.pause();
+                                                        video.currentTime = 0;
+                                                    }
                                                 }}
                                                 onError={(e) => {
-                                                    const v = e.target as HTMLVideoElement;
-                                                    v.style.display = 'none';
-                                                    const fb = document.createElement('div');
-                                                    fb.className = 'w-full h-full flex items-center justify-center bg-background text-primary';
-                                                    fb.innerHTML = '<span class="text-sm font-mono">Video Not Found</span>';
-                                                    v.parentElement?.appendChild(fb);
+                                                    const video = e.target;
+                                                    if (video instanceof HTMLVideoElement) {
+                                                        video.style.display = 'none';
+                                                        const parent = video.parentElement;
+                                                        if (parent) {
+                                                            const fb = document.createElement('div');
+                                                            fb.className = 'w-full h-full flex items-center justify-center bg-background text-primary';
+                                                            fb.innerHTML = '<span class="text-sm font-mono">Video Not Found</span>';
+                                                            parent.appendChild(fb);
+                                                        }
+                                                    }
                                                 }}
                                             />
                                         ) : (
@@ -478,8 +492,10 @@ const AssetLibrary = () => {
                                                         alt={asset.file_name}
                                                         className="w-full h-full object-cover"
                                                         onError={(e) => {
-                                                            (e.target as HTMLImageElement).src =
-                                                                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23000" width="400" height="400"/%3E%3Ctext fill="%2300f5d4" font-family="monospace" font-size="16" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EImage Not Found%3C/text%3E%3C/svg%3E';
+                                                            const img = e.target;
+                                                            if (img instanceof HTMLImageElement) {
+                                                                img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23000" width="400" height="400"/%3E%3Ctext fill="%2300f5d4" font-family="monospace" font-size="16" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EImage Not Found%3C/text%3E%3C/svg%3E';
+                                                            }
                                                         }}
                                                     />
                                                 </div>

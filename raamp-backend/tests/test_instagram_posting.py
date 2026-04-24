@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import httpx
+from config import Config
 from application.services.firebase_storage_service import FirebaseStorageService
 from infrastructure.database.database import connect_db, close_db
 
@@ -76,7 +77,7 @@ async def upload_image_to_storage(image_path: str) -> str:
         print(f"   Error: {e}")
         
         # Save to local storage as fallback
-        local_path = Path("uploaded_files") / filename
+        local_path = Config.UPLOADED_FILES_DIR / filename
         local_path.parent.mkdir(parents=True, exist_ok=True)
         
         with open(local_path, 'wb') as f:
@@ -89,7 +90,7 @@ async def upload_image_to_storage(image_path: str) -> str:
         print(f"   Local file saved at: {local_path.absolute()}")
         
         # Return a placeholder - you'll need to replace this with actual public URL
-        return f"http://localhost:8000/uploaded_files/{filename}"
+        return f"http://localhost:8000/api/static/{filename}"
 
 
 async def login_and_get_token(email: str, password: str) -> str:

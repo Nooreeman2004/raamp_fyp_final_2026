@@ -18,7 +18,15 @@ import tamimiImg from "@/assets/team/tamimi.jpeg";
 import rashidImg from "@/assets/team/rashid_mehmood.jpeg";
 
 const About = () => {
-  const team = [
+  interface TeamMember {
+    name: string;
+    role: string;
+    type: string;
+    image: any;
+    objectPosition?: string;
+  }
+
+  const team: TeamMember[] = [
     {
       name: "Abdullah Aamir",
       role: "Co-Founder & Developer",
@@ -132,7 +140,7 @@ const About = () => {
                             <img
                               src={member.image}
                               alt={member.name}
-                              className={cn("w-full h-full object-cover", (member as any).objectPosition || "object-center")}
+                              className={cn("w-full h-full object-cover", member.objectPosition || "object-center")}
                             />
                           ) : (
                             <User className="w-16 h-16 text-primary" />
@@ -173,7 +181,7 @@ const About = () => {
                             <img
                               src={member.image}
                               alt={member.name}
-                              className={cn("w-full h-full object-cover", (member as any).objectPosition || "object-center")}
+                              className={cn("w-full h-full object-cover", member.objectPosition || "object-center")}
                             />
                           ) : (
                             <User className="w-16 h-16 text-primary" />

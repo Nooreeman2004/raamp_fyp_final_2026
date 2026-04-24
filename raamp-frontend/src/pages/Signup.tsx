@@ -189,11 +189,14 @@ const Signup = () => {
         description: "Please check your email to verify your account.",
         className: "bg-primary/10 border-primary/20 text-primary",
       });
-      // URL + state so refresh / direct link still has email
-      navigate(
-        `/verify-email?email=${encodeURIComponent(formData.email)}`,
-        { state: { email: formData.email } }
-      );
+      
+      setTimeout(() => {
+        // URL + state so refresh / direct link still has email
+        navigate(
+          `/verify-email?email=${encodeURIComponent(formData.email)}`,
+          { state: { email: formData.email } }
+        );
+      }, 1000);
     } catch (error: any) {
       console.error("Signup Error:", error);
 

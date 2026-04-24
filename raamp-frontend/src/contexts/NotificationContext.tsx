@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { toast } from 'sonner';
+import { MESSAGES } from '@/constants/messages';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/api';
+import { API_BASE_URL } from '@/config/apiBase';
 
 export interface Notification {
     id: string;
@@ -118,11 +120,8 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
         const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // In dev, the frontend runs on :8080 but the backend runs on :8000.
-        // Use hostname + backend port to avoid accidentally connecting to the frontend port.
-        const backendHost = `${window.location.hostname}:8000`;
-        const wsUrl = `${protocol}//${backendHost}/api/notifications/ws${token ? `?token=${token}` : ''}`;
+        // Use API_BASE_URL and convert http(s) protocol to ws(s)
+        const wsUrl = API_BASE_URL.replace(/^http/, 'ws') + '/notifications/ws' + (token ? `?token=${token}` : '');
 
         const ws = new WebSocket(wsUrl);
 
@@ -242,7 +241,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             await apiClient.patch(`/notifications/${id}/read`, {});
         } catch (error) {
             console.error('Failed to mark read:', error);
-            toast.error("Could not update notification", { description: "Please try again." });
+            toast.error("Update Failed", { description: MESSAGES.NOTIFICATIONS.UPDATE_FAILED });
             fetchNotifications(); // Revert on error
         }
     };
@@ -253,7 +252,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             setUnreadCount(0);
             await apiClient.post('/notifications/read-all', {});
         } catch (error) {
-            toast.error("Could not mark all as read", { description: "Please try again." });
+            toast.error("Mark All Read Failed", { description: MESSAGES.NOTIFICATIONS.MARK_ALL_READ_FAILED });
             fetchNotifications();
         }
     };
@@ -266,7 +265,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
             await apiClient.delete(`/notifications/${id}`);
         } catch (error) {
-            toast.error("Could not delete notification", { description: "Please try again." });
+            toast.error("Delete Failed", { description: MESSAGES.NOTIFICATIONS.DELETE_FAILED });
             fetchNotifications();
         }
     };

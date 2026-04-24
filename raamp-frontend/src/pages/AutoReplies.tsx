@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { MESSAGES } from "@/constants/messages";
 import { Check, RefreshCw, Search, X, MessageSquare, AlertTriangle } from "lucide-react";
 import { autoReplyService, AutoReplyDraftItem, SocialEscalationTicket } from "@/services/autoReplyService";
 import {
@@ -80,7 +81,7 @@ export default function AutoReplies() {
       });
       setRows(drafts);
     } catch (e: any) {
-      toast.error("Failed to load auto-replies", { description: e?.message || "Please try again." });
+      toast.error("Load Failed", { description: MESSAGES.AUTO_REPLY.LOAD_FAILED });
     } finally {
       setLoading(false);
     }
@@ -112,7 +113,7 @@ export default function AutoReplies() {
       const t = await autoReplyService.getEscalationTicket(id);
       setTicket(t);
     } catch (e: any) {
-      toast.error("Failed to load escalation ticket", { description: e?.message || "Please try again." });
+      toast.error("Load Failed", { description: MESSAGES.AUTO_REPLY.ESCALATION_LOAD_FAILED });
       setTicketOpen(false);
     } finally {
       setTicketLoading(false);
@@ -127,7 +128,7 @@ export default function AutoReplies() {
       setTicket((p) => (p ? { ...p, status: res.status, acknowledged_at: p.acknowledged_at || new Date().toISOString() } : p));
       toast.success("Ticket acknowledged");
     } catch (e: any) {
-      toast.error("Acknowledge failed", { description: e?.message || "Please try again." });
+      toast.error("Acknowledge Failed", { description: MESSAGES.AUTO_REPLY.ACKNOWLEDGE_FAILED });
     } finally {
       setTicketAction(null);
     }
@@ -143,7 +144,7 @@ export default function AutoReplies() {
       // refresh counts/badges after resolving
       await fetchRows();
     } catch (e: any) {
-      toast.error("Resolve failed", { description: e?.message || "Please try again." });
+      toast.error("Resolve Failed", { description: MESSAGES.AUTO_REPLY.RESOLVE_FAILED });
     } finally {
       setTicketAction(null);
     }
@@ -187,7 +188,7 @@ export default function AutoReplies() {
       setRows((prev) => prev.filter((x) => x.id !== d.id));
       await fetchRows();
     } catch (e: any) {
-      toast.error("Skip failed", { description: e?.message || "Please try again." });
+      toast.error("Skip Failed", { description: MESSAGES.AUTO_REPLY.SKIP_FAILED });
     } finally {
       setBusyById((p) => ({ ...p, [d.id]: false }));
     }
@@ -284,7 +285,7 @@ export default function AutoReplies() {
                 className="bg-foreground/5 border-border/50"
               />
               <div className="w-[200px]">
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="h-9 bg-foreground/5 border-border/50 text-[11px] font-mono text-foreground">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>

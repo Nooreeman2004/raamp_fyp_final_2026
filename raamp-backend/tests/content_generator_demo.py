@@ -146,7 +146,7 @@ async def handle_image_generation(image_service: ImageGenerationService):
             print("─"*70)
             for i, url in enumerate(image_urls, 1):
                 # Convert URL back to file path for display
-                file_path = url.replace("/api/generated/", "generated_images/")
+                file_path = url.replace("/api/generated/", "generated_assets/images/")
                 print(f"   {i}. {file_path}")
             print("─"*70)
         else:
@@ -201,7 +201,7 @@ async def handle_video_generation(video_service: VideoGenerationService):
         print("⏰ Videos are being generated in parallel. Please wait...")
         
         # Generate unique folder
-        output_folder = f"generated_videos/vid_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        output_folder = f"generated_assets/videos/vid_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         # Generate videos (sync version for simplicity in demo)
         video_paths = video_service.generate_videos_sync(
@@ -259,7 +259,7 @@ async def handle_reel_generation(reel_service: ReelGenerationService):
         print("⏰ Reels are being generated in parallel. Please wait...")
         
         # Generate unique folder
-        output_folder = f"generated_reels/reel_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        output_folder = f"generated_assets/reels/reel_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         # Generate Reels (sync version for simplicity in demo)
         reel_paths = reel_service.generate_reels_sync(

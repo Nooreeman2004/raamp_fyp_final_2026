@@ -9,6 +9,7 @@ from infrastructure.database.models.social_escalation_ticket_model import (
     SocialEscalationTicketModel,
 )
 from presentation.routers.auth_router import get_current_user_email
+from application.constants import PaginationDefaults
 from presentation.schemas.social_escalation_schemas import (
     SocialEscalationAckResponse,
     SocialEscalationResolveResponse,
@@ -60,8 +61,8 @@ async def _require_owner(ticket: SocialEscalationTicketModel, current_user_email
 @router.get("", response_model=SocialEscalationTicketListResponse)
 async def list_tickets(
     status_filter: str = Query("open", description="open|acknowledged|resolved|all"),
-    limit: int = Query(50, ge=1, le=100),
-    skip: int = Query(0, ge=0),
+    limit: int = Query(PaginationDefaults.DEFAULT_LIMIT_LARGE, ge=1, le=PaginationDefaults.MAX_LIMIT_MEDIUM),
+    skip: int = Query(PaginationDefaults.DEFAULT_SKIP, ge=0),
     current_user_email: str = Depends(get_current_user_email),
 ):
     q: dict = {"owner_user_id": str(current_user_email or "").lower()}
