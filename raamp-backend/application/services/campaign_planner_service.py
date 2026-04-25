@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException, status
@@ -100,6 +100,8 @@ HARD RULES:
 - This is BRAND-DRIVEN planning. Do NOT reference external trends, trend signals, or trending audio by default.
 - Every post must align with the brand tone/theme/specialties.
 - Output MUST be valid JSON only. No markdown. No extra text.
+- CRITICAL: Ensure all strings are properly closed with quotes. Escape any quotes inside strings with backslash.
+- CRITICAL: Do not include line breaks inside string values. Use spaces instead.
 - Use ISO 8601 datetime strings for scheduled_time (include timezone offset if known).
 
 {brand_constraints_text}
@@ -152,13 +154,77 @@ OUTPUT_JSON_SCHEMA:
         if text.startswith("```"):
             text = re.sub(r"^```[a-zA-Z]*", "", text).strip()
             text = text[:-3].strip() if text.endswith("```") else text
+        
+        # Try direct parsing first
         try:
             return json.loads(text)
-        except json.JSONDecodeError:
-            m = re.search(r"\{[\s\S]*\}", text)
-            if not m:
-                raise
-            return json.loads(m.group(0))
+        except json.JSONDecodeError as e:
+            logger.warning(f"Initial JSON parse failed: {e}. Attempting cleanup...")
+        
+        # Extract JSON object
+        m = re.search(r"\{[\s\S]*\}", text)
+        if not m:
+            logger.error("No JSON object found in response")
+            raise ValueError("No valid JSON object found in AI response")
+        
+        json_text = m.group(0)
+        
+        # Try parsing extracted JSON
+        try:
+            return json.loads(json_text)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Extracted JSON parse failed: {e}. Attempting advanced cleanup...")
+        
+        # Advanced cleanup: Fix common AI JSON errors
+        try:
+            # Fix unterminated strings by finding and closing them
+            lines = json_text.split('\n')
+            fixed_lines = []
+            in_string = False
+            
+            for i, line in enumerate(lines):
+                # Count unescaped quotes
+                quote_count = 0
+                escaped = False
+                for char in line:
+                    if char == '\\' and not escaped:
+                        escaped = True
+                        continue
+                    if char == '"' and not escaped:
+                        quote_count += 1
+                    escaped = False
+                
+                # If odd number of quotes, string is unterminated
+                if quote_count % 2 != 0:
+                    # Try to close the string before any trailing comma or brace
+                    if line.rstrip().endswith(','):
+                        line = line.rstrip()[:-1] + '",'
+                    elif line.rstrip().endswith('}'):
+                        line = line.rstrip()[:-1] + '"}'
+                    elif line.rstrip().endswith(']'):
+                        line = line.rstrip()[:-1] + '"]'
+                    else:
+                        line = line.rstrip() + '"'
+                
+                fixed_lines.append(line)
+            
+            fixed_json = '\n'.join(fixed_lines)
+            return json.loads(fixed_json)
+        except Exception as cleanup_error:
+            logger.error(f"Advanced cleanup failed: {cleanup_error}")
+            # Last resort: return a minimal valid structure
+            logger.warning("Returning fallback empty campaign structure")
+            return {
+                "campaign_name": "Campaign Generation Failed",
+                "objective": "Please try again",
+                "target_audience": {"demographics": {}, "interests": [], "behaviors": []},
+                "content_pillars": [],
+                "posting_schedule": {"frequency": "daily", "best_times": [], "days_of_week": []},
+                "hashtag_strategy": {"primary": [], "secondary": [], "trending": []},
+                "kpis": [],
+                "budget_allocation": {},
+                "timeline": {"start_date": datetime.now(timezone.utc).isoformat(), "end_date": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(), "milestones": []}
+            }
 
     def _parse_dt_utc(self, value: Any, *, fallback_tz: str) -> datetime:
         """

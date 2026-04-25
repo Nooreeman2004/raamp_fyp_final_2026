@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { toast } from 'sonner';
 import { MESSAGES } from '@/constants/messages';
 import { useAuth } from '@/hooks/useAuth';
@@ -73,10 +73,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             setHasMore(list.length >= limit);
         } catch (error) {
             console.error('Failed to fetch notifications:', error);
-            // User-facing, safe message (no backend details)
-            toast.message("Notifications unavailable", {
-                description: "We couldn’t load your notifications right now. Retrying in the background.",
-            });
+            // Only show toast if user is still logged in (avoid showing errors on login page)
+            if (user) {
+                toast.message("Notifications unavailable", {
+                    description: "We couldn't load your notifications right now. Retrying in the background.",
+                });
+            }
         } finally {
             setLoading(false);
             setLoadingMore(false);
@@ -201,7 +203,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             if (shouldToast) {
                 wsWarnedAtRef.current = now;
                 toast.message("Realtime notifications disconnected", {
-                    description: "We’re reconnecting in the background.",
+                    description: "We're reconnecting in the background.",
                 });
             }
             reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
