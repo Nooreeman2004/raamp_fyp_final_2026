@@ -34,6 +34,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 // Animation Imports
 import { motion, AnimatePresence } from "framer-motion";
@@ -326,12 +331,17 @@ const BrandSettings = () => {
         sonner.success(`Applied ${template.name}`);
     };
 
-    const addColor = () => {
+    const [showColorPicker, setShowColorPicker] = useState(false);
+    const [newColor, setNewColor] = useState("#CCCCCC");
+
+    const addColor = (color: string) => {
         if (formData.brand_colors.length >= 6) {
             sonner.warning("Max Colors Reached", { description: "You can keep up to 6 colors in your palette." });
             return;
         }
-        setValues({ ...formData, brand_colors: [...formData.brand_colors, "#CCCCCC"] });
+        setValues({ ...formData, brand_colors: [...formData.brand_colors, color] });
+        setShowColorPicker(false);
+        setNewColor("#CCCCCC"); // Reset to default
     };
 
     const updateColor = (index: number, value: string) => {
@@ -369,8 +379,14 @@ const BrandSettings = () => {
         });
 
         if (!isFormValid()) {
+            const hints = toneQuality.missingHints;
+            const specificIssues = hints.length > 0 
+                ? hints.slice(0, 2).join(" ") 
+                : "Your tone profile needs more detail.";
+            
             sonner.error("Incomplete Setup", {
-                description: "Logo, Theme, and a clear Tone Profile are required (not vague / single-word).",
+                description: specificIssues || "Logo, Theme, and a clear Tone Profile are required (not vague / single-word).",
+                duration: 6000,
             });
             return;
         }
@@ -613,14 +629,48 @@ const BrandSettings = () => {
                                         ))}
 
                                         {formData.brand_colors.length < 6 && isEditing && (
-                                            <motion.button
-                                                layout
-                                                onClick={addColor}
-                                                className="w-16 h-16 rounded-2xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary group"
-                                            >
-                                                <Plus size={16} />
-                                                <span className="text-[8px] font-mono uppercase tracking-tighter">Add</span>
-                                            </motion.button>
+                                            <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
+                                                <PopoverTrigger asChild>
+                                                    <motion.button
+                                                        layout
+                                                        type="button"
+                                                        className="w-16 h-16 rounded-2xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary group"
+                                                    >
+                                                        <Plus size={16} />
+                                                        <span className="text-[8px] font-mono uppercase tracking-tighter">Add</span>
+                                                    </motion.button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-64 p-4 bg-card border-border" align="start" sideOffset={8}>
+                                                    <div className="space-y-3">
+                                                        <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Pick a Color</Label>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type="color"
+                                                                    value={newColor}
+                                                                    onChange={(e) => setNewColor(e.target.value)}
+                                                                    className="w-16 h-16 p-1 cursor-pointer border-border"
+                                                                />
+                                                            </div>
+                                                            <Input
+                                                                type="text"
+                                                                value={newColor}
+                                                                onChange={(e) => setNewColor(e.target.value)}
+                                                                placeholder="#000000"
+                                                                className="flex-1 font-mono text-xs bg-background border-border"
+                                                            />
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => addColor(newColor)}
+                                                            className="w-full font-mono text-xs bg-primary text-black hover:bg-primary/90"
+                                                            size="sm"
+                                                        >
+                                                            Add Color
+                                                        </Button>
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
                                         )}
                                     </AnimatePresence>
                                 </div>

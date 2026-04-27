@@ -59,7 +59,12 @@ class UserModel(Document):
     class Settings:
         name = "users"  # Collection name
         indexes = [
-            "username",  # Index on username
-            "email",     # Index on email
+            [("email", 1)],  # Unique index on email
+            [("username", 1)],  # Unique index on username
+        ]
+        # Enforce unique constraints at database level
+        unique_indexes = [
+            "email",
+            "username"
         ]
 

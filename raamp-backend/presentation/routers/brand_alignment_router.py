@@ -100,6 +100,14 @@ async def save_brand_alignment(
     try:
         # Create repository instance
         business_repo = BusinessRepository()
+        
+        # Debug: Log what we're trying to save
+        print(f"🔍 Saving brand alignment for user: {current_user_id}")
+        print(f"   tagline: {request.tagline}")
+        print(f"   restaurant_theme: {request.restaurant_theme}")
+        print(f"   brand_logo_url: {request.brand_logo_url}")
+        print(f"   brand_colors: {request.brand_colors}")
+        print(f"   tone_profile: {request.tone_profile}")
 
         def build_legacy_tone_string() -> str:
             if request.tone_profile:
@@ -117,6 +125,8 @@ async def save_brand_alignment(
 
         legacy_tone = build_legacy_tone_string()
         
+        print(f"   legacy_tone: {legacy_tone[:100]}...")
+        
         # Save to database
         business = await business_repo.update_brand_alignment(
             user_id=current_user_id,
@@ -131,27 +141,48 @@ async def save_brand_alignment(
             palette_source=request.palette_source
         )
         
+        print(f"✅ Brand alignment saved successfully for user: {current_user_id}")
+        
+        # Safely extract tone_profile
+        tone_profile_dict = None
+        if business.tone_profile:
+            try:
+                # Check if it's already a dict or needs conversion
+                if isinstance(business.tone_profile, dict):
+                    tone_profile_dict = business.tone_profile
+                elif hasattr(business.tone_profile, 'model_dump'):
+                    tone_profile_dict = business.tone_profile.model_dump()
+                elif hasattr(business.tone_profile, 'dict'):
+                    tone_profile_dict = business.tone_profile.dict()
+            except Exception as e:
+                logger.warning(f"Failed to convert tone_profile: {e}")
+                tone_profile_dict = None
+        
         return BrandAlignmentResponse(
             brand_logo_url=business.brand_logo_url,
             primary_color=business.primary_color,
             secondary_color=business.secondary_color,
             tagline=business.tagline,
             tone_of_voice=business.tone_of_voice,
-            tone_profile=business.tone_profile,
+            tone_profile=tone_profile_dict,
             restaurant_theme=business.restaurant_theme,
             brand_colors=business.brand_colors,
             palette_source=business.palette_source,
             updated_at=business.updated_at.isoformat()
         )
     
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid brand settings")
+    except ValueError as e:
+        print(f"❌ ValueError saving brand alignment: {e}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid brand settings: {str(e)}")
     except Exception as e:
-        print(f"Error saving brand alignment: {e}")
+        print(f"❌ Exception saving brand alignment: {e}")
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Error saving brand alignment: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save brand alignment settings"
-        ) from e
+            detail=f"Failed to save brand alignment settings: {str(e)}"
+        )
 
 
 @router.get("/settings", response_model=BrandAlignmentResponse)
@@ -159,24 +190,57 @@ async def get_brand_alignment(
     current_user_id: str = Depends(get_current_user_id)
 ):
     """Get current brand alignment settings"""
-    business_repo = BusinessRepository()
-    business = await business_repo.get_by_user_id(current_user_id)
-    
-    if not business or not business.brand_logo_url:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Brand alignment settings not found"
+    try:
+        business_repo = BusinessRepository()
+        business = await business_repo.get_by_user_id(current_user_id)
+        
+        if not business:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Business profile not found"
+            )
+        
+        # Debug: Check for all fields
+        print(f"🔍 Retrieved business for user {current_user_id}:")
+        print(f"   business_name: {business.business_name}")
+        print(f"   tagline: {business.tagline}")
+        print(f"   tone_of_voice: {business.tone_of_voice[:50] if business.tone_of_voice else None}...")
+        print(f"   restaurant_theme: {business.restaurant_theme}")
+        print(f"   brand_logo_url: {business.brand_logo_url}")
+        print(f"   brand_colors: {business.brand_colors}")
+        
+        # Safely extract tone_profile
+        tone_profile_dict = None
+        if business.tone_profile:
+            try:
+                # Check if it's already a dict or needs conversion
+                if isinstance(business.tone_profile, dict):
+                    tone_profile_dict = business.tone_profile
+                elif hasattr(business.tone_profile, 'model_dump'):
+                    tone_profile_dict = business.tone_profile.model_dump()
+                elif hasattr(business.tone_profile, 'dict'):
+                    tone_profile_dict = business.tone_profile.dict()
+            except Exception as e:
+                logger.warning(f"Failed to convert tone_profile: {e}")
+                tone_profile_dict = None
+        
+        return BrandAlignmentResponse(
+            brand_logo_url=business.brand_logo_url,
+            primary_color=business.primary_color,
+            secondary_color=business.secondary_color,
+            tagline=business.tagline,
+            tone_of_voice=business.tone_of_voice,
+            tone_profile=tone_profile_dict,
+            restaurant_theme=business.restaurant_theme,
+            brand_colors=business.brand_colors,
+            palette_source=business.palette_source,
+            updated_at=business.updated_at.isoformat()
         )
-    
-    return BrandAlignmentResponse(
-        brand_logo_url=business.brand_logo_url,
-        primary_color=business.primary_color,
-        secondary_color=business.secondary_color,
-        tagline=business.tagline,
-        tone_of_voice=business.tone_of_voice,
-        tone_profile=business.tone_profile,
-        restaurant_theme=business.restaurant_theme,
-        brand_colors=business.brand_colors,
-        palette_source=business.palette_source,
-        updated_at=business.updated_at.isoformat()
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching brand alignment: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch brand alignment settings: {str(e)}"
+        )

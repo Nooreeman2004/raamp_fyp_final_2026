@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+﻿import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -300,6 +300,12 @@ const GeoIntent = () => {
       typeof centerLat === "number" ? centerLat : undefined,
       typeof centerLng === "number" ? centerLng : undefined
     );
+    
+    // Capitalize business name for professional display
+    const displayName = businessName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
 
     const sig = ((data as any)?.signals || {}) as any;
     const st = ((data as any)?.signals_status || {}) as any;
@@ -327,17 +333,41 @@ const GeoIntent = () => {
 
     const km = radius?.[0] ?? 10;
     const businessType = String(setup?.business_type || "").trim();
-    const offer =
-      businessType.toLowerCase().includes("fashion") || businessType.toLowerCase().includes("clothing")
-        ? "new arrivals"
-        : businessType
-          ? businessType
-          : "today’s offer";
+    
+    // Check if this is a restaurant business
+    const isRestaurant = ["restaurant", "cafe", "bakery", "food"].some(
+      keyword => businessType.toLowerCase().includes(keyword)
+    );
+    
+    // Determine offer based on business type and time of day
+    let offer;
+    
+    if (isRestaurant) {
+      // Meal-time aware offers for restaurants
+      const hour = new Date().getHours();
+      if (hour < 11) {
+        offer = "breakfast special";
+      } else if (hour >= 11 && hour < 15) {
+        offer = "lunch deal";
+      } else if (hour >= 17 && hour < 19) {
+        offer = "happy hour";
+      } else if (hour >= 19) {
+        offer = "dinner reservation";
+      } else {
+        offer = "daily special";
+      }
+    } else if (businessType.toLowerCase().includes("fashion") || businessType.toLowerCase().includes("clothing")) {
+      offer = "new arrivals";
+    } else if (businessType) {
+      offer = businessType;
+    } else {
+      offer = "today's offer";
+    }
 
     const personaHint = topPersonaSummary ? ` Built for ${topPersonaSummary}.` : "";
 
     if (dominant.k === "places") {
-      return `High local foot traffic detected${area ? ` near ${area}` : ""}. ${businessName} is optimized for walk-ins within ${km}km — promote ${offer} with a clear “visit now” CTA.${personaHint}`;
+      return `High local foot traffic detected${area ? ` near ${area}` : ""}. ${displayName} is optimized for walk-ins within ${km}km — promote ${offer} with a clear “visit now” CTA.${personaHint}`;
     }
     if (dominant.k === "trends") {
       return `Search interest is trending up${area ? ` around ${area}` : ""}. Run a short, direct creative within ${km}km and anchor it with your strongest offer (${offer}).${personaHint}`;
@@ -445,7 +475,9 @@ const GeoIntent = () => {
     const bid = resolveGeoBusinessId(biz, nameForId);
     setHistoryLoading(true);
     try {
+      console.log('[GeoIntent] Fetching strategy history for business_id:', bid);
       const h = await geoIntentService.getCampaignBriefHistory(bid);
+      console.log('[GeoIntent] Strategy history response:', h);
       setStrategyHistory(h);
     } catch (e) {
       console.error("Failed to fetch strategy history", e);
@@ -551,6 +583,7 @@ const GeoIntent = () => {
       });
       toast.success(`Ranked ${result.zones.length} high-intent zones around your scan radius.`, {
         id: FIND_ZONES_TOAST_ID,
+        duration: 4000,
       });
     } catch (e: unknown) {
       toast.error(getErrorMessage(e), { id: FIND_ZONES_TOAST_ID });
@@ -887,40 +920,44 @@ const GeoIntent = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleManualSync}
-                disabled={loading || refreshing}
-                className="bg-card border-primary/30 text-primary hover:bg-primary/20 font-mono text-[10px] hidden sm:flex"
-              >
-                <RefreshCw className={`w-3 h-3 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                SYNC PROFILE
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRecommendZones}
-                disabled={loading || refreshing || zonesLoading}
-                aria-busy={zonesLoading}
-                className="bg-card border-primary/30 text-primary hover:bg-primary/20 font-mono text-[10px] hidden md:flex min-w-[9rem]"
-              >
-                {zonesLoading ? (
-                  <Loader2 className="w-3 h-3 mr-2 animate-spin shrink-0" aria-hidden />
-                ) : (
-                  <Layers className="w-3 h-3 mr-2 shrink-0" aria-hidden />
-                )}
-                {zonesLoading ? "SCANNING…" : "FIND BEST ZONES"}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleRefresh}
-                disabled={loading || refreshing}
-                className="bg-card border-primary/30 text-primary hover:bg-primary/20"
-              >
-                <Radar className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleManualSync}
+                      disabled={loading || refreshing}
+                      className="bg-card border-primary/30 text-primary hover:bg-primary/20 font-mono text-[10px] hidden sm:flex"
+                    >
+                      <RefreshCw className={`w-3 h-3 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                      SYNC PROFILE
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Pull latest business profile data into geo module</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleRefresh}
+                      disabled={loading || refreshing}
+                      className="bg-card border-primary/30 text-primary hover:bg-primary/20"
+                    >
+                      <Radar className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Refresh heat score for current location</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </Reveal>
@@ -1213,27 +1250,11 @@ const GeoIntent = () => {
                 {recommendedZones.length === 0 ? (
                   <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
                     <p className="text-[11px] font-mono text-foreground mb-2">
-                      Run a multi-zone scan to rank the best areas inside your radius.
+                      No zones scanned yet.
                     </p>
-                    <p className="text-[10px] font-mono text-muted-foreground mb-3 leading-relaxed">
-                      Click <span className="text-amber-700 dark:text-amber-300 font-bold">Find Best Zones</span> and wait for the scan to finish. The results will appear here and as pins on the map.
+                    <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+                      Use the <span className="text-amber-700 dark:text-amber-300 font-bold">Find Best Zones</span> button above to run a multi-zone scan. Results will appear here and as pins on the map.
                     </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={handleRecommendZones}
-                      disabled={loading || refreshing || zonesLoading}
-                      aria-busy={zonesLoading}
-                      className="w-full border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 font-mono font-bold tracking-wider h-9"
-                    >
-                      {zonesLoading ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin shrink-0" aria-hidden />
-                      ) : (
-                        <Layers className="w-4 h-4 mr-2 shrink-0" aria-hidden />
-                      )}
-                      {zonesLoading ? "SCANNING ZONES…" : "FIND BEST ZONES"}
-                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">

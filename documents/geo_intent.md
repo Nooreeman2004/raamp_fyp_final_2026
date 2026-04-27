@@ -11,6 +11,12 @@ This document describes **everything related to the Geo-Intent module** in the R
   - **Heat Score Algorithm**: Weighted calculation (35% Trends, 40% Places, 25% Weather) with 0–100 normalization.
   - **Urgency Classification**: Low (0–30), Medium (31–60), High (61–89), Critical (90–100). *(See `classify_urgency` in `geo_intent_service.py`.)*
   - **Dynamic Persona Split**: POI-aware audience distribution (Office Commuters, Retail Shoppers, Food Visitors, Local Residents, Students) with hourly/weather modifiers.
+  - **Restaurant-Specific Optimization** (2026-04-25):
+    - **Backend AI prompts**: Detects restaurant businesses (restaurant, cafe, bakery, food keywords) and injects food-specific instructions into Gemini prompts
+    - **Sensory language**: AI generates appetizing copy with words like "crispy", "juicy", "aromatic", "fresh", "savory", "delicious"
+    - **Meal-specific time windows**: Breakfast (7-10:30am), Lunch (12-2:30pm), Happy Hour (5-7pm), Dinner (7-10pm) instead of generic time slots
+    - **Frontend offer suggestions**: Time-aware offers ("breakfast special", "lunch deal", "happy hour", "dinner reservation") based on current hour
+    - **Dining-focused language**: Uses "dine-in", "takeout", "delivery", "reservations" instead of generic business terms
   - **Multi-Zone Recommender**: `POST /api/v1/geo/recommend-zones` scores **4–8 compass points** on a ring at the scan radius (labels N, NE, E, …), runs the same signal pipeline per point in parallel, returns the **top 3** zones by heat score with a short reason string. One **`geo_radar_scan`** credit per request.
   - **Strategic Brief Generation**: AI-powered (Gemini) campaign planning including 3 caption variants (Aggressive, Soft, Urgency), budget advice, and meta-objectives; optional **Deploy Here** from a recommended zone uses that zone’s coordinates and signals.
   - **Export campaign package (Honest flow)**:
@@ -262,7 +268,10 @@ Geo‑Intent no longer attempts to create campaigns via Meta’s API. Instead it
 
 ---
 
-*Last updated: 2026-04-21*
+*Last updated: 2026-04-25*
+
+**Recent Updates:**
+- **2026-04-25**: Added restaurant-specific optimization to Geo-Intent module (meal-time aware offers, sensory language in AI prompts, dining-focused time windows)
 
 ---
 

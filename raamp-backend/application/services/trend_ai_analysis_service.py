@@ -171,8 +171,43 @@ campaign_ideas, content_format_recommendation, growth_hacks
             if not isinstance(payload, dict):
                 raise RuntimeError("llm_invalid_json")
 
-            # Hashtag pack (non-LLM)
-            derived_tags = self.hashtags.generate_hashtags([keyword] + specialties, count=15)
+            # Hashtag pack (category-aware, not niche-based)
+            # Detect trend category from keyword content
+            keyword_lower = keyword.lower()
+            trend_category_map = {
+                "sports": ["cricket", "football", "soccer", "basketball", "tennis", "match", "game", "vs", "league", "tournament", "psl", "ipl"],
+                "fashion": ["fashion", "style", "outfit", "ootd", "clothing", "apparel", "wear", "dress"],
+                "food": ["food", "recipe", "cooking", "meal", "dish", "cuisine", "delicious", "restaurant"],
+                "tech": ["tech", "technology", "ai", "software", "app", "digital", "innovation"],
+                "fitness": ["fitness", "workout", "gym", "exercise", "health", "training"],
+                "beauty": ["beauty", "makeup", "skincare", "cosmetic", "hair"],
+                "travel": ["travel", "trip", "vacation", "destination", "tourism"],
+            }
+            
+            detected_category = None
+            for category, patterns in trend_category_map.items():
+                if any(pattern in keyword_lower for pattern in patterns):
+                    detected_category = category
+                    break
+            
+            # Generate hashtags based on trend category, not user's business niche
+            if detected_category:
+                # Use category-specific terms for hashtag generation
+                category_terms = {
+                    "sports": ["sports", "game", "competition", "athlete", "team"],
+                    "fashion": ["fashion", "style", "ootd", "trendy", "outfit"],
+                    "food": ["foodie", "foodlover", "instafood", "delicious", "yummy"],
+                    "tech": ["tech", "technology", "innovation", "digital", "future"],
+                    "fitness": ["fitness", "workout", "health", "fitfam", "training"],
+                    "beauty": ["beauty", "makeup", "skincare", "glam", "beautytips"],
+                    "travel": ["travel", "wanderlust", "explore", "adventure", "travelgram"],
+                }
+                hashtag_seeds = [keyword] + category_terms.get(detected_category, [])
+            else:
+                # Fallback: use keyword + specialties only if no category detected
+                hashtag_seeds = [keyword] + specialties
+            
+            derived_tags = self.hashtags.generate_hashtags(hashtag_seeds, count=15)
             primary = derived_tags[:5]
             secondary = derived_tags[5:10]
             niche_tags = derived_tags[10:15]

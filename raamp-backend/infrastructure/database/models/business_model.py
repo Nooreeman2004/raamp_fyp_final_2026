@@ -2,9 +2,20 @@
 Business Model for MongoDB - stores all business/restaurant information including brand alignment
 """
 from beanie import Document
-from pydantic import Field, BaseModel
+from pydantic import Field, BaseModel, field_validator
 from typing import Optional, List
 from datetime import datetime
+from enum import Enum
+
+
+class BusinessTypeEnum(str, Enum):
+    """Business type categories for simplified UX"""
+    RESTAURANT = "restaurant"
+    CAFE = "cafe"
+    BAKERY = "bakery"
+    RETAIL = "retail"
+    SERVICE = "service"
+    OTHER = "other"
 
 
 class ToneOfVoiceProfileModel(BaseModel):
@@ -50,7 +61,7 @@ class BusinessModel(Document):
     description: Optional[str] = Field(None, description="Business description")
 
     # Hyperlocal Business Setup
-    business_type: Optional[str] = Field(None, description="Business type/category for hyperlocal campaigns")
+    business_type: Optional[BusinessTypeEnum] = Field(None, description="Business type category (restaurant, cafe, bakery, retail, service, other)")
     targeting_radius_m: Optional[float] = Field(5000.0, description="Targeting radius in meters for geo-intent campaigns")
     is_indoor: Optional[bool] = Field(True, description="Whether the business primarily operates indoors (for weather adjustments)")
     tracking_keywords: list[str] = Field(default_factory=list, description="Keywords to track for local trends/intent")
@@ -62,9 +73,36 @@ class BusinessModel(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
+    @field_validator('business_type', mode='before')
+    @classmethod
+    def normalize_business_type(cls, v):
+        """Normalize business_type to lowercase for case-insensitive matching"""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            # Convert to lowercase to match enum values
+            v_lower = v.lower()
+            # Map common variations
+            type_map = {
+                'restaurant': BusinessTypeEnum.RESTAURANT,
+                'cafe': BusinessTypeEnum.CAFE,
+                'bakery': BusinessTypeEnum.BAKERY,
+                'retail': BusinessTypeEnum.RETAIL,
+                'service': BusinessTypeEnum.SERVICE,
+                'other': BusinessTypeEnum.OTHER,
+                # Handle legacy capitalized values
+                'general': BusinessTypeEnum.OTHER,
+            }
+            return type_map.get(v_lower, BusinessTypeEnum.OTHER)
+        return v
+    
     class Settings:
         name = "businesses"
         indexes = [
-            "user_id",
-            "google_place_id",  # Index for location lookups
+            [("user_id", 1)],  # Unique index on user_id
+            [("google_place_id", 1)],  # Index for location lookups
+        ]
+        # Enforce unique constraint - one business per user
+        unique_indexes = [
+            "user_id"
         ]

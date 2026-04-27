@@ -196,9 +196,14 @@ const BusinessSetup = () => {
                     description: "Your business profile has been updated.",
                 });
 
-                // Only navigate to next onboarding step if user is NOT fully onboarded (new user in onboarding flow)
+                // Navigate based on context:
+                // - New users (onboarding): go to brand-settings
+                // - Existing users (editing from settings): go back to settings
                 if (!isFullyOnboarded) {
                     setShouldNavigateNext(true);
+                } else {
+                    // User came from settings, take them back
+                    setTimeout(() => navigate("/settings"), 1000);
                 }
             }
         } catch (error: unknown) {
@@ -220,7 +225,7 @@ const BusinessSetup = () => {
                 transition={{ duration: 0.5 }}
             >
                 <Reveal variant="blurInUp">
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
                         <div className="flex items-center gap-4">
                             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
                                 <Building2 className="w-7 h-7 text-primary" />
@@ -235,16 +240,24 @@ const BusinessSetup = () => {
                             </div>
                         </div>
 
-                        {/* Show Edit button only for fully onboarded users with existing data */}
-                        {isFullyOnboarded && hasExistingData && !isEditing && !isFetching && (
+                        {/* Show Edit button for fully onboarded users when not editing */}
+                        {isFullyOnboarded && !isEditing && !isFetching && (
                             <Button
                                 variant="outline"
                                 onClick={handleEdit}
-                                className="font-mono text-xs gap-2"
+                                className="font-mono text-sm gap-2 border-primary/30 hover:border-primary hover:bg-primary/10"
                             >
                                 <Shield className="w-4 h-4" />
-                                Unlock Edit
+                                Unlock to Edit
                             </Button>
+                        )}
+                        
+                        {/* Show status indicator when editing */}
+                        {isEditing && isFullyOnboarded && (
+                            <div className="flex items-center gap-2 text-sm text-primary font-mono">
+                                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                Editing Mode
+                            </div>
                         )}
                     </div>
                 </Reveal>
@@ -301,14 +314,66 @@ const BusinessSetup = () => {
                                                 <SelectValue placeholder="Select industry" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="Retail">Retail</SelectItem>
-                                                <SelectItem value="Hospitality">Hospitality</SelectItem>
-                                                <SelectItem value="Services">Services</SelectItem>
-                                                <SelectItem value="Fashion">Fashion</SelectItem>
-                                                <SelectItem value="Restaurant">Restaurant</SelectItem>
-                                                <SelectItem value="Technology">Technology</SelectItem>
-                                                <SelectItem value="Health">Health & Wellness</SelectItem>
-                                                <SelectItem value="Other">Other</SelectItem>
+                                                <SelectItem value="Restaurant">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Restaurant</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-mono">Optimized</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="Cafe">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Cafe</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-mono">Optimized</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="Bakery">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Bakery</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-mono">Optimized</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="Retail">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Retail</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Basic Support</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="Hospitality">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Hospitality</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Basic Support</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="Services">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Services</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Basic Support</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="Fashion">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Fashion</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Basic Support</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="Technology">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Technology</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Basic Support</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="Health">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Health & Wellness</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Basic Support</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="Other">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>Other</span>
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Basic Support</span>
+                                                    </div>
+                                                </SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -383,10 +448,10 @@ const BusinessSetup = () => {
                                 <motion.div variants={hoverScale} initial="rest" whileHover={isFormValid() && isEditing ? "hover" : "rest"} whileTap={isFormValid() && isEditing ? "tap" : "rest"}>
                                     <Button
                                         type="submit"
-                                        disabled={isLoading || !isFormValid() || !isEditing}
+                                        disabled={isLoading || !isEditing || !isFormValid()}
                                         className={cn(
                                             "font-heading font-semibold text-lg min-w-[150px]",
-                                            (!isFormValid() || !isEditing) && "opacity-50 cursor-not-allowed grayscale"
+                                            (!isEditing || !isFormValid()) && "opacity-50 cursor-not-allowed"
                                         )}
                                     >
                                         {isLoading ? (

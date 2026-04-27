@@ -30,9 +30,14 @@ from presentation.schemas.trend_analytics_schemas import (
     TrendingNowResponse,
     IndustryTrendsResponse,
 )
+from presentation.schemas.trend_simplified_schema import (
+    SimplifiedTrendResponse,
+    SimplifiedTrendsListResponse,
+)
 from application.services.google_trends_service import GoogleTrendsService
 from application.services.trend_analytics_service import TrendAnalyticsService
 from application.services.trend_detection_service import TrendDetectionService
+from application.services.trend_simplification_service import TrendSimplificationService
 from application.services.trends_providers.trending_now_fetcher import TrendingNowFetcher
 from application.services.trend_suggestion_metrics_resolver import (
     resolve_suggestion_metrics_from_detection,
@@ -135,9 +140,11 @@ async def _cached_get(namespace: str, key: str):
 async def _cached_set(namespace: str, key: str, value: Any, ttl_seconds: int):
     now = datetime.utcnow()
     expires_at = now + timedelta(seconds=max(60, int(ttl_seconds or 0)))
+    
+    # Use update with upsert=True instead of the upsert() method
     await TrendCacheModel.find_one(
         {"namespace": namespace, "key": key}
-    ).upsert(
+    ).update(
         {
             "$set": {
                 "namespace": namespace,
@@ -147,7 +154,8 @@ async def _cached_set(namespace: str, key: str, value: Any, ttl_seconds: int):
                 "created_at": now,
                 "expires_at": expires_at,
             }
-        }
+        },
+        upsert=True
     )
 
 
@@ -407,7 +415,7 @@ async def fetch_trends(
     return TrendFetchResponse(
         trend_id=trend_signal.id,
         status="processing",
-        message="Detection pipeline initiated. Signals will appear in the dashboard soon."
+        message="Finding trends... Signals will appear in the dashboard soon."
     )
 
 
@@ -523,6 +531,94 @@ async def get_latest_trends(
         
     except Exception as e:
         logger.error("Error fetching latest trends for user %s: %s", current_user_email, str(e), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to fetch trends at this time. Please try again."
+        ) from e
+
+
+@router.get(
+    "/simplified",
+    response_model=SimplifiedTrendsListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get simplified trends for non-marketing users"
+)
+async def get_simplified_trends(
+    limit: int = 10,
+    location: str = "GLOBAL",
+    current_user_email: str = Depends(get_current_user_email),
+    trends_service: GoogleTrendsService = Depends(get_trends_service)
+):
+    """
+    Get trends in simplified format for restaurant owners without marketing expertise.
+    
+    Transforms complex trend analytics into:
+    - Simple opportunity levels (high/medium/low)
+    - Plain English explanations
+    - Clear, actionable suggestions
+    
+    Args:
+        limit: Maximum number of trends (default: 10, max: 50)
+        location: Geographic location filter
+        current_user_email: Authenticated user email
+        trends_service: Injected trends service
+    
+    Returns:
+        SimplifiedTrendsListResponse with easy-to-understand trends
+    """
+    try:
+        # Validate limit
+        if limit > 50:
+            limit = 50
+        if limit < 1:
+            limit = 1
+        
+        logger.info("Fetching simplified trends for user %s (limit=%d, location=%s)", 
+                   current_user_email, limit, location)
+        
+        # Get raw trends
+        trends = await trends_service.get_latest_trends(current_user_email, limit)
+        
+        # Get business type for context
+        business_type = "restaurant"  # Default
+        try:
+            from infrastructure.database.models.business_model import BusinessModel
+            business = await BusinessModel.find_one({"user_id": current_user_email})
+            if business and hasattr(business, "business_type"):
+                business_type = str(business.business_type).lower()
+        except Exception:
+            pass  # Use default
+        
+        # Convert to dict format for simplification service
+        trends_dict = [
+            {
+                "id": str(t.id),
+                "keyword": t.keyword,
+                "niche": t.niche,
+                "location": t.location,
+                "score": t.arbitrage_score or 0,
+                "profit_score": t.profit_score,
+                "social_score": t.social_score,
+                "detected_at": t.fetched_at or t.created_at,
+            }
+            for t in trends
+        ]
+        
+        # Simplify
+        simplified = TrendSimplificationService.simplify_trends_list(
+            trends_dict,
+            business_type=business_type,
+            location=location
+        )
+        
+        logger.info("Returning %d simplified trends for user %s", 
+                   len(simplified["trends"]), current_user_email)
+        
+        return SimplifiedTrendsListResponse(**simplified)
+        
+    except Exception as e:
+        logger.error("Error fetching simplified trends for user %s: %s", 
+                    current_user_email, str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to fetch trends at this time. Please try again."
@@ -702,6 +798,70 @@ async def get_industry_trends(
             fallback_used = True
             for s in seed:
                 add(str(s))
+
+        # PRIORITY FILTERING: For restaurant/food niches, prioritize relevant terms
+        # and filter out irrelevant ones (like fashion terms)
+        if niche.lower() in ["restaurant", "cafe", "bakery", "food"]:
+            # Define food/restaurant-related keywords
+            food_keywords = {
+                "food", "menu", "recipe", "dish", "meal", "restaurant", "cafe", "bakery",
+                "coffee", "breakfast", "lunch", "dinner", "brunch", "dessert", "pastry",
+                "cuisine", "chef", "cooking", "dining", "eat", "drink", "beverage",
+                "pizza", "burger", "pasta", "salad", "sandwich", "soup", "bread",
+                "cake", "cookie", "chocolate", "tea", "wine", "beer", "cocktail",
+                "vegan", "vegetarian", "organic", "fresh", "seasonal", "local",
+                "delivery", "takeout", "catering", "reservation", "ambiance",
+                "plating", "presentation", "garnish", "flavor", "taste", "spice"
+            }
+            
+            # Define irrelevant keywords to filter out
+            irrelevant_keywords = {
+                "outfit", "fashion", "clothing", "wear", "dress", "shirt", "pants",
+                "shoes", "sneakers", "jacket", "coat", "style", "wardrobe", "accessories",
+                "jewelry", "bag", "purse", "wallet", "watch", "sunglasses"
+            }
+            
+            # Score and filter terms
+            scored_terms = []
+            for term in terms:
+                term_lower = term.lower()
+                
+                # Skip if contains irrelevant keywords
+                if any(irr in term_lower for irr in irrelevant_keywords):
+                    continue
+                
+                # Calculate relevance score
+                score = 0
+                # Boost if contains food-related keywords
+                for kw in food_keywords:
+                    if kw in term_lower:
+                        score += 2
+                
+                # Boost if matches specialties
+                for sp in specialties:
+                    if sp.lower() in term_lower:
+                        score += 3
+                
+                # Boost if matches seed keywords
+                for s in seed:
+                    if s.lower() in term_lower:
+                        score += 1
+                
+                # Keep terms with positive score or if no food keywords matched (to avoid being too restrictive)
+                if score > 0:
+                    scored_terms.append((score, term))
+                elif not any(kw in term_lower for kw in food_keywords.union(irrelevant_keywords)):
+                    # Neutral term - keep with low score
+                    scored_terms.append((0, term))
+            
+            # Sort by score (descending) and extract terms
+            scored_terms.sort(key=lambda x: x[0], reverse=True)
+            terms = [t for _, t in scored_terms]
+            
+            # If we filtered everything out, fall back to seed keywords
+            if not terms:
+                fallback_used = True
+                terms = seed[:limit]
 
         terms = terms[: max(1, min(int(limit or 12), 25))]
         return IndustryTrendsResponse(
@@ -1051,6 +1211,242 @@ async def get_platform_reach(
         }
 
 
+# --- INTELLIGENCE ENDPOINTS (Must come BEFORE /{trend_id} catch-all) ---
+
+@router.get(
+    "/viral-audio",
+    summary="Get trending audio candidates (charting feed)",
+)
+async def get_viral_audio(
+    platform: str = "instagram",
+    geo: str = "Pakistan",
+    niche: str = "general",
+    trend_keyword: Optional[str] = None,
+    bust_cache: bool = False,
+    current_user_email: str = Depends(get_current_user_email),
+):
+    try:
+        namespace = "viral_audio"
+        key = f"v1:{platform.lower()}:{geo.upper()}:{niche.lower()}"
+        
+        if not bust_cache:
+            cached = await _cached_get(namespace, key)
+            if cached is not None and len(cached) > 0:
+                logger.info(f"🎵 Returning cached viral audio: {len(cached)} tracks")
+                return {
+                    "source": "spotify_or_apple",
+                    "label": "Trending Audio (charting)",
+                    "recommended_tracks": cached,
+                    "tracks": cached,
+                    "cached": True,
+                }
+        
+        logger.info(f"🎵 Fetching fresh viral audio: platform={platform}, geo={geo}, niche={niche}, keyword={trend_keyword}")
+        
+        # Add timeout to prevent hanging
+        import asyncio
+        try:
+            tracks = await asyncio.wait_for(
+                ViralAudioProvider().get_tracks(
+                    platform=platform,
+                    location=geo,
+                    niche=niche,
+                    trend_keyword=trend_keyword or niche,
+                    limit=2,
+                ),
+                timeout=8.0  # 8 second timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"🎵 Viral audio fetch timed out, using fallback")
+            tracks = []
+        
+        logger.info(f"🎵 Got {len(tracks)} tracks from provider")
+        
+        if not tracks and geo.upper() != "GLOBAL":
+            logger.info(f"🎵 Regional data empty, falling back to GLOBAL")
+            try:
+                tracks = await asyncio.wait_for(
+                    ViralAudioProvider().get_tracks(
+                        platform=platform,
+                        location="GLOBAL",
+                        niche=niche,
+                        trend_keyword=trend_keyword or niche,
+                        limit=2,
+                    ),
+                    timeout=8.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"🎵 Global fallback timed out")
+                tracks = []
+            
+            logger.info(f"🎵 Got {len(tracks)} global tracks")
+            
+            if tracks:
+                await _cached_set(namespace, key, tracks, ttl_seconds=6 * 60 * 60)
+                return {
+                    "source": "spotify_or_apple", 
+                    "label": "Trending Audio (global)", 
+                    "note": f"No regional data for {geo}, showing global trends",
+                    "recommended_tracks": tracks,
+                    "tracks": tracks,
+                    "is_fallback": True,
+                }
+        
+        # Ensure we always have tracks (provider should guarantee this, but double-check)
+        if not tracks:
+            logger.warning("🎵 Provider returned empty tracks, using hardcoded fallback")
+            tracks = [
+                {
+                    "platform": platform or "instagram",
+                    "track_name": "Cruel Summer",
+                    "artist": "Taylor Swift",
+                    "image": "https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a0a65f3655",
+                    "source": "emergency_fallback",
+                    "confidence": 0.85
+                },
+                {
+                    "platform": platform or "instagram",
+                    "track_name": "Paint The Town Red",
+                    "artist": "Doja Cat",
+                    "image": "https://i.scdn.co/image/ab67616d0000b273760ef164e622b7a66b553655",
+                    "source": "emergency_fallback",
+                    "confidence": 0.85
+                }
+            ]
+        
+        await _cached_set(namespace, key, tracks, ttl_seconds=6 * 60 * 60)
+        return {
+            "source": "spotify_or_apple", 
+            "label": "Trending Audio (charting)", 
+            "recommended_tracks": tracks,
+            "tracks": tracks
+        }
+    except Exception as e:
+        logger.error(f"❌ Error in viral-audio endpoint: {e}", exc_info=True)
+        # Emergency fallback - never return empty
+        return {
+            "source": "emergency_fallback",
+            "label": "Trending Audio",
+            "note": "Using fallback data due to service error",
+            "recommended_tracks": [
+                {
+                    "platform": platform or "instagram",
+                    "track_name": "Cruel Summer",
+                    "artist": "Taylor Swift",
+                    "image": "https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a0a65f3655",
+                    "source": "emergency_fallback",
+                    "confidence": 0.85
+                },
+                {
+                    "platform": platform or "instagram",
+                    "track_name": "Paint The Town Red",
+                    "artist": "Doja Cat",
+                    "image": "https://i.scdn.co/image/ab67616d0000b273760ef164e622b7a66b553655",
+                    "source": "emergency_fallback",
+                    "confidence": 0.85
+                }
+            ],
+            "tracks": [
+                {
+                    "platform": platform or "instagram",
+                    "track_name": "Cruel Summer",
+                    "artist": "Taylor Swift",
+                    "image": "https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a0a65f3655",
+                    "source": "emergency_fallback",
+                    "confidence": 0.85
+                },
+                {
+                    "platform": platform or "instagram",
+                    "track_name": "Paint The Town Red",
+                    "artist": "Doja Cat",
+                    "image": "https://i.scdn.co/image/ab67616d0000b273760ef164e622b7a66b553655",
+                    "source": "emergency_fallback",
+                    "confidence": 0.85
+                }
+            ]
+        }
+
+
+@router.get(
+    "/influencer-radar",
+    summary="Get competitor benchmarking data (Instagram real-time)",
+)
+async def competitor_radar(
+    geo: str = "Pakistan",
+    niche: str = "general",
+    keyword: Optional[str] = None,
+    current_user_email: str = Depends(get_current_user_email),
+):
+    """
+    Competitor Benchmarking: Identifies local players already using the trend.
+    """
+    try:
+        namespace = "competitor_radar"
+        search_term = (keyword or niche).replace("#", "").replace(" ", "")
+        key = f"v3:{geo.upper()}:{search_term.lower()}"
+
+        cached = await _cached_get(namespace, key)
+        if cached is not None:
+            return {"source": "serpapi_benchmarking", "influencers": cached}
+
+        from config import Config
+        serp_key = Config.SERPAPI_API_KEY
+        competitors: List[Dict[str, Any]] = []
+
+        if serp_key:
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    r = await client.get(
+                        "https://serpapi.com/search",
+                        params={
+                            "engine": "google",
+                            "q": f"site:instagram.com \"#{search_term}\" or \"{search_term}\" niche",
+                            "api_key": serp_key,
+                            "num": 10,
+                            "gl": geo.lower(),
+                        },
+                    )
+                    results = r.json().get("organic_results") or []
+                    seen = set()
+
+                    for item in results:
+                        link = str(item.get("link") or "")
+                        snippet = str(item.get("snippet") or "")
+
+                        match = re.search(r"instagram\.com/([^/?#]+)", link)
+                        if not match:
+                            continue
+                        handle = match.group(1).strip("/")
+                        if not handle or handle in ("p", "reel", "explore", "tv", "stories"):
+                            continue
+                        if handle.lower() in seen:
+                            continue
+                        seen.add(handle.lower())
+
+                        competitors.append({
+                            "handle": handle,
+                            "follower_count_formatted": "Recently active",
+                            "engagement_rate": 85,
+                            "niche_tags": [niche],
+                            "url": link,
+                            "snippet": snippet[:120],
+                            "last_post_type": "IMAGE",
+                        })
+
+                        if len(competitors) >= 4:
+                            break
+
+            except Exception as e:
+                logger.warning(f"SerpAPI competitor radar failed: {e}")
+
+        await _cached_set(namespace, key, competitors, ttl_seconds=12 * 60 * 60)
+        return {"source": "serpapi_benchmarking", "influencers": competitors}
+    except Exception as e:
+        logger.error(f"❌ Error in influencer-radar endpoint: {e}", exc_info=True)
+        # Return empty list instead of 500 error
+        return {"source": "error", "influencers": []}
+
+
 @router.get(
     "/{trend_id}",
     response_model=TrendSignalResponse,
@@ -1068,6 +1464,13 @@ async def get_trend_by_id(
     Returns detailed trend data including search interest, geographic data,
     and related/rising queries.
     """
+    # Reject reserved route names that should be handled by specific endpoints
+    if trend_id in ("viral-audio", "influencer-radar", "forecast", "cache", "debug", "instagram", "activity"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Invalid trend ID: {trend_id}"
+        )
+    
     try:
         # Get trend signal
         trend = await trends_service.get_trend_by_id(trend_id)
@@ -1312,124 +1715,6 @@ async def execute_ad_copy(
     )
     return StreamingResponse(_stream_openai_chat(system_prompt=system_prompt, user_prompt=user_prompt), media_type="text/plain")
 
-
-@router.get(
-    "/viral-audio",
-    summary="Get trending audio candidates (charting feed)",
-)
-async def get_viral_audio(
-    platform: str = "instagram",
-    geo: str = "PK",
-    niche: str = "general",
-    current_user_email: str = Depends(get_current_user_email),
-):
-    namespace = "viral_audio"
-    key = f"v1:{platform.lower()}:{geo.upper()}:{niche.lower()}"
-    cached = await _cached_get(namespace, key)
-    if cached is not None:
-        # IMPORTANT: Frontend reads `recommended_tracks`. Keep `tracks` for backward compatibility.
-        return {
-            "source": "spotify_or_apple",
-            "label": "Trending Audio (charting)",
-            "recommended_tracks": cached,
-            "tracks": cached,
-            "cached": True,
-        }
-
-    tracks = await ViralAudioProvider().get_tracks(
-        platform=platform,
-        location=geo,
-        niche=niche,
-        trend_keyword=niche,
-        limit=2,
-    )
-    await _cached_set(namespace, key, tracks, ttl_seconds=6 * 60 * 60)
-    return {
-        "source": "spotify_or_apple", 
-        "label": "Trending Audio (charting)", 
-        "recommended_tracks": tracks,
-        "tracks": tracks # Backwards compatibility
-    }
-
-
-@router.get(
-    "/influencer-radar",
-    summary="Get competitor benchmarking data (Instagram real-time)",
-)
-async def competitor_radar(
-    geo: str = "PK",
-    niche: str = "general",
-    keyword: Optional[str] = None,
-    current_user_email: str = Depends(get_current_user_email),
-):
-    """
-    Competitor Benchmarking: Identifies local players already using the trend.
-    Analyzes recent Instagram activity for the given keyword/niche and 
-    extracts handles, engagement heat, and proof-of-trend URLs.
-    """
-    namespace = "competitor_radar"
-    search_term = (keyword or niche).replace("#", "").replace(" ", "")
-    key = f"v3:{geo.upper()}:{search_term.lower()}"
-
-    cached = await _cached_get(namespace, key)
-    if cached is not None:
-        return {"source": "serpapi_benchmarking", "influencers": cached}
-
-    # Use config for consistency
-    from config import config
-    serp_key = config.SERPAPI_API_KEY
-    competitors: List[Dict[str, Any]] = []
-
-    if serp_key:
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.get(
-                    "https://serpapi.com/search",
-                    params={
-                        "engine": "google",
-                        "q": f"site:instagram.com \"#{search_term}\" or \"{search_term}\" niche",
-                        "api_key": serp_key,
-                        "num": 10,
-                        "gl": geo.lower(),
-                    },
-                )
-                results = r.json().get("organic_results") or []
-                seen = set()
-
-                for item in results:
-                    link = str(item.get("link") or "")
-                    snippet = str(item.get("snippet") or "")
-
-                    # Extract Instagram handle from URL
-                    match = re.search(r"instagram\.com/([^/?#]+)", link)
-                    if not match:
-                        continue
-                    handle = match.group(1).strip("/")
-                    if not handle or handle in ("p", "reel", "explore", "tv", "stories"):
-                        continue
-                    if handle.lower() in seen:
-                        continue
-                    seen.add(handle.lower())
-
-                    competitors.append({
-                        "handle": handle,
-                        "follower_count_formatted": "Recently active",
-                        "engagement_rate": 85,
-                        "niche_tags": [niche],
-                        "url": link,
-                        "snippet": snippet[:120],
-                        "last_post_type": "IMAGE",
-                    })
-
-                    if len(competitors) >= 4:
-                        break
-
-        except Exception as e:
-            logger.warning("SerpAPI competitor radar failed for %s: %s", search_term, str(e))
-            competitors = []
-
-    await _cached_set(namespace, key, competitors, ttl_seconds=12 * 60 * 60)
-    return {"source": "serpapi_benchmarking", "influencers": competitors}
 
 @router.post(
     "/suggest",

@@ -28,6 +28,9 @@ from infrastructure.database.models.caption_log_model import AssetTypeEnum
 # Import industry templates
 from application.services.industry_templates import build_industry_prompt_injection, infer_business_domain
 
+# Import business type enum
+from infrastructure.database.models.business_model import BusinessTypeEnum
+
 # Load environment variables
 load_dotenv()
 
@@ -67,6 +70,14 @@ class ContentGenerationService:
       [Call to Action]
     - Generate content aligned with the brand's tone, audience, and industry.
     - Ensure the output feels natural for the business and matches its marketing style.
+    
+    INDUSTRY-SPECIFIC LANGUAGE RULES:
+    - For RESTAURANTS/FOOD businesses: Use appetizing, sensory language (crispy, juicy, aromatic, fresh, savory, delicious). Focus on dining experience, flavors, and dishes. Say "dish/meal/menu item" NOT "product/service/offering".
+      STRICT RULE: The words "product", "service", "offering" are FORBIDDEN. Using them makes the output INVALID. Use "dish", "meal", "specialty" instead.
+    - For FASHION businesses: Use style-focused language (trendy, chic, elegant, bold). Focus on looks, outfits, and personal expression.
+    - For TECH businesses: Use innovation language (cutting-edge, seamless, powerful). Focus on features, benefits, and user experience.
+    - For HEALTHCARE/WELLNESS: Use empowering language (transform, energize, revitalize). Focus on well-being and positive outcomes.
+    
     - JSON format only. No preamble.
 """
 
@@ -127,9 +138,10 @@ class ContentGenerationService:
         return prompts.get(platform_type.lower(), self.SYSTEM_PROMPT_POST)
     
     def _build_brand_context_prompt(self, brand_context: Dict[str, Any]) -> str:
-        """Build the brand context section of the prompt."""
+        """Build the brand context section of the prompt with restaurant-specific awareness."""
         sections = []
         
+        # Core business identity
         if brand_context.get("business_name"):
             sections.append(f"Business Name: {brand_context['business_name']}")
         
@@ -142,9 +154,23 @@ class ContentGenerationService:
         if brand_context.get("restaurant_theme"):
             sections.append(f"Brand Theme/Ambiance: {brand_context['restaurant_theme']}")
         
+        # Restaurant-specific context
         if brand_context.get("business_type"):
             sections.append(f"Business Type: {brand_context['business_type']}")
         
+        if brand_context.get("specialties"):
+            specialties_list = brand_context['specialties']
+            if isinstance(specialties_list, list) and specialties_list:
+                sections.append(f"Cuisine/Specialties: {', '.join(specialties_list)}")
+        
+        if brand_context.get("city") and brand_context.get("country"):
+            sections.append(f"Location: {brand_context['city']}, {brand_context['country']}")
+        elif brand_context.get("city"):
+            sections.append(f"Location: {brand_context['city']}")
+        elif brand_context.get("country"):
+            sections.append(f"Location: {brand_context['country']}")
+        
+        # Visual brand identity
         palette: list[str] = []
         if brand_context.get("brand_colors"):
             try:
@@ -161,9 +187,6 @@ class ContentGenerationService:
         
         if brand_context.get("brand_logo_url"):
             sections.append(f"Brand Logo: {brand_context['brand_logo_url']} (incorporate visual brand identity into image prompts)")
-            
-        if brand_context.get("specialties"):
-            sections.append(f"Expert Specialties: {', '.join(brand_context['specialties'])}")
         
         if not sections:
             return (
@@ -172,12 +195,46 @@ class ContentGenerationService:
                 "- IMPORTANT: Still avoid bland/generic filler; be specific to the campaign idea."
             )
 
+        # Build constraints with restaurant-specific rules
         biz_name = brand_context.get("business_name")
         tagline = brand_context.get("tagline")
         tone = brand_context.get("tone_of_voice")
+        business_type = brand_context.get("business_type", "").lower()
+        specialties = brand_context.get("specialties", [])
+        city = brand_context.get("city")
+        
+        # Detect if this is a restaurant/food business using BusinessTypeEnum
+        is_restaurant = business_type in [
+            BusinessTypeEnum.RESTAURANT.value,
+            BusinessTypeEnum.CAFE.value,
+            BusinessTypeEnum.BAKERY.value,
+        ]
+        
         constraints: list[str] = [
             "BRAND CONSTRAINTS (HARD RULES — treat violations as INVALID output):",
         ]
+        
+        # Restaurant-specific instructions
+        if is_restaurant:
+            constraints.append("⚠️ RESTAURANT CONTENT RULES:")
+            constraints.append("- This is a RESTAURANT/FOOD business. Use food/dining language throughout.")
+            constraints.append("- Make content APPETIZING: describe flavors, textures, aromas, dining experiences.")
+            constraints.append("- Use sensory words: 'crispy', 'juicy', 'aromatic', 'fresh', 'savory', 'delicious'.")
+            constraints.append("- Focus on the DINING EXPERIENCE, not just products.")
+            
+            if specialties:
+                constraints.append(f"- Emphasize cuisine specialties: {', '.join(specialties)}.")
+                constraints.append(f"- Use cuisine-specific terminology relevant to {', '.join(specialties)}.")
+            
+            if city:
+                constraints.append(f"- Reference local food culture and preferences in {city} where appropriate.")
+                constraints.append(f"- Use location-aware language: 'in {city}', 'local favorite', 'neighborhood gem'.")
+            
+            constraints.append("- Avoid generic business language like 'product', 'service', 'offering'.")
+            constraints.append("- Instead use: 'dish', 'meal', 'menu item', 'specialty', 'recipe', 'dining experience'.")
+            constraints.append("")
+        
+        # Standard brand constraints
         if biz_name:
             constraints.append(f'- Business name MUST appear verbatim in EVERY caption variant: "{biz_name}".')
         if tagline:

@@ -104,7 +104,7 @@ def calculate_engagement_score(variant: VariantInput, variant_type: str) -> tupl
             reasons.append("good hashtag coverage")
         
     elif variant_type == "whatsapp":
-        text = variant.copy or ''
+        text = str(variant.copy or '')
         
         # Personalization tokens
         if '[Name]' in text or '[name]' in text.lower():

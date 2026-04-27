@@ -47,7 +47,7 @@ class TrendSignal:
     
     # Metadata
     fetch_status: str = "pending"  # pending, processing, completed, failed
-    progress_step: str = "Initializing..."  # Current step in the detection pipeline
+    progress_step: str = "Starting..."  # Current step in the detection pipeline
     error_message: Optional[str] = None
     fetched_at: Optional[datetime] = None
     created_at: Optional[datetime] = None

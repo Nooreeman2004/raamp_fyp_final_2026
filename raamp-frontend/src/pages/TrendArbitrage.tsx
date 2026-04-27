@@ -107,7 +107,7 @@ const TrendArbitrage = () => {
   });
   const [searchQuery, setSearchQuery] = useState<string>(() => {
     const hasLocation = user && typeof user === 'object' && 'business_location' in user;
-    return hasLocation ? String((user as { business_location: unknown }).business_location) : "PK";
+    return hasLocation ? String((user as { business_location: unknown }).business_location) : "";
   });
   const [category, setCategory] = useState<string>("all");
   const [customKeywordInput, setCustomKeywordInput] = useState<string>("");
@@ -761,9 +761,53 @@ const TrendArbitrage = () => {
   };
 
   const deriveBusinessNiche = () => {
+    // Priority 1: Use business_type from BusinessModel (most reliable)
+    const fromBusiness = (businessDetails?.business_type || businessDetails?.niche || "").toString().trim();
+    
+    // Priority 2: Fallback to user fields (legacy support - should not be used)
     const fromUser = ((user as any)?.business_domain_name || user?.business_domain || "").toString().trim();
-    const fromBusiness = (businessDetails?.niche || businessDetails?.business_type || "").toString().trim();
-    return fromUser || fromBusiness || "fashion";
+    
+    console.log("🔍 deriveBusinessNiche - Data sources:", { 
+      email: user?.email,
+      fromBusiness: fromBusiness || "(empty)",
+      fromUser: fromUser || "(empty)",
+      priority: fromBusiness ? "business_type" : (fromUser ? "user_fields" : "default")
+    });
+    
+    // Use business_type first, then user fields as fallback
+    const normalized = (fromBusiness || fromUser).toLowerCase();
+    
+    if (!normalized) {
+      console.log("⚠️  No niche data found, using default: general");
+      return "general";
+    }
+    
+    console.log("🔍 deriveBusinessNiche - normalized:", normalized);
+    
+    // Map common business types to niches
+    if (normalized.includes("restaurant") || normalized.includes("cafe") || 
+        normalized.includes("bakery") || normalized.includes("food")) {
+      // Determine specific type
+      if (normalized.includes("cafe")) {
+        console.log("✅ Detected niche: cafe (from business_type)");
+        return "cafe";
+      }
+      if (normalized.includes("bakery")) {
+        console.log("✅ Detected niche: bakery (from business_type)");
+        return "bakery";
+      }
+      if (normalized.includes("restaurant")) {
+        console.log("✅ Detected niche: restaurant (from business_type)");
+        return "restaurant";
+      }
+      console.log("✅ Detected niche: food (from business_type)");
+      return "food";
+    }
+    
+    // Return the original value or default to "general"
+    const result = fromBusiness || fromUser || "general";
+    console.log(`✅ Using niche: ${result} (source: ${fromBusiness ? "BusinessModel" : fromUser ? "UserModel (legacy)" : "default"})`);
+    return result;
   };
 
   const fetchIndustryTrending = async () => {
@@ -792,12 +836,39 @@ const TrendArbitrage = () => {
 
   const instagramNicheTrends = useMemo(() => {
     const niche = deriveBusinessNiche().toLowerCase();
+    
+    // For restaurant/cafe niches, we need strict filtering
+    const isRestaurantNiche = ["cafe", "restaurant", "bakery", "food"].includes(niche);
+    
     const scored = (rawTrends || [])
       .filter((t) => t && t.is_real_social === true)
       .filter((t) => {
         const tn = String((t as any)?.niche || "").toLowerCase();
-        // Strong match OR fashion is requested OR user niche is unknown.
-        return !niche || niche === "general" ? true : tn.includes(niche);
+        const keyword = String((t as any)?.keyword || "").toLowerCase();
+        
+        // If no niche specified, show all
+        if (!niche || niche === "general") return true;
+        
+        // For restaurant niches, apply strict filtering
+        if (isRestaurantNiche) {
+          // Check if trend niche matches
+          const nicheMatch = tn.includes(niche) || tn.includes("food") || tn.includes("restaurant");
+          
+          // Check if keyword contains food-related terms
+          const foodKeywords = ["food", "menu", "recipe", "dish", "meal", "restaurant", "cafe", 
+                               "coffee", "breakfast", "lunch", "dinner", "dessert", "cuisine"];
+          const keywordMatch = foodKeywords.some(kw => keyword.includes(kw));
+          
+          // Filter out sports/irrelevant terms
+          const irrelevantKeywords = ["vs", "match", "game", "cup", "league", "team", "player", 
+                                     "outfit", "fashion", "clothing"];
+          const isIrrelevant = irrelevantKeywords.some(kw => keyword.includes(kw));
+          
+          return (nicheMatch || keywordMatch) && !isIrrelevant;
+        }
+        
+        // For other niches, use loose matching
+        return tn.includes(niche);
       })
       .map((t) => ({
         keyword: String((t as any)?.keyword || "").trim(),
@@ -868,6 +939,42 @@ const TrendArbitrage = () => {
       .slice(0, 8);
 
     setBrandAlignedTerms(scored);
+  };
+
+  const clearTrendCache = () => {
+    try {
+      // Clear all trend arbitrage cache keys
+      const keysToRemove = [
+        `trend_arbitrage_snapshot:v1:${String(location || "GLOBAL").trim().toUpperCase()}:${String(timeframe || "30").trim()}`,
+        `trend_arbitrage_verified_live:v1:${String(location || "GLOBAL").trim().toUpperCase()}`,
+        `trend_arbitrage_exec_analysis:v1:${String(location || "GLOBAL").trim().toUpperCase()}`,
+        `trend_arbitrage_strategy_history:v1`,
+      ];
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Also clear any other location-specific caches
+      const allKeys = Object.keys(localStorage);
+      allKeys.forEach(key => {
+        if (key.startsWith('trend_arbitrage_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      toast.success("Cache cleared", {
+        description: "All trend cache data has been removed. Refreshing..."
+      });
+      
+      // Refresh data after clearing cache
+      handlePageRefresh();
+    } catch (err) {
+      console.error("Failed to clear cache", err);
+      toast.error("Cache clear failed", {
+        description: "Please try again or clear browser data manually"
+      });
+    }
   };
 
   const handlePageRefresh = async () => {
@@ -1005,12 +1112,12 @@ const TrendArbitrage = () => {
     setIsScanning(true);
 
     try {
-      setScanStep("Global Node Sync Initialized...");
+      setScanStep("Searching for trends...");
       const niche = (user as any)?.business_domain_name || user?.business_domain || "marketing";
       const timeframeDays = parseInt(timeframe);
       console.log(`🚀 SCAN INITIATED for niche: ${niche}, location: ${location}`);
-      toast.info("Vector Scan Initiated", {
-        description: `Establishing connection to global signal nodes for ${location}...`
+      toast.info("Trend Search Started", {
+        description: `Finding trending topics for ${location}...`
       });
 
       const cleanedCustom = Array.from(
@@ -1056,7 +1163,7 @@ const TrendArbitrage = () => {
           }
 
           if (statusRes.status === 'completed') {
-            setScanStep("Vector Grid Acquired.");
+            setScanStep("Trends found!");
             toast.success("Scan completed", {
               description: `Niche: ${niche} • Category: ${category || "all"} • Window: ${timeframeDays}d`
             });
@@ -1167,7 +1274,7 @@ const TrendArbitrage = () => {
 
   const tickerItems = liveTrends.length > 0
     ? liveTrends.map(t => `${t.keyword.toUpperCase()} [${t.location}] ${t.is_spike ? 'SPIKE' : t.label || 'TREND'}: ${t.is_spike ? `+${t.score}σ` : `+${t.score}%`}`)
-    : ["SCANNING GLOBAL SIGNAL VECTORS...", "WAITING FOR MARKET SPIKES..."];
+    : ["SEARCHING FOR TRENDS...", "WAITING FOR NEW TRENDS..."];
 
   const gapInsights = useMemo(() => {
     type GapInsight = {
@@ -1380,6 +1487,17 @@ const TrendArbitrage = () => {
                 >
                   <RefreshCw className={`w-3.5 h-3.5 mr-2 ${(isLoading || trendingNowLoading) ? "animate-spin" : ""}`} />
                   REFRESH
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={clearTrendCache}
+                  disabled={isScanning || isLoading}
+                  className="bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive hover:text-white font-mono font-black text-[10px] h-10 px-4 uppercase tracking-widest"
+                  title="Clear all cached trend data and refresh"
+                >
+                  <Database className="w-3.5 h-3.5 mr-2" />
+                  CLEAR CACHE
                 </Button>
               </div>
             </div>
@@ -1786,7 +1904,7 @@ const TrendArbitrage = () => {
                         aiAnalysisStatus={aiAnalysisStatus || (effectiveTrend as any)?.ai_analysis_status || null}
                         aiAnalysisData={aiAnalysisData} 
                         location={location} 
-                        niche={(user as any)?.business_domain_name || user?.business_domain || 'marketing'} 
+                        niche={deriveBusinessNiche()} 
                         userPlatform={userPlatform}
                         keyword={effectiveTrend?.keyword || ""}
                       />
@@ -1812,7 +1930,7 @@ const TrendArbitrage = () => {
                             <div className="text-[10px] font-mono font-black uppercase tracking-[0.2em] text-primary/80">
                               Scanning…
                               <span className="ml-2 text-muted-foreground/70 dark:text-white/40 font-normal tracking-normal">
-                                {scanStep || "Processing signal vectors"}
+                                {scanStep || "Finding trends"}
                               </span>
                             </div>
                           </div>
@@ -1849,7 +1967,7 @@ const TrendArbitrage = () => {
                     <Reveal variant="fadeInUp" delay={0.5}>
                       <div className="p-8 bg-card/60 dark:bg-white/[0.03] backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl space-y-6">
                         <h2 className="text-xl font-bold font-heading font-semibold tracking-[0.1em] text-foreground uppercase flex items-center gap-3">
-                          <div className="w-1.5 h-6 bg-amber-500 rounded-full" /> Tracked Vectors
+                          <div className="w-1.5 h-6 bg-amber-500 rounded-full" /> Tracked Keywords
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                           {watchlist.map((item) => (

@@ -1,0 +1,137 @@
+================================================================================
+FULL PROMPT SENT TO GEMINI
+================================================================================
+
+You are an elite social media director. Generate a COMPLETE marketing package for Instagram/Facebook POSTS.
+      
+    OUTPUT REQUIREMENTS:
+    1. Three distinct caption variants with hashtags (Vibrant, Informative, Playful)
+    2. Three standalone hashtag sets (Broad, Niche, Mixed)
+    3. Three WhatsApp/Email variants (Professional, Friendly, Urgent)
+    4. Three Image generation prompts
+    
+    CONSTRAINTS:
+    - Captions MUST be short, catchy, fun, and engaging. Maximum 2-4 lines.
+    - Caption format MUST strictly follow: 
+      [Hook Line]
+      [1-2 short supporting lines with optional emoji]
+      [Call to Action]
+    - Generate content aligned with the brand's tone, audience, and industry.
+    - Ensure the output feels natural for the business and matches its marketing style.
+    
+    INDUSTRY-SPECIFIC LANGUAGE RULES:
+    - For RESTAURANTS/FOOD businesses: Use appetizing, sensory language (crispy, juicy, aromatic, fresh, savory, delicious). Focus on dining experience, flavors, and dishes. Say "dish/meal/menu item" NOT "product/service/offering".
+      STRICT RULE: The words "product", "service", "offering" are FORBIDDEN. Using them makes the output INVALID. Use "dish", "meal", "specialty" instead.
+    - For FASHION businesses: Use style-focused language (trendy, chic, elegant, bold). Focus on looks, outfits, and personal expression.
+    - For TECH businesses: Use innovation language (cutting-edge, seamless, powerful). Focus on features, benefits, and user experience.
+    - For HEALTHCARE/WELLNESS: Use empowering language (transform, energize, revitalize). Focus on well-being and positive outcomes.
+    
+    - JSON format only. No preamble.
+
+
+BRAND CONSTRAINTS (HARD RULES — treat violations as INVALID output):
+⚠️ RESTAURANT CONTENT RULES:
+- This is a RESTAURANT/FOOD business. Use food/dining language throughout.
+- Make content APPETIZING: describe flavors, textures, aromas, dining experiences.
+- Use sensory words: 'crispy', 'juicy', 'aromatic', 'fresh', 'savory', 'delicious'.
+- Focus on the DINING EXPERIENCE, not just products.
+- Emphasize cuisine specialties: Pizza, Pasta, Tiramisu.
+- Use cuisine-specific terminology relevant to Pizza, Pasta, Tiramisu.
+- Reference local food culture and preferences in Karachi where appropriate.
+- Use location-aware language: 'in Karachi', 'local favorite', 'neighborhood gem'.
+- Avoid generic business language like 'product', 'service', 'offering'.
+- Instead use: 'dish', 'meal', 'menu item', 'specialty', 'recipe', 'dining experience'.
+
+- Business name MUST appear verbatim in EVERY caption variant: "Bella Italia".
+- Tagline MUST be incorporated verbatim (do not paraphrase): "Authentic Italian flavors in the heart of Karachi".
+- Tone MUST be followed strictly: "Warm and inviting".
+- Visual direction MUST use the brand palette. Every image prompt MUST explicitly mention these HEX colors: #C41E3A, #009246, #FFFFFF. Avoid introducing unrelated brand colors (except black/white/neutral grays).
+- Image prompts MUST incorporate the brand logo identity cues (logo placement, end-card, watermark, or typography cues).
+- Do NOT produce generic content. Every line must reflect the specific campaign idea.
+- If a brand field is missing, do NOT invent one; use only what is provided.
+
+BRAND VOICE GUIDELINES (context):
+• Business Name: Bella Italia
+• Brand Tagline: Authentic Italian flavors in the heart of Karachi
+• Default Brand Tone: Warm and inviting
+• Brand Theme/Ambiance: Rustic Italian trattoria
+• Business Type: Italian Restaurant
+• Cuisine/Specialties: Pizza, Pasta, Tiramisu
+• Location: Karachi, Pakistan
+• Brand Color Palette (HEX): #C41E3A, #009246, #FFFFFF
+• Brand Logo: https://example.com/logo.png (incorporate visual brand identity into image prompts)
+
+
+## INDUSTRY-SPECIFIC OPTIMIZATION (Restaurants)
+
+### Proven Hooks for Restaurants:
+- This [dish] sold out in 2 hours... 🍽️
+- Our secret ingredient? {bold_claim}
+- Hungry? This will change everything 👀
+
+### High-Engagement CTAs:
+- Tag your foodie friend who needs to try this!
+- Save this spot for your next date night 💕
+- Drop a 🍕 if you're hungry now
+
+### Optimal Hashtag Strategy:
+- Large (>1M): #FoodPorn, #FoodPhotography, #InstaFood
+- Medium (100K-1M): #Restaurant, #RestaurantLife, #FoodLover
+- Small (<100K): #LocalEats, #HiddenGem, #DineLocal
+- Niche: #Italian, #LoveItalian, #ItalianLovers
+
+### Content Types for Restaurants:
+- menu_drop: New menu item announcement with mouth-watering description
+- special_announcement: Limited-time offers, seasonal specials, happy hour
+- behind_the_scenes: Chef at work, kitchen prep, ingredient sourcing
+
+### Engagement Boosters:
+- Ask: 'What's your go-to order here?'
+- Poll: 'Appetizer or Dessert first?'
+- Challenge: 'Tag someone who can't resist [dish]'
+
+**IMPORTANT**: Use these industry-specific elements in your content generation.
+
+
+CAMPAIGN DETAILS:
+Campaign Idea: Weekend brunch special: fluffy pancakes with maple syrup and fresh berries
+Using Default Brand Tone: Warm and inviting
+
+TASK: Generate a COMPLETE marketing package following the EXACT JSON schema below.
+CONTENT GUIDELINES:
+1. Three social media captions: short, catchy (2-4 lines max), brand-aligned, ending with exactly 5-8 hashtags.
+2. Three hashtag strategy sets (Reach, Niche, Local).
+3. WhatsApp Messages: SHORT, CASUAL, CHATTY. NO Subject lines. NO placeholders. Start with 'Hey {{name}}!'. End with a friendly sign-off like 'Regards, Team {biz_name}'.
+4. Email Campaigns: PROFESSIONAL, STRUCTURED. Format EXACTLY as:
+   Subject: [Compelling Line]
+   Body: [Professional greeting, 2 paragraphs of detail]
+   Regards,
+   Team Bella Italia
+5. Three detailed, descriptive image prompts. Follow the CAMPAIGN IDEA's visual theme primarily (brand identity should be integrated, not replace the campaign theme).
+
+EXACT JSON SCHEMA TO FOLLOW:
+{
+  "caption_variants": [
+    { "id": 1, "tone": "Professional", "caption": "your short caption text here", "hashtags": ["#tag1", "#tag2", ...] },
+    ...
+  ],
+  "hashtag_sets": [
+    { "id": 1, "strategy": "Reach", "hashtags": ["#tag1", "#tag2", ...] },
+    ...
+  ],
+  "whatsapp_variants": [
+    { "id": 1, "tone": "Friendly", "message": "Hey {{name}}! Check out our new campaign...", "predicted_performance": "High" },
+    ...
+  ],
+  "email_variants": [
+    { "id": 1, "tone": "Professional", "message": "Subject: [Topic]\n\nBody: [Details]\n\nRegards, [Team]", "predicted_performance": "High" },
+    ...
+  ],
+  "image_prompts": [
+    "detailed image prompt 1",
+    "detailed image prompt 2",
+    "detailed image prompt 3"
+  ]
+}
+
+IMPORTANT: Output ONLY the JSON block. Do not include any conversational text.

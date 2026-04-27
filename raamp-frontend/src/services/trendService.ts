@@ -261,6 +261,9 @@ export const trendService = {
         qs.set("niche", niche);
         qs.set("scope", scope);
         qs.set("timeframe", timeframe);
+        qs.set("limit", String(limit));
+        const query = qs.toString() ? `?${qs.toString()}` : "";
+        const data = await apiClient.get<IndustryTrendsResponse>(`/trends/industry_trends${query}`);
         // Type-safe extraction with proper checks
         const isValidData = typeof data === 'object' && data !== null;
         return {
@@ -367,11 +370,14 @@ export const trendService = {
     },
 
     // --- INTELLIGENCE ---
-    getViralAudio: async (platform: string, geo: string, niche: string): Promise<{ recommended_tracks: unknown[] }> => {
+    getViralAudio: async (platform: string, geo: string, niche: string, keyword?: string): Promise<{ recommended_tracks: unknown[] }> => {
         const qs = new URLSearchParams();
         qs.set("platform", platform || "instagram");
         qs.set("geo", geo || "GLOBAL");
         qs.set("niche", niche || "general");
+        if (keyword) {
+            qs.set("trend_keyword", keyword);
+        }
         const data = await apiClient.get<any>(`/trends/viral-audio?${qs.toString()}`);
         return {
             recommended_tracks: (() => {
@@ -463,6 +469,15 @@ export const trendService = {
     // --- TREND EXPLANATION ---
     getTrendExplanation: async (req: TrendExplainRequest): Promise<TrendExplainResponse> => {
         return apiClient.post<TrendExplainResponse>('/trends/explain', req);
+    },
+
+    // --- SIMPLIFIED TRENDS ---
+    getSimplifiedTrends: async (limit: number = 10, location?: string): Promise<{ trends: any[]; total: number; location: string; last_updated: string }> => {
+        const qs = new URLSearchParams();
+        qs.set("limit", String(limit));
+        if (location) qs.set("location", location);
+        const query = qs.toString() ? `?${qs.toString()}` : "";
+        return apiClient.get(`/trends/simplified${query}`);
     },
 
     // --- BUSINESS SPECIALTIES ---

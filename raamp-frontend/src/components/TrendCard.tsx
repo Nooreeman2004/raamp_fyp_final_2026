@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  TrendingUp, Flame, Zap, Target, Activity, Sparkles, Rocket,
+  TrendingUp, Flame, Zap, Activity, Sparkles, Rocket,
   TrendingDown, AlertCircle, MapPin, ArrowRight, Star
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -79,34 +79,22 @@ const LifecycleBadge = ({ stage }: { stage: string }) => {
   );
 };
 
-// Opportunity Score Gauge Component
-const ProfitScoreGauge = ({ score }: { score: number }) => {
-  const getScoreColor = (val: number) => {
-    if (val >= 80) return { bg: "bg-emerald-500", text: "text-emerald-400", label: "Act Now", emoji: "🚀" };
-    if (val >= 60) return { bg: "bg-teal-500", text: "text-teal-400", label: "Worth It", emoji: "💎" };
-    if (val >= 40) return { bg: "bg-amber-500", text: "text-amber-400", label: "Potential", emoji: "🤔" };
-    return { bg: "bg-red-500", text: "text-red-400", label: "Skip", emoji: "⏭" };
+// Opportunity Level Component (Simplified)
+const OpportunityLevel = ({ score }: { score: number }) => {
+  const getOpportunityConfig = (val: number) => {
+    if (val >= 70) return { emoji: "🟢", label: "High", color: "text-emerald-400" };
+    if (val >= 40) return { emoji: "🟡", label: "Medium", color: "text-amber-400" };
+    return { emoji: "🔴", label: "Low", color: "text-red-400" };
   };
 
-  const colorConfig = getScoreColor(score);
-  const scoreInt = Math.round(score);
+  const config = getOpportunityConfig(score);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono font-black text-muted-foreground/70 uppercase tracking-[0.2em] dark:text-white/20">Opportunity Gap</span>
-        <div className={`flex items-center gap-1.5 ${colorConfig.text} font-bold text-xs`}>
-          <span>{colorConfig.emoji}</span>
-          <span className="font-mono uppercase tracking-widest">{colorConfig.label}</span>
-          <span className="opacity-40 ml-1">{scoreInt}/100</span>
-        </div>
-      </div>
-      <div className="h-1 w-full bg-foreground/10 dark:bg-white/5 rounded-full overflow-hidden">
-        <motion.div 
-          initial={{ width: 0 }}
-          animate={{ width: `${scoreInt}%` }}
-          className={`h-full ${colorConfig.bg} shadow-[0_0_8px_rgba(0,224,208,0.2)] rounded-full transition-all duration-1000`} 
-        />
+    <div className="flex items-center justify-between p-3 bg-background/50 border border-border/60 rounded-2xl dark:bg-white/[0.03] dark:border-white/5">
+      <span className="text-xs text-muted-foreground dark:text-white/40">Opportunity Level</span>
+      <div className="flex items-center gap-2">
+        <span className="text-xl">{config.emoji}</span>
+        <span className={`text-sm font-bold ${config.color}`}>{config.label}</span>
       </div>
     </div>
   );
@@ -299,37 +287,9 @@ export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, on
         </div>
       </div>
 
-      {/* Secondary metrics (collapsed by default) */}
-      {(hasScore(trend.z_score_spike) || hasScore(trend.breakout_probability)) && (
-        <div className={`grid grid-cols-2 gap-4 transition-all ${isActive ? "" : "hidden md:grid md:opacity-0 md:group-hover:opacity-100 md:group-hover:block"}`}>
-          {hasScore(trend.z_score_spike) && (
-            <div className="p-3.5 bg-background/50 border border-border/60 rounded-2xl space-y-1 dark:bg-white/[0.03] dark:border-white/5">
-              <span className="text-[8px] font-mono font-black text-muted-foreground/70 uppercase tracking-[0.2em] flex items-center gap-1.5 dark:text-white/20">
-                <Zap className="w-2.5 h-2.5 text-orange-400" /> Velocity
-              </span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-foreground dark:text-white">{fmtFixed(trend.z_score_spike, 1)}</span>
-                <span className="text-[9px] font-mono text-muted-foreground/60 dark:text-white/10">σ-VEL</span>
-              </div>
-            </div>
-          )}
-          {hasScore(trend.breakout_probability) && (
-            <div className="p-3.5 bg-background/50 border border-border/60 rounded-2xl space-y-1 dark:bg-white/[0.03] dark:border-white/5">
-              <span className="text-[8px] font-mono font-black text-muted-foreground/70 uppercase tracking-[0.2em] flex items-center gap-1.5 dark:text-white/20">
-                <Target className="w-2.5 h-2.5 text-emerald-400" /> Confidence
-              </span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-emerald-400">{trend.breakout_probability}%</span>
-                <span className="text-[9px] font-mono text-emerald-400/30">ACC</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Analytics Visualizers */}
       <div className="space-y-5">
-        {hasScore(trend.profit_score) && <ProfitScoreGauge score={trend.profit_score!} />}
+        {hasScore(trend.profit_score) && <OpportunityLevel score={trend.profit_score!} />}
         {trend.forecast_series && trend.forecast_series.length > 0 && (
           <GrowthSparkline forecast={trend.forecast_series} predicted_growth={trend.predicted_growth_pct} />
         )}
@@ -348,7 +308,7 @@ export const TrendCard = ({ trend, onClick, onMagicBridge, onToggleWatchlist, on
           className="px-5 h-12 bg-primary hover:bg-primary/90 text-black rounded-2xl font-black font-heading text-[10px] uppercase tracking-[0.2em] shadow-[0_14px_50px_rgba(0,224,208,0.32)] hover:shadow-[0_18px_70px_rgba(0,224,208,0.45)] transition-all transform hover:-translate-y-1 active:translate-y-0 group"
         >
           <Rocket className="w-4 h-4 mr-2 group-hover:scale-110 group-hover:-rotate-12 transition-transform" />
-          Create
+          Create Post
         </Button>
       </div>
 

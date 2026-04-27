@@ -29,26 +29,48 @@ export function IntelligenceGrid({ trendId, aiAnalysisStatus, aiAnalysisData, lo
       try {
         const platform = userPlatform || "instagram";
         const geo = String(location || "GLOBAL").trim().toUpperCase();
+        // Use keyword if available, otherwise fallback to niche
+        const searchTerm = keyword || niche || "trending";
+
+        console.log("🎵 Fetching dynamics with:", { platform, geo, niche, searchTerm });
 
         const [audioRes, influencerRes] = await Promise.all([
-          trendService.getViralAudio(platform, geo, niche).catch(() => ({ recommended_tracks: [] })),
-          trendService.getInfluencerRadar(geo, niche, keyword).catch(() => ({ influencers: [] })),
+          trendService.getViralAudio(platform, geo, niche, searchTerm).catch((err) => {
+            console.error("🎵 Audio fetch error:", err);
+            return { recommended_tracks: [] };
+          }),
+          trendService.getInfluencerRadar(geo, niche, searchTerm).catch((err) => {
+            console.error("👥 Influencer fetch error:", err);
+            return { influencers: [] };
+          }),
         ]);
+
+        console.log("🎵 Raw Audio Response:", audioRes);
+        console.log("👥 Raw Influencer Response:", influencerRes);
 
         let tracks = (audioRes as any)?.recommended_tracks || [];
         let influencers = (influencerRes as any)?.influencers || [];
 
+        console.log("🎵 Extracted tracks:", tracks, "Length:", tracks.length);
+        console.log("👥 Extracted influencers:", influencers, "Length:", influencers.length);
+
         // Fallback: if region-specific feeds are empty for country codes (e.g., PK), retry with GLOBAL.
         if ((geo.length === 2 || geo === "PK") && tracks.length === 0) {
-          const fallbackAudio = await trendService.getViralAudio(platform, "GLOBAL", niche).catch(() => ({ recommended_tracks: [] }));
+          console.log("🎵 Attempting GLOBAL fallback for audio...");
+          const fallbackAudio = await trendService.getViralAudio(platform, "GLOBAL", niche, searchTerm).catch(() => ({ recommended_tracks: [] }));
+          console.log("🎵 Fallback Audio Response:", fallbackAudio);
           tracks = (fallbackAudio as any)?.recommended_tracks || tracks;
+          console.log("🎵 Tracks after fallback:", tracks, "Length:", tracks.length);
         }
         if ((geo.length === 2 || geo === "PK") && influencers.length === 0) {
-          const fallbackInf = await trendService.getInfluencerRadar("GLOBAL", niche).catch(() => ({ influencers: [] }));
+          console.log("👥 Attempting GLOBAL fallback for influencers...");
+          const fallbackInf = await trendService.getInfluencerRadar("GLOBAL", niche, searchTerm).catch(() => ({ influencers: [] }));
           influencers = (fallbackInf as any)?.influencers || influencers;
         }
 
         if (active) {
+          console.log("🎵 Viral Audio Data Received:", tracks);
+          console.log("👥 Influencer Data Received:", influencers);
           setAudioData(tracks);
           setInfluencerData(influencers);
         }
@@ -67,12 +89,17 @@ export function IntelligenceGrid({ trendId, aiAnalysisStatus, aiAnalysisData, lo
       }
     };
 
+    // Fetch if we have at least location and niche (keyword is optional)
     if (location && niche) {
       fetchDynamics();
+    } else {
+      // If we don't have required data, stop loading immediately
+      setAudioLoading(false);
+      setInfluencerLoading(false);
     }
     
     return () => { active = false; };
-  }, [location, niche, userPlatform]);
+  }, [location, niche, userPlatform, keyword]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -194,7 +221,11 @@ export function IntelligenceGrid({ trendId, aiAnalysisStatus, aiAnalysisData, lo
                <Skeleton className="h-12 w-full rounded-xl bg-foreground/5" />
              </div>
           ) : audioData.length === 0 ? (
-             <div className="text-sm text-muted-foreground py-4 text-center">No charting audio data available for this region.</div>
+             <div className="text-sm text-muted-foreground py-4 text-center space-y-2">
+               <Music className="w-8 h-8 mx-auto opacity-30" />
+               <p>Loading trending audio...</p>
+               <p className="text-xs opacity-60">This may take a moment</p>
+             </div>
           ) : (
              <div className="space-y-3">
                 {audioData.slice(0, 3).map((audio, idx) => (
@@ -319,7 +350,11 @@ export function IntelligenceGrid({ trendId, aiAnalysisStatus, aiAnalysisData, lo
                <Skeleton className="h-12 w-full rounded-lg bg-foreground/5" />
              </div>
           ) : influencerData.length === 0 ? (
-             <div className="text-sm text-muted-foreground py-4 text-center">No local competitors detected using this trend yet.</div>
+             <div className="text-sm text-muted-foreground py-4 text-center space-y-2">
+               <UserCheck className="w-8 h-8 mx-auto opacity-30" />
+               <p>Scanning for competitors...</p>
+               <p className="text-xs opacity-60">Checking Instagram activity</p>
+             </div>
           ) : (
              <div className="space-y-3">
                {influencerData.slice(0, 3).map((comp, idx) => (

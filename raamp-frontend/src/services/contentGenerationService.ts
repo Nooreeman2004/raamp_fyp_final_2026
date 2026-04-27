@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Helper to get auth token from storage
 const getAuthToken = (): string | null => {
-    return localStorage.getItem('token');
+    return localStorage.getItem('token') || sessionStorage.getItem('token');
 };
 
 // TypeScript interfaces matching backend schemas
@@ -142,12 +142,15 @@ export const contentGenerationService = {
                     // Handle different error response formats
                     if (typeof error.detail === 'string') {
                         errorMessage = error.detail;
+                    } else if (error.detail?.message) {
+                        // Check for message field first (our custom error format)
+                        errorMessage = error.detail.message;
                     } else if (error.detail?.error) {
                         errorMessage = error.detail.error;
-                    } else if (error.error) {
-                        errorMessage = error.error;
                     } else if (error.message) {
                         errorMessage = error.message;
+                    } else if (error.error) {
+                        errorMessage = error.error;
                     }
                 } catch {
                     errorMessage = `HTTP ${response.status}: ${response.statusText}`;

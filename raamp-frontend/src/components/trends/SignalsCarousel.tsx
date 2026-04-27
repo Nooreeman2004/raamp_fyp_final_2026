@@ -60,7 +60,7 @@ export function SignalsCarousel({
          <div className="space-y-3">
            <p className="font-mono text-sm uppercase tracking-[0.2em] font-black text-foreground">No trends detected</p>
            <p className="font-mono text-[10px] uppercase tracking-widest leading-relaxed text-muted-foreground max-w-sm mx-auto">
-             Our signal nodes haven't found any major spikes for your niche in <span className="text-primary">{location}</span> yet.
+             We haven't found any major trends for your niche in <span className="text-primary">{location}</span> yet.
            </p>
            <Button 
              onClick={onTriggerScan} 

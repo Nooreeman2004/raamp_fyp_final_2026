@@ -526,6 +526,20 @@ app.include_router(social_escalation_router.router)
 # Ensure all asset directories exist
 Config.ensure_asset_directories()
 
+# Custom middleware to add CORS headers to static files
+@app.middleware("http")
+async def add_cors_to_static_files(request, call_next):
+    """Add CORS headers to static file responses for client-side access (e.g., canvas operations)"""
+    response = await call_next(request)
+    
+    # Add CORS headers for static file routes
+    if request.url.path.startswith(("/static/", "/videos/", "/reels/", "/generated/")):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    return response
+
 # Mount static files for uploaded content
 app.mount("/api/static", StaticFiles(directory=str(Config.UPLOADED_FILES_DIR)), name="static")
 

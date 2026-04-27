@@ -373,7 +373,11 @@ class GeoIntentService:
         Returns list of {lat, lng, label} dicts.
         """
         points: List[Dict[str, Any]] = []
-        directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        # More descriptive labels than raw compass directions
+        directions = [
+            "North Zone", "Northeast Zone", "East Zone", "Southeast Zone",
+            "South Zone", "Southwest Zone", "West Zone", "Northwest Zone"
+        ]
         n = max(1, min(num_points, 8))
         for i in range(n):
             angle = (360 / n) * i

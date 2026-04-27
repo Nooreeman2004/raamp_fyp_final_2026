@@ -10,6 +10,9 @@ from fastapi import HTTPException, status
 from infrastructure.repositories.business_repository import BusinessRepository
 from application.services.content_generation_service import get_content_generation_service
 from application.services.credit_service import get_credit_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ContentGenerationUseCase:
@@ -54,7 +57,9 @@ class ContentGenerationUseCase:
                 "brand_colors": [],
                 "palette_source": None,
                 "brand_logo_url": None,
-                "specialties": []
+                "specialties": [],
+                "city": None,
+                "country": None
             }
         
         return {
@@ -69,7 +74,9 @@ class ContentGenerationUseCase:
             "brand_colors": getattr(business, "brand_colors", []) or [],
             "palette_source": getattr(business, "palette_source", None),
             "brand_logo_url": business.brand_logo_url,
-            "specialties": business.specialties
+            "specialties": business.specialties,
+            "city": business.city,
+            "country": business.country
         }
     
     async def generate_social_content(
@@ -114,7 +121,11 @@ class ContentGenerationUseCase:
             }
         
         # Fetch brand context from database
+        print(f"🔍 Fetching brand context for user_id: {user_id}")
         brand_context = await self.get_brand_context(user_id)
+
+        # Debug log to see what's actually in the brand context
+        print(f"🔍 BRAND CONTEXT DEBUG: {brand_context}")
 
         # Brand field gate: reject early (before credits) if required fields are missing.
         # "Brand-lock": for strict brand relevance across text+images+videos,
@@ -128,6 +139,17 @@ class ContentGenerationUseCase:
         if not (brand_context.get("brand_colors") and len(brand_context.get("brand_colors") or []) >= 2):
             missing.append("brand_colors")
         if missing:
+            # Build user-friendly field names
+            field_labels = {
+                "business_name": "Business Name (complete Location Setup)",
+                "tagline": "Tagline",
+                "tone_of_voice": "Tone of Voice",
+                "restaurant_theme": "Restaurant Theme",
+                "brand_logo_url": "Brand Logo",
+                "brand_colors": "Brand Colors (at least 2)"
+            }
+            missing_labels = [field_labels.get(f, f) for f in missing]
+            
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -135,7 +157,8 @@ class ContentGenerationUseCase:
                     "error": "brand_profile_incomplete",
                     "missing_fields": missing,
                     "message": (
-                        "Your brand profile is incomplete. Please update your brand settings and try again."
+                        f"Missing required fields: {', '.join(missing_labels)}. "
+                        "Complete Brand Settings and Location Setup before generating content."
                     ),
                 },
             )

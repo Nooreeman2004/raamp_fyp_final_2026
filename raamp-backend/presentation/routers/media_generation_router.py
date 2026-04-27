@@ -57,13 +57,24 @@ def _require_brand_lock(ctx: dict):
     if not (ctx.get("brand_colors") and len(ctx.get("brand_colors") or []) >= 2):
         missing.append("brand_colors")
     if missing:
+        # Build user-friendly field names
+        field_labels = {
+            "business_name": "Business Name (complete Location Setup)",
+            "tagline": "Tagline",
+            "tone_of_voice": "Tone of Voice",
+            "restaurant_theme": "Restaurant Theme",
+            "brand_logo_url": "Brand Logo",
+            "brand_colors": "Brand Colors (at least 2)"
+        }
+        missing_labels = [field_labels.get(f, f) for f in missing]
+        
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "success": False,
                 "error": "brand_profile_incomplete",
                 "missing_fields": missing,
-                "message": "Complete Brand Settings (logo + palette + tagline + tone) before generating media.",
+                "message": f"Missing required fields: {', '.join(missing_labels)}. Complete Brand Settings and Location Setup before generating media.",
             },
         )
 

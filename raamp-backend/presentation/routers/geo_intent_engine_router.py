@@ -528,30 +528,53 @@ class GeoCampaignBriefResponse(BaseModel):
 async def _generate_geo_strategy(
     request: GeoCampaignBriefRequest,
     dominant_persona: str,
-    dominant_persona_pct: int
+    dominant_persona_pct: int,
+    business_type: str = ""
 ) -> Dict[str, Any]:
     """Call Gemini for hyper-local multi-variant captions; on failure, use scan-grounded copy."""
     try:
         from application.services.content_generation_service import ContentGenerationService
         generator = ContentGenerationService()
         
-        system_prompt = """You are a hyper-local marketing director. 
+        # Detect if this is a restaurant business
+        is_restaurant = any(keyword in business_type.lower() for keyword in [
+            "restaurant", "cafe", "bakery", "food", "dining", "eatery", "bistro",
+            "grill", "kitchen", "bar", "pub", "diner", "pizzeria", "fast food"
+        ])
+        
+        # Build restaurant-specific instructions if applicable
+        restaurant_instructions = ""
+        if is_restaurant:
+            restaurant_instructions = """
+⚠️ RESTAURANT/FOOD BUSINESS RULES:
+- Use APPETIZING, sensory language: crispy, juicy, aromatic, fresh, savory, delicious
+- Focus on DINING EXPERIENCE and meal occasions (lunch, dinner, brunch, happy hour)
+- Use food-specific terms: "dine-in", "takeout", "delivery", "reservations", "menu"
+- Reference meal times and local food culture
+- Avoid generic business language like "product", "service", "offering"
+- Instead use: "dish", "meal", "menu item", "specialty", "dining experience"
+- Make it MOUTHWATERING and location-aware
+"""
+        
+        system_prompt = f"""You are a hyper-local marketing director. 
 Generate 3 distinct Instagram caption variants optimized for a specific 
 local audience detected by a real-time geo-intelligence scan.
 
-VARAINT TYPES:
+VARIANT TYPES:
 1. Aggressive (High energy, direct focus, strong CTA)
 2. Soft (Informative, community-focused, relaxed tone)
 3. Urgency (FOMO-based, limited time focus)
 
+{restaurant_instructions}
+
 Return JSON only: 
-{
+{{
   "aggressive": "...", 
   "soft": "...", 
   "urgency": "...", 
   "hashtags": ["...", "..."],
   "strategy_rationale": "One sentence explaining why these variants work here."
-}"""
+}}"""
 
         user_prompt = f"""
 Local Intelligence Report:
@@ -634,6 +657,17 @@ async def generate_campaign_brief(
     from application.services.credit_service import get_credit_service
     credit_service = get_credit_service()
     await credit_service.check_and_deduct(current_user_email, "campaign_brief")
+    
+    # 0.5. Fetch business profile to get business_type
+    business_type = ""
+    try:
+        user = await UserModel.find_one(UserModel.email == current_user_email)
+        if user:
+            business = await BusinessRepository().get_by_user_id(str(user.id))
+            if business:
+                business_type = business.business_type or ""
+    except Exception as e:
+        logger.warning(f"Could not fetch business_type: {e}")
 
     # 1. Identify Dominant Persona
     dominant_persona = "General Audience"
@@ -645,18 +679,39 @@ async def generate_campaign_brief(
             dominant_persona = sorted_personas[0].get("type", "General Audience")
             dominant_persona_pct = int(sorted_personas[0].get("pct", 0))
 
-    # 2. Determine Best Time Window (UTC based)
+    # 2. Determine Best Time Window (meal-specific for restaurants, generic for others)
     hour = datetime.utcnow().hour
-    if 5 <= hour < 10:
-        time_window = "Morning (6am–10am) — Commuter window active"
-    elif 10 <= hour < 14:
-        time_window = "Midday (11am–2pm) — Lunch traffic peak"
-    elif 14 <= hour < 18:
-        time_window = "Afternoon (2pm–6pm) — Post-work browsing"
-    elif 18 <= hour < 22:
-        time_window = "Evening (6pm–10pm) — Peak engagement window"
+    
+    # Check if this is a restaurant business
+    is_restaurant = any(keyword in business_type.lower() for keyword in [
+        "restaurant", "cafe", "bakery", "food", "dining", "eatery", "bistro",
+        "grill", "kitchen", "bar", "pub", "diner", "pizzeria", "fast food"
+    ])
+    
+    if is_restaurant:
+        # Meal-specific time windows for restaurants
+        if 7 <= hour < 11:
+            time_window = "Breakfast (7:00 AM - 10:30 AM) — Morning dining rush"
+        elif 11 <= hour < 15:
+            time_window = "Lunch (12:00 PM - 2:30 PM) — Peak lunch traffic"
+        elif 17 <= hour < 19:
+            time_window = "Happy Hour (5:00 PM - 7:00 PM) — After-work crowd"
+        elif 19 <= hour < 22:
+            time_window = "Dinner (7:00 PM - 10:00 PM) — Evening dining peak"
+        else:
+            time_window = "Late Night (10:00 PM - 7:00 AM) — Limited service hours"
     else:
-        time_window = "Late Night (10pm–5am) — Low traffic period"
+        # Generic time windows for non-restaurant businesses
+        if 5 <= hour < 10:
+            time_window = "Morning (6am–10am) — Commuter window active"
+        elif 10 <= hour < 14:
+            time_window = "Midday (11am–2pm) — Lunch traffic peak"
+        elif 14 <= hour < 18:
+            time_window = "Afternoon (2pm–6pm) — Post-work browsing"
+        elif 18 <= hour < 22:
+            time_window = "Evening (6pm–10pm) — Peak engagement window"
+        else:
+            time_window = "Late Night (10pm–5am) — Low traffic period"
 
     # 3. Budget Logic (PKR)
     budget_map = {
@@ -684,7 +739,7 @@ async def generate_campaign_brief(
     deep_link = f"{base_url}?{urlencode(params)}"
 
     # 6. AI Strategy (Multi-variant)
-    ai_strategy = await _generate_geo_strategy(request, dominant_persona, dominant_persona_pct)
+    ai_strategy = await _generate_geo_strategy(request, dominant_persona, dominant_persona_pct, business_type)
     captions = {
         "aggressive": ai_strategy.get("aggressive", ""),
         "soft": ai_strategy.get("soft", ""),

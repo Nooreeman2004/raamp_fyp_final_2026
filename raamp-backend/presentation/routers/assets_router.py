@@ -16,6 +16,7 @@ from presentation.routers.auth_router import get_current_user_email
 from application.constants import PaginationDefaults
 from application.services.cloudinary_service import CloudinaryService
 from application.utils.file_manager import FileManager
+from application.utils.path_resolver import resolve_asset_path
 from infrastructure.repositories.asset_repository import AssetRepository
 from infrastructure.repositories.caption_log_repository import CaptionLogRepository
 from infrastructure.database.models.asset_model import AssetType, GenerationSource, AssetModel
@@ -811,8 +812,9 @@ async def download_asset(
                 detail="Access denied"
             )
         
-        # Check if file exists
-        file_path = Path(asset.file_path)
+        # Check if file exists - handle legacy paths
+        file_path = resolve_asset_path(asset.file_path)
+        
         if not file_path.exists():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -924,8 +926,9 @@ async def delete_asset(
                 detail="Access denied"
             )
         
-        # Delete file from filesystem
-        file_path = Path(asset.file_path)
+        # Delete file from filesystem - handle legacy paths
+        file_path = resolve_asset_path(asset.file_path)
+        
         if file_path.exists():
             file_path.unlink()
         

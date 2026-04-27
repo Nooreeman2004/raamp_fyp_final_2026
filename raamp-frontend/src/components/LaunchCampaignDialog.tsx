@@ -70,27 +70,73 @@ export function LaunchCampaignDialog({
     setMode("post_now");
     setMediaUrl("");
     setMediaFile(null);
-
-    const tags = Array.from(
-      new Set(
-        (prefill?.hashtags || [])
-          .filter((h): h is string => typeof h === "string")
-          .map((h) => toHashtag(h))
-          .filter(Boolean)
-      )
-    ).slice(0, 10);
-
-    const base = [
-      keyword ? `Trend: ${keyword}` : null,
-      niche ? `Niche: ${niche}` : null,
-      location ? `Location: ${location}` : null,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-
-    const suggested = tags.length ? `\n\n${tags.join(" ")}` : "";
-    setCaption(base ? `${base}${suggested}` : `${suggested}`.trim());
     setScheduledTime("");
+
+    // Generate a proper caption using the trend keyword
+    const generateCaption = async () => {
+      if (!keyword) {
+        setCaption("");
+        return;
+      }
+
+      try {
+        // Generate an engaging caption using the content generation API
+        const response = await fetch("/api/content/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            campaign_idea: `Create engaging content about the trending topic: ${keyword}${niche ? ` in the ${niche} niche` : ""}${location ? ` for ${location}` : ""}`,
+            target_audience: niche || "general audience",
+            campaign_tone: "engaging",
+            platform_type: "post",
+            content_type: "captions",
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const firstVariant = data.captions?.[0];
+          if (firstVariant?.text) {
+            // Use the generated caption with relevant hashtags
+            const tags = Array.from(
+              new Set(
+                (prefill?.hashtags || [])
+                  .filter((h): h is string => typeof h === "string")
+                  .map((h) => toHashtag(h))
+                  .filter(Boolean)
+              )
+            ).slice(0, 5);
+            
+            const captionText = firstVariant.text;
+            const hashtagText = tags.length ? `\n\n${tags.join(" ")}` : "";
+            setCaption(`${captionText}${hashtagText}`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to generate caption:", error);
+      }
+
+      // Fallback: Create a simple engaging caption
+      const tags = Array.from(
+        new Set(
+          (prefill?.hashtags || [])
+            .filter((h): h is string => typeof h === "string")
+            .map((h) => toHashtag(h))
+            .filter(Boolean)
+        )
+      ).slice(0, 5);
+
+      const fallbackCaption = keyword
+        ? `🔥 Trending now: ${keyword}! ${location ? `Perfect for ${location}` : "Don't miss out!"}`
+        : "";
+      const hashtagText = tags.length ? `\n\n${tags.join(" ")}` : "";
+      setCaption(`${fallbackCaption}${hashtagText}`);
+    };
+
+    generateCaption();
   }, [open, defaultPlatform, keyword, niche, location, prefill?.hashtags]);
 
   const uploadAndGetUrl = async (): Promise<string> => {

@@ -51,7 +51,7 @@ class TrendSignalModel(Document):
     
     # Metadata
     fetch_status: str = Field(default="pending", description="Status: pending, processing, completed, failed")
-    progress_step: str = Field(default="Initializing...", description="Current step in the detection pipeline")
+    progress_step: str = Field(default="Starting...", description="Current step in the detection pipeline")
     error_message: Optional[str] = Field(None, description="Error message if fetch failed")
     fetched_at: Optional[datetime] = Field(None, description="Timestamp when data was successfully fetched")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")

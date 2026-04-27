@@ -126,3 +126,23 @@ export const getRetryDelay = (attempt: number, baseDelay: number = 1000): number
   return Math.min(baseDelay * Math.pow(2, attempt), 10000);
 };
 
+/**
+ * Checks if an error is an authentication error that should be handled silently
+ */
+export const isAuthError = (error: unknown): boolean => {
+  const apiError = error as ApiError;
+  
+  // Check status code
+  if (apiError?.status === 401) {
+    return true;
+  }
+  
+  // Check error message
+  const message = apiError?.message || (error instanceof Error ? error.message : String(error));
+  const lowerMessage = message?.toLowerCase() || '';
+  
+  return lowerMessage.includes('authentication') || 
+         lowerMessage.includes('unauthorized') ||
+         lowerMessage.includes('please log in');
+};
+

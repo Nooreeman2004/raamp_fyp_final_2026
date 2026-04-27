@@ -56,6 +56,52 @@ class GoogleTrendsService:
     
     # Niche-to-keywords mapping (keep as general topics, not "X trends" phrases).
     NICHE_KEYWORDS = {
+        # Restaurant & Food Service (PRIORITY - most optimized)
+        "restaurant": [
+            "restaurant menu ideas",
+            "food trends",
+            "restaurant marketing",
+            "dining experience",
+            "food plating",
+            "restaurant specials",
+            "seasonal menu",
+            "food photography",
+            "restaurant ambiance",
+            "chef specials",
+        ],
+        "cafe": [
+            "cafe menu",
+            "coffee drinks",
+            "cafe aesthetic",
+            "brunch ideas",
+            "coffee shop vibes",
+            "latte art",
+            "pastries",
+            "cafe interior",
+            "specialty coffee",
+            "breakfast menu",
+        ],
+        "bakery": [
+            "bakery items",
+            "fresh bread",
+            "pastry ideas",
+            "cake designs",
+            "artisan bread",
+            "bakery display",
+            "dessert trends",
+            "sourdough",
+            "croissants",
+            "bakery packaging",
+        ],
+        "food": [
+            "food trends",
+            "recipes",
+            "restaurant near me",
+            "food delivery",
+            "meal ideas",
+            "cooking tips",
+        ],
+        
         # Fashion needs broader seeds to reliably yield related/rising queries.
         # Keep these as high-level topics people actually search (not "X trends" phrases).
         "fashion": [
@@ -72,7 +118,6 @@ class GoogleTrendsService:
             "fashion brands",
             "online shopping",
         ],
-        "food": ["recipes", "restaurant near me"],
         "tech": ["technology", "AI"],
         "crypto": ["cryptocurrency", "bitcoin"],
         "fitness": ["fitness", "workout"],

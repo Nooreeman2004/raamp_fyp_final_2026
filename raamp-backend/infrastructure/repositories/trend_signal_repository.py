@@ -92,7 +92,7 @@ class TrendSignalRepository(ITrendSignalRepository):
             
             if status == "completed":
                 model.fetched_at = datetime.utcnow()
-                model.progress_step = "Scan Complete."
+                model.progress_step = "Complete!"
             
             await model.save()
             return True

@@ -187,3 +187,29 @@ class PlatformInfo(BaseModel):
 class PlatformsResponse(BaseModel):
     """Response payload for GET /api/content/platforms."""
     platforms: List[PlatformInfo] = Field(default_factory=list)
+
+
+# ============================================================================
+# SIMPLIFIED TRENDS - QUICK POST GENERATION
+# ============================================================================
+
+class GenerateFromTrendRequest(BaseModel):
+    """Request to generate content from a trending topic (simplified for restaurant owners)"""
+    topic: str = Field(..., description="The trending topic to create content about")
+    location: str = Field(default="GLOBAL", description="Geographic location context")
+    niche: str = Field(default="restaurant", description="Business niche/industry")
+    business_type: str = Field(default="restaurant", description="Type of business (restaurant, cafe, bakery, etc.)")
+    count: int = Field(default=3, ge=1, le=5, description="Number of caption variants to generate")
+
+
+class TrendCaptionVariant(BaseModel):
+    """A single caption variant with hashtags for trending topics"""
+    caption: str = Field(..., description="The post caption text (under 80 words, sensory language, CTA)")
+    hashtags: List[str] = Field(default_factory=list, description="3-5 suggested hashtags (without # symbol)")
+
+
+class GenerateFromTrendResponse(BaseModel):
+    """Response containing caption variants for a trending topic"""
+    variants: List[TrendCaptionVariant] = Field(..., description="List of caption variants")
+    topic: str = Field(..., description="The topic these captions are about")
+    generated_at: str = Field(..., description="Timestamp when generated")

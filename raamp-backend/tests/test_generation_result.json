@@ -1,0 +1,187 @@
+{
+  "success": true,
+  "platform_type": "post",
+  "caption_variants": [
+    {
+      "id": 1,
+      "caption_id": "3fd5527b-575f-4621-955a-a03b80dbd5b9",
+      "tone": "Vibrant",
+      "caption": "Hungry? This will change everything 👀\nDive into our fluffy pancakes topped with fresh berries at Bella Italia.\nAuthentic Italian flavors in the heart of Karachi.\nTag your foodie friend who needs to try this!",
+      "hashtags": [
+        "#BellaItalia",
+        "#BrunchKarachi",
+        "#FluffyPancakes",
+        "#KarachiFoodies",
+        "#ItalianBrunch",
+        "#Delicious"
+      ],
+      "predicted_performance": "Moderate",
+      "ml_score": {
+        "engagement_rate": 0.038,
+        "score_label": "Moderate",
+        "confidence": "Medium",
+        "feature_importances": {
+          "hour_posted": 0.4429,
+          "word_count": 0.1862,
+          "caption_length": 0.094,
+          "vader_pos": 0.0782,
+          "has_cta": 0.0674
+        },
+        "model_available": true
+      },
+      "ml_hashtags": [
+        "#chocolatewasted",
+        "#lavacakelove",
+        "#bakersofinstagram",
+        "#ourbrandeats",
+        "#cheatdaydoneright",
+        "#dessertporn",
+        "#bogo",
+        "#dessertlovers",
+        "#coffeetime",
+        "#sweetdeals"
+      ],
+      "hashtag_source": "ml_cluster_4"
+    },
+    {
+      "id": 2,
+      "caption_id": "7dada72b-e071-47a7-8c49-d89c3f6b0037",
+      "tone": "Informative",
+      "caption": "Our secret ingredient? Aromatic maple syrup and love 🥞\nExperience a warm and inviting weekend brunch specialty at Bella Italia.\nAuthentic Italian flavors in the heart of Karachi.\nSave this spot for your next date night 💕",
+      "hashtags": [
+        "#BellaItalia",
+        "#KarachiEats",
+        "#WeekendBrunch",
+        "#ItalianFlavors",
+        "#KarachiFood",
+        "#PancakeLover"
+      ],
+      "predicted_performance": "Moderate",
+      "ml_score": {
+        "engagement_rate": 0.0328,
+        "score_label": "Moderate",
+        "confidence": "Medium",
+        "feature_importances": {
+          "hour_posted": 0.4429,
+          "word_count": 0.1862,
+          "caption_length": 0.094,
+          "vader_pos": 0.0782,
+          "has_cta": 0.0674
+        },
+        "model_available": true
+      },
+      "ml_hashtags": [
+        "#chocolatewasted",
+        "#lavacakelove",
+        "#bakersofinstagram",
+        "#ourbrandeats",
+        "#cheatdaydoneright",
+        "#dessertporn",
+        "#bogo",
+        "#dessertlovers",
+        "#coffeetime",
+        "#sweetdeals"
+      ],
+      "hashtag_source": "ml_cluster_4"
+    },
+    {
+      "id": 3,
+      "caption_id": "92d7a5d0-d9d0-4195-84fc-1cc43e428bfd",
+      "tone": "Playful",
+      "caption": "This dish sold out in 2 hours... 🍽️\nGet your fix of fresh berries and savory-sweet fluffy pancakes at Bella Italia.\nAuthentic Italian flavors in the heart of Karachi.\nDrop a 🍕 if you're hungry now!",
+      "hashtags": [
+        "#BellaItalia",
+        "#BrunchTime",
+        "#Pancakes",
+        "#KarachiLife",
+        "#Foodie",
+        "#SundayBrunch"
+      ],
+      "predicted_performance": "Moderate",
+      "ml_score": {
+        "engagement_rate": 0.0404,
+        "score_label": "Moderate",
+        "confidence": "Low",
+        "feature_importances": {
+          "hour_posted": 0.4429,
+          "word_count": 0.1862,
+          "caption_length": 0.094,
+          "vader_pos": 0.0782,
+          "has_cta": 0.0674
+        },
+        "model_available": true
+      },
+      "ml_hashtags": [
+        "#chocolatewasted",
+        "#lavacakelove",
+        "#bakersofinstagram",
+        "#ourbrandeats",
+        "#cheatdaydoneright",
+        "#dessertporn",
+        "#bogo",
+        "#dessertlovers",
+        "#coffeetime",
+        "#sweetdeals"
+      ],
+      "hashtag_source": "ml_cluster_4"
+    }
+  ],
+  "best_caption_id": 3,
+  "hashtag_sets": [],
+  "best_hashtag_set_id": 1,
+  "whatsapp_variants": [
+    {
+      "id": 1,
+      "message_id": "",
+      "tone": "N/A",
+      "message": "",
+      "predicted_performance": "N/A"
+    }
+  ],
+  "email_variants": [
+    {
+      "id": 1,
+      "message_id": "",
+      "tone": "N/A",
+      "message": "",
+      "predicted_performance": "N/A"
+    }
+  ],
+  "message_variants": [
+    {
+      "id": 1,
+      "message_id": "5a021371-2830-493a-a6e7-26f44a6b1f8c",
+      "tone": "Professional",
+      "message": "Subject: A Warm Invitation to Weekend Brunch at Bella Italia\n\nBody: Dear Guest, we invite you to experience a refined dining experience this weekend. Our chefs have prepared a specialty meal featuring fluffy pancakes drizzled with maple syrup and topped with fresh, aromatic berries.\n\nBella Italia offers a rustic Italian trattoria ambiance where you can enjoy authentic Italian flavors in the heart of Karachi. We look forward to hosting you and your loved ones for this delicious brunch.\n\nRegards,\nTeam Bella Italia\nAuthentic Italian flavors in the heart of Karachi",
+      "predicted_performance": "High"
+    },
+    {
+      "id": 2,
+      "message_id": "6375125f-2436-49a5-9062-7da2d84d9208",
+      "tone": "Informative",
+      "message": "Subject: Exciting news from Bella Italia!\n\nBody: Hi there, we are thrilled to announce our latest Weekend brunch special: fluffy pancakes  initiative.\n\nRegards, Team Bella Italia\nAuthentic Italian flavors in the heart of Karachi",
+      "predicted_performance": "Good"
+    },
+    {
+      "id": 3,
+      "message_id": "b3c9d0b8-622b-4711-8e2d-d85c43b44567",
+      "tone": "Direct",
+      "message": "Subject: Exciting news from Bella Italia!\n\nBody: Hi there, we are thrilled to announce our latest Weekend brunch special: fluffy pancakes  initiative.\n\nRegards, Team Bella Italia\nAuthentic Italian flavors in the heart of Karachi",
+      "predicted_performance": "Good"
+    }
+  ],
+  "best_message_id": 1,
+  "image_prompts": [
+    "A high-angle, professional food photography shot of a stack of fluffy pancakes topped with glistening maple syrup and vibrant fresh berries. The dish is served on a white ceramic plate (#FFFFFF) inside a rustic Italian trattoria setting. The background features warm wood textures and subtle accents of red (#C41E3A) and green (#009246) napkins. A small, elegant Bella Italia logo is placed in the bottom right corner as a watermark.",
+    "A close-up, sensory shot of maple syrup being poured over thick, aromatic pancakes at Bella Italia. The steam is visible, suggesting a fresh-from-the-kitchen meal. The color palette is strictly #C41E3A, #009246, and #FFFFFF, reflected in the garnish and table setting. The image includes a branded end-card with the text 'Authentic Italian flavors in the heart of Karachi' in elegant typography.",
+    "A lifestyle shot of a cozy table at Bella Italia in Karachi. A delicious brunch specialty of pancakes and berries sits center stage. The lighting is warm and inviting, highlighting the textures of the food. The brand identity is reinforced with a green (#009246) and red (#C41E3A) striped menu card featuring the Bella Italia logo visible on the side."
+  ],
+  "image_paths": [],
+  "asset_ids": [],
+  "image_generation_prompt": "",
+  "reasoning": "",
+  "validation_warnings": [],
+  "logo_used": null,
+  "logo_warning": null,
+  "generated_at": "2026-04-25T16:38:59.180487+00:00"
+}

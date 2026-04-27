@@ -10,6 +10,7 @@ import { Zap, Sparkles, Image, FileText, MessageSquare, Copy, Check, Loader2, Tr
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { API_ORIGIN, getMediaUrl } from "@/config/apiUtils";
+import { isAuthError } from "@/utils/errorHandler";
 
 // Animation Imports
 import { motion } from "framer-motion";
@@ -31,6 +32,10 @@ import {
   type MediaGenerationResponse
 } from "@/services/mediaGenerationService";
 import { assetService } from "@/services/assetService";
+import { RestaurantTemplatePicker } from "@/components/RestaurantTemplatePicker";
+import { ImageTemplatePicker } from "@/components/ImageTemplatePicker";
+import { VideoTemplatePicker } from "@/components/VideoTemplatePicker";
+import { getVariantExplanation, getHashtagExplanation } from "@/constants/contentExplanations";
 
 type Variant = {
   id: number;
@@ -93,20 +98,25 @@ const CreativeStudio = () => {
   const [videoIdea, setVideoIdea] = useState("");
   const [videoDuration, setVideoDuration] = useState(8); // Default 8 seconds (max allowed by API)
 
-  // Prompt placeholder per content type
+  // Prompt placeholder per content type - restaurant-focused
   const getPromptPlaceholder = () => {
     switch (contentType) {
       case 'captions':
-        return 'E.g., "Launch our new matcha latte collection — highlight the health benefits and premium ingredients for health-conscious urban millennials aged 25-35."';
+        return 'E.g., "Launching our new Butter Chicken Pizza - fusion of Indian spices with Italian classic. Perfect for adventurous food lovers."';
       case 'hashtags':
-        return 'E.g., "Local artisan bakery in Lahore specialising in sourdough and croissants — targeting foodies and health-conscious customers. Growing to 10K followers."';
+        return 'E.g., "Family restaurant in Karachi specializing in BBQ and traditional Pakistani cuisine. Targeting families and food enthusiasts."';
       case 'whatsapp':
-        return 'E.g., "Weekend flash sale: 30% off all items this Saturday only — send an exciting broadcast to our WhatsApp customer list to drive foot traffic."';
+        return 'E.g., "Weekend special: 25% off all family platters this Saturday and Sunday. Limited time offer for our WhatsApp customers!"';
       case 'emails':
-        return 'E.g., "Monthly newsletter for our organic skincare brand — announce the new summer collection, feature bestsellers, and include an exclusive subscribers-only discount code SUMMER20."';
+        return 'E.g., "Monthly newsletter: New seasonal menu, customer favorites, and exclusive 15% discount code for email subscribers."';
       default: // 'all'
-        return 'E.g., "Create a summer promotion campaign for our new smoothie line targeting health-conscious millennials in urban areas. Emphasise organic ingredients and sustainability."';
+        return 'E.g., "Promote our new lunch buffet - all-you-can-eat for Rs. 999, available weekdays 12-3pm. Target office workers in the area."';
     }
+  };
+
+  // Handle template selection
+  const handleTemplateSelect = (templatePrompt: string) => {
+    setCampaignIdea(templatePrompt);
   };
 
   // Helper to get full image URL
@@ -177,31 +187,31 @@ const CreativeStudio = () => {
   // Handle content generation
   const handleGenerateContent = async () => {
     if (!campaignIdea.trim()) {
-      toast.error("Campaign Idea Required", {
-        description: "Please enter a campaign idea before generating content."
+      toast.error("Campaign Idea Needed", {
+        description: "Tell us what you want to promote! Try clicking 'Use Template' for ideas."
       });
       return;
     }
 
     if (campaignIdea.trim().length < 10) {
-      toast.error("Campaign Idea Too Short", {
-        description: "Please provide a more detailed campaign description (at least 10 characters)."
+      toast.error("Add More Details", {
+        description: "Give us a bit more information (at least 10 characters). Example: 'New lunch special - chicken tikka wrap for Rs. 299'"
       });
       return;
     }
 
     setIsGenerating(true);
+    const loadingToastId = toast.info("Generating Content...", {
+      description: `AI is creating your ${contentType} content. This may take 10-15 seconds.`,
+      duration: 15000
+    });
+    
     try {
       console.log("🚀 Starting content generation:", {
         campaign_idea: campaignIdea.trim().substring(0, 50) + "...",
         aspect_ratio: aspectRatio,
         content_type: contentType,
         timestamp: new Date().toISOString()
-      });
-
-      toast.info("Generating Content...", {
-        description: `AI is creating your ${contentType} content. This may take 10-15 seconds.`,
-        duration: 15000
       });
 
       const response = await contentGenerationService.generateContent({
@@ -217,11 +227,17 @@ const CreativeStudio = () => {
         whatsapp_variants: response.whatsapp_variants?.length || 0,
         email_variants: response.email_variants?.length || 0,
         image_paths: response.image_paths?.length || 0,
-        generated_at: response.generated_at
+        generated_at: response.generated_at,
+        full_response: response
       });
 
       setGeneratedContent(response);
       setHasGeneratedContent(true);
+      
+      console.log("✅ State updated:", {
+        hasGeneratedContent: true,
+        generatedContent: response
+      });
 
       // Auto-set AI recommendation based on ML best variant
       if (contentType === 'captions') {
@@ -244,6 +260,7 @@ const CreativeStudio = () => {
         setImageAssetMap(prev => new Map([...prev, ...newMap]));
       }
 
+      toast.dismiss(loadingToastId);
       toast.success("Content Generated Successfully!", {
         description: `View your AI-generated variants for Instagram, Ad Copy, and WhatsApp.`,
         duration: 5000
@@ -256,11 +273,32 @@ const CreativeStudio = () => {
         timestamp: new Date().toISOString()
       });
       
+      toast.dismiss(loadingToastId);
+      
+      // Suppress auth errors - let the global auth handler deal with them
+      if (isAuthError(error)) {
+        console.log('[CreativeStudio] Auth error detected, suppressing toast');
+        return;
+      }
+      
       const msg = error instanceof Error ? error.message : String(error);
       
-      // Show detailed error to user
+      // Show detailed error to user with actionable guidance
+      let userMessage = "Something went wrong while creating your content.";
+      
+      if (msg?.includes("brand_profile_incomplete") || msg?.includes("missing_fields") || msg?.includes("Missing required fields")) {
+        // Use the detailed backend error message if available
+        userMessage = msg;
+      } else if (msg?.includes("credit") || msg?.includes("insufficient")) {
+        userMessage = "You need more credits to generate content. Go to Settings → Billing to top up.";
+      } else if (msg?.includes("network") || msg?.includes("timeout")) {
+        userMessage = "Connection issue. Check your internet and try again.";
+      } else if (msg) {
+        userMessage = msg;
+      }
+      
       toast.error("Content Generation Failed", {
-        description: msg || "Unable to create content. Check console for details.",
+        description: userMessage,
         duration: 10000
       });
     } finally {
@@ -271,15 +309,15 @@ const CreativeStudio = () => {
   // Handle Reel/Video generation
   const handleGenerateReel = async () => {
     if (!videoIdea.trim()) {
-      toast.error("Reel Idea Required", {
-        description: "Please describe your Reel idea before generating."
+      toast.error("Reel Idea Needed", {
+        description: "Describe your Reel! Example: 'Show our chef making biryani with trending music'"
       });
       return;
     }
 
     if (videoIdea.trim().length < 10) {
-      toast.error("Reel Idea Too Short", {
-        description: "Please provide more details about your Reel (at least 10 characters)."
+      toast.error("Add More Details", {
+        description: "Give us more to work with (at least 10 characters). What should the Reel show?"
       });
       return;
     }
@@ -311,7 +349,7 @@ const CreativeStudio = () => {
         ? "API quota exceeded. Please try again later or upgrade your plan."
         : error instanceof Error && error.message.includes('401')
           ? "Authentication failed. Please log in again."
-          : "Reel generation failed. Please check your connection and try again.";
+          : "Reel generation failed. Check your internet connection and try again.";
 
       toast.error("Reel Generation Failed", {
         description: errorMessage,
@@ -324,15 +362,15 @@ const CreativeStudio = () => {
 
   const handleGenerateVideo = async () => {
     if (!videoIdea.trim()) {
-      toast.error("Video Idea Required", {
-        description: "Please describe your video idea before generating."
+      toast.error("Video Idea Needed", {
+        description: "Describe your video! Example: 'Show our restaurant interior and happy customers dining'"
       });
       return;
     }
 
     if (videoIdea.trim().length < 10) {
-      toast.error("Video Idea Too Short", {
-        description: "Please provide more details about your video (at least 10 characters)."
+      toast.error("Add More Details", {
+        description: "Give us more to work with (at least 10 characters). What should the video show?"
       });
       return;
     }
@@ -375,7 +413,7 @@ const CreativeStudio = () => {
         ? "API quota exceeded. Please try again later or upgrade your plan."
         : error instanceof Error && error.message.includes('401')
           ? "Authentication failed. Please log in again."
-          : "Video generation failed. Please check your connection and try again.";
+          : "Video generation failed. Check your internet connection and try again.";
 
       toast.error("Video Generation Failed", {
         description: errorMessage,
@@ -389,8 +427,8 @@ const CreativeStudio = () => {
   const handleGenerateImages = async (skipDialog = false) => {
     const basePrompt = imageIdea.trim() || campaignIdea.trim();
     if (!basePrompt) {
-      toast.error("Image Idea Required", {
-        description: "Enter an image description or fill in the campaign idea above."
+      toast.error("Image Idea Needed", {
+        description: "Describe what image you want, or fill in the campaign idea above first."
       });
       return;
     }
@@ -444,7 +482,7 @@ const CreativeStudio = () => {
     } catch (error) {
       console.error("Image generation failed:", error);
       toast.error("Image Generation Failed", {
-        description: "Unable to generate images. Please check your connection and try again."
+        description: "Couldn't create images. Check your internet connection and try again."
       });
     } finally {
       setIsGeneratingImages(false);
@@ -487,8 +525,8 @@ const CreativeStudio = () => {
 
   const openDialog = (assetType: AssetType) => {
     if (!hasGeneratedContent) {
-      toast.error("No Content Generated", {
-        description: "Please generate content first by clicking 'Generate Creative Brief'."
+      toast.error("Generate Content First", {
+        description: "Click the 'Generate Creative Brief' button above to create content, then you can view it here."
       });
       return;
     }
@@ -563,8 +601,8 @@ const CreativeStudio = () => {
       }
       toast.success("Copied to clipboard!");
     } catch (error) {
-      toast.error("Failed to Copy", {
-        description: "Unable to copy to clipboard. Please try again.",
+      toast.error("Copy Failed", {
+        description: "Couldn't copy to clipboard. Try selecting the text and copying manually (Ctrl+C).",
       });
     }
   }, [selectedAsset]);
@@ -632,13 +670,18 @@ const CreativeStudio = () => {
           {/* Campaign Idea Input */}
           <motion.div variants={fadeInUp}>
             <HolographicCard className="p-6 h-full border-primary/30">
-              <h2 className="text-xl font-bold mb-2 flex items-center gap-2 font-heading font-semibold text-foreground">
-                <Sparkles className="w-5 h-5 text-primary" />
-                CAMPAIGN IDEA INPUT
-              </h2>
-              <p className="text-xs text-muted-foreground mb-4 font-mono">
-                  // DESCRIBE VISION // NATURAL LANGUAGE PROCESSING ACTIVE
-              </p>
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2 font-heading font-semibold text-foreground">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    CAMPAIGN IDEA INPUT
+                  </h2>
+                  <p className="text-xs text-muted-foreground font-mono">
+                      // DESCRIBE VISION // NATURAL LANGUAGE PROCESSING ACTIVE
+                  </p>
+                </div>
+                <RestaurantTemplatePicker onSelectTemplate={handleTemplateSelect} />
+              </div>
 
               {/* Content Parameters */}
               <div className="mb-4 space-y-3">
@@ -662,12 +705,20 @@ const CreativeStudio = () => {
                 </div>
               </div>
 
-              <Textarea
-                placeholder={getPromptPlaceholder()}
-                value={campaignIdea}
-                onChange={(e) => setCampaignIdea(e.target.value)}
-                className="min-h-40 mb-4 bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
-              />
+              <div className="mb-2">
+                <label className="text-[10px] font-mono text-muted-foreground/80 mb-1 block">
+                  CAMPAIGN DESCRIPTION
+                </label>
+                <Textarea
+                  placeholder={getPromptPlaceholder()}
+                  value={campaignIdea}
+                  onChange={(e) => setCampaignIdea(e.target.value)}
+                  className="min-h-40 bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
+                />
+                <p className="text-[10px] text-muted-foreground/60 mt-1 font-mono">
+                  💡 Click "Use Template" above for quick-start ideas
+                </p>
+              </div>
               <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
                 <Button
                   onClick={handleGenerateContent}
@@ -872,14 +923,19 @@ const CreativeStudio = () => {
           animate="visible"
         >
           <HolographicCard className="p-6 border-primary/30">
-            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 font-heading font-semibold text-foreground">
-              <Image className="w-6 h-6 text-primary" />
-              IMAGE GENERATION
-            </h2>
-            <p className="text-xs text-muted-foreground mb-6 font-mono">
-              // AI-POWERED IMAGE CREATION // ASPECT RATIO CONTROL
-            </p>
-            <div className="grid lg:grid-cols-2 gap-6">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2 font-heading font-semibold text-foreground">
+                  <Image className="w-6 h-6 text-primary" />
+                  IMAGE GENERATION
+                </h2>
+                <p className="text-xs text-muted-foreground font-mono">
+                  // AI-POWERED IMAGE CREATION // ASPECT RATIO CONTROL
+                </p>
+              </div>
+              <ImageTemplatePicker onSelectTemplate={(prompt) => setImageIdea(prompt)} />
+            </div>
+            <div className="grid lg:grid-cols-2 gap-6 mt-6">
               {/* Input Section */}
               <div>
                 <div className="mb-4">
@@ -899,18 +955,45 @@ const CreativeStudio = () => {
 
                 <div className="mb-4">
                   <label className="text-xs font-mono text-muted-foreground mb-2 block">
-                    ASPECT RATIO
+                    WHERE WILL YOU POST THIS?
                   </label>
                   <Select value={aspectRatio} onValueChange={(value: '1:1' | '9:16' | '4:5') => setAspectRatio(value)}>
                     <SelectTrigger className="w-full bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border/50">
-                      <SelectItem value="1:1" className="font-mono text-sm text-foreground"><ThemeEmoji name="square" className="mr-1" /> 1:1 — Square</SelectItem>
-                      <SelectItem value="9:16" className="font-mono text-sm text-foreground"><ThemeEmoji name="ruler" className="mr-1" /> 9:16 — Vertical</SelectItem>
-                      <SelectItem value="4:5" className="font-mono text-sm text-foreground"><ThemeEmoji name="frame" className="mr-1" /> 4:5 — Portrait</SelectItem>
+                      <SelectItem value="1:1" className="font-mono text-sm text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">📱</span>
+                          <div className="flex flex-col items-start">
+                            <span className="font-semibold">Instagram Feed</span>
+                            <span className="text-[10px] text-muted-foreground">Square photo (1:1)</span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="9:16" className="font-mono text-sm text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">📲</span>
+                          <div className="flex flex-col items-start">
+                            <span className="font-semibold">Instagram Story</span>
+                            <span className="text-[10px] text-muted-foreground">Full screen vertical (9:16)</span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="4:5" className="font-mono text-sm text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">🖼️</span>
+                          <div className="flex flex-col items-start">
+                            <span className="font-semibold">Instagram Portrait</span>
+                            <span className="text-[10px] text-muted-foreground">Tall photo (4:5)</span>
+                          </div>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-[10px] text-muted-foreground/60 mt-1 font-mono">
+                    💡 Choose based on where you'll share this image
+                  </p>
                 </div>
 
                 <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
@@ -937,7 +1020,7 @@ const CreativeStudio = () => {
                   <p className="text-[10px] text-primary font-mono font-bold mb-1">⚡ IMAGE GENERATION INFO:</p>
                   <ul className="text-[10px] text-muted-foreground font-mono space-y-1">
                     <li>• Generates <span className="text-primary">3 image variations</span> per request</li>
-                    <li>• Select aspect ratio to match your platform (Square, Vertical, Portrait)</li>
+                    <li>• Choose platform based on where you'll post (Feed, Story, or Portrait)</li>
                     <li>• <span className="text-amber-400">Generation time: 10-20 seconds</span></li>
                   </ul>
                 </div>
@@ -1085,15 +1168,20 @@ const CreativeStudio = () => {
           animate="visible"
         >
           <HolographicCard className="p-6 border-primary/30">
-            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 font-heading font-semibold text-foreground">
-              <Video className="w-6 h-6 text-primary" />
-              VIDEO & REEL GENERATION
-            </h2>
-            <p className="text-xs text-muted-foreground mb-6 font-mono">
-              // GENERATE INSTAGRAM REELS (9:16 VERTICAL) OR VIDEOS (16:9 HORIZONTAL) // 4-8 SECONDS
-            </p>
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2 font-heading font-semibold text-foreground">
+                  <Video className="w-6 h-6 text-primary" />
+                  VIDEO & REEL GENERATION
+                </h2>
+                <p className="text-xs text-muted-foreground font-mono">
+                  // GENERATE INSTAGRAM REELS (9:16 VERTICAL) OR VIDEOS (16:9 HORIZONTAL) // 4-8 SECONDS
+                </p>
+              </div>
+              <VideoTemplatePicker onSelectTemplate={(prompt) => setVideoIdea(prompt)} />
+            </div>
 
-            <div className="grid lg:grid-cols-2 gap-6">
+            <div className="grid lg:grid-cols-2 gap-6 mt-6">
               {/* Input Section */}
               <div>
                 <div className="mb-4">
@@ -1245,7 +1333,7 @@ const CreativeStudio = () => {
                               }).catch(() => {
                                 toast.dismiss(downloadToast);
                                 toast.error("Download Failed", {
-                                  description: "Unable to download video. Please try again or check your connection."
+                                  description: "Couldn't download the video. Check your internet connection and try again."
                                 });
                               });
                             }}
@@ -1420,6 +1508,51 @@ const CreativeStudio = () => {
                           {variant.tone}
                         </p>
                       </div>
+
+                      {/* VARIANT EXPLANATION - NEW for Restaurant Owners */}
+                      {selectedAsset === "captions" && (() => {
+                        const explanation = getVariantExplanation(variant.id, variant.tone);
+                        return (
+                          <div className="mb-4 p-3 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-lg">
+                            <div className="flex items-start gap-2 mb-1">
+                              <span className="text-lg">{explanation.icon}</span>
+                              <div className="flex-1">
+                                <h4 className="text-xs font-bold text-foreground">{explanation.title}</h4>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">{explanation.description}</p>
+                              </div>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-primary/10">
+                              <p className="text-[9px] text-primary/70 font-mono">
+                                ✓ {explanation.bestFor}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* HASHTAG STRATEGY EXPLANATION - NEW for Restaurant Owners */}
+                      {selectedAsset === "hashtags" && (() => {
+                        const explanation = getHashtagExplanation(variant.id, variant.tone);
+                        return (
+                          <div className="mb-4 p-3 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-lg">
+                            <div className="flex items-start gap-2 mb-1">
+                              <span className="text-lg">{explanation.icon}</span>
+                              <div className="flex-1">
+                                <h4 className="text-xs font-bold text-foreground">{explanation.title}</h4>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">{explanation.description}</p>
+                              </div>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-primary/10">
+                              <p className="text-[9px] text-primary/70 font-mono uppercase tracking-wide">
+                                Purpose: {explanation.purpose}
+                              </p>
+                              <p className="text-[9px] text-muted-foreground/70 font-mono mt-1">
+                                💡 {explanation.whenToUse}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* ML PERFORMANCE METRIC - NEW */}
                       {variant.ml_score && (

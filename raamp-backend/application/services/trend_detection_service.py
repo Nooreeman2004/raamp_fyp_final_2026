@@ -9,6 +9,7 @@ import os
 from application.services.google_trends_service import GoogleTrendsService
 from application.services.notification_service import NotificationService
 from application.services.instagram_graph_api_service import InstagramGraphAPIClient
+from application.services.trend_simplification_service import TrendSimplificationService
 from infrastructure.database.models.user_model import UserModel
 from infrastructure.database.models.business_model import BusinessModel
 from infrastructure.database.models.notification_model import NotificationType
@@ -44,6 +45,99 @@ class TrendDetectionService:
             alpha=float(getattr(app_config, "TREND_EWMA_ALPHA", 0.3) or 0.3),
             min_data_points=int(getattr(app_config, "TREND_MIN_DATA_POINTS", 5) or 5),
         )
+
+    def _generate_relevant_hashtags(self, keyword: str, niche: str) -> list[str]:
+        """
+        Generate relevant hashtags based on the trend keyword.
+        Prioritizes trend-specific hashtags over business niche hashtags.
+        Only adds niche hashtags if they're contextually relevant to the trend.
+        """
+        hashtags = []
+        keyword_lower = keyword.lower()
+        
+        # Add the main keyword hashtag
+        keyword_clean = keyword.replace(' ', '').replace('-', '')
+        if keyword_clean:
+            hashtags.append(f"#{keyword_clean}")
+        
+        # Add individual words from multi-word keywords
+        keyword_words = [w.strip() for w in keyword.split() if len(w.strip()) > 3]
+        for word in keyword_words[:2]:  # Limit to first 2 words
+            word_clean = word.replace('-', '')
+            if word_clean:
+                hashtags.append(f"#{word_clean}")
+        
+        # Detect trend category from keyword content (not user's business niche)
+        trend_category_map = {
+            "sports": ["cricket", "football", "soccer", "basketball", "tennis", "match", "game", "vs", "league", "tournament"],
+            "fashion": ["fashion", "style", "outfit", "ootd", "clothing", "apparel", "wear", "dress"],
+            "food": ["food", "recipe", "cooking", "meal", "dish", "cuisine", "delicious"],
+            "tech": ["tech", "technology", "ai", "software", "app", "digital", "innovation"],
+            "fitness": ["fitness", "workout", "gym", "exercise", "health", "training"],
+            "beauty": ["beauty", "makeup", "skincare", "cosmetic", "hair"],
+            "travel": ["travel", "trip", "vacation", "destination", "tourism"],
+        }
+        
+        detected_category = None
+        for category, patterns in trend_category_map.items():
+            if any(pattern in keyword_lower for pattern in patterns):
+                detected_category = category
+                break
+        
+        # Add category-specific hashtags ONLY if they match the trend content
+        category_hashtags = {
+            "sports": ["#sports", "#game", "#competition"],
+            "fashion": ["#fashion", "#style", "#ootd"],
+            "food": ["#foodie", "#foodlover", "#instafood"],
+            "tech": ["#tech", "#technology", "#innovation"],
+            "fitness": ["#fitness", "#workout", "#health"],
+            "beauty": ["#beauty", "#makeup", "#skincare"],
+            "travel": ["#travel", "#wanderlust", "#explore"],
+        }
+        
+        if detected_category and detected_category in category_hashtags:
+            hashtags.extend(category_hashtags[detected_category][:2])
+        
+        # Add trending/viral hashtags
+        hashtags.extend(["#trending", "#viral"])
+        
+        # Remove duplicates while preserving order (case-insensitive)
+        seen = set()
+        unique_hashtags = []
+        for tag in hashtags:
+            tag_lower = tag.lower()
+            if tag_lower not in seen:
+                seen.add(tag_lower)
+                unique_hashtags.append(tag)
+        
+        # Return top 8 hashtags
+        return unique_hashtags[:8]
+    
+    def _detect_trend_category(self, keyword: str) -> str:
+        """
+        Detect the actual category/niche of a trend based on its keyword content.
+        Returns the detected category or "general" if no specific category is detected.
+        """
+        keyword_lower = keyword.lower()
+        
+        # Category detection patterns
+        category_patterns = {
+            "sports": ["cricket", "football", "soccer", "basketball", "tennis", "match", "game", "vs", "league", "tournament", "fifa", "uefa", "premier", "champions"],
+            "politics": ["election", "government", "minister", "president", "parliament", "political", "vote", "campaign", "party"],
+            "entertainment": ["movie", "film", "actor", "actress", "celebrity", "music", "concert", "show", "series", "netflix"],
+            "fashion": ["fashion", "style", "outfit", "ootd", "clothing", "apparel", "wear", "dress", "designer"],
+            "food": ["food", "recipe", "cooking", "meal", "dish", "cuisine", "restaurant", "cafe", "bakery"],
+            "tech": ["tech", "technology", "ai", "software", "app", "digital", "innovation", "startup"],
+            "fitness": ["fitness", "workout", "gym", "exercise", "health", "training", "yoga"],
+            "beauty": ["beauty", "makeup", "skincare", "cosmetic", "hair", "salon"],
+            "travel": ["travel", "trip", "vacation", "destination", "tourism", "hotel"],
+        }
+        
+        for category, patterns in category_patterns.items():
+            if any(pattern in keyword_lower for pattern in patterns):
+                return category
+        
+        return "general"
 
     async def run_detection_for_all_users(self):
         """
@@ -288,7 +382,7 @@ class TrendDetectionService:
         try:
             # Step 1: Signal Aggregation
             await self.trends_service.repository.update_status(
-                trend_signal_id, "processing", progress_step="Signal Aggregation (Google/Meta)..."
+                trend_signal_id, "processing", progress_step="Checking what's popular..."
             )
 
             # -------------------------------
@@ -405,7 +499,7 @@ class TrendDetectionService:
             # Persist ranked keywords back to TrendSignal (so Trend page shows current trends immediately)
             try:
                 await self.trends_service.repository.update_status(
-                    trend_signal_id, "processing", progress_step="Saving Current Trends..."
+                    trend_signal_id, "processing", progress_step="Saving trends..."
                 )
                 # Reuse enriched-data persistence to keep consistency; search_interest remains empty in fast mode.
                 await self.trends_service.repository.update_enriched_data(
@@ -457,6 +551,13 @@ class TrendDetectionService:
                             continue
                         if str(kw).strip().lower() == "all":
                             continue
+                        
+                        # Filter out irrelevant trends (sports, politics, etc.) for specific business types
+                        business_type = getattr(business, "business_type", None) or trend_signal.niche or "business"
+                        if not TrendSimplificationService.is_relevant_for_business(kw, business_type, trend_signal.niche):
+                            logger.info(f"🚫 Filtered irrelevant trend '{kw}' for {business_type} business")
+                            continue
+                        
                         s = float(item.get("score", 0.0) or 0.0)
                         impact = "LOW"
                         if s >= 70:
@@ -464,10 +565,13 @@ class TrendDetectionService:
                         elif s >= 40:
                             impact = "MEDIUM"
 
+                        # Detect the actual trend category from keyword content
+                        detected_category = self._detect_trend_category(kw)
+                        
                         det = TrendDetectionModel(
                             user_id=trend_signal.user_email,
                             keyword=kw,
-                            niche=trend_signal.niche,
+                            niche=detected_category,  # Use detected category, not user's business niche
                             location=trend_signal.location,
                             trend_signal_id=str(trend_signal_id),
                             # Compatibility fields (no time-series): use score as a 0..100 proxy.
@@ -612,7 +716,7 @@ class TrendDetectionService:
                                         "niche": trend_signal.niche,
                                         "location": trend_signal.location,
                                         "suggested_platforms": ["instagram"] if ig_connected else [],
-                                        "hashtags": [f"#{best.replace(' ', '')}"],
+                                        "hashtags": self._generate_relevant_hashtags(best, trend_signal.niche),
                                         "lifecycle_stage": "Current",
                                     },
                                 },
@@ -772,7 +876,7 @@ class TrendDetectionService:
 
             # Step 2: Heat Score Calculation & Trend Detection
             await self.trends_service.repository.update_status(
-                trend_signal_id, "processing", progress_step="Detecting Opportunity Spikes..."
+                trend_signal_id, "processing", progress_step="Finding trends..."
             )
             # Window filter: detection runs on full series (may include extended history for SerpAPI),
             # but we only persist spikes within the originally requested window.
@@ -933,7 +1037,7 @@ class TrendDetectionService:
             
             # Step 3: Persona Mapping & Social Enrichment
             await self.trends_service.repository.update_status(
-                trend_signal_id, "processing", progress_step="Mapping High-Intent Personas (Meta)..."
+                trend_signal_id, "processing", progress_step="Checking social media..."
             )
 
             # Load business once for specialty-based boosts (best-effort).
@@ -950,7 +1054,7 @@ class TrendDetectionService:
                 from application.services.event_signal_service import EventSignalService
 
                 await self.trends_service.repository.update_status(
-                    trend_signal_id, "processing", progress_step="Scanning Event Catalysts (News RSS)..."
+                    trend_signal_id, "processing", progress_step="Checking news..."
                 )
 
                 ranked = sorted(
@@ -1083,7 +1187,7 @@ class TrendDetectionService:
                     trend_signal.is_real_saturation = saturation_data[0].get("is_real_data", False)
                 # Step 4: Campaign Suggestion & ROI Prediction
                 await self.trends_service.repository.update_status(
-                    trend_signal_id, "processing", progress_step="Calculating Profit Potential..."
+                    trend_signal_id, "processing", progress_step="Almost done..."
                 )
                 # --- ARBITRAGE SCORE ---
                 sat = max(1, trend_signal.saturation_score or 50)
@@ -1334,6 +1438,12 @@ class TrendDetectionService:
                 return 0.5
 
         for spike in spikes:
+            # Filter out irrelevant trends before creating detection records
+            business_type = spike.niche or "business"
+            if not TrendSimplificationService.is_relevant_for_business(spike.keyword, business_type, spike.niche):
+                logger.info(f"🚫 Filtered irrelevant spike '{spike.keyword}' for {business_type} business")
+                continue
+            
             # Determine impact level
             impact = "LOW"
             if spike.z_score > 4.0:
@@ -1353,10 +1463,13 @@ class TrendDetectionService:
             except Exception:
                 exp_at = datetime.utcnow() + timedelta(hours=72)
 
+            # Detect the actual trend category from keyword content
+            detected_category = self._detect_trend_category(spike.keyword)
+            
             detection = TrendDetectionModel(
                 user_id=user_email,
                 keyword=spike.keyword,
-                niche=spike.niche,
+                niche=detected_category,  # Use detected category, not spike.niche (which is user's business niche)
                 location=spike.location,
                 trend_signal_id=str(trend_id) if trend_id else None,
                 z_score=spike.z_score,

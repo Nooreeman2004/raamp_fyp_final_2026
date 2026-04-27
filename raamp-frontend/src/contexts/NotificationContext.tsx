@@ -4,6 +4,7 @@ import { MESSAGES } from '@/constants/messages';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/api';
 import { API_BASE_URL } from '@/config/apiBase';
+import { isAuthError } from '@/utils/errorHandler';
 
 export interface Notification {
     id: string;
@@ -53,7 +54,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
     // Fetch initial notifications
     const fetchNotifications = async (opts?: { limit?: number; offset?: number; append?: boolean; unread_only?: boolean }) => {
-        if (!user) return;
+        // Don't fetch if user is not logged in
+        if (!user) {
+            console.log('[NotificationContext] Skipping fetch - no user');
+            return;
+        }
+        
         try {
             const limit = Math.max(1, Math.min(Number(opts?.limit ?? pageSizeRef.current), 100));
             const offset = Math.max(0, Number(opts?.offset ?? 0));
@@ -71,12 +77,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             setNotifications(prev => append ? [...prev, ...list] : list);
             setUnreadCount(data.unread_count || 0);
             setHasMore(list.length >= limit);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to fetch notifications:', error);
-            // Only show toast if user is still logged in (avoid showing errors on login page)
-            if (user) {
+            // Only show toast if it's not an auth error (401) and user is still logged in
+            const isAuthError = error?.status === 401 || error?.message?.toLowerCase().includes('authentication');
+            if (user && !isAuthError) {
                 toast.message("Notifications unavailable", {
                     description: "We couldn't load your notifications right now. Retrying in the background.",
+                    duration: 4000,
                 });
             }
         } finally {
@@ -87,7 +95,10 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
     // Connect WebSocket
     const connectWebSocket = () => {
-        if (!user) return;
+        if (!user) {
+            console.log('[NotificationContext] Skipping WebSocket - no user');
+            return;
+        }
 
         // Close existing connection if any
         if (wsRef.current) {
@@ -166,6 +177,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
                     toast(newNotif.title, {
                         description: newNotif.message,
+                        duration: 5000,
                         action: isTrend ? undefined : {
                             label: 'View',
                             onClick: () => window.location.href = '/notifications'
@@ -204,6 +216,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 wsWarnedAtRef.current = now;
                 toast.message("Realtime notifications disconnected", {
                     description: "We're reconnecting in the background.",
+                    duration: 4000,
                 });
             }
             reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
@@ -243,7 +256,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             await apiClient.patch(`/notifications/${id}/read`, {});
         } catch (error) {
             console.error('Failed to mark read:', error);
-            toast.error("Update Failed", { description: MESSAGES.NOTIFICATIONS.UPDATE_FAILED });
+            toast.error("Update Failed", { description: MESSAGES.NOTIFICATIONS.UPDATE_FAILED, duration: 4000 });
             fetchNotifications(); // Revert on error
         }
     };
@@ -254,7 +267,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             setUnreadCount(0);
             await apiClient.post('/notifications/read-all', {});
         } catch (error) {
-            toast.error("Mark All Read Failed", { description: MESSAGES.NOTIFICATIONS.MARK_ALL_READ_FAILED });
+            toast.error("Mark All Read Failed", { description: MESSAGES.NOTIFICATIONS.MARK_ALL_READ_FAILED, duration: 4000 });
             fetchNotifications();
         }
     };
@@ -267,7 +280,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
             await apiClient.delete(`/notifications/${id}`);
         } catch (error) {
-            toast.error("Delete Failed", { description: MESSAGES.NOTIFICATIONS.DELETE_FAILED });
+            toast.error("Delete Failed", { description: MESSAGES.NOTIFICATIONS.DELETE_FAILED, duration: 4000 });
             fetchNotifications();
         }
     };

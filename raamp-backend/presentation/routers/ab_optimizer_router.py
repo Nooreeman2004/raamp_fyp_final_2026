@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from presentation.routers.auth_router import get_current_user_email
 from application.constants import PaginationDefaults, FileLimits
 from application.utils.rate_limiter import limiter
+from application.utils.path_resolver import resolve_asset_path
 from fastapi import Request
 from application.use_cases.ab_test_optimizer_use_case import get_ab_optimizer_use_case
 from application.services.cloudinary_service import CloudinaryService
@@ -346,8 +347,16 @@ async def analyze_from_library(
                 base = settings.BACKEND_URL.rstrip("/")
                 url = f"{base}{url}"
 
+        # Resolve file path using utility function
+        file_path = resolve_asset_path(asset.file_path)
+        
+        # Verify file exists
+        if not file_path.exists():
+            logger.error(f"❌ File not found: {file_path}")
+            raise HTTPException(status_code=404, detail=f"Image file not found: {asset.file_name}")
+
         images_data.append({
-            "path": asset.file_path,
+            "path": str(file_path),
             "filename": asset.file_name,
             "url": url
         })
