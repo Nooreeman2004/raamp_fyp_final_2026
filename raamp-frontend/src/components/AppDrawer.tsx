@@ -287,7 +287,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                   <Link
                     to="/login"
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/5 text-white/80 hover:text-foreground transition-all"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/5 text-foreground/80 hover:text-foreground transition-all"
                   >
                     <User className="w-4 h-4 text-muted-foreground/80" />
                     <span className="text-sm">Login</span>
@@ -313,7 +313,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                           onClick={() => setOpen(false)}
                           className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/5 text-muted-foreground/80 hover:text-foreground transition-all"
                         >
-                          <Icon className="w-4 h-4 text-white/30" />
+                          <Icon className="w-4 h-4 text-muted-foreground/60" />
                           <span className="text-sm">{item.label}</span>
                         </Link>
                       );

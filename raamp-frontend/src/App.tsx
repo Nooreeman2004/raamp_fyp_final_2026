@@ -33,7 +33,7 @@ const BrandSettings = lazy(() => import("./pages/BrandSettings"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
 const RestaurantProfile = lazy(() => import("./pages/RestaurantProfile"));
-// Billing module removed (demo scope)
+const Billing = lazy(() => import("./pages/Billing"));
 const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const DataDeletion = lazy(() => import("./pages/DataDeletion.tsx"));
@@ -295,6 +295,18 @@ const App = () => (
                       element={
                         <ProtectedRoute>
                           <BrandSettings />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Protected Routes - Billing */}
+                    <Route
+                      path="/billing"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <Billing />
+                          </ProfileGuard>
                         </ProtectedRoute>
                       }
                     />

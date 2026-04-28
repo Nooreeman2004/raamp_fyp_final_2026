@@ -484,11 +484,11 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                         e.preventDefault();
                     }
                 }}
-                className="sm:max-w-[600px] bg-[#0A0A0B]/95 border-[#00E0D0]/30 backdrop-blur-xl text-foreground p-0 overflow-hidden shadow-[0_0_40px_rgba(0,224,208,0.15)]"
+                className="sm:max-w-[600px] max-h-[90vh] flex flex-col bg-background/95 border-[#00E0D0]/30 backdrop-blur-xl text-foreground p-0 overflow-hidden shadow-[0_0_40px_rgba(0,224,208,0.15)]"
             >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E0D0]/5 blur-[80px] -z-10" />
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-teal-500/5 blur-[80px] -z-10" />
-                <div className="p-6">
+                <div className="p-6 overflow-y-auto flex-1">
                     <DialogHeader className="mb-6">
                         <DialogTitle className="text-xl font-bold flex items-center gap-2">
                             {mode === PostMode.POST_STORY ? <Smartphone className="w-5 h-5 text-purple-500" /> : <ImageIcon className="w-5 h-5 text-primary" />}
@@ -522,11 +522,11 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                             <FormLabel className="text-xs font-bold uppercase tracking-widest text-gray-500">Platform</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
-                                                    <SelectTrigger className="bg-[#141416] border-border/50 h-10">
+                                                    <SelectTrigger className="bg-card border-border/50 h-10">
                                                         <SelectValue placeholder="Platform" />
                                                     </SelectTrigger>
                                                 </FormControl>
-                                                <SelectContent className="bg-[#141416] border-border/50 text-foreground">
+                                                <SelectContent className="bg-card border-border/50 text-foreground">
                                                     <SelectItem value="instagram">
                                                         <div className="flex items-center gap-2">
                                                             <Instagram className="w-3.5 h-3.5 text-pink-400" />
@@ -561,11 +561,11 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                             <FormLabel className="text-xs font-bold uppercase tracking-widest text-gray-500">Post Type</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
-                                                    <SelectTrigger className="bg-[#141416] border-border/50 h-10">
+                                                    <SelectTrigger className="bg-card border-border/50 h-10">
                                                         <SelectValue placeholder="Mode" />
                                                     </SelectTrigger>
                                                 </FormControl>
-                                                <SelectContent className="bg-[#141416] border-border/50 text-foreground">
+                                                <SelectContent className="bg-card border-border/50 text-foreground">
                                                     <SelectItem value={PostMode.POST_NOW}>
                                                         <div className="flex items-center gap-2">
                                                             <Zap className="w-3.5 h-3.5 text-yellow-500" />
@@ -603,7 +603,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                         "relative border-2 border-dashed rounded-xl transition-all h-56 flex flex-col items-center justify-center gap-3 overflow-hidden",
                                         uploadStatus === 'error' ? "border-red-500/30 bg-red-500/5" :
                                             uploadStatus === 'success' ? "border-[#00E0D0]/30 bg-[#00E0D0]/5" :
-                                                "border-border bg-[#141416] hover:bg-[#1A1A1C]"
+                                                "border-border bg-card hover:bg-card/80"
                                     )}
                                 >
                                     {localPreview ? (
@@ -619,7 +619,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                             {isUploading && (
                                                 <div className="absolute inset-0 bg-background/60 z-10 flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
                                                     <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                                                    <div className="text-sm font-medium animate-pulse text-white/80 tracking-tight">Automatic Optimization...</div>
+                                                    <div className="text-sm font-medium animate-pulse text-foreground/80 tracking-tight">Automatic Optimization...</div>
                                                 </div>
                                             )}
 
@@ -644,7 +644,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                 <Upload className="w-7 h-7 text-primary" />
                                             </div>
                                             <div className="text-center px-4">
-                                                <div className="font-bold text-sm tracking-tight text-white/90">Click or Drag to Upload</div>
+                                                <div className="font-bold text-sm tracking-tight text-foreground">Click or Drag to Upload</div>
                                                 <div className="text-[10px] text-gray-500 mt-1 uppercase font-black">
                                                     HQ Image/Video • Max 10MB
                                                 </div>
@@ -693,7 +693,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                     type="button"
                                     variant="outline"
                                     onClick={() => setAssetPickerOpen(true)}
-                                    className="w-full bg-[#141416] border-border/50 hover:bg-[#1A1A1C] hover:border-primary/30 transition-all"
+                                    className="w-full bg-card border-border/50 hover:bg-card/80 hover:border-primary/30 hover:text-foreground transition-all"
                                 >
                                     <Folder className="w-4 h-4 mr-2 text-primary" />
                                     Select from Asset Library
@@ -716,7 +716,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                                 <Button
                                                                     variant={"outline"}
                                                                     className={cn(
-                                                                        "w-full h-11 bg-[#141416] border-border pl-3 text-left font-normal",
+                                                                        "w-full h-11 bg-card border-border pl-3 text-left font-normal",
                                                                         !field.value && "text-muted-foreground"
                                                                     )}
                                                                 >
@@ -729,7 +729,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                                 </Button>
                                                             </FormControl>
                                                         </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0 bg-[#0A0A0B] border-border/50" align="start">
+                                                        <PopoverContent className="w-auto p-0 bg-background border-border/50" align="start">
                                                             <Calendar
                                                                 mode="single"
                                                                 selected={field.value}
@@ -753,13 +753,13 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                                 <FormItem className="flex flex-col gap-1.5">
                                                     <div className="flex justify-between items-center">
                                                         <FormLabel className="text-[10px] font-black uppercase tracking-widest text-[#00E0D0]/70 py-0.5">Set Time</FormLabel>
-                                                        <span className="text-[9px] font-bold text-white/30 uppercase tracking-tighter">{timezoneOffset}</span>
+                                                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">{timezoneOffset}</span>
                                                     </div>
                                                     <FormControl>
                                                         <input
                                                             type="time"
                                                             className={cn(
-                                                                "w-full h-11 bg-[#141416] border border-border rounded-md px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#00E0D0]/50 transition-all text-white/90",
+                                                                "w-full h-11 bg-card border border-border rounded-md px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-[#00E0D0]/50 transition-all",
                                                                 !isFutureTime && mode === PostMode.SCHEDULE_POST && "border-red-500/50 text-red-400"
                                                             )}
                                                             {...field}
@@ -791,7 +791,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
                                         <FormControl>
                                             <Textarea
                                                 placeholder="What's the story behind this post? Use hashtags for better reach..."
-                                                className="min-h-[100px] bg-[#141416] border-border border-b-2 focus:border-b-primary transition-all resize-none shadow-inner"
+                                                className="min-h-[100px] bg-card border-border border-b-2 focus:border-b-primary transition-all resize-none shadow-inner"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -839,7 +839,7 @@ export const EnhancedPostCreatorPanel: React.FC<EnhancedPostCreatorPanelProps> =
             </DialogContent>
 
             <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
-                <AlertDialogContent className="bg-[#0A0A0B] border-border/50 text-foreground">
+                <AlertDialogContent className="bg-background border-border/50 text-foreground">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Discard changes?</AlertDialogTitle>
                         <AlertDialogDescription className="text-gray-400">

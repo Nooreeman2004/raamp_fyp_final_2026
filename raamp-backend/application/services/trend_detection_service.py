@@ -542,6 +542,13 @@ class TrendDetectionService:
             except Exception:
                 pass
 
+            # Fetch business profile for trend filtering (non-fatal)
+            business = None
+            try:
+                business = await BusinessModel.find_one({"user_id": trend_signal.user_email})
+            except Exception:
+                pass
+
             # Persist detections for top items (so live feed can show them).
             # Do not gate this on repository.update_status success.
             try:

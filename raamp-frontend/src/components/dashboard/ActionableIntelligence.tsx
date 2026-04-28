@@ -51,7 +51,7 @@ export const ActionableIntelligence = ({ businessId }: ActionableIntelligencePro
         ) : bestTime && bestTime.best_day !== "N/A" ? (
           <div className="space-y-4">
             <div>
-              <p className="text-2xl font-bold text-white">{bestTime.best_day}</p>
+              <p className="text-2xl font-bold text-foreground">{bestTime.best_day}</p>
               <div className="flex flex-wrap gap-2 mt-2">
                 {bestTime.best_hours.map((h, i) => (
                    <div key={i} className="px-2 py-1 bg-teal-500/10 rounded text-xs font-medium text-teal-400">
@@ -87,9 +87,9 @@ export const ActionableIntelligence = ({ businessId }: ActionableIntelligencePro
           <div className="space-y-4">
              <div>
                <p className="text-sm text-muted-foreground mb-1">Top Reach Reach:</p>
-               <p className="text-2xl font-bold text-white">{roiSummary.best_performing_post.reach.toLocaleString()}</p>
+               <p className="text-2xl font-bold text-foreground">{roiSummary.best_performing_post.reach.toLocaleString()}</p>
              </div>
-             <Link to="/assets" className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 font-medium group/link">
+             <Link to="/dashboard/assets" className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 font-medium group/link">
                View Strategy <ArrowRight className="w-3 h-3 group-hover/link:translate-x-1 transition-transform" />
              </Link>
           </div>
@@ -122,7 +122,7 @@ export const ActionableIntelligence = ({ businessId }: ActionableIntelligencePro
                    <p className="text-xs font-bold text-rose-400">{log.urgency.toUpperCase()} SPIKE</p>
                    <p className="text-xs text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString()}</p>
                 </div>
-                <div className="text-lg font-bold text-white">{log.final_score}</div>
+                <div className="text-lg font-bold text-foreground">{log.final_score}</div>
               </div>
             ))}
             <Link to="/geo-intent" className="flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300 font-medium group/link">

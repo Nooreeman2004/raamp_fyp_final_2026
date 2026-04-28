@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
@@ -207,7 +207,7 @@ const CreativeStudio = () => {
     });
     
     try {
-      console.log("🚀 Starting content generation:", {
+      console.log("ðŸš€ Starting content generation:", {
         campaign_idea: campaignIdea.trim().substring(0, 50) + "...",
         aspect_ratio: aspectRatio,
         content_type: contentType,
@@ -220,7 +220,7 @@ const CreativeStudio = () => {
         content_type: contentType
       });
 
-      console.log("✅ Content generation response:", {
+      console.log("âœ… Content generation response:", {
         success: response.success,
         caption_variants: response.caption_variants?.length || 0,
         hashtag_sets: response.hashtag_sets?.length || 0,
@@ -234,7 +234,7 @@ const CreativeStudio = () => {
       setGeneratedContent(response);
       setHasGeneratedContent(true);
       
-      console.log("✅ State updated:", {
+      console.log("âœ… State updated:", {
         hasGeneratedContent: true,
         generatedContent: response
       });
@@ -266,7 +266,7 @@ const CreativeStudio = () => {
         duration: 5000
       });
     } catch (error) {
-      console.error("❌ Content generation failed:", {
+      console.error("âŒ Content generation failed:", {
         error: error,
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
@@ -290,7 +290,7 @@ const CreativeStudio = () => {
         // Use the detailed backend error message if available
         userMessage = msg;
       } else if (msg?.includes("credit") || msg?.includes("insufficient")) {
-        userMessage = "You need more credits to generate content. Go to Settings → Billing to top up.";
+        userMessage = "You need more credits to generate content. Go to Settings â†’ Billing to top up.";
       } else if (msg?.includes("network") || msg?.includes("timeout")) {
         userMessage = "Connection issue. Check your internet and try again.";
       } else if (msg) {
@@ -565,7 +565,7 @@ const CreativeStudio = () => {
       if (selectedAsset === "captions" && variant.caption_id) {
         try {
           await assetService.markCaptionUsed(variant.caption_id);
-          console.log(`✅ Caption usage tracked: ${variant.caption_id}`);
+          console.log(`âœ… Caption usage tracked: ${variant.caption_id}`);
         } catch (trackError) {
           console.error("Failed to track caption usage:", trackError);
           toast.warning("Caption tracking failed", {
@@ -578,7 +578,7 @@ const CreativeStudio = () => {
       if (selectedAsset === "hashtags" && variant.hashtag_id) {
         try {
           await assetService.markCaptionUsed(variant.hashtag_id);  // Hashtags use same endpoint
-          console.log(`✅ Hashtag usage tracked: ${variant.hashtag_id}`);
+          console.log(`âœ… Hashtag usage tracked: ${variant.hashtag_id}`);
         } catch (trackError) {
           console.error("Failed to track hashtag usage:", trackError);
           toast.warning("Hashtag tracking failed", {
@@ -591,7 +591,7 @@ const CreativeStudio = () => {
       if ((selectedAsset === "whatsapp" || selectedAsset === "emails") && variant.message_id) {
         try {
           await assetService.markCaptionUsed(variant.message_id);  // Messages use same endpoint
-          console.log(`✅ Message usage tracked: ${variant.message_id}`);
+          console.log(`âœ… Message usage tracked: ${variant.message_id}`);
         } catch (trackError) {
           console.error("Failed to track message usage:", trackError);
           toast.warning("Message tracking failed", {
@@ -633,10 +633,10 @@ const CreativeStudio = () => {
   }, [isDialogOpen, selectedVariantId, getVariants, handleCopyAndSelect]);
 
   const getDialogTitle = () => {
-    if (selectedAsset === "captions") return "INSTAGRAM CAPTIONS — 3 VARIANTS";
-    if (selectedAsset === "hashtags") return "HASHTAG SETS — 3 STRATEGY SETS";
-    if (selectedAsset === "whatsapp") return "WHATSAPP CAMPAIGN — 3 VARIANTS";
-    if (selectedAsset === "emails") return "EMAIL CAMPAIGN — 3 VARIANTS";
+    if (selectedAsset === "captions") return "INSTAGRAM CAPTIONS â€” 3 VARIANTS";
+    if (selectedAsset === "hashtags") return "HASHTAG SETS â€” 3 STRATEGY SETS";
+    if (selectedAsset === "whatsapp") return "WHATSAPP CAMPAIGN â€” 3 VARIANTS";
+    if (selectedAsset === "emails") return "EMAIL CAMPAIGN â€” 3 VARIANTS";
     return "";
   };
 
@@ -716,7 +716,7 @@ const CreativeStudio = () => {
                   className="min-h-40 bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
                 />
                 <p className="text-[10px] text-muted-foreground/60 mt-1 font-mono">
-                  💡 Click "Use Template" above for quick-start ideas
+                  ðŸ’¡ Click "Use Template" above for quick-start ideas
                 </p>
               </div>
               <motion.div variants={hoverScale} initial="rest" whileHover="hover" whileTap="tap">
@@ -771,7 +771,7 @@ const CreativeStudio = () => {
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  READY — 3 CAPTION VARIANTS
+                                  READY â€” 3 CAPTION VARIANTS
                                 </p>
                               ) : (
                                 <p className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
@@ -810,7 +810,7 @@ const CreativeStudio = () => {
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  READY — 3 STRATEGY SETS
+                                  READY â€” 3 STRATEGY SETS
                                 </p>
                               ) : (
                                 <p className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
@@ -849,7 +849,7 @@ const CreativeStudio = () => {
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  READY — 3 BROADCAST MESSAGES
+                                  READY â€” 3 BROADCAST MESSAGES
                                 </p>
                               ) : (
                                 <p className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
@@ -888,7 +888,7 @@ const CreativeStudio = () => {
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  READY — 3 EMAIL VARIANTS
+                                  READY â€” 3 EMAIL VARIANTS
                                 </p>
                               ) : (
                                 <p className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
@@ -943,7 +943,7 @@ const CreativeStudio = () => {
                     IMAGE IDEA
                   </label>
                   <Textarea
-                    placeholder='E.g., "A vibrant flat-lay of our summer product lineup on a sandy beach with golden hour lighting — warm, aspirational, lifestyle aesthetic"'
+                    placeholder='E.g., "A vibrant flat-lay of our summer product lineup on a sandy beach with golden hour lighting â€” warm, aspirational, lifestyle aesthetic"'
                     value={imageIdea}
                     onChange={(e) => setImageIdea(e.target.value)}
                     className="min-h-32 bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
@@ -964,7 +964,7 @@ const CreativeStudio = () => {
                     <SelectContent className="bg-card border-border/50">
                       <SelectItem value="1:1" className="font-mono text-sm text-foreground">
                         <div className="flex items-center gap-2">
-                          <span className="text-base">📱</span>
+                          <ThemeEmoji name="square" className="text-primary" />
                           <div className="flex flex-col items-start">
                             <span className="font-semibold">Instagram Feed</span>
                             <span className="text-[10px] text-muted-foreground">Square photo (1:1)</span>
@@ -973,7 +973,7 @@ const CreativeStudio = () => {
                       </SelectItem>
                       <SelectItem value="9:16" className="font-mono text-sm text-foreground">
                         <div className="flex items-center gap-2">
-                          <span className="text-base">📲</span>
+                          <ThemeEmoji name="ruler" className="text-primary" />
                           <div className="flex flex-col items-start">
                             <span className="font-semibold">Instagram Story</span>
                             <span className="text-[10px] text-muted-foreground">Full screen vertical (9:16)</span>
@@ -982,7 +982,7 @@ const CreativeStudio = () => {
                       </SelectItem>
                       <SelectItem value="4:5" className="font-mono text-sm text-foreground">
                         <div className="flex items-center gap-2">
-                          <span className="text-base">🖼️</span>
+                          <ThemeEmoji name="frame" className="text-primary" />
                           <div className="flex flex-col items-start">
                             <span className="font-semibold">Instagram Portrait</span>
                             <span className="text-[10px] text-muted-foreground">Tall photo (4:5)</span>
@@ -991,8 +991,8 @@ const CreativeStudio = () => {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-muted-foreground/60 mt-1 font-mono">
-                    💡 Choose based on where you'll share this image
+                  <p className="text-[10px] text-muted-foreground/60 mt-1 font-mono flex items-center gap-1">
+                    <ThemeEmoji name="lightbulb" className="text-primary/60" /> Choose based on where you'll share this image
                   </p>
                 </div>
 
@@ -1017,11 +1017,11 @@ const CreativeStudio = () => {
                 </motion.div>
 
                 <div className="mt-4 p-3 bg-card border border-primary/20 rounded">
-                  <p className="text-[10px] text-primary font-mono font-bold mb-1">⚡ IMAGE GENERATION INFO:</p>
+                  <p className="text-[10px] text-primary font-mono font-bold mb-1">âš¡ IMAGE GENERATION INFO:</p>
                   <ul className="text-[10px] text-muted-foreground font-mono space-y-1">
-                    <li>• Generates <span className="text-primary">3 image variations</span> per request</li>
-                    <li>• Choose platform based on where you'll post (Feed, Story, or Portrait)</li>
-                    <li>• <span className="text-amber-400">Generation time: 10-20 seconds</span></li>
+                    <li>â€¢ Generates <span className="text-primary">3 image variations</span> per request</li>
+                    <li>â€¢ Choose platform based on where you'll post (Feed, Story, or Portrait)</li>
+                    <li>â€¢ <span className="text-amber-400">Generation time: 10-20 seconds</span></li>
                   </ul>
                 </div>
               </div>
@@ -1038,11 +1038,11 @@ const CreativeStudio = () => {
                           GENERATED IMAGES
                         </h3>
                         <Badge className="bg-emerald-500 text-black font-mono text-[10px] font-bold">
-                          ✓ {generatedImages.length} READY
+                          âœ“ {generatedImages.length} READY
                         </Badge>
                       </div>
 
-                      {/* 3-column grid — mirrors caption layout */}
+                      {/* 3-column grid â€” mirrors caption layout */}
                       <div className="grid grid-cols-3 gap-3">
                         {generatedImages.map((imagePath, idx) => {
                           const isAiPick = idx === 0;
@@ -1073,12 +1073,12 @@ const CreativeStudio = () => {
 
                               {/* Variation Label top-right */}
                               <div className="absolute top-2 right-2 z-10">
-                                <span className="bg-black/70 text-muted-foreground/80 text-[9px] font-mono px-1.5 py-0.5 rounded">
+                                <span className="bg-foreground/60 text-background text-[9px] font-mono px-1.5 py-0.5 rounded">
                                   VAR {idx + 1}
                                 </span>
                               </div>
 
-                              {/* Image container — fixed height, image fits */}
+                              {/* Image container â€” fixed height, image fits */}
                               <div className="relative w-full h-52 bg-background/60 flex items-center justify-center overflow-hidden">
                                 <img
                                   src={imageUrl}
@@ -1137,7 +1137,7 @@ const CreativeStudio = () => {
                               {/* Footer label */}
                               <div className={`px-2 py-1.5 text-center ${isAiPick ? 'bg-primary/10' : 'bg-card'}`}>
                                 <p className={`text-[10px] font-mono font-bold ${isAiPick ? 'text-primary' : 'text-muted-foreground/80'}`}>
-                                  {isAiPick ? '⭐ RECOMMENDED' : `VARIATION ${idx + 1}`}
+                                  {isAiPick ? 'â­ RECOMMENDED' : `VARIATION ${idx + 1}`}
                                 </p>
                               </div>
                             </motion.div>
@@ -1147,9 +1147,9 @@ const CreativeStudio = () => {
                     </div>
                   ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-center">
-                      <Image className="w-16 h-16 text-white/20 mx-auto mb-3" />
+                      <Image className="w-16 h-16 text-muted-foreground/20 mx-auto mb-3" />
                       <p className="text-muted-foreground/60 font-mono text-sm mb-2">No images generated yet</p>
-                      <p className="text-[10px] text-white/30 font-mono">
+                      <p className="text-[10px] text-muted-foreground/40 font-mono">
                         Enter an image idea and click Generate Images
                       </p>
                     </div>
@@ -1215,7 +1215,7 @@ const CreativeStudio = () => {
                       <SelectItem value="8" className="font-mono text-sm text-foreground">8 seconds (recommended)</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-white/30 font-mono mt-1">
+                  <p className="text-[10px] text-muted-foreground/40 font-mono mt-1">
                     Duration is limited to 8 seconds max per generation
                   </p>
                 </div>
@@ -1263,12 +1263,12 @@ const CreativeStudio = () => {
                 </div>
 
                 <div className="mt-4 p-3 bg-card border border-primary/20 rounded">
-                  <p className="text-[10px] text-primary font-mono font-bold mb-1">⚡ KEY DIFFERENCES:</p>
+                  <p className="text-[10px] text-primary font-mono font-bold mb-1">âš¡ KEY DIFFERENCES:</p>
                   <ul className="text-[10px] text-muted-foreground font-mono space-y-1">
-                    <li>• <span className="text-primary">REEL (9:16)</span>: Vertical format for Instagram Reels, TikTok, YouTube Shorts</li>
-                    <li>• <span className="text-primary">VIDEO (16:9)</span>: Horizontal format for YouTube, Facebook, Instagram Feed</li>
-                    <li>• <span className="text-amber-400">Duration limit: 4-8 seconds</span> (API constraint, cannot be changed)</li>
-                    <li>• <span className="text-amber-400">Generates 1 video per request</span> (unlike captions which create 3 variants)</li>
+                    <li>â€¢ <span className="text-primary">REEL (9:16)</span>: Vertical format for Instagram Reels, TikTok, YouTube Shorts</li>
+                    <li>â€¢ <span className="text-primary">VIDEO (16:9)</span>: Horizontal format for YouTube, Facebook, Instagram Feed</li>
+                    <li>â€¢ <span className="text-amber-400">Duration limit: 4-8 seconds</span> (API constraint, cannot be changed)</li>
+                    <li>â€¢ <span className="text-amber-400">Generates 1 video per request</span> (unlike captions which create 3 variants)</li>
                   </ul>
                 </div>
               </div>
@@ -1283,7 +1283,7 @@ const CreativeStudio = () => {
                           GENERATED MEDIA
                         </h3>
                         <Badge className="bg-emerald-500 text-black font-mono text-[10px]">
-                          ✓ READY
+                          âœ“ READY
                         </Badge>
                       </div>
 
@@ -1313,7 +1313,7 @@ const CreativeStudio = () => {
                               if (generatedVideos.asset_ids && generatedVideos.asset_ids[idx]) {
                                 try {
                                   await assetService.markAssetUsed(generatedVideos.asset_ids[idx]);
-                                  console.log(`✅ Video asset usage tracked: ${generatedVideos.asset_ids[idx]}`);
+                                  console.log(`âœ… Video asset usage tracked: ${generatedVideos.asset_ids[idx]}`);
                                 } catch (trackError) {
                                   console.error("Failed to track video asset usage:", trackError);
                                   toast.warning("Usage tracking failed", {
@@ -1347,15 +1347,15 @@ const CreativeStudio = () => {
 
                       <div className="mt-4 p-3 bg-primary/10 border border-primary/30 rounded">
                         <p className="text-[10px] text-primary font-mono">
-                          ✓ Generated {generatedVideos.count} video(s) • {generatedVideos.duration_seconds}s each
+                          âœ“ Generated {generatedVideos.count} video(s) â€¢ {generatedVideos.duration_seconds}s each
                         </p>
                       </div>
                     </div>
                   ) : (
                     <div className="text-center">
-                      <Film className="w-16 h-16 text-white/20 mx-auto mb-3" />
+                      <Film className="w-16 h-16 text-muted-foreground/20 mx-auto mb-3" />
                       <p className="text-muted-foreground/60 font-mono text-sm mb-2">No videos generated yet</p>
-                      <p className="text-[10px] text-white/30 font-mono">
+                      <p className="text-[10px] text-muted-foreground/40 font-mono">
                         Enter an idea and click a generation button
                       </p>
                     </div>
@@ -1370,7 +1370,7 @@ const CreativeStudio = () => {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-[95vw] w-[95vw] h-fit max-h-[95vh] flex flex-col bg-background/90 backdrop-blur-xl border-border/50 p-0 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden transition-all duration-300">
 
-          <div className="p-6 pb-4 border-b border-border/50 shrink-0 relative bg-black/50 z-10">
+          <div className="p-6 pb-4 border-b border-border/50 shrink-0 relative bg-background/80 z-10">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-foreground font-heading font-semibold flex items-center gap-2 pr-8">
                 <Sparkles className="w-5 h-5 text-primary" />
@@ -1474,7 +1474,7 @@ const CreativeStudio = () => {
                       "rounded-xl border p-5 flex flex-col h-full transition-all group relative overflow-hidden",
                       selectedVariantId === variant.id
                         ? "border-primary shadow-[0_0_30px_rgba(0,245,212,0.2)] bg-primary/10"
-                        : "border-border bg-[#09151E] hover:border-primary/40 shadow-xl"
+                        : "border-border bg-card hover:border-primary/40 shadow-xl"
                     )}
                   >
                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -1488,7 +1488,7 @@ const CreativeStudio = () => {
 
                     {selectedVariantId === variant.id && (
                       <Badge className="absolute top-3 right-4 bg-primary text-black font-mono text-[9px] z-20 font-bold py-1 px-3">
-                        ✓ SELECTED
+                        âœ“ SELECTED
                       </Badge>
                     )}
 
@@ -1523,7 +1523,7 @@ const CreativeStudio = () => {
                             </div>
                             <div className="mt-2 pt-2 border-t border-primary/10">
                               <p className="text-[9px] text-primary/70 font-mono">
-                                ✓ {explanation.bestFor}
+                                âœ“ {explanation.bestFor}
                               </p>
                             </div>
                           </div>
@@ -1547,7 +1547,7 @@ const CreativeStudio = () => {
                                 Purpose: {explanation.purpose}
                               </p>
                               <p className="text-[9px] text-muted-foreground/70 font-mono mt-1">
-                                💡 {explanation.whenToUse}
+                                ðŸ’¡ {explanation.whenToUse}
                               </p>
                             </div>
                           </div>
@@ -1556,7 +1556,7 @@ const CreativeStudio = () => {
 
                       {/* ML PERFORMANCE METRIC - NEW */}
                       {variant.ml_score && (
-                        <div className="mb-4 p-2.5 bg-black/40 border border-primary/10 rounded-lg flex items-center justify-between">
+                        <div className="mb-4 p-2.5 bg-muted/40 border border-border/50 rounded-lg flex items-center justify-between">
                           <div className="flex flex-col">
                             <span className="text-[9px] text-muted-foreground/60 font-mono uppercase tracking-tighter">Engagement Potential</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
@@ -1582,7 +1582,7 @@ const CreativeStudio = () => {
                             <span className={cn(
                               "text-[10px] font-mono font-bold mt-0.5",
                               variant.ml_score.confidence === "High" ? "text-primary" : 
-                              variant.ml_score.confidence === "Medium" ? "text-amber-400" : "text-white/40"
+                              variant.ml_score.confidence === "Medium" ? "text-amber-400" : "text-muted-foreground/50"
                             )}>
                               {variant.ml_score.confidence.toUpperCase()}
                             </span>
@@ -1601,7 +1601,7 @@ const CreativeStudio = () => {
                                 if (!content) return null;
                                 return <strong key={i} className="font-bold text-foreground">{content}</strong>;
                               }
-                              return <span key={i} className="text-white/90">{part}</span>;
+                              return <span key={i} className="text-foreground">{part}</span>;
                             })}
                           </div>
                         </div>
@@ -1622,7 +1622,7 @@ const CreativeStudio = () => {
                                 if (!content) return null;
                                 return <strong key={i} className="font-bold text-foreground">{content}</strong>;
                               }
-                              return <span key={i} className="text-white/90">{part}</span>;
+                              return <span key={i} className="text-foreground">{part}</span>;
                             })}
                           </div>
                         </div>
@@ -1647,7 +1647,7 @@ const CreativeStudio = () => {
                             <p className="text-[10px] text-muted-foreground/60 font-mono uppercase tracking-widest">Engagement Hashtags:</p>
                             {variant.hashtag_source && (
                               <span className="text-[8px] text-primary/60 font-mono uppercase bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
-                                {variant.hashtag_source.includes('ml') ? '✨ ML RECOMMENDED' : '🤖 AI GENERATED'}
+                                {variant.hashtag_source.includes('ml') ? 'âœ¨ ML RECOMMENDED' : 'ðŸ¤– AI GENERATED'}
                               </span>
                             )}
                           </div>
@@ -1696,7 +1696,7 @@ const CreativeStudio = () => {
             </motion.div>
           </div>
 
-          <div className="p-4 border-t border-border/50 shrink-0 flex justify-end bg-black/50 z-10">
+          <div className="p-4 border-t border-border/50 shrink-0 flex justify-end bg-background/80 z-10">
             <Button
               variant="ghost"
               onClick={() => setIsDialogOpen(false)}
@@ -1710,7 +1710,7 @@ const CreativeStudio = () => {
 
       {/* Image Details Dialog */}
       <Dialog open={showImageDetailsDialog} onOpenChange={setShowImageDetailsDialog}>
-        <DialogContent className="max-w-lg bg-[#060d13] border border-primary/20 p-6 shadow-[0_0_40px_rgba(0,245,212,0.1)]">
+        <DialogContent className="max-w-lg bg-background border border-primary/20 p-6 shadow-[0_0_40px_rgba(0,245,212,0.1)]">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-foreground font-heading font-semibold flex items-center gap-2">
               <Image className="w-5 h-5 text-primary" />
@@ -1730,7 +1730,7 @@ const CreativeStudio = () => {
                 placeholder="e.g., A glowing bottle of perfume, a happy customer, a latte"
                 value={imageSubject}
                 onChange={(e) => setImageSubject(e.target.value)}
-                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
+                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/40"
               />
             </div>
             <div>
@@ -1742,7 +1742,7 @@ const CreativeStudio = () => {
                 placeholder="e.g., Elegant & luxurious, warm & friendly, energetic & bold"
                 value={imageMood}
                 onChange={(e) => setImageMood(e.target.value)}
-                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
+                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/40"
               />
             </div>
             <div>
@@ -1754,7 +1754,7 @@ const CreativeStudio = () => {
                 placeholder="e.g., Deep teal & gold, pastel pink, dark moody black & white"
                 value={imageThemeColor}
                 onChange={(e) => setImageThemeColor(e.target.value)}
-                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
+                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/40"
               />
             </div>
             <div>
@@ -1766,7 +1766,7 @@ const CreativeStudio = () => {
                 placeholder="e.g., Minimalist flat-lay, 3D product render, cinematic lifestyle"
                 value={imageStyle}
                 onChange={(e) => setImageStyle(e.target.value)}
-                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/20"
+                className="w-full bg-background/60 border border-border/50 rounded px-3 py-2 text-sm text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/40"
               />
             </div>
             <div className="flex gap-2 pt-2">
@@ -1789,7 +1789,7 @@ const CreativeStudio = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ── Lightbox / Fullscreen Image Viewer ── */}
+      {/* â”€â”€ Lightbox / Fullscreen Image Viewer â”€â”€ */}
       {lightboxImage && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md"
@@ -1808,7 +1808,7 @@ const CreativeStudio = () => {
             <span className="text-muted-foreground/80 font-mono text-xs bg-background/60 px-3 py-1.5 rounded-full border border-border/50">
               {lightboxIndex + 1} / {generatedImages.length}
               {lightboxIndex === 0 && (
-                <span className="ml-2 text-primary">★ AI PICK</span>
+                <span className="ml-2 text-primary">â˜… AI PICK</span>
               )}
             </span>
             <button

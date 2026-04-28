@@ -16,7 +16,7 @@ export function HolographicCard({ children, className, contentClassName, enableH
             viewport={{ once: true }}
             transition={{ duration: 0.5, ease: "easeOut" }}
             className={cn(
-                "relative rounded-2xl overflow-hidden border border-border/50 bg-card/30 backdrop-blur-xl shadow-xl transition-all duration-300 will-change-transform",
+                "relative rounded-2xl overflow-hidden border border-border/50 bg-card backdrop-blur-xl shadow-xl transition-all duration-300 will-change-transform",
                 enableHover &&
                     "hover:-translate-y-0.5 hover:border-primary/30 hover:ring-1 hover:ring-primary/20 hover:shadow-[0_0_28px_rgba(0,224,208,0.12)]",
                 className

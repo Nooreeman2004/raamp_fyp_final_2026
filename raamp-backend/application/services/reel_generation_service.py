@@ -39,39 +39,41 @@ class ReelGenerationService:
     """
     
     # System prompt for generating Instagram Reel scripts
-    REEL_SYSTEM_PROMPT = """You are an expert social media content creator for Instagram Reels.
-The user will describe their idea. Your job is to write a detailed Reel script and prompt
-optimized for short-form vertical video (9:16), 8-15 seconds long.
+    REEL_SYSTEM_PROMPT = """You are an expert Instagram Reels content creator.
+
+## ABSOLUTE RULES (violating any of these is a failure):
+
+### RULE 1 — NEVER CHANGE THE SUBJECT
+- The specific objects, food, products, or scenes the user mentions are LOCKED.
+- If the user says "matcha latte being poured" the Reel MUST show matcha latte being poured.
+- NEVER replace the user's stated subjects with generic lifestyle props or brand aesthetics.
+- Brand context provides STYLE hints only. It does NOT override the subject matter.
+
+### RULE 2 — SUBJECT FIRST, STYLE SECOND
+- Lead with the user's exact subject/scene, then layer in Reel style.
+- Brand colors/aesthetic apply to overlays, end cards, and text animations ONLY.
+
+### RULE 3 — ENHANCE, DON'T REPLACE
+- Keep the user's exact wording for the main subject in the prompt.
+- Add Reel-specific detail: hook, timing breakdown, CTA, audio direction.
 
 Your prompt MUST include:
-- **Hook**: First 1-3 words to stop scrolling (critical!)
-- **Scene description**: setting, subjects, objects, environment
-- **Camera movements & angles**: vertical framing, dynamic shots (pan, zoom, tilt)
-- **Action/motion**: sequence of events, what happens when
-- **Visual effects / transitions**: cuts, fade, zoom effects, text animations
-- **Audio direction**: music vibe (upbeat/calm/dramatic), sound effects, voiceover cues
-- **Timing breakdown**: what happens at each second (0-2s, 2-5s, 5-8s)
-- **CTA (Call-to-Action)**: engagement hook (like, comment, save, share, follow)
-- **Text overlay suggestions**: captions, stickers, emojis that appear on screen
+- **Hook**: First 1-3 seconds to stop scrolling (critical)
+- **Scene description**: vertical framing, subjects, objects
+- **Camera movements**: dynamic shots for 9:16
+- **Timing breakdown**: what happens at each second
+- **CTA**: engagement hook at the end
+- **Text overlay suggestions**: captions, stickers
+- **Audio direction**: music vibe, sound effects
 
-## REEL FORMULA FOR SUCCESS (4-8 seconds):
-1. **0-1s**: HOOK - Stop the scroll immediately
-2. **1-3s**: Setup - Show the main subject/product
-3. **3-6s**: Value delivery - Show the benefit/transformation
-4. **6-8s**: CTA - Tell them what to do next
-
-## Rules:
-- Keep it concise: under 250 words
-- Format like a professional Reel production prompt
-- Only write the prompt; do not generate video yet
-- Use vertical framing language (9:16 aspect)
-- Focus on fast-paced, engaging content
-- Include trending audio suggestions when relevant
-- Make it scroll-stopping and shareable
+## REEL FORMULA (4-8 seconds):
+1. **0-1s**: HOOK — stop the scroll
+2. **1-3s**: Setup — show the subject
+3. **3-6s**: Value delivery
+4. **6-8s**: CTA
 
 ## OUTPUT FORMAT:
-Write a detailed, production-ready video prompt that Veo 3.1 can use to generate the Reel.
-Be specific about timing, visuals, and audio."""
+Write a production-ready Reel prompt (under 250 words). Output ONLY the prompt. No meta-text."""
 
     def __init__(self):
         """Initialize the Reel generation service."""
@@ -154,13 +156,16 @@ Be specific about timing, visuals, and audio."""
             if brand_context:
                 brand_section = self._build_brand_context_section(brand_context)
             
-            user_message = f"""{brand_section}
+            user_message = f"""## USER'S EXACT REEL REQUEST — SUBJECT IS LOCKED, DO NOT CHANGE IT:
+"{user_input}"
 
-## USER REEL REQUEST:
-{user_input}
+{brand_section}
 
-## TASK:
-Generate a detailed Instagram Reel production prompt (8-15 seconds, 9:16 aspect ratio) following all the requirements above."""
+## YOUR TASK:
+Enhance the user's request above into a detailed Instagram Reel production prompt (8-15 seconds, 9:16).
+The subject "{user_input[:150]}" MUST appear in the Reel exactly as described.
+Only add hook, timing breakdown, camera work, and atmosphere.
+Do NOT replace or omit the user's stated objects or scene."""
             
             logger.info("Generating Reel prompt with Gemini")
             

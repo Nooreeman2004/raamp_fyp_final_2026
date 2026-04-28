@@ -565,7 +565,7 @@ const Complaints = () => {
                       <select
                         value={dateFilter}
                         onChange={(e) => setDateFilter(e.target.value as any)}
-                        className="h-9 rounded-md border border-border/50 bg-foreground/5 px-3 text-sm"
+                        className="h-9 rounded-md border border-border/50 bg-background text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                       >
                         <option value="all">All time</option>
                         <option value="7d">Last 7 days</option>

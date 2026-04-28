@@ -4,10 +4,12 @@ A/B Test Optimizer Use Case
 Business logic for analyzing and ranking restaurant marketing images.
 """
 
+import hashlib
 import logging
 import uuid
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from functools import lru_cache
+from typing import Any, Dict, List, Optional
 
 from domain.entities.ab_test_image import (
     ImageAnalysisResult,
@@ -65,16 +67,18 @@ class ABTestOptimizerUseCase:
         Raises:
             Exception: If analysis fails
         """
-        logger.info(f"🔍 Analyzing image: {filename} for user: {user_id}")
+        logger.info("🔍 Analyzing image: %s for user: %s", filename, user_id)
         
-        # Check cache by file hash
-        from infrastructure.services.openai_vision_service import OpenAIVisionService
-        temp_service = OpenAIVisionService()
-        file_hash = temp_service._calculate_file_hash(image_path)
+        # Check cache by file hash (computed inline to avoid protected-member access)
+        hasher = hashlib.md5(usedforsecurity=False)
+        with open(image_path, "rb") as _fh:
+            for _chunk in iter(lambda: _fh.read(8192), b""):
+                hasher.update(_chunk)
+        file_hash = hasher.hexdigest()
         
         cached = await self.repository.get_by_file_hash(file_hash, user_id)
         if cached:
-            logger.info(f"⏭️  Using cached result for: {filename}")
+            logger.info("⏭️  Using cached result for: %s", filename)
             # Update batch association so this image is findable under the new batch
             if batch_id and cached.get("ab_test_batch_id") != batch_id:
                 await self.repository.images_collection.update_one(
@@ -117,13 +121,13 @@ class ABTestOptimizerUseCase:
             # Save to database
             await self._save_analysis(result, image_path)
             
-            logger.info(f"✅ Analysis complete: {filename} - Score: {result.scores.composite_score}/10")
+            logger.info("✅ Analysis complete: %s - Score: %s/10", filename, result.scores.composite_score)  # pylint: disable=no-member
             
             return result
             
-        except Exception as e:
-            logger.error(f"❌ Failed to analyze {filename}: {str(e)}")
-            raise Exception(f"Image analysis failed: {str(e)}")
+        except (TypeError, ValueError, KeyError, OSError) as e:
+            logger.error("❌ Failed to analyze %s: %s", filename, e)
+            raise RuntimeError(f"Image analysis failed: {e}") from e
     
     async def analyze_batch(
         self,
@@ -149,7 +153,7 @@ class ABTestOptimizerUseCase:
         if len(images) > 5:
             raise ValueError("Maximum 5 images allowed per batch")
         
-        logger.info(f"📊 Starting batch analysis of {len(images)} images for user: {user_id}")
+        logger.info("📊 Starting batch analysis of %d images for user: %s", len(images), user_id)
         
         # Generate batch ID
         batch_id = f"batch_{uuid.uuid4().hex[:8]}"
@@ -166,12 +170,12 @@ class ABTestOptimizerUseCase:
                     batch_id=batch_id
                 )
                 results.append(result)
-            except Exception as e:
-                logger.error(f"❌ Failed to analyze {img['filename']}: {str(e)}")
+            except (TypeError, ValueError, KeyError, OSError) as e:
+                logger.error("❌ Failed to analyze %s: %s", img['filename'], e)
                 # Continue with other images
         
         if len(results) < 2:
-            raise Exception("Failed to analyze enough images for A/B testing (need at least 2)")
+            raise RuntimeError("Failed to analyze enough images for A/B testing (need at least 2)")
         
         # Create batch entity
         batch = ABTestBatch(
@@ -187,7 +191,7 @@ class ABTestOptimizerUseCase:
         # Save batch to database
         await self._save_batch(batch)
         
-        logger.info(f"✅ Batch analysis complete: {batch_id} - {len(results)} images analyzed")
+        logger.info("✅ Batch analysis complete: %s - %d images analyzed", batch_id, len(results))
         
         return batch
     
@@ -318,14 +322,13 @@ class ABTestOptimizerUseCase:
             user_id=doc["user_id"],
             image_url=doc.get("image_url"),
             created_at=doc["created_at"],
-            ab_test_batch_id=doc.get("ab_test_batch_id")
+            ab_test_batch_id=doc.get("ab_test_batch_id"),
+            relevance_level=doc.get("relevance_level") or get_relevance_level(float(doc["restaurant_relevance"])).value,
+            score_grade=doc.get("score_grade") or get_score_grade(float(doc["composite_score"])).value,
         )
 
 
-# Singleton instance
-_use_case_instance: Optional[ABTestOptimizerUseCase] = None
-
-
+@lru_cache(maxsize=1)
 def get_ab_optimizer_use_case() -> ABTestOptimizerUseCase:
     """
     Get or create singleton use case instance.
@@ -333,7 +336,4 @@ def get_ab_optimizer_use_case() -> ABTestOptimizerUseCase:
     Returns:
         ABTestOptimizerUseCase instance
     """
-    global _use_case_instance
-    if _use_case_instance is None:
-        _use_case_instance = ABTestOptimizerUseCase()
-    return _use_case_instance
+    return ABTestOptimizerUseCase()

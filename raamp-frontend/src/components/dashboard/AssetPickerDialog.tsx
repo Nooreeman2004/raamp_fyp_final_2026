@@ -99,7 +99,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden bg-[#0A0A0B] border-border/50 text-foreground">
+            <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden bg-background border-border/50 text-foreground">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-bold flex items-center gap-2">
                         <ImageIcon className="w-5 h-5 text-primary" />
@@ -119,7 +119,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                 placeholder="Search assets..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="pl-10 bg-[#141416] border-border/50"
+                                className="pl-10 bg-card border-border/50"
                             />
                         </div>
                         <Select
@@ -131,11 +131,11 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                 }))
                             }
                         >
-                            <SelectTrigger className="w-[180px] bg-[#141416] border-border/50">
+                            <SelectTrigger className="w-[180px] bg-card border-border/50">
                                 <Filter className="w-4 h-4 mr-2" />
                                 <SelectValue placeholder="All Sources" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#141416] border-border/50 text-foreground">
+                            <SelectContent className="bg-card border-border/50 text-foreground">
                                 <SelectItem value="all">All Sources</SelectItem>
                                 <SelectItem value="AI">AI Generated</SelectItem>
                                 <SelectItem value="user_upload">User Uploaded</SelectItem>
@@ -239,7 +239,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                 size="sm"
                                 onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
                                 disabled={pagination.page === 1}
-                                className="bg-[#141416] border-border/50"
+                                className="bg-card border-border/50"
                             >
                                 Previous
                             </Button>
@@ -248,7 +248,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                 size="sm"
                                 onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
                                 disabled={pagination.page >= pagination.total_pages}
-                                className="bg-[#141416] border-border/50"
+                                className="bg-card border-border/50"
                             >
                                 Next
                             </Button>

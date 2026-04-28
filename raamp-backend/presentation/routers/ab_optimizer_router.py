@@ -75,6 +75,8 @@ class ImageScoreResponse(BaseModel):
     why_bad: str
     recommendation: str
     image_url: Optional[str] = None
+    relevance_level: Optional[str] = None
+    score_grade: Optional[str] = None
 
 
 class AnalyzeFromLibraryRequest(BaseModel):
@@ -132,7 +134,9 @@ def _build_batch_response(batch: Any) -> BatchAnalysisResponse:
             why_good=img.why_good,
             why_bad=img.why_bad,
             recommendation=img.recommendation,
-            image_url=img.image_url
+            image_url=img.image_url,
+            relevance_level=img.relevance_level,
+            score_grade=img.score_grade
         )
         images_response.append(img_response)
         

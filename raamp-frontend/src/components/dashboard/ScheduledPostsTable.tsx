@@ -129,8 +129,8 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
     if (posts.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-foreground/5 border border-dashed border-border/50 rounded-xl">
-                <ImageIcon className="w-12 h-12 text-white/20 mb-4" />
-                <h3 className="text-xl font-medium text-white/90">No scheduled posts</h3>
+                <ImageIcon className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                <h3 className="text-xl font-medium text-foreground/80">No scheduled posts</h3>
                 <p className="text-muted-foreground/60 mt-1">Scheduled content will appear here.</p>
             </div>
         );
@@ -138,9 +138,9 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
 
     return (
         <>
-            <div className="bg-white/[0.01] border border-border/50 rounded-xl overflow-hidden shadow-2xl">
+            <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-2xl">
                 <Table>
-                    <TableHeader className="bg-white/[0.04] border-b border-border/50">
+                    <TableHeader className="bg-muted/30 border-b border-border/50">
                         <TableRow className="hover:bg-transparent h-14">
                             <TableHead className="w-[200px] text-[12px] uppercase font-black text-muted-foreground tracking-[0.15em] pl-6">Post Identifier</TableHead>
                             <TableHead className="w-[110px] text-[12px] uppercase font-black text-muted-foreground tracking-[0.15em] text-center">Platform</TableHead>
@@ -153,7 +153,7 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
                     <TableBody>
                         {filteredPosts.length === 0 ? (
                             <TableRow className="hover:bg-transparent">
-                                <TableCell colSpan={6} className="h-40 text-center text-white/30 italic text-sm font-light">
+                                <TableCell colSpan={6} className="h-40 text-center text-muted-foreground/60 italic text-sm font-light">
                                     No scheduled posts matching filters.
                                 </TableCell>
                             </TableRow>
@@ -168,7 +168,7 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
                                     : (isStory ? "Shared as a Story (No caption)" : "No caption");
 
                                 return (
-                                    <TableRow key={post.post_id} className="group border-border hover:bg-white/[0.04] transition-all h-24">
+                                    <TableRow key={post.post_id} className="group border-border hover:bg-muted/10 transition-all h-24">
                                         <TableCell className="pl-6">
                                             <div className="flex flex-col gap-1.5">
                                                 <span className="text-[13px] font-black text-foreground tracking-widest font-mono">
@@ -211,7 +211,7 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
                                                         <img src={post.media_url} className="w-full h-full object-cover" alt="" />
                                                     </div>
                                                 )}
-                                                <p className="text-[14px] text-white/85 font-medium line-clamp-2 leading-relaxed tracking-tight">
+                                                <p className="text-[14px] text-foreground/80 font-medium line-clamp-2 leading-relaxed tracking-tight">
                                                     {summary}
                                                 </p>
                                             </div>
@@ -261,7 +261,7 @@ export const ScheduledPostsTable: React.FC<ScheduledPostsTableProps> = ({
 
             {/* Cancel Confirmation Dialog */}
             <AlertDialog open={!!postToCancel} onOpenChange={(open) => !open && setPostToCancel(null)}>
-                <AlertDialogContent className="bg-[#09090B] border-border/50 rounded-2xl">
+                <AlertDialogContent className="bg-background border-border/50 rounded-2xl">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Cancel Scheduled Post?</AlertDialogTitle>
                         <AlertDialogDescription className="text-muted-foreground/80">

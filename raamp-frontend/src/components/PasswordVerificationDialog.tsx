@@ -64,7 +64,7 @@ export const PasswordVerificationDialog = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="bg-background/90 border-primary/30 text-foreground backdrop-blur-xl sm:max-w-md">
+            <DialogContent className="bg-background border-primary/40 text-foreground backdrop-blur-xl sm:max-w-md shadow-[0_0_40px_-4px_hsl(var(--primary)/0.35)] ring-1 ring-primary/30">
                 <DialogHeader>
                     <DialogTitle className="font-heading font-semibold text-2xl text-primary flex items-center gap-2">
                         <Lock className="w-5 h-5" />
@@ -88,7 +88,7 @@ export const PasswordVerificationDialog = ({
                                     setError("");
                                 }}
                                 className={cn(
-                                    "bg-black/50 border-border/50 font-mono focus:border-primary/50 focus:ring-primary/20 pr-10",
+                                    "bg-background border-border/60 font-mono focus:border-primary/50 focus:ring-primary/20 pr-10",
                                     error && "border-destructive focus:border-destructive"
                                 )}
                                 placeholder="••••••••"

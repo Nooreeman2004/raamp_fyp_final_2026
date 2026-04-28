@@ -43,6 +43,7 @@ const UserProfile = () => {
     username: "",
     address: "",
     website: "",
+    businessDomain: "",
   });
 
   // Track initial data to detect changes
@@ -125,6 +126,7 @@ const UserProfile = () => {
             role: (u.role as string) || '',
             profilePicture: (u.profile_picture as string) || '',
             username: u.username || '',
+            businessDomain: (u.business_domain as string) || '',
           };
           setUserData(data);
           setInitialUserData(JSON.stringify({
@@ -156,6 +158,7 @@ const UserProfile = () => {
       company: userData.company,
       bio: userData.bio,
       role: userData.role,
+      business_domain: userData.businessDomain,
     };
 
     // 2. Update Business Profile (if address/website present or if company/bio changed)
@@ -623,7 +626,7 @@ const UserProfile = () => {
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-3 text-white/30 hover:text-primary transition-colors"
+                  className="absolute right-3 top-3 text-muted-foreground/60 hover:text-primary transition-colors"
                 >
                   {showNewPassword ? "HIDE" : "SHOW"}
                 </button>
@@ -642,7 +645,7 @@ const UserProfile = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3 text-white/30 hover:text-primary transition-colors"
+                  className="absolute right-3 top-3 text-muted-foreground/60 hover:text-primary transition-colors"
                 >
                   {showConfirmPassword ? "HIDE" : "SHOW"}
                 </button>

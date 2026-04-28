@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { campaignPlannerService } from "@/services/campaignPlannerService";
 
-import { MediaPicker } from "@/components/shared/MediaPicker";
 
 const DEFAULT_TZ = "UTC";
 
@@ -35,12 +34,20 @@ export function CreateCampaignPlanDialog({
   const [targetAudience, setTargetAudience] = useState("");
   const [offerOrCta, setOfferOrCta] = useState("");
   const [constraints, setConstraints] = useState("");
-  const [referenceMediaUrl, setReferenceMediaUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = useMemo(() => {
     return idea.trim().length >= 10 && !!startDate && !!endDate && !!timezone.trim();
   }, [idea, startDate, endDate, timezone]);
+
+  // When the dialog reopens, clear any stale lock/submitting state from the
+  // previous session (Dialog keeps children mounted even when closed).
+  useEffect(() => {
+    if (open) {
+      submitLockRef.current = false;
+      setSubmitting(false);
+    }
+  }, [open]);
 
   const validateForm = (): string | null => {
     if (idea.trim().length < 10) return "Campaign idea must be at least 10 characters.";
@@ -98,7 +105,7 @@ export function CreateCampaignPlanDialog({
         target_audience: targetAudience.trim() || null,
         offer_or_cta: offerOrCta.trim() || null,
         constraints: constraints.trim() || null,
-        reference_media_url: referenceMediaUrl.trim() || null,
+        reference_media_url: null,
       } as const;
 
       console.log("🚀 Creating campaign plan:", {
@@ -120,6 +127,11 @@ export function CreateCampaignPlanDialog({
 
       toast.success("Campaign plan generated", { id: toastId, description: `Status: ${res.generation_status}` });
       onCreated();
+      onOpenChange(false);
+      // Do NOT reset the lock here — the dialog is closing.
+      // submitLockRef stays true until the dialog reopens (see useEffect above).
+      // This prevents any re-render between onOpenChange(false) and unmount from
+      // briefly re-enabling the button and allowing a duplicate submission.
     } catch (e: any) {
       console.error("❌ Campaign plan generation failed:", {
         error: e,
@@ -141,7 +153,7 @@ export function CreateCampaignPlanDialog({
           : msg || "Check console for details.",
         duration: 10000
       });
-    } finally {
+      // Only reset lock on failure so the user can retry.
       setSubmitting(false);
       submitLockRef.current = false;
     }
@@ -267,8 +279,8 @@ export function CreateCampaignPlanDialog({
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="p-4 bg-card/30 border-border/50 space-y-3">
+        <Card className="p-4 bg-card/30 border-border/50">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Target audience (optional)</Label>
               <Input value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="e.g. families in Islamabad" className="bg-foreground/5 border-border/50 w-full min-w-0" />
@@ -279,18 +291,10 @@ export function CreateCampaignPlanDialog({
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Constraints (optional)</Label>
-              <Textarea value={constraints} onChange={(e) => setConstraints(e.target.value)} rows={3} placeholder="Do not mention alcohol, keep it premium, etc." className="bg-foreground/5 border-border/50 resize-none" />
+              <Input value={constraints} onChange={(e) => setConstraints(e.target.value)} placeholder="Do not mention alcohol, keep it premium…" className="bg-foreground/5 border-border/50 w-full min-w-0" />
             </div>
-          </Card>
-
-          <Card className="p-4 bg-card/30 border-border/50 space-y-3">
-            <Label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest">Visual Reference (Optional)</Label>
-            <MediaPicker value={referenceMediaUrl} onChange={setReferenceMediaUrl} />
-            <p className="text-[10px] text-muted-foreground/60 leading-relaxed italic">
-              Uploading a reference image helps the AI understand the visual style you want for this campaign.
-            </p>
-          </Card>
-        </div>
+          </div>
+        </Card>
 
         </div>{/* ── end scrollable body ── */}
 

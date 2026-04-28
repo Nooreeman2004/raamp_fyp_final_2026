@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { campaignPlannerService, PlannedPostItem } from "@/services/campaignPlannerService";
 import { assetService, Asset } from "@/services/assetService";
-import { Upload, Library, Link2, X, CheckCircle2, Loader2, ImageIcon } from "lucide-react";
+import { Upload, Library, Link2, X, CheckCircle2, Loader2, ImageIcon, Download } from "lucide-react";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -34,9 +35,11 @@ export function PlannedPostDrawer({
   timezone: string;
   onUpdated: () => void;
 }) {
+  const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [mediaUrl, setMediaUrl] = useState("");
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [mode, setMode] = useState<"post_now" | "schedule_post" | "post_story">("schedule_post");
   const [platform, setPlatform] = useState<"instagram" | "facebook" | "both">("instagram");
 
@@ -44,6 +47,7 @@ export function PlannedPostDrawer({
   useEffect(() => {
     if (!open) {
       setMediaUrl("");
+      setGeneratedImageUrl(null);
     }
   }, [open]);
 
@@ -78,8 +82,10 @@ export function PlannedPostDrawer({
         media_url: mediaUrl.trim(),
       });
       if (!res?.success) throw new Error("Request approval failed");
-      toast.success("Approval requested", { description: `Request ID: ${res.request_id}` });
+      toast.success("Approval requested!", { description: "Redirecting to approval queue…" });
       onUpdated();
+      onOpenChange(false);
+      navigate("/dashboard/approvals");
     } catch (e: any) {
       toast.error("Failed to request approval", { description: e?.message || "Please try again." });
     } finally {
@@ -107,10 +113,11 @@ export function PlannedPostDrawer({
         throw new Error(res?.error || "Image generation failed");
       }
 
-      // Auto-populate media URL
+      // Auto-populate media URL and show preview
       setMediaUrl(res.image_url);
+      setGeneratedImageUrl(res.image_url);
       toast.success("Image generated!", {
-        description: "Image is ready and loaded. You can now request approval.",
+        description: "Image is ready. Download or request approval below.",
       });
     } catch (e: any) {
       toast.error("Image generation failed", {
@@ -211,13 +218,60 @@ export function PlannedPostDrawer({
                 Convert to Draft
               </Button>
 
-              {/* ── Media Picker ── */}
-              <div className="space-y-2">
-                <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-                  Media (required for approval)
-                </Label>
-                <MediaPicker value={mediaUrl} onChange={setMediaUrl} />
-              </div>
+              {/* ── Media: show generated preview OR picker ── */}
+              {generatedImageUrl ? (
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                    Generated Image
+                  </Label>
+                  <div className="relative rounded-lg overflow-hidden border border-primary/30 bg-background/50">
+                    <img
+                      src={generatedImageUrl}
+                      alt="AI generated"
+                      className="w-full object-cover rounded-lg max-h-48"
+                    />
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+                          const resp = await fetch(generatedImageUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                          const blob = await resp.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = "generated-image.png";
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        } catch {
+                          window.open(generatedImageUrl, "_blank");
+                        }
+                      }}
+                      className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg p-1.5 hover:bg-background transition-colors"
+                      title="Download image"
+                    >
+                      <Download className="w-3.5 h-3.5 text-foreground" />
+                    </button>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-[10px] text-muted-foreground/70 hover:text-muted-foreground"
+                    onClick={() => {
+                      setGeneratedImageUrl(null);
+                      setMediaUrl("");
+                    }}
+                  >
+                    <X className="w-3 h-3 mr-1" /> Replace with different media
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                    Media (required for approval)
+                  </Label>
+                  <MediaPicker value={mediaUrl} onChange={setMediaUrl} />
+                </div>
+              )}
 
               {/* Platform + Mode */}
               <div className="grid grid-cols-2 gap-3">

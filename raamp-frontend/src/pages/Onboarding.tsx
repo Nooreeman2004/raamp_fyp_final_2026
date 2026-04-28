@@ -188,8 +188,7 @@ const Onboarding = () => {
             const height = 700;
             const left = window.screen.width / 2 - width / 2;
             const top = window.screen.height / 2 - height / 2;
-            // Use API_BASE_URL to work in all deployment environments
-            const authUrl = `${API_BASE_URL.replace(/\/api\/?$/, '')}/profile/onboarding/facebook/auth`;
+            const authUrl = `${API_BASE_URL}/profile/onboarding/facebook/auth`;
             window.open(authUrl, 'facebook_auth', `width=${width},height=${height},left=${left},top=${top}`);
         } else if (platform === 'instagram') {
             if (!status.facebook_connected) {
@@ -202,8 +201,7 @@ const Onboarding = () => {
             const height = 800;
             const left = window.screen.width / 2 - width / 2;
             const top = window.screen.height / 2 - height / 2;
-            // Use API_BASE_URL to work in all deployment environments
-            const authUrl = `${API_BASE_URL.replace(/\/api\/?$/, '')}/profile/onboarding/instagram/auth`;
+            const authUrl = `${API_BASE_URL}/profile/onboarding/instagram/auth`;
             window.open(authUrl, 'instagram_auth', `width=${width},height=${height},left=${left},top=${top}`);
         } else if (platform === 'google') {
             toggleGoogleLocationEditor();

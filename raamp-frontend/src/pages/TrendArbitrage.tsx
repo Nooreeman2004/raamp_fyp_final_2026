@@ -1719,14 +1719,14 @@ const TrendArbitrage = () => {
             {showQualityBanner && (
               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start justify-between gap-4">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
-                  <div className="text-xs font-mono text-amber-200/90">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="text-xs font-mono text-amber-800">
                     Some trends are showing estimated data while scans complete. Results will update automatically.
                   </div>
                 </div>
                 <Button
                   variant="ghost"
-                  className="h-7 px-2 text-[10px] font-mono text-amber-200/70 hover:text-amber-200"
+                  className="h-7 px-2 text-[10px] font-mono text-amber-700 hover:text-amber-900"
                   onClick={() => setQualityBannerDismissed(true)}
                 >
                   Dismiss
@@ -1736,12 +1736,12 @@ const TrendArbitrage = () => {
             {!specialtiesLoading && !hasSpecialties && (
               <div className="mt-3">
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between gap-3">
-                  <div className="text-xs font-mono text-amber-200/90">
-                    Add at least 1 <span className="text-amber-200 font-black">Business Specialty</span> to enable scans.
+                  <div className="text-xs font-mono text-amber-800">
+                    Add at least 1 <span className="text-amber-900 font-black">Business Specialty</span> to enable scans.
                   </div>
                   <Button
                     variant="ghost"
-                    className="h-8 px-3 text-[10px] font-mono text-amber-200/80 hover:text-amber-200"
+                    className="h-8 px-3 text-[10px] font-mono text-amber-700 hover:text-amber-900"
                     onClick={() => navigate("/settings/business-specialties")}
                   >
                     Open Specialties
@@ -1826,11 +1826,11 @@ const TrendArbitrage = () => {
                     </Button>
 
                     {!specialtiesLoading && !hasSpecialties && (
-                      <div className="text-[10px] font-mono text-amber-200/80 uppercase tracking-[0.2em]">
+                      <div className="text-[10px] font-mono text-amber-700 uppercase tracking-[0.2em]">
                         Add Business Specialties to enable scanning.
                         {" "}
                         <span
-                          className="underline hover:text-amber-200 cursor-pointer"
+                          className="underline hover:text-amber-900 cursor-pointer"
                           onClick={() => navigate("/settings/business-specialties")}
                         >
                           Open Settings
@@ -1870,8 +1870,8 @@ const TrendArbitrage = () => {
               )}
 
               {(timelineFetchError || geoFetchError) && (
-                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex items-center gap-3 text-amber-100/70 text-[10px] font-mono uppercase">
-                  <AlertCircle className="w-4 h-4 text-amber-300" />
+                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex items-center gap-3 text-amber-800 text-[10px] font-mono uppercase">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
                   <span>
                     {timelineFetchError ? `Timeline: ${timelineFetchError} ` : ""}
                     {geoFetchError ? `Geo: ${geoFetchError}` : ""}

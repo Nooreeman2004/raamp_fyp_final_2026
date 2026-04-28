@@ -5,7 +5,7 @@ import logging
 import os
 import re
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import HTTPException, status
 from google import genai
@@ -106,15 +106,18 @@ HARD RULES:
 
 {brand_constraints_text}
 
-CALENDAR REQUIREMENTS:
+SCHEDULING RULES (HARD — no exceptions):
 - Campaign Start: {start_date}
 - Campaign End: {end_date}
-- Frequency: {frequency}
-- REQUIRED: You MUST generate posts for the ENTIRE duration from start to end.
-- If frequency is "3_per_week", you must provide 3 unique posts for EVERY week of the campaign.
-- Ensure scheduled_time is spread logically across the weeks (e.g. Mon, Wed, Fri or Tue, Thu, Sat).
-- Do NOT stop after just a few days. Fill the entire duration.
-{"- REFERENCE MEDIA: Consider the visual style of this media: " + brief.get("reference_media_url") if brief.get("reference_media_url") else ""}
+- Posting Frequency: {frequency}
+- NEVER schedule 2 posts on the same calendar date.
+- Fill the ENTIRE date range from start_date to end_date.
+- Frequency mapping:
+  * "daily"      → one post per calendar day, every day.
+  * "3_per_week" → exactly 3 posts per week, on Monday, Wednesday, Friday ONLY.
+  * "5_per_week" → exactly 5 posts per week, on Monday, Tuesday, Wednesday, Thursday, Friday ONLY.
+  * "custom"     → spread posts as evenly as possible across the weeks; never 2 on the same day.
+- Count how many weeks are in the campaign, then multiply by the weekly post count to determine the TOTAL number of posts. Generate ALL of them.
 
 BRAND_DNA:
 {json.dumps(serialized_brand, ensure_ascii=False)}
@@ -159,7 +162,7 @@ OUTPUT_JSON_SCHEMA:
         try:
             return json.loads(text)
         except json.JSONDecodeError as e:
-            logger.warning(f"Initial JSON parse failed: {e}. Attempting cleanup...")
+            logger.warning("Initial JSON parse failed: %s. Attempting cleanup...", e)
         
         # Extract JSON object
         m = re.search(r"\{[\s\S]*\}", text)
@@ -173,16 +176,15 @@ OUTPUT_JSON_SCHEMA:
         try:
             return json.loads(json_text)
         except json.JSONDecodeError as e:
-            logger.warning(f"Extracted JSON parse failed: {e}. Attempting advanced cleanup...")
+            logger.warning("Extracted JSON parse failed: %s. Attempting advanced cleanup...", e)
         
         # Advanced cleanup: Fix common AI JSON errors
         try:
             # Fix unterminated strings by finding and closing them
             lines = json_text.split('\n')
             fixed_lines = []
-            in_string = False
-            
-            for i, line in enumerate(lines):
+
+            for line in lines:
                 # Count unescaped quotes
                 quote_count = 0
                 escaped = False
@@ -210,8 +212,8 @@ OUTPUT_JSON_SCHEMA:
             
             fixed_json = '\n'.join(fixed_lines)
             return json.loads(fixed_json)
-        except Exception as cleanup_error:
-            logger.error(f"Advanced cleanup failed: {cleanup_error}")
+        except (ValueError, json.JSONDecodeError) as cleanup_error:
+            logger.error("Advanced cleanup failed: %s", cleanup_error)
             # Last resort: return a minimal valid structure
             logger.warning("Returning fallback empty campaign structure")
             return {
@@ -226,7 +228,7 @@ OUTPUT_JSON_SCHEMA:
                 "timeline": {"start_date": datetime.now(timezone.utc).isoformat(), "end_date": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(), "milestones": []}
             }
 
-    def _parse_dt_utc(self, value: Any, *, fallback_tz: str) -> datetime:
+    def _parse_dt_utc(self, value: Any, *, _fallback_tz: str = "") -> datetime:
         """
         Parse a datetime-like string and normalize to UTC.
         For now we accept:
@@ -300,7 +302,7 @@ OUTPUT_JSON_SCHEMA:
         
         for p in posts:
             try:
-                scheduled_utc = self._parse_dt_utc(p.get("scheduled_time"), fallback_tz=plan.timezone)
+                scheduled_utc = self._parse_dt_utc(p.get("scheduled_time"), _fallback_tz=plan.timezone)
                 doc = CampaignPlannedPostModel(
                     user_email=user_email,
                     campaign_plan_id=str(plan.id),
@@ -320,7 +322,7 @@ OUTPUT_JSON_SCHEMA:
                     updated_at=datetime.utcnow(),
                 )
                 docs_to_insert.append(doc)
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
                 # Escape hatch: persist a failed planned post instead of losing it.
                 doc = CampaignPlannedPostModel(
                     user_email=user_email,
@@ -345,11 +347,10 @@ OUTPUT_JSON_SCHEMA:
                 docs_to_insert.append(doc)
 
         # Bulk insert all posts in one operation
-        saved: List[CampaignPlannedPostModel] = []
         if docs_to_insert:
-            saved = await CampaignPlannedPostModel.insert_many(docs_to_insert)
+            await CampaignPlannedPostModel.insert_many(docs_to_insert)
 
-        logger.info("Campaign plan created: user=%s plan_id=%s posts=%d", user_email, str(plan.id), len(saved))
+        logger.info("Campaign plan created: user=%s plan_id=%s posts=%d", user_email, str(plan.id), len(docs_to_insert))
         return plan
 
     async def _call_llm(self, prompt: str) -> str:

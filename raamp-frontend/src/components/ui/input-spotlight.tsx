@@ -37,7 +37,7 @@ export const InputSpotlight = React.forwardRef<HTMLInputElement, InputSpotlightP
                 onMouseEnter={() => setVisible(true)}
                 onMouseLeave={() => setVisible(false)}
                 className={cn(
-                    "p-[2px] rounded-lg transition duration-300 group/input pointer-events-none bg-zinc-200 dark:bg-zinc-800",
+                    "p-[2px] rounded-lg transition duration-300 group/input pointer-events-none bg-border/60 dark:bg-zinc-800",
                     containerClassName
                 )}
             >

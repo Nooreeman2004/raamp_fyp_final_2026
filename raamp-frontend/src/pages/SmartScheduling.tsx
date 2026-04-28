@@ -197,7 +197,7 @@ const SmartScheduling = () => {
                 {/* Global Filters Section */}
                 <div className="flex flex-col md:flex-row items-center gap-4 bg-foreground/5 p-4 rounded-xl border border-border/50">
                     <div className="relative flex-1 w-full">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
                         <Input
                             placeholder="Search logs and scheduled content..."
                             value={searchQuery}
@@ -209,7 +209,7 @@ const SmartScheduling = () => {
                         <SelectTrigger className="h-10 w-full md:w-[180px] bg-card/50 border-border/50 text-xs font-bold uppercase tracking-widest">
                             <SelectValue placeholder="All Platforms" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#0A0A0B] border-border/50">
+                        <SelectContent className="bg-background border-border/50">
                             <SelectItem value="all">All Platforms</SelectItem>
                             <SelectItem value="instagram">Instagram</SelectItem>
                             <SelectItem value="facebook">Facebook</SelectItem>

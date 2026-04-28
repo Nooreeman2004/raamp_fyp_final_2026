@@ -113,8 +113,8 @@ export const PostingHistoryTable: React.FC<PostingHistoryTableProps> = ({
     if (posts.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-foreground/5 border border-dashed border-border/50 rounded-xl">
-                <Globe className="w-12 h-12 text-white/20 mb-4" />
-                <h3 className="text-xl font-medium text-white/90">No posting history yet</h3>
+                <Globe className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                <h3 className="text-xl font-medium text-foreground/80">No posting history yet</h3>
                 <p className="text-muted-foreground/60 mt-1">Activity logs will appear here once you post.</p>
             </div>
         );
@@ -134,16 +134,16 @@ export const PostingHistoryTable: React.FC<PostingHistoryTableProps> = ({
                 </Tabs>
 
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">
+                    <span className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">
                         Timezone: {getTimezone()}
                     </span>
                 </div>
             </div>
 
             {/* Table */}
-            <div className="bg-white/[0.01] border border-border/50 rounded-xl overflow-hidden shadow-2xl">
+            <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-2xl">
                 <Table>
-                    <TableHeader className="bg-white/[0.04] border-b border-border/50">
+                    <TableHeader className="bg-muted/30 border-b border-border/50">
                         <TableRow className="hover:bg-transparent h-14">
                             <TableHead className="w-[200px] text-[12px] uppercase font-black text-muted-foreground tracking-[0.15em] pl-6">Post Identifier</TableHead>
                             <TableHead className="w-[110px] text-[12px] uppercase font-black text-muted-foreground tracking-[0.15em] text-center">Platform</TableHead>
@@ -156,7 +156,7 @@ export const PostingHistoryTable: React.FC<PostingHistoryTableProps> = ({
                     <TableBody>
                         {filteredPosts.length === 0 ? (
                             <TableRow className="hover:bg-transparent">
-                                <TableCell colSpan={6} className="h-40 text-center text-white/30 italic text-sm font-light">
+                                <TableCell colSpan={6} className="h-40 text-center text-muted-foreground/60 italic text-sm font-light">
                                     No records found matching your current filters.
                                 </TableCell>
                             </TableRow>
@@ -170,7 +170,7 @@ export const PostingHistoryTable: React.FC<PostingHistoryTableProps> = ({
                                     : "Shared as a Story (No caption)";
 
                                 return (
-                                    <TableRow key={post.post_id} className="group border-border hover:bg-white/[0.04] transition-all h-24">
+                                    <TableRow key={post.post_id} className="group border-border hover:bg-muted/10 transition-all h-24">
                                         <TableCell className="pl-6">
                                             <div className="flex flex-col gap-1.5">
                                                 <span className="text-[13px] font-black text-foreground tracking-widest font-mono">
@@ -213,7 +213,7 @@ export const PostingHistoryTable: React.FC<PostingHistoryTableProps> = ({
                                                     </div>
                                                 )}
                                                 <div className="flex flex-col gap-1.5 min-w-0">
-                                                    <p className={`text-[14px] line-clamp-2 leading-relaxed tracking-tight ${post.status.toLowerCase() === "failed" ? "text-red-400 font-bold" : "text-white/85 font-medium"}`}>
+                                                    <p className={`text-[14px] line-clamp-2 leading-relaxed tracking-tight ${post.status.toLowerCase() === "failed" ? "text-red-500 font-bold" : "text-foreground/80 font-medium"}`}>
                                                         {post.status.toLowerCase() === "failed"
                                                             ? mapBackendErrorToUI(post.error_message)
                                                             : summary
@@ -248,10 +248,10 @@ export const PostingHistoryTable: React.FC<PostingHistoryTableProps> = ({
 
             {/* Modal Detail */}
             <Dialog open={!!selectedPost} onOpenChange={(open) => !open && setSelectedPost(null)}>
-                <DialogContent className="max-w-2xl bg-[#09090B] border border-border/50 p-0 overflow-hidden shadow-2xl rounded-2xl">
+                <DialogContent className="max-w-2xl bg-background border border-border/50 p-0 overflow-hidden shadow-2xl rounded-2xl">
                     {selectedPost && (
                         <div className="flex flex-col max-h-[90vh]">
-                            <DialogHeader className="p-6 pb-2 border-b border-border bg-white/[0.02]">
+                            <DialogHeader className="p-6 pb-2 border-b border-border bg-muted/10">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-4">
                                         <div className="w-12 h-12 rounded-xl bg-foreground/5 flex items-center justify-center border border-border/50 shadow-inner">
@@ -272,33 +272,33 @@ export const PostingHistoryTable: React.FC<PostingHistoryTableProps> = ({
 
                             <div className="p-6 space-y-8 overflow-y-auto">
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    <div className="p-4 rounded-xl bg-white/[0.02] border border-border">
-                                        <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-2">Timestamp</p>
-                                        <p className="text-sm font-bold text-white/90">{format(new Date(selectedPost.created_at), "MMM dd, yyyy · h:mm a")}</p>
+                                    <div className="p-4 rounded-xl bg-muted/20 border border-border">
+                                        <p className="text-[10px] text-muted-foreground/60 uppercase font-black tracking-widest mb-2">Timestamp</p>
+                                        <p className="text-sm font-bold text-foreground/90">{format(new Date(selectedPost.created_at), "MMM dd, yyyy · h:mm a")}</p>
                                     </div>
-                                    <div className="p-4 rounded-xl bg-white/[0.02] border border-border">
-                                        <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-2">Post Mode</p>
-                                        <p className="text-sm font-bold uppercase tracking-tight text-white/90">{!selectedPost.caption ? "Story Content" : "Feed Publication"}</p>
+                                    <div className="p-4 rounded-xl bg-muted/20 border border-border">
+                                        <p className="text-[10px] text-muted-foreground/60 uppercase font-black tracking-widest mb-2">Post Mode</p>
+                                        <p className="text-sm font-bold uppercase tracking-tight text-foreground/90">{!selectedPost.caption ? "Story Content" : "Feed Publication"}</p>
                                     </div>
-                                    <div className="p-4 rounded-xl bg-white/[0.02] border border-border">
-                                        <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-2">Platform</p>
-                                        <p className="text-sm font-bold capitalize text-white/90">{selectedPost.platform || "Instagram"}</p>
+                                    <div className="p-4 rounded-xl bg-muted/20 border border-border">
+                                        <p className="text-[10px] text-muted-foreground/60 uppercase font-black tracking-widest mb-2">Platform</p>
+                                        <p className="text-sm font-bold capitalize text-foreground/90">{selectedPost.platform || "Instagram"}</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                     {selectedPost.media_url && (
                                         <div className="md:col-span-1">
-                                            <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-3">Post Media</p>
+                                            <p className="text-[10px] text-muted-foreground/60 uppercase font-black tracking-widest mb-3">Post Media</p>
                                             <div className="aspect-square rounded-xl overflow-hidden bg-background border border-border/50 shadow-2xl">
                                                 <img src={selectedPost.media_url} className="w-full h-full object-contain" alt="" />
                                             </div>
                                         </div>
                                     )}
                                     <div className={selectedPost.media_url ? "md:col-span-2" : "md:col-span-3"}>
-                                        <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-3">Caption Metadata</p>
-                                        <div className="p-5 rounded-xl bg-white/[0.03] border border-border text-base text-white/80 leading-relaxed font-light min-h-[140px] whitespace-pre-wrap">
-                                            {selectedPost.caption || <span className="text-white/20 italic font-mono text-xs">LOGGED_WITH_NO_CAPTION</span>}
+                                        <p className="text-[10px] text-muted-foreground/60 uppercase font-black tracking-widest mb-3">Caption Metadata</p>
+                                        <div className="p-5 rounded-xl bg-muted/20 border border-border text-base text-foreground/80 leading-relaxed font-light min-h-[140px] whitespace-pre-wrap">
+                                            {selectedPost.caption || <span className="text-muted-foreground/40 italic font-mono text-xs">LOGGED_WITH_NO_CAPTION</span>}
                                         </div>
                                     </div>
                                 </div>
@@ -309,7 +309,7 @@ export const PostingHistoryTable: React.FC<PostingHistoryTableProps> = ({
                                             <AlertTriangle className="w-4 h-4" />
                                             System Log Reference
                                         </p>
-                                        <div className="p-6 rounded-2xl bg-red-500/[0.03] border border-red-500/10 font-medium text-sm text-red-100/80 leading-relaxed overflow-x-auto whitespace-pre-wrap">
+                                        <div className="p-6 rounded-2xl bg-red-500/[0.03] border border-red-500/10 font-medium text-sm text-red-700 leading-relaxed overflow-x-auto whitespace-pre-wrap">
                                             {mapBackendErrorToUI(selectedPost.error_message)}
                                         </div>
                                     </div>

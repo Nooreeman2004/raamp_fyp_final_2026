@@ -373,7 +373,7 @@ const RAAMPAssistant = () => {
                           {msg.role === 'assistant' ? 'SYSTEM_AI' : 'USER_COMMAND'}
                         </div>
                         <div className={`p-4 text-sm shadow-[0_0_15px_rgba(0,224,208,0.05)] ${msg.role === 'assistant'
-                          ? 'bg-primary/5 border border-primary/20 rounded-tr-lg rounded-br-lg rounded-bl-lg text-white/90'
+                          ? 'bg-primary/5 border border-primary/20 rounded-tr-lg rounded-br-lg rounded-bl-lg text-foreground/90'
                           : 'bg-foreground/10 border border-border/80 rounded-tl-lg rounded-bl-lg rounded-br-lg text-foreground'
                           }`}>
                           <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -394,7 +394,7 @@ const RAAMPAssistant = () => {
                     </div>
                     <div className="flex-1">
                       <div className="text-[10px] text-primary mb-1 opacity-70">SYSTEM_AI</div>
-                      <div className="bg-primary/5 border border-primary/20 p-4 rounded-tr-lg rounded-br-lg rounded-bl-lg text-sm text-white/90 w-fit">
+                      <div className="bg-primary/5 border border-primary/20 p-4 rounded-tr-lg rounded-br-lg rounded-bl-lg text-sm text-foreground/90 w-fit">
                         <div className="flex gap-1">
                           <span className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                           <span className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />

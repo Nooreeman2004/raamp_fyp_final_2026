@@ -52,11 +52,11 @@ export const ABMonitorSchedule = ({
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case "scheduled":
-        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/50">Scheduled</Badge>;
+        return <Badge className="bg-blue-500/20 text-blue-700 border-blue-500/50">Scheduled</Badge>;
       case "active":
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500/50">Active</Badge>;
+        return <Badge className="bg-green-500/20 text-green-700 border-green-500/50">Active</Badge>;
       case "completed":
-        return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/50">Completed</Badge>;
+        return <Badge className="bg-purple-500/20 text-purple-700 border-purple-500/50">Completed</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -240,16 +240,16 @@ export const ABMonitorSchedule = ({
               <HolographicCard className={`p-4 transition-all ${getActiveVariant() === 'a' ? 'border-2 border-cyan-400 bg-cyan-500/10 shadow-[0_0_20px_hsl(186,100%,60%,0.2)]' : 'border border-cyan-500/30 bg-cyan-500/5'}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/50 font-semibold">Variant A</Badge>
+                    <Badge className="bg-cyan-500/20 text-cyan-700 border-cyan-500/50 font-semibold">Variant A</Badge>
                     {getActiveVariant() === 'a' && (
-                      <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
+                      <Badge className="bg-green-500/20 text-green-700 border-green-500/50">
                         Active Now
                       </Badge>
                     )}
                   </div>
-                  <Clock className="w-5 h-5 text-cyan-400" />
+                  <Clock className="w-5 h-5 text-cyan-700" />
                 </div>
-                <p className="text-lg font-medium text-cyan-100">
+                <p className="text-lg font-medium text-cyan-900">
                   {new Date(status.variant_a_post_time).toLocaleString()}
                 </p>
               </HolographicCard>
@@ -258,16 +258,16 @@ export const ABMonitorSchedule = ({
               <HolographicCard className={`p-4 transition-all ${getActiveVariant() === 'b' ? 'border-2 border-purple-400 bg-purple-500/10 shadow-[0_0_20px_hsl(270,100%,70%,0.2)]' : 'border border-purple-500/30 bg-purple-500/5'}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/50 font-semibold">Variant B</Badge>
+                    <Badge className="bg-purple-500/20 text-purple-700 border-purple-500/50 font-semibold">Variant B</Badge>
                     {getActiveVariant() === 'b' && (
-                      <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
+                      <Badge className="bg-green-500/20 text-green-700 border-green-500/50">
                         Active Now
                       </Badge>
                     )}
                   </div>
-                  <Clock className="w-5 h-5 text-purple-400" />
+                  <Clock className="w-5 h-5 text-purple-700" />
                 </div>
-                <p className="text-lg font-medium text-purple-100">
+                <p className="text-lg font-medium text-purple-900">
                   {new Date(status.variant_b_post_time).toLocaleString()}
                 </p>
               </HolographicCard>
@@ -292,27 +292,27 @@ export const ABMonitorSchedule = ({
               <div className="p-4 rounded-lg border border-amber-400/30 bg-amber-500/10 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h4 className="font-semibold text-amber-300 flex items-center gap-2">
+                    <h4 className="font-semibold text-amber-700 flex items-center gap-2">
                       <Sparkles className="w-4 h-4" />
                       AI Pre-Ranking (Before Final Metrics)
                     </h4>
-                    <p className="text-sm text-amber-100/80 mt-1">
+                    <p className="text-sm text-amber-800 mt-1">
                       Recommended variant: <span className="font-semibold uppercase">{status.pre_ranking.recommended_variant.replace("_", " ")}</span> • Confidence: {status.pre_ranking.confidence}
                     </p>
                   </div>
-                  <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40">
+                  <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/40">
                     Gap: {status.pre_ranking.score_gap.toFixed(2)}
                   </Badge>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-3 text-sm">
                   <div className="rounded-md border border-cyan-500/30 bg-cyan-500/10 p-3">
-                    <p className="text-cyan-300 font-medium">Variant A composite</p>
-                    <p className="text-cyan-100 text-lg font-semibold">{status.pre_ranking.variant_a_composite.toFixed(2)}</p>
+                    <p className="text-cyan-800 font-medium">Variant A composite</p>
+                    <p className="text-cyan-900 text-lg font-semibold">{status.pre_ranking.variant_a_composite.toFixed(2)}</p>
                   </div>
                   <div className="rounded-md border border-purple-500/30 bg-purple-500/10 p-3">
-                    <p className="text-purple-300 font-medium">Variant B composite</p>
-                    <p className="text-purple-100 text-lg font-semibold">{status.pre_ranking.variant_b_composite.toFixed(2)}</p>
+                    <p className="text-purple-800 font-medium">Variant B composite</p>
+                    <p className="text-purple-900 text-lg font-semibold">{status.pre_ranking.variant_b_composite.toFixed(2)}</p>
                   </div>
                 </div>
 
@@ -340,19 +340,19 @@ export const ABMonitorSchedule = ({
             {/* Stats needed for post-monitoring decision */}
             {status.stats_template && (
               <div className="p-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 space-y-3">
-                <h4 className="font-semibold text-emerald-300 flex items-center gap-2">
+                <h4 className="font-semibold text-emerald-700 flex items-center gap-2">
                   <BarChart3 className="w-4 h-4" />
                   Stats You Need To Decide Ads
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {status.stats_template.fields.map((field) => (
-                    <Badge key={field} variant="outline" className="border-emerald-400/40 text-emerald-200">
+                    <Badge key={field} variant="outline" className="border-emerald-400/40 text-emerald-700">
                       {field.toUpperCase()}
                     </Badge>
                   ))}
                 </div>
-                <p className="text-xs text-emerald-100/90">Scoring formula: {status.stats_template.formula}</p>
-                <p className="text-xs text-emerald-100/80">{status.stats_template.notes}</p>
+                <p className="text-xs text-emerald-800">Scoring formula: {status.stats_template.formula}</p>
+                <p className="text-xs text-emerald-800">{status.stats_template.notes}</p>
                 {status.meta_ads_link && (
                   <Button variant="outline" size="sm" onClick={() => openAdsLink(status.meta_ads_link)} className="border-emerald-500/40">
                     Open Meta Ads Manager
@@ -364,8 +364,8 @@ export const ABMonitorSchedule = ({
 
             {status.result && (
               <div className="p-4 rounded-lg border border-indigo-500/30 bg-indigo-500/10 space-y-2">
-                <h4 className="font-semibold text-indigo-300">Monitoring Summary</h4>
-                <p className="text-sm text-indigo-100/90">
+                <h4 className="font-semibold text-indigo-700">Monitoring Summary</h4>
+                <p className="text-sm text-indigo-800">
                   Winner image: {status.result.winner_image_id}
                   {typeof status.result.delta_percentage === "number" ? ` • Delta: ${status.result.delta_percentage.toFixed(1)}%` : ""}
                   {status.result.confidence_level ? ` • Confidence: ${status.result.confidence_level}` : ""}

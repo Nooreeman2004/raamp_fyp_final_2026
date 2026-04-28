@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ThemeEmoji } from "@/components/ui/emoji";
+import type { LucideIcon } from "lucide-react";
+import { Camera, Utensils, Coffee, LayoutGrid, Zap, Layers, Sparkles, Users, PartyPopper, Sun, Leaf, Star, Smartphone } from "lucide-react";
 
 interface ImageTemplate {
     id: string;
@@ -17,7 +19,7 @@ interface ImageTemplate {
     category: string;
     prompt: string;
     tags: string[];
-    emoji: string;
+    icon: LucideIcon;
 }
 
 const IMAGE_TEMPLATES: ImageTemplate[] = [
@@ -26,7 +28,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "flatlay",
         name: "Flat-lay Product Shot",
         category: "Product Photography",
-        emoji: "📸",
+        icon: Camera,
         prompt: "Flat-lay of {product} on marble surface with natural lighting and minimal props, professional food photography style",
         tags: ["product", "minimal", "professional"]
     },
@@ -34,7 +36,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "hero-food",
         name: "Hero Food Shot",
         category: "Product Photography",
-        emoji: "🍽️",
+        icon: Utensils,
         prompt: "Close-up hero shot of {dish} with steam rising, garnished beautifully on dark plate, dramatic lighting, restaurant quality",
         tags: ["food", "dramatic", "closeup"]
     },
@@ -42,7 +44,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "lifestyle",
         name: "Lifestyle Product",
         category: "Product Photography",
-        emoji: "☕",
+        icon: Coffee,
         prompt: "Lifestyle shot: hands holding {product} in cozy café setting with warm lighting, authentic and inviting atmosphere",
         tags: ["lifestyle", "authentic", "warm"]
     },
@@ -50,7 +52,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "overhead-grid",
         name: "Overhead Grid",
         category: "Product Photography",
-        emoji: "🎯",
+        icon: LayoutGrid,
         prompt: "Overhead view of {items} arranged in a grid pattern on white background, clean and organized, e-commerce style",
         tags: ["overhead", "clean", "grid"]
     },
@@ -60,7 +62,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "bold-text",
         name: "Bold Promo Text",
         category: "Promotional",
-        emoji: "💥",
+        icon: Zap,
         prompt: "Bold text overlay '{offer}' on vibrant gradient background with geometric shapes, modern and eye-catching design",
         tags: ["promo", "bold", "modern"]
     },
@@ -68,7 +70,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "before-after",
         name: "Before/After Split",
         category: "Promotional",
-        emoji: "⚡",
+        icon: Layers,
         prompt: "Before/after split screen showing {transformation}, clear comparison with arrows, professional presentation",
         tags: ["comparison", "transformation", "split"]
     },
@@ -76,7 +78,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "minimal-showcase",
         name: "Minimal Product Showcase",
         category: "Promotional",
-        emoji: "✨",
+        icon: Sparkles,
         prompt: "Minimalist product showcase: {item} centered on solid {color} background with soft shadow, clean and elegant",
         tags: ["minimal", "elegant", "centered"]
     },
@@ -84,7 +86,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "customer-collage",
         name: "Customer Collage",
         category: "Promotional",
-        emoji: "👥",
+        icon: Users,
         prompt: "Collage of 3-4 customer photos using {product} in real settings, authentic and diverse, social proof style",
         tags: ["collage", "social-proof", "authentic"]
     },
@@ -94,7 +96,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "festive",
         name: "Festive Holiday",
         category: "Seasonal",
-        emoji: "🎄",
+        icon: PartyPopper,
         prompt: "Festive {holiday} themed setup with {product} as centerpiece, warm bokeh lights, cozy and celebratory atmosphere",
         tags: ["holiday", "festive", "cozy"]
     },
@@ -102,7 +104,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "summer-vibes",
         name: "Summer Vibes",
         category: "Seasonal",
-        emoji: "🏖️",
+        icon: Sun,
         prompt: "Summer vibes: {product} on beach towel with sunglasses and tropical fruits, bright and cheerful, vacation aesthetic",
         tags: ["summer", "beach", "bright"]
     },
@@ -110,7 +112,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "autumn-cozy",
         name: "Autumn Cozy",
         category: "Seasonal",
-        emoji: "🍂",
+        icon: Leaf,
         prompt: "Cozy autumn aesthetic: {item} with pumpkins, leaves, and warm coffee, rustic and inviting atmosphere",
         tags: ["autumn", "cozy", "rustic"]
     },
@@ -120,7 +122,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "testimonial",
         name: "Testimonial Card",
         category: "Social Proof",
-        emoji: "⭐",
+        icon: Star,
         prompt: "Customer testimonial card: 5-star rating with quote overlay on brand colors, professional and trustworthy design",
         tags: ["testimonial", "rating", "trust"]
     },
@@ -128,7 +130,7 @@ const IMAGE_TEMPLATES: ImageTemplate[] = [
         id: "ugc-style",
         name: "User Content Style",
         category: "Social Proof",
-        emoji: "📱",
+        icon: Smartphone,
         prompt: "User-generated content style: authentic photo of happy customer with {product}, candid and relatable",
         tags: ["ugc", "authentic", "candid"]
     }
@@ -165,7 +167,7 @@ export function ImageTemplatePicker({ onSelectTemplate }: ImageTemplatePickerPro
                     Use Template
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col bg-card border-border">
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col bg-card border-border shadow-[0_0_40px_rgba(0,245,212,0.12)]">
                 <DialogHeader>
                     <DialogTitle className="font-heading text-2xl flex items-center gap-2">
                         <ThemeEmoji name="image" className="w-6 h-6" />
@@ -197,7 +199,9 @@ export function ImageTemplatePicker({ onSelectTemplate }: ImageTemplatePickerPro
                 {/* Templates Grid */}
                 <div className="overflow-y-auto flex-1 pr-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {filteredTemplates.map((template) => (
+                        {filteredTemplates.map((template) => {
+                            const TemplateIcon = template.icon;
+                            return (
                             <button
                                 key={template.id}
                                 onClick={() => handleSelect(template)}
@@ -205,7 +209,9 @@ export function ImageTemplatePicker({ onSelectTemplate }: ImageTemplatePickerPro
                             >
                                 <div className="flex items-start justify-between mb-2">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-2xl">{template.emoji}</span>
+                                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 shrink-0">
+                                            <TemplateIcon className="w-4 h-4 text-primary" />
+                                        </div>
                                         <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">
                                             {template.name}
                                         </h3>
@@ -228,7 +234,8 @@ export function ImageTemplatePicker({ onSelectTemplate }: ImageTemplatePickerPro
                                     ))}
                                 </div>
                             </button>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </DialogContent>

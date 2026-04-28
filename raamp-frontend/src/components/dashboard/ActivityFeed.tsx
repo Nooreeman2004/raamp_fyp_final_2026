@@ -88,7 +88,7 @@ export const ActivityFeed = ({ businessId }: ActivityFeedProps) => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-0.5">
-                        <p className="text-sm font-bold text-white truncate pr-4">{event.title}</p>
+                        <p className="text-sm font-bold text-foreground truncate pr-4">{event.title}</p>
                         <p className="text-[10px] text-muted-foreground whitespace-nowrap">
                           {new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
@@ -105,13 +105,13 @@ export const ActivityFeed = ({ businessId }: ActivityFeedProps) => {
           </AnimatePresence>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-black/20 rounded-2xl border border-white/5 mx-auto w-full overflow-hidden">
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-muted/10 rounded-2xl border border-border mx-auto w-full overflow-hidden">
            <div className={`p-4 rounded-full bg-teal-500/5 mb-6 border border-teal-500/10 ${socialStatus?.instagram_connected ? 'animate-pulse' : ''}`}>
              <Radio className="w-10 h-10 text-teal-400/50" />
            </div>
            
            <div className="space-y-4 max-w-[240px]">
-             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+             <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
                {socialStatus?.instagram_connected ? "Engine Initialized" : "Engine Initialization"}
              </h3>
              <p className="text-xs text-muted-foreground/80 leading-relaxed">
@@ -130,10 +130,10 @@ export const ActivityFeed = ({ businessId }: ActivityFeedProps) => {
                   <Link 
                     key={i} 
                     to={item.route}
-                    className="flex items-center gap-3 p-2.5 rounded-lg bg-white/5 border border-white/5 hover:border-teal-500/30 hover:bg-teal-500/5 transition-all group"
+                    className="flex items-center gap-3 p-2.5 rounded-lg bg-foreground/5 border border-border hover:border-teal-500/30 hover:bg-teal-500/5 transition-all group"
                   >
                     <item.icon className="w-4 h-4 text-teal-400/40 group-hover:text-teal-400" />
-                    <span className="text-[11px] font-bold text-white/70 group-hover:text-white transition-colors">
+                    <span className="text-[11px] font-bold text-foreground/70 group-hover:text-foreground transition-colors">
                       {item.label}
                     </span>
                   </Link>

@@ -215,9 +215,12 @@ const PersonalDetails = () => {
       sonner.success("Matrix Synchronized", {
         description: "Your professional parameters have been locked in.",
         onAutoClose: () => {
-          // Navigate after toast auto-closes (ensures user sees the success message)
           if (nextRoute !== null && nextRoute !== location.pathname) {
+            // Still in onboarding — go to next step
             navigate(nextRoute);
+          } else {
+            // All onboarding done (editing from settings) — go back to settings
+            navigate('/settings');
           }
         },
       });

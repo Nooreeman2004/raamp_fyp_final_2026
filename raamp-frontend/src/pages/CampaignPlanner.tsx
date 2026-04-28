@@ -66,6 +66,8 @@ export default function CampaignPlanner() {
     return () => clearInterval(interval);
   }, [rows]);
 
+  const hasRunning = rows.some((r) => r.generation_status === "running");
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const now = new Date().getTime();
@@ -128,8 +130,8 @@ export default function CampaignPlanner() {
                 <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
-              <Button onClick={() => setOpen(true)} className="bg-primary text-black">
-                <Plus className="w-4 h-4 mr-2" /> Create plan
+              <Button onClick={() => setOpen(true)} className="bg-primary text-black" disabled={hasRunning}>
+                <Plus className="w-4 h-4 mr-2" /> {hasRunning ? "Generating…" : "Create plan"}
               </Button>
             </div>
           </div>

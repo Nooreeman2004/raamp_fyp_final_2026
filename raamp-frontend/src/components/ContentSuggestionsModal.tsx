@@ -100,7 +100,7 @@ export const ContentSuggestionsModal = ({
                     key={idx}
                     className="p-3 bg-deep-teal-900 rounded-lg border border-deep-teal-700 hover:border-neon-teal/50 transition-colors"
                   >
-                    <p className="text-sm font-mono text-white/80">{idea}</p>
+                    <p className="text-sm font-mono text-foreground/80">{idea}</p>
                   </div>
                 ))}
               </div>
@@ -123,7 +123,7 @@ export const ContentSuggestionsModal = ({
                     key={idx}
                     className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/30 hover:border-amber-400 transition-colors"
                   >
-                    <p className="text-sm font-mono text-amber-100 italic">"{hook}"</p>
+                    <p className="text-sm font-mono text-amber-800 italic">"{hook}"</p>
                   </div>
                 ))}
               </div>
@@ -145,7 +145,7 @@ export const ContentSuggestionsModal = ({
                   <Badge 
                     key={idx}
                     variant="secondary"
-                    className="bg-teal-500/20 text-teal-300 border-teal-500/30 font-mono text-xs"
+                    className="bg-teal-500/20 text-teal-700 border-teal-500/30 font-mono text-xs"
                   >
                     #{tag}
                   </Badge>
@@ -165,7 +165,7 @@ export const ContentSuggestionsModal = ({
                 <h3 className="font-heading font-semibold text-lg tracking-wide">Campaign Angle</h3>
               </div>
               <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/30">
-                <p className="text-sm font-mono text-purple-100">{suggestions.campaign_angle}</p>
+                <p className="text-sm font-mono text-purple-800">{suggestions.campaign_angle}</p>
               </div>
             </motion.div>
 
@@ -181,7 +181,7 @@ export const ContentSuggestionsModal = ({
                 <h3 className="font-heading font-semibold text-lg tracking-wide">Influencer Strategy</h3>
               </div>
               <div className="p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
-                <p className="text-sm font-mono text-emerald-100">{suggestions.influencer_strategy}</p>
+                <p className="text-sm font-mono text-emerald-800">{suggestions.influencer_strategy}</p>
               </div>
             </motion.div>
 

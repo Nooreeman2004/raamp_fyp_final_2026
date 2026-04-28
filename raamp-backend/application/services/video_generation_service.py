@@ -40,37 +40,39 @@ class VideoGenerationService:
     
     # System prompt for generating video scripts
     VIDEO_SYSTEM_PROMPT = """You are an expert video content creator and brand storyteller.
-The user will describe their video idea. Your job is to write a detailed video production prompt
-optimized for professional social media videos.
+
+## ABSOLUTE RULES (violating any of these is a failure):
+
+### RULE 1 — NEVER CHANGE THE SUBJECT
+- The specific objects, food, products, scenes, or people the user mentions are LOCKED.
+- If the user says "pasta being cooked" the video MUST show pasta being cooked.
+- NEVER replace the user's stated subjects with generic props, lifestyle imagery, or brand aesthetics.
+- Brand context provides STYLE hints only. It does NOT override the subject matter.
+
+### RULE 2 — SUBJECT FIRST, STYLE SECOND
+- Lead the prompt with the user's exact subject/scene, then layer in style.
+- Brand colors/aesthetic apply to lighting, overlays, and end cards ONLY.
+
+### RULE 3 — ENHANCE, DON'T REPLACE
+- Keep the user's exact wording for the main subject in the prompt.
+- Add cinematic detail: camera angles, lighting, pacing, transitions, audio direction.
 
 Your prompt MUST include:
-- **Opening shot**: How the video starts (hook/intro)
-- **Scene description**: setting, subjects, objects, lighting, environment
-- **Camera movements**: shots, angles, movements (pan, zoom, tracking, static)
-- **Sequence of events**: What happens throughout the video
+- **Opening shot**: Hook/intro
+- **Scene description**: setting, subjects, objects, lighting
+- **Camera movements**: shots, angles (pan, zoom, tracking, static)
+- **Sequence of events**: What happens throughout
 - **Visual style**: Color grading, mood, atmosphere
-- **Transitions**: How scenes connect (cuts, fades, dissolves)
-- **Audio direction**: Music vibe, sound effects, voiceover suggestions
-- **Pacing**: Timing and rhythm of the video
-- **Closing**: How the video ends (CTA, logo, fade out)
-- **Brand integration**: How brand elements appear naturally
+- **Audio direction**: Music vibe, sound effects
+- **Pacing**: Timing and rhythm
+- **Closing**: CTA, logo, fade out
 
 ## VIDEO TYPES:
-- **Horizontal (16:9)**: YouTube, Facebook, LinkedIn posts
+- **Horizontal (16:9)**: YouTube, Facebook, LinkedIn
 - **Square (1:1)**: Instagram feed, Facebook feed
-- **Vertical (9:16)**: Use Reel service instead
-
-## Rules:
-- Keep description clear and detailed (200-350 words)
-- Format like a professional video production prompt
-- Specify camera angles and movements explicitly
-- Include pacing and timing guidance
-- Make it engaging and on-brand
-- Focus on storytelling and visual impact
 
 ## OUTPUT FORMAT:
-Write a detailed, production-ready video prompt that Veo 3.1 can use to generate the video.
-Be specific about shots, timing, visuals, and brand integration."""
+Write a production-ready video prompt (200-350 words). Output ONLY the prompt. No meta-text."""
 
     def __init__(self):
         """Initialize the video generation service."""
@@ -155,16 +157,19 @@ Be specific about shots, timing, visuals, and brand integration."""
             if brand_context:
                 brand_section = self._build_brand_context_section(brand_context)
             
-            user_message = f"""{brand_section}
+            user_message = f"""## USER'S EXACT VIDEO REQUEST — SUBJECT IS LOCKED, DO NOT CHANGE IT:
+"{user_input}"
 
-## USER VIDEO REQUEST:
-{user_input}
+{brand_section}
 
 ## VIDEO SPECIFICATIONS:
 Aspect Ratio: {aspect_ratio}
 
-## TASK:
-Generate a detailed video production prompt ({aspect_ratio} aspect ratio) following all the requirements above."""
+## YOUR TASK:
+Enhance the user's request above into a detailed video production prompt ({aspect_ratio}).
+The subject "{user_input[:150]}" MUST appear in the video exactly as described.
+Only add camera work, lighting, pacing, transitions, and atmosphere.
+Do NOT replace or omit the user's stated objects or scene."""
             
             logger.info("Generating video prompt with Gemini")
             

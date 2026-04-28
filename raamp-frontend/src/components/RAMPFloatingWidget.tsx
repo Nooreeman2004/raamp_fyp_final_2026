@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,75 +21,28 @@ import {
   VolumeX
 } from "lucide-react";
 
-// Simple markdown renderer for bold, italic, bullet lists, numbered lists
 const MarkdownText = ({ content }: { content: string }) => {
-  const renderLine = (line: string, key: number) => {
-    // Parse inline bold/italic
-    const parseInline = (text: string): React.ReactNode[] => {
-      const parts: React.ReactNode[] = [];
-      const regex = /\*\*(.+?)\*\*|\*(.+?)\*/g;
-      let last = 0;
-      let match;
-      while ((match = regex.exec(text)) !== null) {
-        if (match.index > last) parts.push(text.slice(last, match.index));
-        if (match[1] !== undefined) parts.push(<strong key={match.index} className="font-semibold text-foreground">{match[1]}</strong>);
-        else if (match[2] !== undefined) parts.push(<em key={match.index}>{match[2]}</em>);
-        last = match.index + match[0].length;
-      }
-      if (last < text.length) parts.push(text.slice(last));
-      return parts;
-    };
-
-    // Heading 3 (###)
-    if (line.startsWith('### ')) return <h3 key={key} className="font-bold text-sm mt-2 mb-0.5 text-foreground">{parseInline(line.slice(4))}</h3>;
-    // Heading 2 (##)
-    if (line.startsWith('## ')) return <h2 key={key} className="font-bold text-sm mt-2 mb-0.5 text-foreground">{parseInline(line.slice(3))}</h2>;
-    // Heading 1 (#)
-    if (line.startsWith('# ')) return <h1 key={key} className="font-bold text-sm mt-2 mb-0.5 text-foreground">{parseInline(line.slice(2))}</h1>;
-    // Bullet list
-    if (line.startsWith('- ') || line.startsWith('* ')) return <li key={key} className="ml-3 list-disc text-sm">{parseInline(line.slice(2))}</li>;
-    // Numbered list
-    const numberedMatch = line.match(/^(\d+)\. (.+)/);
-    if (numberedMatch) return <li key={key} className="ml-3 list-decimal text-sm">{parseInline(numberedMatch[2])}</li>;
-    // Empty line
-    if (line.trim() === '') return <br key={key} />;
-    // Normal paragraph
-    return <p key={key} className="text-sm leading-relaxed">{parseInline(line)}</p>;
-  };
-
-  const lines = content.split('\n');
-  const elements: React.ReactNode[] = [];
-  let listBuffer: React.ReactNode[] = [];
-  let listType: 'ul' | 'ol' | null = null;
-
-  const flushList = () => {
-    if (listBuffer.length > 0) {
-      if (listType === 'ol') elements.push(<ol key={`list-${elements.length}`} className="ml-2 my-1 space-y-0.5">{listBuffer}</ol>);
-      else elements.push(<ul key={`list-${elements.length}`} className="ml-2 my-1 space-y-0.5">{listBuffer}</ul>);
-      listBuffer = [];
-      listType = null;
-    }
-  };
-
-  lines.forEach((line, i) => {
-    const isBullet = line.startsWith('- ') || line.startsWith('* ');
-    const isNumbered = /^\d+\.\s/.test(line);
-    if (isBullet) {
-      if (listType === 'ol') flushList();
-      listType = 'ul';
-      listBuffer.push(renderLine(line, i));
-    } else if (isNumbered) {
-      if (listType === 'ul') flushList();
-      listType = 'ol';
-      listBuffer.push(renderLine(line, i));
-    } else {
-      flushList();
-      elements.push(renderLine(line, i));
-    }
-  });
-  flushList();
-
-  return <div className="space-y-0.5">{elements}</div>;
+  const MD = ReactMarkdown as any;
+  return (
+    <MD
+      remarkPlugins={[[remarkMath, { singleDollarTextMath: false }]]}
+      rehypePlugins={[rehypeKatex]}
+      components={{
+        p: ({ children }: { children: React.ReactNode }) => <p className="text-[0.85rem] leading-relaxed mb-1">{children}</p>,
+        h1: ({ children }: { children: React.ReactNode }) => <h1 className="font-bold text-sm mt-2 mb-0.5 text-foreground">{children}</h1>,
+        h2: ({ children }: { children: React.ReactNode }) => <h2 className="font-bold text-sm mt-2 mb-0.5 text-foreground">{children}</h2>,
+        h3: ({ children }: { children: React.ReactNode }) => <h3 className="font-semibold text-sm mt-1.5 mb-0.5 text-foreground">{children}</h3>,
+        ul: ({ children }: { children: React.ReactNode }) => <ul className="list-disc ml-4 my-1 space-y-0.5 text-[0.85rem]">{children}</ul>,
+        ol: ({ children }: { children: React.ReactNode }) => <ol className="list-decimal ml-4 my-1 space-y-0.5 text-[0.85rem]">{children}</ol>,
+        li: ({ children }: { children: React.ReactNode }) => <li className="leading-relaxed">{children}</li>,
+        strong: ({ children }: { children: React.ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
+        code: ({ children }: { children: React.ReactNode }) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+        pre: ({ children }: { children: React.ReactNode }) => <pre className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto my-1">{children}</pre>,
+      }}
+    >
+      {content}
+    </MD>
+  );
 };
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -148,6 +106,7 @@ const RAMPFloatingWidget = ({ userName, userId }: RAMPFloatingWidgetProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const isListeningRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -185,7 +144,7 @@ const RAMPFloatingWidget = ({ userName, userId }: RAMPFloatingWidgetProps) => {
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
+      recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'en-US';
 
@@ -197,10 +156,19 @@ const RAMPFloatingWidget = ({ userName, userId }: RAMPFloatingWidgetProps) => {
       };
 
       recognitionRef.current.onend = () => {
-        setIsListening(false);
+        // If user hasn't stopped mic manually, restart to keep it running (continuous mode)
+        if (isListeningRef.current && recognitionRef.current) {
+          try { recognitionRef.current.start(); } catch { /* already started */ }
+        } else {
+          setIsListening(false);
+        }
       };
 
-      recognitionRef.current.onerror = () => {
+      recognitionRef.current.onerror = (event: Event) => {
+        const err = (event as SpeechRecognitionErrorEvent).error;
+        // Don't stop on transient no-speech errors in continuous mode
+        if (err === 'no-speech') return;
+        isListeningRef.current = false;
         setIsListening(false);
       };
     }
@@ -233,14 +201,17 @@ const RAMPFloatingWidget = ({ userName, userId }: RAMPFloatingWidgetProps) => {
     }
 
     if (isListening) {
+      isListeningRef.current = false;
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
       try {
+        isListeningRef.current = true;
         recognitionRef.current.start();
         setIsListening(true);
       } catch (error) {
         console.error('Speech recognition error:', error);
+        isListeningRef.current = false;
         setIsListening(false);
       }
     }
@@ -575,7 +546,7 @@ const RAMPFloatingWidget = ({ userName, userId }: RAMPFloatingWidgetProps) => {
               // Mobile: full screen modal
               "inset-0 md:inset-auto",
               // Desktop: bottom-right panel
-              "md:bottom-6 md:right-6 md:w-[420px] md:h-[60vh] md:max-h-[600px] md:min-h-[400px]"
+              "md:bottom-6 md:right-6 md:w-[520px] md:h-[75vh] md:max-h-[740px] md:min-h-[520px]"
             )}
           >
             <Card
@@ -644,7 +615,7 @@ const RAMPFloatingWidget = ({ userName, userId }: RAMPFloatingWidgetProps) => {
                     >
                       <div
                         className={cn(
-                          "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                          "max-w-[85%] rounded-2xl px-4 py-2.5 text-[0.85rem]",
                           message.role === "user"
                             ? "bg-primary text-primary-foreground rounded-br-md"
                             : "bg-muted/50 border border-primary/10 rounded-bl-md"
@@ -725,17 +696,17 @@ const RAMPFloatingWidget = ({ userName, userId }: RAMPFloatingWidgetProps) => {
                     disabled={isTyping}
                     variant="ghost"
                     className={cn(
-                      "w-10 h-10 rounded-full transition-all",
+                      "w-11 h-11 rounded-full transition-all flex-shrink-0",
                       isListening
-                        ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
-                        : "hover:bg-primary/10"
+                        ? "bg-destructive/20 text-destructive hover:bg-destructive/30 animate-pulse ring-2 ring-destructive/50"
+                        : "bg-primary/10 text-primary hover:bg-primary/20 ring-1 ring-primary/30"
                     )}
                     title={isListening ? "Stop listening" : "Start voice input"}
                   >
                     {isListening ? (
-                      <MicOff className="w-4 h-4" />
+                      <MicOff className="w-5 h-5" />
                     ) : (
-                      <Mic className="w-4 h-4" />
+                      <Mic className="w-5 h-5" />
                     )}
                   </Button>
                   <Input

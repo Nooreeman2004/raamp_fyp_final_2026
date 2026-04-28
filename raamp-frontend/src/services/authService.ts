@@ -125,13 +125,13 @@ export const authService = {
    * Get notification settings
    */
   getNotificationSettings: async (): Promise<NotificationSettingsResponse> => {
-    return apiClient.get<NotificationSettingsResponse>('/api/settings/notifications');
+    return apiClient.get<NotificationSettingsResponse>('/settings/notifications');
   },
 
   /**
    * Update notification settings
    */
   updateNotificationSettings: async (data: NotificationSettingsRequest): Promise<NotificationSettingsResponse> => {
-    return apiClient.post<NotificationSettingsResponse>('/api/settings/notifications', data);
+    return apiClient.post<NotificationSettingsResponse>('/settings/notifications', data);
   },
 };

@@ -92,13 +92,15 @@ class ApiClient {
     const method = (options.method || 'GET').toUpperCase();
     const isCampaignPlannerCreate =
       isCampaignPlanner && method === 'POST' && endpoint.includes('/campaign-planner/plans');
+    const isCampaignImageGen =
+      isCampaignPlanner && method === 'POST' && endpoint.includes('/generate-image');
 
     // Social posting, trends, chatbot RAG, and media generation can run 60s+ on the backend
     const baseDefault = isAuthEndpoint
       ? 30000
       : isSocialPosting || isTrending || isChatbot
         ? 60000
-        : isMediaGeneration
+        : isMediaGeneration || isCampaignImageGen
           ? 120000
           : isCampaignPlanner
             ? (isCampaignPlannerCreate ? 25000 : 10000)

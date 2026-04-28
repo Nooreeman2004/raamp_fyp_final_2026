@@ -37,7 +37,7 @@ export const RestaurantTemplatePicker = ({ onSelectTemplate }: RestaurantTemplat
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col shadow-[0_0_40px_rgba(0,245,212,0.12)]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
@@ -66,7 +66,9 @@ export const RestaurantTemplatePicker = ({ onSelectTemplate }: RestaurantTemplat
           <div className="overflow-y-auto flex-1 pr-2">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <AnimatePresence mode="popLayout">
-                {filteredTemplates.map((template) => (
+                {filteredTemplates.map((template) => {
+                  const TemplateIcon = template.icon;
+                  return (
                   <motion.div
                     key={template.id}
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -79,8 +81,8 @@ export const RestaurantTemplatePicker = ({ onSelectTemplate }: RestaurantTemplat
                       onClick={() => handleSelectTemplate(template)}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="text-3xl">
-                          {template.emoji}
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 shrink-0">
+                          <TemplateIcon className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-1">
@@ -99,7 +101,8 @@ export const RestaurantTemplatePicker = ({ onSelectTemplate }: RestaurantTemplat
                       </div>
                     </Card>
                   </motion.div>
-                ))}
+                  );
+                })}
               </AnimatePresence>
             </div>
 

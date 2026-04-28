@@ -170,6 +170,12 @@ const BrandSettings = () => {
         setValues({ ...formData, [key]: next });
     };
 
+    // Normalize stored logo URLs — strip legacy double /api prefix
+    const normalizeLogo = (url: string) => {
+        if (!url) return "";
+        return url.startsWith("/api/api") ? url.replace("/api/api", "/api") : url;
+    };
+
     useEffect(() => {
         const fetchBrandSettings = async () => {
             try {
@@ -187,7 +193,7 @@ const BrandSettings = () => {
                         tonePlatforms: tp?.platforms || [],
                         toneContentTypes: tp?.content_types || [],
                         restaurant_theme: data.restaurant_theme || "",
-                        brandLogoUrl: data.brand_logo_url || "",
+                        brandLogoUrl: normalizeLogo(data.brand_logo_url || ""),
                         brand_colors: data.brand_colors && data.brand_colors.length > 0 ? data.brand_colors : ["#00E0D0", "#09151E"],
                         palette_source: data.palette_source || "custom"
                     });
@@ -259,9 +265,9 @@ const BrandSettings = () => {
             // Simplified color extraction using Canvas
             const img = new Image();
             img.crossOrigin = "Anonymous";
-            // Prefix with API_BASE_URL if it's a relative path starting with /api
-            const fullUrl = formData.brandLogoUrl.startsWith("/api")
-                ? `${API_BASE_URL}${formData.brandLogoUrl}`
+            // /api/static/... is a valid relative URL; use it directly (Vite proxies /api/* to backend)
+            const fullUrl = formData.brandLogoUrl.startsWith("http")
+                ? formData.brandLogoUrl
                 : formData.brandLogoUrl;
 
             img.src = fullUrl;
@@ -501,7 +507,7 @@ const BrandSettings = () => {
                                 <div className="relative w-full md:w-56 h-40 rounded-xl bg-card border border-border/50 flex items-center justify-center p-4 overflow-hidden group-hover:border-primary/30 transition-all duration-500">
                                     {formData.brandLogoUrl ? (
                                         <img
-                                            src={formData.brandLogoUrl.startsWith("/api") ? `${API_BASE_URL}${formData.brandLogoUrl}` : formData.brandLogoUrl}
+                                            src={formData.brandLogoUrl.startsWith("http") ? formData.brandLogoUrl : formData.brandLogoUrl}
                                             alt="Logo Preview"
                                             className="max-w-full max-h-full object-contain z-10 drop-shadow-2xl"
                                             ref={logoRef}
@@ -627,52 +633,51 @@ const BrandSettings = () => {
                                                 )}
                                             </motion.div>
                                         ))}
+                                    </AnimatePresence>
 
-                                        {formData.brand_colors.length < 6 && isEditing && (
-                                            <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
-                                                <PopoverTrigger asChild>
-                                                    <motion.button
-                                                        layout
-                                                        type="button"
-                                                        className="w-16 h-16 rounded-2xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary group"
-                                                    >
-                                                        <Plus size={16} />
-                                                        <span className="text-[8px] font-mono uppercase tracking-tighter">Add</span>
-                                                    </motion.button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-64 p-4 bg-card border-border" align="start" sideOffset={8}>
-                                                    <div className="space-y-3">
-                                                        <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Pick a Color</Label>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="relative">
-                                                                <Input
-                                                                    type="color"
-                                                                    value={newColor}
-                                                                    onChange={(e) => setNewColor(e.target.value)}
-                                                                    className="w-16 h-16 p-1 cursor-pointer border-border"
-                                                                />
-                                                            </div>
+                                    {formData.brand_colors.length < 6 && isEditing && (
+                                        <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
+                                            <PopoverTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    className="w-16 h-16 rounded-2xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary group"
+                                                >
+                                                    <Plus size={16} />
+                                                    <span className="text-[8px] font-mono uppercase tracking-tighter">Add</span>
+                                                </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-64 p-4 bg-card border-border" align="start" sideOffset={8}>
+                                                <div className="space-y-3">
+                                                    <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Pick a Color</Label>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="relative">
                                                             <Input
-                                                                type="text"
+                                                                type="color"
                                                                 value={newColor}
                                                                 onChange={(e) => setNewColor(e.target.value)}
-                                                                placeholder="#000000"
-                                                                className="flex-1 font-mono text-xs bg-background border-border"
+                                                                className="w-16 h-16 p-1 cursor-pointer border-border"
                                                             />
                                                         </div>
-                                                        <Button
-                                                            type="button"
-                                                            onClick={() => addColor(newColor)}
-                                                            className="w-full font-mono text-xs bg-primary text-black hover:bg-primary/90"
-                                                            size="sm"
-                                                        >
-                                                            Add Color
-                                                        </Button>
+                                                        <Input
+                                                            type="text"
+                                                            value={newColor}
+                                                            onChange={(e) => setNewColor(e.target.value)}
+                                                            placeholder="#000000"
+                                                            className="flex-1 font-mono text-xs bg-background border-border"
+                                                        />
                                                     </div>
-                                                </PopoverContent>
-                                            </Popover>
-                                        )}
-                                    </AnimatePresence>
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => addColor(newColor)}
+                                                        className="w-full font-mono text-xs bg-primary text-black hover:bg-primary/90"
+                                                        size="sm"
+                                                    >
+                                                        Add Color
+                                                    </Button>
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+                                    )}
                                 </div>
 
                                 {/* Templates */}

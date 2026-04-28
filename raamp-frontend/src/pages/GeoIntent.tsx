@@ -1110,7 +1110,7 @@ const GeoIntent = () => {
                     onClick={handleRecommendZones}
                     disabled={zonesLoading || loading || refreshing}
                     aria-busy={zonesLoading}
-                    className="w-full border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 font-mono font-bold tracking-wider h-12"
+                    className="w-full border-amber-500/70 bg-amber-500/10 text-amber-700 dark:text-amber-300 dark:border-amber-500/40 dark:bg-transparent hover:bg-amber-500/20 font-mono font-bold tracking-wider h-12"
                   >
                     {zonesLoading ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin shrink-0" aria-hidden />

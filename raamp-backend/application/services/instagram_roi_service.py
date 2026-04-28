@@ -222,6 +222,19 @@ async def refresh_post_roi(post_id: str, db=None) -> Optional[ROIMetrics]:
             )
 
         if not connection or not connection.page_access_token:
+            # Check if a connection exists but its token was invalidated (needs reconnect)
+            invalidated = await InstagramConnectionModel.find_one(
+                InstagramConnectionModel.user_id == getattr(post, "user_id", None),
+                InstagramConnectionModel.token_valid == False,  # noqa: E712
+            )
+            if invalidated:
+                logger.warning(
+                    "Instagram token invalidated for ROI refresh — user must reconnect. user_id=%s",
+                    getattr(post, "user_id", None),
+                )
+                post.roi_metrics.fetch_status = "reconnect_required"
+                await post.save()
+                return post.roi_metrics
             logger.error(
                 "No valid Instagram connection found for ROI refresh. ig_business_id=%s user_id=%s",
                 getattr(post, "ig_business_id", None),

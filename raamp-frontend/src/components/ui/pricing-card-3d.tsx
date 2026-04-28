@@ -55,8 +55,8 @@ export const PricingCard3D = ({ title, price, features, buttonText, isPopular, i
         <motion.div
             ref={ref}
             className={cn(
-                "relative h-full w-full rounded-xl bg-card/40 border border-border/50 backdrop-blur-sm transition-all duration-500 cursor-pointer",
-                isHovered ? "border-primary/50 bg-card/60 shadow-[0_0_50px_rgba(0,224,208,0.15)]" : "",
+                "relative h-full w-full rounded-xl bg-card border border-border/50 backdrop-blur-sm transition-all duration-500 cursor-pointer",
+                isHovered ? "border-primary/50 shadow-[0_0_50px_rgba(0,224,208,0.15)]" : "",
                 className
             )}
             style={{

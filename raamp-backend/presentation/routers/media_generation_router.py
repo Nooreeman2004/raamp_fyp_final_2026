@@ -9,7 +9,32 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from typing import Optional, Literal
 from pydantic import BaseModel, Field
 from datetime import datetime
+from pathlib import Path
 import uuid
+
+from config import Config
+
+
+def _to_api_url(abs_path: str) -> str:
+    """Convert an absolute generated-asset file path to its /api/... serve URL."""
+    p = Path(abs_path)
+    mapping = [
+        (Config.GENERATED_REELS_DIR,  "/api/reels"),
+        (Config.GENERATED_VIDEOS_DIR, "/api/videos"),
+        (Config.GENERATED_IMAGES_DIR, "/api/generated"),
+    ]
+    for base, prefix in mapping:
+        try:
+            rel = p.relative_to(base)
+            return f"{prefix}/{rel.as_posix()}"
+        except ValueError:
+            continue
+    # Fallback: return as-is (already a URL or relative path)
+    return abs_path
+
+
+def _paths_to_urls(paths: list) -> list:
+    return [_to_api_url(str(p)) for p in paths]
 
 from application.services.reel_generation_service import get_reel_generation_service
 from application.services.video_generation_service import get_video_generation_service
@@ -339,7 +364,7 @@ async def generate_reels(
         return MediaGenerationResponse(
             success=True,
             message=f"Successfully generated {len(results)} Reel(s)",
-            media_paths=results,
+            media_paths=_paths_to_urls(results),
             campaign_id=campaign_id,
             duration_seconds=request.duration_seconds,
             count=len(results),
@@ -471,7 +496,7 @@ async def generate_videos(
         # Generate videos synchronously
         results = service.generate_videos_sync(
             video_prompt=video_prompt,
-            output_folder=f"generated_videos/{campaign_id}",
+            output_folder=str(service.output_folder / campaign_id),
             count=request.count,
             aspect_ratio=request.aspect_ratio,
             duration_seconds=request.duration_seconds
@@ -505,7 +530,7 @@ async def generate_videos(
         return MediaGenerationResponse(
             success=True,
             message=f"Successfully generated {len(results)} video(s)",
-            media_paths=results,
+            media_paths=_paths_to_urls(results),
             asset_ids=asset_ids,
             campaign_id=campaign_id,
             duration_seconds=request.duration_seconds,
@@ -572,7 +597,7 @@ async def generate_quick_reel(
         campaign_id = f"quick_{uuid.uuid4().hex[:8]}"
         results = service.generate_reels_sync(
             reel_prompt=reel_prompt,
-            output_folder=f"generated_reels/{campaign_id}",
+            output_folder=str(service.output_folder / campaign_id),
             count=1,
             duration_seconds=request.duration_seconds
         )
@@ -598,7 +623,7 @@ async def generate_quick_reel(
         return MediaGenerationResponse(
             success=True,
             message="Quick Reel generated successfully",
-            media_paths=results,
+            media_paths=_paths_to_urls(results),
             campaign_id=campaign_id,
             duration_seconds=request.duration_seconds,
             count=1,

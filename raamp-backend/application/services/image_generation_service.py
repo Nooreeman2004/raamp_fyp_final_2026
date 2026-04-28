@@ -40,30 +40,31 @@ class ImageGenerationService:
     """
     
     # System prompt for generating image prompts from user input
-    PROMPT_GENERATOR_SYSTEM_PROMPT = """You are an expert creative director, brand strategist, and AI image prompt engineer.
+    PROMPT_GENERATOR_SYSTEM_PROMPT = """You are an expert AI image prompt engineer for social media marketing.
 
-Your task is to generate a highly detailed, professional image generation prompt for social media marketing.
+Your ONLY job is to ENHANCE the user's request into a detailed image generation prompt.
 
-## CRITICAL RULES:
+## ABSOLUTE RULES (violating any of these is a failure):
 
-1. **Campaign Vision Priority**:
-   - The user's specific campaign idea or theme (e.g., 'University Admissions', 'Holiday Special') MUST be the absolute primary focus of the visual.
-   - If the user provides specific details like 'Audience', 'Highlights', 'Programs', or 'Important Dates', incorporate EVERY SINGLE ONE of these into the visual composition.
-   - Do NOT ignore specific industry details in the request in favor of general brand context.
-   - Integrate the brand identity (name, logo cues, colors) INTO the requested scene naturally.
+### RULE 1 — NEVER CHANGE THE SUBJECT
+- The specific objects, food, products, or scenes the user mentions are LOCKED.
+- If the user says "pasta and bakery items" the image MUST show pasta and bakery items.
+- If the user says "bubble tea" the image MUST show bubble tea.
+- NEVER replace or omit the user's stated subjects with generic lifestyle props, accessories, or brand aesthetics.
+- Brand context provides STYLE hints only. It does NOT override the subject matter.
 
-2. **Brand Consistency**:
-   - Use the brand's color palette where possible.
-   - Match the overall brand tone (e.g., playful, luxury) while respecting the campaign's specific mood.
+### RULE 2 — SUBJECT FIRST, STYLE SECOND
+- Structure: [user's exact subject/scene] + [composition/lighting] + [optional brand color atmosphere].
+- Brand colors may tint background, lighting, or overlays ONLY — not replace the subject.
+- "Cozy" or "minimal" brand themes apply to atmosphere, not to what objects appear.
 
-3. **Social Media Optimization**:
-   - Design for Instagram/Facebook feed posts (1:1 or 4:5 aspect ratio).
-   - Ensure visuals are scroll-stopping and professional.
+### RULE 3 — ENHANCE, DON'T REPLACE
+- Keep the user's exact wording for the main subject.
+- Add photographic detail: lighting angle, texture, composition, depth of field.
+- Output length: 100-200 words.
 
 ## OUTPUT FORMAT:
-
-Generate a single, comprehensive image generation prompt (150-300 words).
-IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never ask for clarification."""
+Output ONLY the image generation prompt. No explanations. No preamble. Just the prompt."""
 
     def __init__(self):
         """Initialize the image generation service."""
@@ -74,12 +75,13 @@ IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never a
         self.client = genai.Client(api_key=self.api_key)
         self.text_model = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
         self.image_model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image-preview")
+        self.imagen_model = os.getenv("GEMINI_IMAGEN_MODEL", "imagen-4.0-generate-001")
         self.output_folder = Config.GENERATED_IMAGES_DIR
         self.output_folder.mkdir(exist_ok=True)
         self.asset_repo = AssetRepository()
         self.cloudinary_service = CloudinaryService()
         
-        logger.info(f"ImageGenerationService initialized - Text: {self.text_model}, Image: {self.image_model}")
+        logger.info(f"ImageGenerationService initialized - Text: {self.text_model}, Image: {self.image_model}, Imagen: {self.imagen_model}")
     
     def _build_brand_context_section(self, brand_context: Dict[str, Any]) -> str:
         """Build the brand context section for the prompt generator."""
@@ -160,15 +162,16 @@ IMPORTANT: PRIORITY ORDER: Focus exactly on the campaign's visual theme. Never a
                 public_base = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
                 logo_url = f"{public_base}{logo_url}"
             
-            user_message = f"""{brand_section}
+            user_message = f"""## USER'S EXACT IMAGE REQUEST — SUBJECT IS LOCKED, DO NOT CHANGE IT:
+"{campaign_idea}"
 
-## USER CAMPAIGN REQUEST:
-{campaign_idea}
+{brand_section}
 
-## TASK:
-Generate a detailed, specific image generation prompt for social media marketing.
-If any brand information is missing, make reasonable creative assumptions based on the campaign idea.
-Do NOT ask for clarification — just generate the best possible prompt you can."""
+## YOUR TASK:
+Enhance the user's request above into a detailed image generation prompt.
+The subject "{campaign_idea[:150]}" MUST appear in the image exactly as described.
+Only add lighting, composition, texture, and atmospheric style details.
+Do NOT replace, omit, or generalise the user's stated objects or scene."""
 
             logger.info("Generating image prompt with Gemini (logo_url=%s)", logo_url or "none")
 
@@ -282,7 +285,7 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
                     model=self.image_model,
                     contents=image_prompt,
                     config=genai_types.GenerateContentConfig(
-                        response_modalities=["TEXT", "IMAGE"]
+                        response_modalities=["IMAGE"]
                     )
                 )
                 if response.candidates:
@@ -293,16 +296,20 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
                                 f.write(img_bytes)
                             logger.info("✅ [Strategy 1] Image saved: %s (attempt %d)", filename, attempt)
                             return filename
-                logger.warning("⚠️ [Strategy 1] No inline_data in response (attempt %d)", attempt)
+                    # Log what we actually got for debugging
+                    part_types = [type(p).__name__ + (f"(text={p.text[:40]!r})" if hasattr(p, 'text') and p.text else "") for p in response.candidates[0].content.parts]
+                    logger.warning("⚠️ [Strategy 1] No inline_data in response (attempt %d) — parts: %s", attempt, part_types)
+                else:
+                    logger.warning("⚠️ [Strategy 1] No candidates in response (attempt %d)", attempt)
             except Exception as e:
                 logger.warning("⚠️ [Strategy 1] failed: %s (attempt %d)", str(e), attempt)
 
-            # --- Strategy 2: Imagen API generate_image ---
+            # --- Strategy 2: Imagen API generate_images ---
             try:
-                response = self.client.models.generate_image(
-                    model=self.image_model,
+                response = self.client.models.generate_images(
+                    model=self.imagen_model,
                     prompt=image_prompt,
-                    config=types.GenerateImageConfig(
+                    config=types.GenerateImagesConfig(
                         number_of_images=1,
                         aspect_ratio=aspect_ratio
                     )
@@ -324,27 +331,30 @@ Do NOT ask for clarification — just generate the best possible prompt you can.
         return None
 
     def _save_image_object(self, image_obj, filename: str) -> bool:
-        """Helper to save an image object returned by Imagen API."""
+        """Helper to save a GeneratedImage object returned by generate_images."""
         try:
-            # Strategy A: PIL Image save method via .image
-            if hasattr(image_obj, 'image') and hasattr(image_obj.image, 'save'):
-                image_obj.image.save(filename)
-                return True
-            # Strategy B: Direct save method
-            if hasattr(image_obj, 'save'):
-                image_obj.save(filename)
-                return True
-            # Strategy C: Raw bytes via image_bytes attribute
+            # SDK v1+: GeneratedImage.image is an Image object with image_bytes + save()
+            if hasattr(image_obj, 'image') and image_obj.image is not None:
+                img = image_obj.image
+                # Preferred: use the Image.save() helper
+                if hasattr(img, 'save'):
+                    img.save(filename)
+                    return True
+                # Fallback: raw bytes
+                if hasattr(img, 'image_bytes') and img.image_bytes:
+                    with open(filename, 'wb') as f:
+                        f.write(img.image_bytes)
+                    return True
+            # Legacy: direct image_bytes on the object
             if hasattr(image_obj, 'image_bytes') and image_obj.image_bytes:
                 with open(filename, 'wb') as f:
                     f.write(image_obj.image_bytes)
                 return True
-            # Strategy D: Raw bytes via .image.data (some SDK versions)
-            if hasattr(image_obj, 'image') and hasattr(image_obj.image, 'image_bytes'):
-                with open(filename, 'wb') as f:
-                    f.write(image_obj.image.image_bytes)
+            # Legacy: PIL Image via .image.save
+            if hasattr(image_obj, 'save'):
+                image_obj.save(filename)
                 return True
-            logger.warning("⚠️ Unknown image object type: %s", type(image_obj))
+            logger.warning("⚠️ Unknown image object type: %s attrs=%s", type(image_obj), [a for a in dir(image_obj) if not a.startswith('_')])
             return False
         except Exception as e:
             logger.error("❌ Failed to save image object: %s", str(e))

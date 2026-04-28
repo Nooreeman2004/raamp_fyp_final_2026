@@ -99,8 +99,8 @@ def get_notification_service():
 @router.post("/post", response_model=InstagramPostResponse)
 @limiter.limit("25/hour")
 async def create_instagram_post(
-    http_request: Request,
-    request: InstagramPostRequest,
+    request: Request,
+    payload: InstagramPostRequest,
     background_tasks: BackgroundTasks,
     current_user_email: str = Depends(get_current_user_email)
 ):
@@ -133,9 +133,9 @@ async def create_instagram_post(
         ig_business_id = ig_account.ig_business_id
         
         # Route to appropriate use case based on mode
-        logger.info(f"Instagram Post Request: user={current_user_email}, mode={request.mode}, has_media={bool(request.media_url)}")
+        logger.info(f"Instagram Post Request: user={current_user_email}, mode={payload.mode}, has_media={bool(payload.media_url)}")
         
-        if request.mode == PostModeEnum.POST_NOW:
+        if payload.mode == PostModeEnum.POST_NOW:
             use_case = PostNowUseCase(
                 get_post_repo(), 
                 get_api_client(),
@@ -144,17 +144,17 @@ async def create_instagram_post(
             result = await use_case.execute(
                 user_id=current_user_email,
                 ig_business_id=ig_business_id,
-                media_url=request.media_url,
-                caption=request.caption,
+                media_url=payload.media_url,
+                caption=payload.caption,
                 media_type=MediaType.IMAGE  # Could be enhanced to detect from URL
             )
             logger.info(f"Instagram Post Now Result: {result}")
 
             # Asset A/B tracking: link created post -> asset usage
-            if result.get("status") == "published" and request.asset_id:
+            if result.get("status") == "published" and payload.asset_id:
                 from infrastructure.repositories.asset_repository import AssetRepository
                 asset_repo = AssetRepository()
-                asset = await asset_repo.get_by_asset_id(request.asset_id)
+                asset = await asset_repo.get_by_asset_id(payload.asset_id)
                 if asset:
                     internal_post_id = result.get("post_id")  # the internal MongoDB ID
                     if internal_post_id and internal_post_id not in asset.instagram_post_ids:
@@ -176,8 +176,8 @@ async def create_instagram_post(
             
             return InstagramPostResponse(**result)
         
-        elif request.mode == PostModeEnum.SCHEDULE_POST:
-            if not request.scheduled_time:
+        elif payload.mode == PostModeEnum.SCHEDULE_POST:
+            if not payload.scheduled_time:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=ErrorResponse(
@@ -186,23 +186,23 @@ async def create_instagram_post(
                     ).model_dump()
                 )
             
-            scheduled_dt = datetime.fromisoformat(request.scheduled_time.replace("Z", "+00:00"))
+            scheduled_dt = datetime.fromisoformat(payload.scheduled_time.replace("Z", "+00:00"))
             use_case = SchedulePostUseCase(get_scheduled_repo())
             result = await use_case.execute(
                 user_id=current_user_email,
                 ig_business_id=ig_business_id,
-                media_url=request.media_url,
+                media_url=payload.media_url,
                 scheduled_time=scheduled_dt,
-                caption=request.caption,
+                caption=payload.caption,
                 media_type=MediaType.IMAGE
             )
             logger.info(f"Instagram Schedule Result: {result}")
 
             # Asset A/B tracking: link scheduled intent -> asset usage
-            if result.get("status") == "scheduled" and request.asset_id:
+            if result.get("status") == "scheduled" and payload.asset_id:
                 from infrastructure.repositories.asset_repository import AssetRepository
                 asset_repo = AssetRepository()
-                asset = await asset_repo.get_by_asset_id(request.asset_id)
+                asset = await asset_repo.get_by_asset_id(payload.asset_id)
                 if asset:
                     internal_post_id = result.get("scheduled_post_id")  # internal MongoDB ID
                     if internal_post_id and internal_post_id not in asset.instagram_post_ids:
@@ -219,7 +219,7 @@ async def create_instagram_post(
                         business_id=ig_business_id,
                         event_type="post_published",
                         title="Instagram Post Scheduled",
-                        subtitle=f"Queued for {request.scheduled_time}"
+                        subtitle=f"Queued for {payload.scheduled_time}"
                     ),
                     task_name="log_scheduled_post"
                 )
@@ -232,12 +232,12 @@ async def create_instagram_post(
                 error=result.get("error")
             )
         
-        elif request.mode == PostModeEnum.POST_STORY:
+        elif payload.mode == PostModeEnum.POST_STORY:
             use_case = PostStoryUseCase(get_story_repo(), get_api_client())
             result = await use_case.execute(
                 user_id=current_user_email,
                 ig_business_id=ig_business_id,
-                media_url=request.media_url,
+                media_url=payload.media_url,
                 media_type=MediaType.STORIES
             )
             logger.info(f"Instagram Story Result: {result}")
@@ -267,7 +267,7 @@ async def create_instagram_post(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=ErrorResponse(
                     error_code=ErrorCode.VALIDATION_ERROR,
-                    message=f"Invalid mode: {request.mode}"
+                    message=f"Invalid mode: {payload.mode}"
                 ).model_dump()
             )
     

@@ -315,7 +315,6 @@ async def signup_with_google(request: GoogleSignupRequest):
         await user_repository.update_profile_completed(created_user.email, completed=False)
     except Exception:
         # non-fatal: log and continue
-        import logging
         logging.exception("Failed to explicitly set profile_completed for Google signup")
     
     return SignupResponse(
@@ -792,8 +791,6 @@ async def get_current_user_id(request: Request) -> str:
     and returns the user's id as stored in the DB (stringified ObjectId).
     Raises 401 if not authenticated or 404 if user missing.
     """
-    from fastapi import HTTPException
-    
     # First try to get token from Authorization header
     token = None
     auth_header = request.headers.get("Authorization")
@@ -839,9 +836,8 @@ async def get_profile(current_user_email: str = Depends(get_current_user_email))
     business_repo = BusinessRepository()
     business = await business_repo.get_by_user_id(str(user.id))
     
-    import logging
-    logging.info(f"[GET PROFILE] User: {user.email}, FB:{user.facebook_connected}, IG:{user.instagram_connected}, GM:{user.google_maps_connected}")
-    logging.info(f"[GET PROFILE] Business: {bool(business)}, Lat:{getattr(business, 'latitude', 'N/A')}, Lon:{getattr(business, 'longitude', 'N/A')}")
+    logger.info("[GET PROFILE] User: %s, FB:%s, IG:%s, GM:%s", user.email, user.facebook_connected, user.instagram_connected, user.google_maps_connected)
+    logger.info("[GET PROFILE] Business: %s, Lat:%s, Lon:%s", bool(business), getattr(business, 'latitude', 'N/A'), getattr(business, 'longitude', 'N/A'))
     
     business_completed = bool(business and business.business_name)
     brand_completed = bool(business and business.brand_logo_url)
@@ -1479,12 +1475,12 @@ async def verify_account_deletion(
         
         # Delete user profile picture from Firebase Storage if exists
         try:
-             # Check both 'profile_picture' and 'profile_picture_url' as some models use different names
-             picture_to_delete = getattr(user, 'profile_picture', None) or getattr(user, 'profile_picture_url', None)
-             if picture_to_delete and "firebasestorage.googleapis.com" in (picture_to_delete or ""):
-                 storage_service = FirebaseStorageService()
-                 await storage_service.delete_profile_picture(picture_to_delete)
-                 print(f"✅ Deleted profile picture for {email}")
+            # Check both 'profile_picture' and 'profile_picture_url' as some models use different names
+            picture_to_delete = getattr(user, 'profile_picture', None) or getattr(user, 'profile_picture_url', None)
+            if picture_to_delete and "firebasestorage.googleapis.com" in (picture_to_delete or ""):
+                storage_service = FirebaseStorageService()
+                await storage_service.delete_profile_picture(picture_to_delete)
+                print(f"✅ Deleted profile picture for {email}")
         except Exception as e:
             print(f"Warning: Failed to delete profile picture: {e}")
         
@@ -1663,7 +1659,7 @@ async def delete_profile_picture(
 
 
 @router.get("/me")
-async def get_current_user(current_user_email: str = Depends(get_current_user_email)):
+async def get_me(current_user_email: str = Depends(get_current_user_email)):
     """
     Get the current authenticated user's information.
     Returns user profile including subscription details.

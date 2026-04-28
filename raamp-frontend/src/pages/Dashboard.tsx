@@ -74,7 +74,10 @@ const Dashboard = () => {
     const initDashboard = async () => {
       try {
         const [userData, summaryDataResult, hyperlocalData] = await Promise.all([
-          authService.getProfile(),
+          authService.getProfile().catch(err => {
+            console.warn("Dashboard: Profile fetch failed.", err);
+            return null;
+          }),
           dashboardService.getSummary().catch(err => {
             console.warn("Dashboard: Summary fetch failed, using zero-state fallback.", err);
             return null;

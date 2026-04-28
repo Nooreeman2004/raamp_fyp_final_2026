@@ -12,6 +12,7 @@ import {
   Target,
   Settings as SettingsIcon,
   MessageSquare,
+  CreditCard,
 } from "lucide-react";
 
 // Animation Imports
@@ -96,6 +97,12 @@ const Settings = () => {
       description: "Meta, Google, and API connections",
       icon: <Link2 className="w-5 h-5 text-primary" />,
       href: "/settings/integrations",
+    },
+    {
+      title: "Billing & Payments",
+      description: "Subscription plan, credits, and payment history",
+      icon: <CreditCard className="w-5 h-5 text-primary" />,
+      href: "/billing",
     },
   ];
 

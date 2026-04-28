@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ThemeEmoji } from "@/components/ui/emoji";
+import type { LucideIcon } from "lucide-react";
+import { Zap, Film, Sparkles, BookOpen, Rocket, Star, Package, Eye, Mic, Scale, Search, Timer, HelpCircle, Target } from "lucide-react";
 
 interface VideoTemplate {
     id: string;
@@ -18,7 +20,7 @@ interface VideoTemplate {
     prompt: string;
     duration: string;
     tags: string[];
-    emoji: string;
+    icon: LucideIcon;
 }
 
 const VIDEO_TEMPLATES: VideoTemplate[] = [
@@ -27,7 +29,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "quick-montage",
         name: "5 Ways Montage",
         category: "Quick Cuts",
-        emoji: "⚡",
+        icon: Zap,
         prompt: "Fast-paced montage showing 5 ways to use {product} with upbeat music, quick cuts, energetic and engaging",
         duration: "15-20s",
         tags: ["montage", "fast", "energetic"]
@@ -36,7 +38,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "day-in-life",
         name: "Behind the Scenes",
         category: "Quick Cuts",
-        emoji: "🎬",
+        icon: Film,
         prompt: "Day in the life: Behind-the-scenes of making {dish/product} from start to finish, authentic and engaging",
         duration: "20-30s",
         tags: ["bts", "process", "authentic"]
@@ -45,7 +47,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "transformation",
         name: "Transformation Reveal",
         category: "Quick Cuts",
-        emoji: "✨",
+        icon: Sparkles,
         prompt: "Transformation reveal: Slow-mo of {before → after} with dramatic music, satisfying and impactful",
         duration: "10-15s",
         tags: ["reveal", "slowmo", "dramatic"]
@@ -54,7 +56,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "tutorial",
         name: "Quick Tutorial",
         category: "Quick Cuts",
-        emoji: "📚",
+        icon: BookOpen,
         prompt: "Recipe/Tutorial: Step-by-step process with text overlays and trending audio, clear and easy to follow",
         duration: "20-30s",
         tags: ["tutorial", "steps", "educational"]
@@ -65,7 +67,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "customer-journey",
         name: "Customer Journey",
         category: "Storytelling",
-        emoji: "🚀",
+        icon: Rocket,
         prompt: "Customer journey: Problem → Discovery → Solution using {product}, relatable and emotional narrative",
         duration: "45-60s",
         tags: ["story", "journey", "emotional"]
@@ -74,7 +76,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "brand-story",
         name: "Brand Story",
         category: "Storytelling",
-        emoji: "💫",
+        icon: Star,
         prompt: "Brand story: Founder's passion, craftsmanship, and values in 60 seconds, inspiring and authentic",
         duration: "50-60s",
         tags: ["brand", "founder", "values"]
@@ -83,7 +85,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "unboxing",
         name: "Unboxing Experience",
         category: "Storytelling",
-        emoji: "📦",
+        icon: Package,
         prompt: "Unboxing experience: First impressions and reactions to {product}, genuine excitement and discovery",
         duration: "30-45s",
         tags: ["unboxing", "reaction", "discovery"]
@@ -94,7 +96,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "pov-style",
         name: "POV First Time",
         category: "Trending",
-        emoji: "👀",
+        icon: Eye,
         prompt: "POV: You're trying {product} for the first time (reaction-style), relatable and engaging perspective",
         duration: "15-20s",
         tags: ["pov", "reaction", "trending"]
@@ -103,7 +105,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "voiceover-tour",
         name: "Voiceover Tour",
         category: "Trending",
-        emoji: "🎤",
+        icon: Mic,
         prompt: "Voiceover tour: Walk through {location} showcasing menu/products, informative and inviting",
         duration: "30-40s",
         tags: ["tour", "voiceover", "showcase"]
@@ -112,7 +114,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "comparison",
         name: "Product Comparison",
         category: "Trending",
-        emoji: "⚖️",
+        icon: Scale,
         prompt: "Comparison: Our {item} vs. competitors (side-by-side), clear advantages and honest presentation",
         duration: "20-30s",
         tags: ["comparison", "vs", "honest"]
@@ -121,7 +123,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "myth-busting",
         name: "Myth Busting",
         category: "Trending",
-        emoji: "🔍",
+        icon: Search,
         prompt: "Myth-busting: 3 common misconceptions about {product category}, educational and surprising",
         duration: "25-35s",
         tags: ["myths", "facts", "educational"]
@@ -132,7 +134,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "wait-for-it",
         name: "Wait For It...",
         category: "Engagement",
-        emoji: "⏳",
+        icon: Timer,
         prompt: "Wait for it... {surprising reveal or twist ending}, suspenseful build-up with satisfying payoff",
         duration: "10-15s",
         tags: ["suspense", "reveal", "hook"]
@@ -141,7 +143,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "guess-ingredient",
         name: "Guess the Secret",
         category: "Engagement",
-        emoji: "🤔",
+        icon: HelpCircle,
         prompt: "Guess the secret ingredient in our {dish} - comment below! Interactive and curiosity-driven",
         duration: "15-20s",
         tags: ["interactive", "guess", "engagement"]
@@ -150,7 +152,7 @@ const VIDEO_TEMPLATES: VideoTemplate[] = [
         id: "choose-option",
         name: "Which Would You Choose?",
         category: "Engagement",
-        emoji: "🎯",
+        icon: Target,
         prompt: "Which would you choose? A or B? Show two options side-by-side, encouraging comments and interaction",
         duration: "10-15s",
         tags: ["choice", "poll", "interactive"]
@@ -188,7 +190,7 @@ export function VideoTemplatePicker({ onSelectTemplate }: VideoTemplatePickerPro
                     Use Template
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col bg-card border-border">
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col bg-card border-border shadow-[0_0_40px_rgba(0,245,212,0.12)]">
                 <DialogHeader>
                     <DialogTitle className="font-heading text-2xl flex items-center gap-2">
                         <ThemeEmoji name="video" className="w-6 h-6" />
@@ -220,7 +222,9 @@ export function VideoTemplatePicker({ onSelectTemplate }: VideoTemplatePickerPro
                 {/* Templates Grid */}
                 <div className="overflow-y-auto flex-1 pr-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {filteredTemplates.map((template) => (
+                        {filteredTemplates.map((template) => {
+                            const TemplateIcon = template.icon;
+                            return (
                             <button
                                 key={template.id}
                                 onClick={() => handleSelect(template)}
@@ -228,7 +232,9 @@ export function VideoTemplatePicker({ onSelectTemplate }: VideoTemplatePickerPro
                             >
                                 <div className="flex items-start justify-between mb-2">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-2xl">{template.emoji}</span>
+                                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 shrink-0">
+                                            <TemplateIcon className="w-4 h-4 text-primary" />
+                                        </div>
                                         <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">
                                             {template.name}
                                         </h3>
@@ -256,7 +262,8 @@ export function VideoTemplatePicker({ onSelectTemplate }: VideoTemplatePickerPro
                                     ))}
                                 </div>
                             </button>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </DialogContent>
