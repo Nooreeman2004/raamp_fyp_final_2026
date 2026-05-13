@@ -984,6 +984,115 @@ async def generate_ad_brief(
     )
 
 
+@router.post("/fetch-instagram-metrics/{schedule_id}")
+async def fetch_instagram_metrics(
+    schedule_id: str,
+    current_user_email: str = Depends(get_current_user_email)
+):
+    """
+    Auto-fetch engagement metrics from Instagram for scheduled A/B test.
+    
+    Attempts to find published Instagram posts matching the scheduled times
+    and retrieves their engagement metrics via the Instagram Graph API.
+    """
+    from infrastructure.database.models.instagram_post_model import ScheduledInstagramPostModel
+    from infrastructure.database.models.instagram_connection_model import InstagramConnectionModel
+    from application.services.encryption_service import EncryptionService
+    from datetime import timedelta as td
+    
+    repository = get_ab_test_repository()
+    schedule = await repository.get_schedule(schedule_id)
+    
+    if not schedule or schedule["user_id"] != current_user_email:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    
+    # Check if user has Instagram connected
+    ig_conn = await InstagramConnectionModel.find_one(
+        InstagramConnectionModel.user_id == current_user_email
+    )
+    
+    if not ig_conn or not ig_conn.accessToken:
+        raise HTTPException(
+            status_code=400,
+            detail="Instagram account not connected. Please connect Instagram in Settings to auto-fetch metrics."
+        )
+    
+    # Get the scheduled post times
+    variant_a_time = schedule.get("variant_a_post_time") or schedule.get("post_time")
+    variant_b_time = schedule.get("variant_b_post_time") or schedule.get("post_time")
+    
+    if not variant_a_time or not variant_b_time:
+        raise HTTPException(status_code=400, detail="Schedule has invalid post times")
+    
+    # Try to find published Instagram posts around the scheduled times
+    # Search within ±6 hours of scheduled time
+    time_window = td(hours=6)
+    
+    variant_a_metrics = None
+    variant_b_metrics = None
+    
+    # Search for Variant A post
+    variant_a_posts = await ScheduledInstagramPostModel.find(
+        ScheduledInstagramPostModel.user_id == current_user_email,
+        ScheduledInstagramPostModel.scheduled_time >= variant_a_time - time_window,
+        ScheduledInstagramPostModel.scheduled_time <= variant_a_time + time_window,
+        ScheduledInstagramPostModel.status == "published"
+    ).to_list()
+    
+    if variant_a_posts and len(variant_a_posts) > 0:
+        post_a = variant_a_posts[0]  # Take the closest match
+        if post_a.roi_metrics and post_a.roi_metrics.fetch_status == "success":
+            variant_a_metrics = {
+                "likes": post_a.roi_metrics.likes,
+                "comments": post_a.roi_metrics.comments,
+                "shares": post_a.roi_metrics.shares,
+                "saves": post_a.roi_metrics.saved,
+                "reach": post_a.roi_metrics.reach,
+                "ctr": post_a.roi_metrics.engagement_rate * 100,  # Convert to percentage
+            }
+    
+    # Search for Variant B post
+    variant_b_posts = await ScheduledInstagramPostModel.find(
+        ScheduledInstagramPostModel.user_id == current_user_email,
+        ScheduledInstagramPostModel.scheduled_time >= variant_b_time - time_window,
+        ScheduledInstagramPostModel.scheduled_time <= variant_b_time + time_window,
+        ScheduledInstagramPostModel.status == "published"
+    ).to_list()
+    
+    if variant_b_posts and len(variant_b_posts) > 0:
+        post_b = variant_b_posts[0]  # Take the closest match
+        if post_b.roi_metrics and post_b.roi_metrics.fetch_status == "success":
+            variant_b_metrics = {
+                "likes": post_b.roi_metrics.likes,
+                "comments": post_b.roi_metrics.comments,
+                "shares": post_b.roi_metrics.shares,
+                "saves": post_b.roi_metrics.saved,
+                "reach": post_b.roi_metrics.reach,
+                "ctr": post_b.roi_metrics.engagement_rate * 100,  # Convert to percentage
+            }
+    
+    # Determine fetch status
+    if variant_a_metrics and variant_b_metrics:
+        fetch_status = "success"
+        message = "Successfully fetched metrics for both variants from Instagram"
+    elif variant_a_metrics or variant_b_metrics:
+        fetch_status = "partial"
+        missing = "Variant B" if variant_a_metrics else "Variant A"
+        message = f"Found metrics for one variant. {missing} post not found or metrics not yet available."
+    else:
+        fetch_status = "failed"
+        message = "No published posts found around the scheduled times. Make sure you've published the posts to Instagram."
+    
+    logger.info("Auto-fetch Instagram metrics for schedule %s: %s", schedule_id, fetch_status)
+    
+    return {
+        "status": fetch_status,
+        "message": message,
+        "variant_a_metrics": variant_a_metrics,
+        "variant_b_metrics": variant_b_metrics,
+    }
+
+
 @router.get("/health")
 async def health_check():
     """

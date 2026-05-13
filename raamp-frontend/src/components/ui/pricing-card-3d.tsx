@@ -55,8 +55,9 @@ export const PricingCard3D = ({ title, price, features, buttonText, isPopular, i
         <motion.div
             ref={ref}
             className={cn(
-                "relative h-full w-full rounded-xl bg-card border border-border/50 backdrop-blur-sm transition-all duration-500 cursor-pointer",
-                isHovered ? "border-primary/50 shadow-[0_0_50px_rgba(0,224,208,0.15)]" : "",
+                "relative h-full w-full rounded-2xl bg-card/80 border backdrop-blur-md transition-all duration-500 cursor-pointer",
+                isHovered ? "border-primary shadow-xl" : "border-border/50 shadow-xl",
+                isPopular ? "ring-2 ring-primary/30" : "",
                 className
             )}
             style={{
@@ -68,27 +69,80 @@ export const PricingCard3D = ({ title, price, features, buttonText, isPopular, i
             onMouseLeave={handleMouseLeave}
             onMouseEnter={handleMouseEnter}
             onClick={onClick}
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0.9, y: 50 }}
+            whileInView={{ opacity: 1, scale: 1, y: 0 }}
             viewport={{ once: true }}
+            transition={{ 
+                type: "spring",
+                stiffness: 100,
+                damping: 20
+            }}
+            whileHover={{ scale: 1.02 }}
         >
             {/* Spotlight Gradient */}
             <div
                 className="absolute inset-0 z-0 transition-opacity duration-500"
                 style={{
                     background: "radial-gradient(circle at center, var(--primary) 0%, transparent 60%)",
-                    opacity: isHovered ? 0.1 : 0,
+                    opacity: isHovered ? 0.15 : 0,
                     transform: `translate(${x.get() * 150}px, ${y.get() * 150}px)`,
                 }}
             />
 
+            {/* Animated border gradient */}
+            <motion.div
+                className="absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500"
+                style={{
+                    background: "linear-gradient(45deg, transparent, var(--primary), transparent)",
+                    backgroundSize: "200% 200%",
+                    opacity: isHovered ? 0.3 : 0,
+                }}
+                animate={isHovered ? {
+                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                } : {}}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            />
+
+            {/* Floating particles effect */}
+            {isHovered && (
+                <>
+                    {[...Array(8)].map((_, i) => (
+                        <motion.div
+                            key={i}
+                            className="absolute w-1 h-1 bg-primary/60 rounded-full"
+                            initial={{ 
+                                x: Math.random() * 100 + '%',
+                                y: '100%',
+                                opacity: 0
+                            }}
+                            animate={{
+                                y: '-20%',
+                                opacity: [0, 1, 0],
+                            }}
+                            transition={{
+                                duration: 2 + Math.random() * 2,
+                                repeat: Infinity,
+                                delay: i * 0.2,
+                                ease: "easeOut"
+                            }}
+                        />
+                    ))}
+                </>
+            )}
+
             {/* Badge — positioned outside card overflow so it's never clipped */}
             {isPopular && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
-                    <span className="bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider py-1.5 px-4 rounded-full shadow-lg whitespace-nowrap">
-                        Most Popular
+                <motion.div 
+                    className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20"
+                    animate={{
+                        y: [0, -3, 0],
+                    }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                    <span className="bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider py-1.5 px-4 rounded-full whitespace-nowrap">
+                        ⭐ Most Popular
                     </span>
-                </div>
+                </motion.div>
             )}
 
             {/* Your Plan badge — top-right corner */}
@@ -102,38 +156,55 @@ export const PricingCard3D = ({ title, price, features, buttonText, isPopular, i
 
             <div className="relative z-10 p-8 h-full flex flex-col" style={{ transform: "translateZ(30px)" }}>
 
-                <h3 className="text-3xl font-bold mb-2 font-heading font-semibold text-foreground group-hover:text-primary transition-colors">
+                <h3 className="text-3xl font-bold mb-2 text-foreground">
                     {title}
                 </h3>
 
                 {price && (
-                    <div className="mb-6 flex items-baseline text-foreground">
-                        <span className="text-5xl font-extrabold tracking-tight">{price}</span>
-                        <span className="ml-1 text-xl font-medium text-muted-foreground">/mo</span>
+                    <div className="mb-6 flex items-baseline">
+                        <span className="text-6xl font-black tracking-tight text-primary">
+                            {price}
+                        </span>
+                        <span className="ml-2 text-xl font-medium text-muted-foreground">/mo</span>
                     </div>
                 )}
 
                 <div className="space-y-4 flex-grow mb-8">
                     {features.map((feature, i) => (
-                        <div key={i} className="flex items-start gap-3">
-                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <motion.div 
+                            key={i} 
+                            className="flex items-start gap-3"
+                            initial={{ opacity: 0, x: -20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: i * 0.1 }}
+                        >
+                            <motion.div 
+                                className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5 border border-primary/30"
+                                whileHover={{ scale: 1.2, rotate: 360 }}
+                                transition={{ type: "spring", stiffness: 400 }}
+                            >
                                 <Check className="w-4 h-4 text-primary" />
-                            </div>
-                            <p className="text-muted-foreground font-mono text-sm">{feature}</p>
-                        </div>
+                            </motion.div>
+                            <p className="text-foreground/80 text-sm leading-relaxed hover:text-foreground transition-colors">{feature}</p>
+                        </motion.div>
                     ))}
                 </div>
 
                 {/* Action Button — only rendered when buttonText is provided */}
                 {buttonText && (
-                    <div className={cn(
-                        "mt-auto flex items-center justify-center border py-3 rounded text-sm font-bold tracking-wider uppercase transition-all duration-300",
-                        isCurrentPlan
-                            ? "border-primary bg-primary/20 text-primary cursor-default"
-                            : cn("border-primary/50 text-foreground", isHovered ? "bg-primary" : "bg-transparent")
-                    )}>
+                    <motion.div 
+                        className={cn(
+                            "mt-auto flex items-center justify-center border-2 py-3.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all duration-300",
+                            isCurrentPlan
+                                ? "border-primary bg-primary/20 text-primary cursor-default"
+                                : cn("border-primary bg-primary/10 text-primary", isHovered ? "bg-primary text-black" : "")
+                        )}
+                        whileHover={!isCurrentPlan ? { scale: 1.05 } : {}}
+                        whileTap={!isCurrentPlan ? { scale: 0.95 } : {}}
+                    >
                         {buttonText}
-                    </div>
+                    </motion.div>
                 )}
             </div>
         </motion.div>

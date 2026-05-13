@@ -56,16 +56,19 @@ async def update_user_subscription(
         if plan == "pro":
             user.subscriptionTier = "pro"
             user.adCreditsRemaining = 50
+            user.subscription = {"type": "pro", "credits": 50}  # Sync legacy dict
             if not current_period_end:
                 user.subscriptionEndDate = now + timedelta(days=30)
         elif plan == "premium":
             user.subscriptionTier = "premium"
             user.adCreditsRemaining = -1  # -1 represents unlimited
+            user.subscription = {"type": "premium", "credits": -1}  # Sync legacy dict
             if not current_period_end:
                 user.subscriptionEndDate = now + timedelta(days=30)
         elif plan == "free":
             user.subscriptionTier = "free"
             user.adCreditsRemaining = 5
+            user.subscription = {"type": "free", "credits": 5}  # Sync legacy dict
             user.subscriptionEndDate = None
 
         # Update Stripe metadata
@@ -83,6 +86,13 @@ async def update_user_subscription(
         if current_period_end:
             user.currentPeriodEnd = current_period_end
             user.subscriptionEndDate = current_period_end
+            # Sync end_date to legacy subscription dict
+            if user.subscription:
+                user.subscription["end_date"] = current_period_end.isoformat()
+        elif user.subscriptionEndDate:
+            # Sync existing end date to legacy dict
+            if user.subscription:
+                user.subscription["end_date"] = user.subscriptionEndDate.isoformat()
             
         # Track processed event for idempotency
         if event_id:
@@ -135,6 +145,7 @@ async def cancel_user_subscription(user_id: str, event_id: str = None):
         # Downgrade to free tier
         user.subscriptionTier = "free"
         user.adCreditsRemaining = 5
+        user.subscription = {"type": "free", "credits": 5}  # Sync legacy dict
         user.subscriptionStatus = "canceled"
         user.subscriptionEndDate = None
         user.cancelAtPeriodEnd = False
@@ -168,15 +179,15 @@ async def mark_subscription_past_due(user_id: str, event_id: str = None):
         bool: True if successful, False otherwise
     """
     try:
+        user = await UserModel.get(PydanticObjectId(user_id))
+        if not user:
+            logging.error(f"User not found for id: {user_id}")
+            return False
+
         # DEMO USER PROTECTION: Never mark demo user as past due
         if user.email.lower() == "abdullah@gmail.com":
             logging.warning(f"🛡️ DEMO PROTECTION: Ignoring past_due status for demo user {user.email}")
             return True
-
-        # er = await UserModel.get(PydanticObjectId(user_id))
-        if not user:
-            logging.error(f"User not found for id: {user_id}")
-            return False
 
         # Check if event was already processed
         if event_id and user.processed_stripe_events and event_id in user.processed_stripe_events:

@@ -17,7 +17,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { assetService, Asset } from "@/services/assetService";
-import { Loader2, Search, Filter, Image as ImageIcon, Sparkles, Check } from "lucide-react";
+import { Loader2, Search, Filter, Image as ImageIcon, Sparkles, Check, Video } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
@@ -99,8 +99,8 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden bg-background border-border/50 text-foreground">
-                <DialogHeader>
+            <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col bg-background border-border/50 text-foreground">
+                <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="text-xl font-bold flex items-center gap-2">
                         <ImageIcon className="w-5 h-5 text-primary" />
                         Select from Asset Library
@@ -111,7 +111,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                 </DialogHeader>
 
                 {/* Filters and Search */}
-                <div className="space-y-3">
+                <div className="space-y-3 flex-shrink-0">
                     <div className="flex gap-2">
                         <div className="flex-1 relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -145,7 +145,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                 </div>
 
                 {/* Assets Grid */}
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pr-2">
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pr-2">
                     {loading ? (
                         <div className="flex items-center justify-center py-20">
                             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -185,16 +185,37 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
                                                     : "border-border/50 hover:border-primary/50"
                                             }`}
                                         >
-                                            <img
-                                                src={asset.cloudinary_url || asset.storage_url}
-                                                alt={asset.file_name}
-                                                className="w-full h-full object-cover"
-                                            />
+                                            {asset.asset_type === 'uploaded_video' ? (
+                                                <video
+                                                    src={asset.cloudinary_url || asset.storage_url}
+                                                    className="w-full h-full object-cover"
+                                                    muted
+                                                    loop
+                                                    playsInline
+                                                    onMouseEnter={(e) => e.currentTarget.play()}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.pause();
+                                                        e.currentTarget.currentTime = 0;
+                                                    }}
+                                                />
+                                            ) : (
+                                                <img
+                                                    src={asset.cloudinary_url || asset.storage_url}
+                                                    alt={asset.file_name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            )}
                                             
                                             {/* Overlay */}
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <div className="absolute bottom-0 left-0 right-0 p-3 space-y-2">
                                                     <div className="flex items-center gap-1 flex-wrap">
+                                                        {asset.asset_type === 'uploaded_video' && (
+                                                            <Badge variant="secondary" className="bg-purple-500/20 text-purple-300 border-purple-400/30 text-[10px] px-1.5 py-0.5">
+                                                                <Video className="w-2.5 h-2.5 mr-1" />
+                                                                Video
+                                                            </Badge>
+                                                        )}
                                                         {asset.generation_source === 'AI' && (
                                                             <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30 text-[10px] px-1.5 py-0.5">
                                                                 <Sparkles className="w-2.5 h-2.5 mr-1" />
@@ -229,7 +250,7 @@ export const AssetPickerDialog: React.FC<AssetPickerDialogProps> = ({
 
                 {/* Pagination */}
                 {pagination.total_pages > 1 && (
-                    <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                    <div className="flex items-center justify-between pt-3 border-t border-border/50 flex-shrink-0">
                         <p className="text-xs text-gray-500">
                             Page {pagination.page} of {pagination.total_pages} ({pagination.total} assets)
                         </p>

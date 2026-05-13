@@ -38,7 +38,7 @@ export const ABHistoryModal = ({
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-2 h-8 px-2 sm:px-3 relative group overflow-hidden border-primary/30 shadow-[0_0_10px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)] transition-all">
+                <Button variant="outline" size="sm" className="flex items-center gap-2 h-8 px-2 sm:px-3 relative group overflow-hidden border-primary/30 hover:bg-primary/5 transition-all">
                     <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors" />
                     <History className="w-4 h-4 text-primary relative z-10" />
                     <span className="hidden sm:inline text-primary font-medium relative z-10">History</span>
@@ -140,30 +140,46 @@ export const ABHistoryModal = ({
                                                 )}
                                             </div>
                                             
-                                            <Button
-                                                variant={currentBatchId === batch.batch_id ? "secondary" : "default"}
-                                                size="sm"
-                                                onClick={() => {
-                                                    onLoadBatch(batch.batch_id);
-                                                    onOpenChange(false);
-                                                }}
-                                            >
-                                                {currentBatchId === batch.batch_id ? "Viewing" : "Load Results"}
-                                                                                        {batch.schedule_id && onMonitor && (
-                                                                                            <Button
-                                                                                                variant="outline"
-                                                                                                size="sm"
-                                                                                                className="border-green-500/50 text-green-400 hover:bg-green-500/10"
-                                                                                                onClick={() => {
-                                                                                                    onMonitor(batch.schedule_id!);
-                                                                                                    onOpenChange(false);
-                                                                                                }}
-                                                                                            >
-                                                                                                <Activity className="w-3 h-3 mr-1" />
-                                                                                                Monitor
-                                                                                            </Button>
-                                                                                        )}
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant={currentBatchId === batch.batch_id ? "secondary" : "outline"}
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        onLoadBatch(batch.batch_id);
+                                                        onOpenChange(false);
+                                                    }}
+                                                    className="min-w-[100px]"
+                                                >
+                                                    {currentBatchId === batch.batch_id ? (
+                                                        <>
+                                                            <Check className="w-3 h-3 mr-1" />
+                                                            Viewing
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Sparkles className="w-3 h-3 mr-1" />
+                                                            View Analysis
+                                                        </>
+                                                    )}
+                                                </Button>
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    className="bg-primary text-black hover:bg-primary/90 min-w-[100px]"
+                                                    onClick={() => {
+                                                        if (batch.schedule_id && onMonitor) {
+                                                            onMonitor(batch.schedule_id);
+                                                        } else {
+                                                            // No schedule - just load the analysis results
+                                                            onLoadBatch(batch.batch_id);
+                                                        }
+                                                        onOpenChange(false);
+                                                    }}
+                                                >
+                                                    <Activity className="w-3 h-3 mr-1" />
+                                                    {batch.schedule_id ? "Monitor Post" : "View Results"}
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 </motion.div>

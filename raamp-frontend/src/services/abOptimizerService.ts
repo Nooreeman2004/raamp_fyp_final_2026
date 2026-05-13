@@ -328,7 +328,9 @@ export const abOptimizerService = {
             throw new Error('Failed to fetch batches');
         }
 
-        return response.json();
+        const result = await response.json();
+        // Backend returns paginated response with data array
+        return result.data || [];
     },
 
     /**
@@ -569,6 +571,34 @@ export const abOptimizerService = {
             throw new Error(error.detail || 'Failed to generate ad brief');
         }
         
+        return response.json();
+    },
+
+    /**
+     * Auto-fetch metrics from Instagram for scheduled A/B test
+     * Attempts to find published posts matching the scheduled times
+     */
+    async fetchInstagramMetrics(scheduleId: string): Promise<{
+        variant_a_metrics?: EngagementMetrics;
+        variant_b_metrics?: EngagementMetrics;
+        status: 'success' | 'partial' | 'failed';
+        message: string;
+    }> {
+        const token = getAuthToken();
+        if (!token) throw new Error('Authentication required');
+
+        const response = await fetch(`${API_URL}/api/ab-optimizer/fetch-instagram-metrics/${scheduleId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to fetch metrics from Instagram');
+        }
+
         return response.json();
     },
 };

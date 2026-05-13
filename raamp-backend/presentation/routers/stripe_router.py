@@ -243,7 +243,10 @@ async def create_portal_session_endpoint(
         raise HTTPException(status_code=404, detail="User not found")
     
     if not user.stripeCustomerId:
-        raise HTTPException(status_code=400, detail="No active subscription found to manage")
+        raise HTTPException(
+            status_code=400, 
+            detail="No Stripe customer ID found. Please contact support to manage your subscription."
+        )
 
     return await create_portal_session_controller(user.stripeCustomerId)
 

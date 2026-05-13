@@ -5,10 +5,22 @@ import Reveal from "@/components/ui/Reveal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Sparkles, TrendingUp, ImageIcon } from "lucide-react";
 import { campaignPlannerService, CampaignPlanDetailResponse, PlannedPostItem } from "@/services/campaignPlannerService";
 import { PlannedPostDrawer } from "@/components/campaign-planner/PlannedPostDrawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// Helper to check if a post has a generated image in localStorage
+function hasGeneratedImage(postId: string): boolean {
+  try {
+    const stored = localStorage.getItem("campaign_planner_generated_images");
+    if (!stored) return false;
+    const data = JSON.parse(stored);
+    return !!data[postId];
+  } catch {
+    return false;
+  }
+}
 
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -55,7 +67,6 @@ export default function CampaignPlannerDetail() {
 
   useEffect(() => {
     fetchPlan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Auto-polling if plan is still running
@@ -103,8 +114,7 @@ export default function CampaignPlannerDetail() {
     const max = startOfMonth(allowedMonths[allowedMonths.length - 1]);
     if (cur.getTime() < min.getTime()) setCursorMonth(min);
     else if (cur.getTime() > max.getTime()) setCursorMonth(max);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowedMonths.length, plan?.start_date, plan?.end_date]);
+  }, [allowedMonths, cursorMonth, plan?.start_date, plan?.end_date]);
 
   const monthDays = useMemo(() => {
     const base = startOfMonth(cursorMonth);
@@ -260,17 +270,23 @@ export default function CampaignPlannerDetail() {
                   )}
                 </div>
                 <div className="mt-2 space-y-1">
-                  {items.slice(0, 3).map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setSelected(p)}
-                      className="w-full text-left text-[11px] font-mono text-foreground/90 bg-foreground/5 hover:bg-foreground/10 border border-border/50 rounded-md px-2 py-1 line-clamp-2"
-                      title={p.title}
-                    >
-                      {p.title}
-                    </button>
-                  ))}
+                  {items.slice(0, 3).map((p) => {
+                    const hasImage = hasGeneratedImage(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSelected(p)}
+                        className="w-full text-left text-[11px] font-mono text-foreground/90 bg-foreground/5 hover:bg-foreground/10 border border-border/50 rounded-md px-2 py-1 line-clamp-2 flex items-start gap-1.5"
+                        title={p.title}
+                      >
+                        {hasImage && (
+                          <ImageIcon className="w-3 h-3 text-primary/70 shrink-0 mt-0.5" />
+                        )}
+                        <span className="flex-1 line-clamp-2">{p.title}</span>
+                      </button>
+                    );
+                  })}
                   {items.length > 3 && (
                     <div className="text-[10px] font-mono text-muted-foreground/60">+{items.length - 3} more</div>
                   )}

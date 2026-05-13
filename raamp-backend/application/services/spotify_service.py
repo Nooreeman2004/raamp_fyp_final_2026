@@ -87,7 +87,11 @@ class SpotifyService:
             logger.info(f"✅ Got Spotify token (expires in {expires_in}s)")
             return self._access_token
         except Exception as e:
-            logger.error(f"Failed to get Spotify access token: {e}")
+            # External API failures are common, log as warning
+            if "HTTPStatusError" in str(type(e).__name__) or "502" in str(e) or "503" in str(e):
+                logger.warning(f"⚠️ Spotify auth unavailable: {e}")
+            else:
+                logger.error(f"❌ Failed to get Spotify access token: {e}")
             return None
 
     async def get_viral_tracks(self, market: str = "US", limit: int = 5) -> List[Dict[str, Any]]:
@@ -204,7 +208,11 @@ class SpotifyService:
             return []
 
         except Exception as e:
-            logger.error(f"Error fetching Spotify trending tracks: {e}", exc_info=True)
+            # External API failures are expected, log as warning without traceback
+            if "HTTPStatusError" in str(type(e).__name__) or "502" in str(e) or "503" in str(e):
+                logger.warning(f"⚠️ Spotify API unavailable: {e}")
+            else:
+                logger.error(f"Error fetching Spotify trending tracks: {e}", exc_info=True)
             return []
     
     def _parse_playlist_tracks(self, items: List[Dict]) -> List[Dict[str, Any]]:
@@ -269,5 +277,9 @@ class SpotifyService:
                 })
             return results
         except Exception as e:
-            logger.error(f"Error searching Spotify tracks: {e}", exc_info=True)
+            # External API failures (502, 503) are expected, log as warning
+            if "HTTPStatusError" in str(type(e).__name__) or "502" in str(e) or "503" in str(e):
+                logger.warning(f"⚠️ Spotify search unavailable: {e}")
+            else:
+                logger.error(f"Error searching Spotify tracks: {e}", exc_info=True)
             return []

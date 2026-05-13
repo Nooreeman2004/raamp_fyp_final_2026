@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { API_ORIGIN, getMediaUrl } from "@/config/apiUtils";
 import { isAuthError } from "@/utils/errorHandler";
+import { useGeneration } from "@/contexts/GenerationContext";
 
 // Animation Imports
 import { motion } from "framer-motion";
@@ -56,7 +57,14 @@ type AssetType = "captions" | "hashtags" | "whatsapp" | "emails";
 
 const CreativeStudio = () => {
   const location = useLocation();
+  const generation = useGeneration();
+  
   const [campaignIdea, setCampaignIdea] = useState("");
+  const [aspectRatio, setAspectRatio] = useState<'1:1' | '9:16' | '4:5'>('1:1');
+  const [contentType, setContentType] = useState<'captions' | 'hashtags' | 'whatsapp' | 'emails' | 'all'>('all');
+  const [imageIdea, setImageIdea] = useState("");
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
 
   // Pre-fill campaign idea when navigated from TrendCard "Use This Prompt"
   useEffect(() => {
@@ -65,12 +73,34 @@ const CreativeStudio = () => {
       setCampaignIdea(state.prefillPrompt);
     }
   }, [location.state]);
-  const [aspectRatio, setAspectRatio] = useState<'1:1' | '9:16' | '4:5'>('1:1');
-  const [contentType, setContentType] = useState<'captions' | 'hashtags' | 'whatsapp' | 'emails' | 'all'>('all');
-  const [imageIdea, setImageIdea] = useState("");
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  const [imageAssetMap, setImageAssetMap] = useState<Map<string, string>>(new Map()); // image_path -> asset_id
-  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+
+  // Restore previous session from GenerationContext on mount
+  useEffect(() => {
+    if (sessionRestored) return;
+    
+    if (generation.savedImages.length > 0) {
+      toast.success("Previous session restored", {
+        description: `${generation.savedImages.length} image(s) from your last session`,
+        duration: 3000,
+      });
+    }
+    
+    if (generation.savedContent) {
+      toast.success("Content restored", {
+        description: "Your previously generated content is ready",
+        duration: 3000,
+      });
+    }
+    
+    if (generation.savedVideos) {
+      toast.success("Videos restored", {
+        description: "Your previously generated videos are ready",
+        duration: 3000,
+      });
+    }
+    
+    setSessionRestored(true);
+  }, [sessionRestored, generation.savedImages, generation.savedContent, generation.savedVideos]);
   // Lightbox fullscreen preview
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
@@ -88,13 +118,20 @@ const CreativeStudio = () => {
   const [isLoadingRecommendation, setIsLoadingRecommendation] = useState(false);
   const [recommendedVariantId, setRecommendedVariantId] = useState<number | null>(null);
 
-  // Generated content state - starts as null until content is generated
-  const [generatedContent, setGeneratedContent] = useState<ContentGenerationResponse | null>(null);
-  const [hasGeneratedContent, setHasGeneratedContent] = useState(false);
+  // Use context for persistent generated content
+  const generatedContent = generation.savedContent;
+  const setGeneratedContent = generation.setSavedContent;
+  const hasGeneratedContent = !!generatedContent;
+  
+  const generatedImages = generation.savedImages;
+  const setGeneratedImages = generation.setSavedImages;
+  const imageAssetMap = generation.savedImageAssetMap;
+  const setImageAssetMap = generation.setSavedImageAssetMap;
 
   // Video/Reel generation state
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
-  const [generatedVideos, setGeneratedVideos] = useState<MediaGenerationResponse | null>(null);
+  const generatedVideos = generation.savedVideos;
+  const setGeneratedVideos = generation.setSavedVideos;
   const [videoIdea, setVideoIdea] = useState("");
   const [videoDuration, setVideoDuration] = useState(8); // Default 8 seconds (max allowed by API)
 
@@ -220,7 +257,7 @@ const CreativeStudio = () => {
         content_type: contentType
       });
 
-      console.log("âœ… Content generation response:", {
+      console.log("•… Content generation response:", {
         success: response.success,
         caption_variants: response.caption_variants?.length || 0,
         hashtag_sets: response.hashtag_sets?.length || 0,
@@ -232,10 +269,9 @@ const CreativeStudio = () => {
       });
 
       setGeneratedContent(response);
-      setHasGeneratedContent(true);
       
-      console.log("âœ… State updated:", {
-        hasGeneratedContent: true,
+      console.log("•… State updated:", {
+        hasGeneratedContent: !!response,
         generatedContent: response
       });
 
@@ -257,7 +293,8 @@ const CreativeStudio = () => {
           }
         });
         // Merge with existing map (in case standalone image generation was used)
-        setImageAssetMap(prev => new Map([...prev, ...newMap]));
+        const mergedMap = new Map([...imageAssetMap, ...newMap]);
+        setImageAssetMap(mergedMap);
       }
 
       toast.dismiss(loadingToastId);
@@ -441,12 +478,18 @@ const CreativeStudio = () => {
     }
     setIsGeneratingImages(true);
     setShowImageDetailsDialog(false);
+    
+    // Clear previous images when generating new ones
+    setGeneratedImages([]);
+    setImageAssetMap(new Map());
+    
     // Build an enriched prompt using extra details
     let enrichedPrompt = basePrompt;
     if (imageSubject) enrichedPrompt += `. Subject: ${imageSubject}`;
     if (imageMood) enrichedPrompt += `. Mood/Atmosphere: ${imageMood}`;
     if (imageThemeColor) enrichedPrompt += `. Color palette: ${imageThemeColor}`;
     if (imageStyle) enrichedPrompt += `. Visual style: ${imageStyle}`;
+    
     try {
       toast.info("Generating Images...", {
         description: "AI is crafting your brand images. This may take 20-30 seconds.",
@@ -457,11 +500,13 @@ const CreativeStudio = () => {
         aspect_ratio: aspectRatio,
         content_type: 'images'
       });
-      setGeneratedImages(response.image_paths || []);
+      
+      const images = response.image_paths || [];
+      setGeneratedImages(images);
 
       // Store image_path -> asset_id mapping for usage tracking
+      const newMap = new Map<string, string>();
       if (response.image_paths && response.asset_ids) {
-        const newMap = new Map<string, string>();
         response.image_paths.forEach((path, idx) => {
           if (response.asset_ids[idx]) {
             newMap.set(path, response.asset_ids[idx]);
@@ -469,6 +514,8 @@ const CreativeStudio = () => {
         });
         setImageAssetMap(newMap);
       }
+
+      // Context automatically persists images
 
       if ((response.image_paths?.length || 0) > 0) {
         toast.success("Images Generated!", {
@@ -565,7 +612,7 @@ const CreativeStudio = () => {
       if (selectedAsset === "captions" && variant.caption_id) {
         try {
           await assetService.markCaptionUsed(variant.caption_id);
-          console.log(`âœ… Caption usage tracked: ${variant.caption_id}`);
+          console.log(`•… Caption usage tracked: ${variant.caption_id}`);
         } catch (trackError) {
           console.error("Failed to track caption usage:", trackError);
           toast.warning("Caption tracking failed", {
@@ -578,7 +625,7 @@ const CreativeStudio = () => {
       if (selectedAsset === "hashtags" && variant.hashtag_id) {
         try {
           await assetService.markCaptionUsed(variant.hashtag_id);  // Hashtags use same endpoint
-          console.log(`âœ… Hashtag usage tracked: ${variant.hashtag_id}`);
+          console.log(`•… Hashtag usage tracked: ${variant.hashtag_id}`);
         } catch (trackError) {
           console.error("Failed to track hashtag usage:", trackError);
           toast.warning("Hashtag tracking failed", {
@@ -591,7 +638,7 @@ const CreativeStudio = () => {
       if ((selectedAsset === "whatsapp" || selectedAsset === "emails") && variant.message_id) {
         try {
           await assetService.markCaptionUsed(variant.message_id);  // Messages use same endpoint
-          console.log(`âœ… Message usage tracked: ${variant.message_id}`);
+          console.log(`•… Message usage tracked: ${variant.message_id}`);
         } catch (trackError) {
           console.error("Failed to track message usage:", trackError);
           toast.warning("Message tracking failed", {
@@ -633,10 +680,10 @@ const CreativeStudio = () => {
   }, [isDialogOpen, selectedVariantId, getVariants, handleCopyAndSelect]);
 
   const getDialogTitle = () => {
-    if (selectedAsset === "captions") return "INSTAGRAM CAPTIONS â€” 3 VARIANTS";
-    if (selectedAsset === "hashtags") return "HASHTAG SETS â€” 3 STRATEGY SETS";
-    if (selectedAsset === "whatsapp") return "WHATSAPP CAMPAIGN â€” 3 VARIANTS";
-    if (selectedAsset === "emails") return "EMAIL CAMPAIGN â€” 3 VARIANTS";
+    if (selectedAsset === "captions") return "INSTAGRAM CAPTIONS • 3 VARIANTS";
+    if (selectedAsset === "hashtags") return "HASHTAG SETS • 3 STRATEGY SETS";
+    if (selectedAsset === "whatsapp") return "WHATSAPP CAMPAIGN • 3 VARIANTS";
+    if (selectedAsset === "emails") return "EMAIL CAMPAIGN • 3 VARIANTS";
     return "";
   };
 
@@ -771,7 +818,7 @@ const CreativeStudio = () => {
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  READY â€” 3 CAPTION VARIANTS
+                                  READY • 3 CAPTION VARIANTS
                                 </p>
                               ) : (
                                 <p className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
@@ -810,7 +857,7 @@ const CreativeStudio = () => {
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  READY â€” 3 STRATEGY SETS
+                                  READY • 3 STRATEGY SETS
                                 </p>
                               ) : (
                                 <p className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
@@ -849,7 +896,7 @@ const CreativeStudio = () => {
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  READY â€” 3 BROADCAST MESSAGES
+                                  READY • 3 BROADCAST MESSAGES
                                 </p>
                               ) : (
                                 <p className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
@@ -888,7 +935,7 @@ const CreativeStudio = () => {
                               {hasGeneratedContent ? (
                                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  READY â€” 3 EMAIL VARIANTS
+                                  READY • 3 EMAIL VARIANTS
                                 </p>
                               ) : (
                                 <p className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
@@ -943,7 +990,7 @@ const CreativeStudio = () => {
                     IMAGE IDEA
                   </label>
                   <Textarea
-                    placeholder='E.g., "A vibrant flat-lay of our summer product lineup on a sandy beach with golden hour lighting â€” warm, aspirational, lifestyle aesthetic"'
+                    placeholder='E.g., "A vibrant flat-lay of our summer product lineup on a sandy beach with golden hour lighting • warm, aspirational, lifestyle aesthetic"'
                     value={imageIdea}
                     onChange={(e) => setImageIdea(e.target.value)}
                     className="min-h-32 bg-card text-foreground border-border/50 focus:border-primary/50 focus:ring-primary/20 font-mono text-sm resize-none"
@@ -1017,11 +1064,11 @@ const CreativeStudio = () => {
                 </motion.div>
 
                 <div className="mt-4 p-3 bg-card border border-primary/20 rounded">
-                  <p className="text-[10px] text-primary font-mono font-bold mb-1">âš¡ IMAGE GENERATION INFO:</p>
+                  <p className="text-[10px] text-primary font-mono font-bold mb-1">⚡ IMAGE GENERATION INFO:</p>
                   <ul className="text-[10px] text-muted-foreground font-mono space-y-1">
-                    <li>â€¢ Generates <span className="text-primary">3 image variations</span> per request</li>
-                    <li>â€¢ Choose platform based on where you'll post (Feed, Story, or Portrait)</li>
-                    <li>â€¢ <span className="text-amber-400">Generation time: 10-20 seconds</span></li>
+                    <li>• Generates <span className="text-primary">3 image variations</span> per request</li>
+                    <li>• Choose platform based on where you'll post (Feed, Story, or Portrait)</li>
+                    <li>• <span className="text-amber-400">Generation time: 10-20 seconds</span></li>
                   </ul>
                 </div>
               </div>
@@ -1038,11 +1085,11 @@ const CreativeStudio = () => {
                           GENERATED IMAGES
                         </h3>
                         <Badge className="bg-emerald-500 text-black font-mono text-[10px] font-bold">
-                          âœ“ {generatedImages.length} READY
+                          •“ {generatedImages.length} READY
                         </Badge>
                       </div>
 
-                      {/* 3-column grid â€” mirrors caption layout */}
+                      {/* 3-column grid • mirrors caption layout */}
                       <div className="grid grid-cols-3 gap-3">
                         {generatedImages.map((imagePath, idx) => {
                           const isAiPick = idx === 0;
@@ -1078,7 +1125,7 @@ const CreativeStudio = () => {
                                 </span>
                               </div>
 
-                              {/* Image container â€” fixed height, image fits */}
+                              {/* Image container • fixed height, image fits */}
                               <div className="relative w-full h-52 bg-background/60 flex items-center justify-center overflow-hidden">
                                 <img
                                   src={imageUrl}
@@ -1099,11 +1146,11 @@ const CreativeStudio = () => {
                                 />
 
                                 {/* Hover overlay with download + expand */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-between p-2">
+                                <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-between p-2">
                                   {/* Expand / fullscreen */}
                                   <button
                                     onClick={() => { setLightboxIndex(idx); setLightboxImage(imageUrl); }}
-                                    className="bg-black/70 hover:bg-white/20 text-foreground rounded-full p-1.5 transition-all shadow-lg"
+                                    className="bg-foreground/20 hover:bg-foreground/30 text-foreground rounded-full p-1.5 transition-all shadow-lg"
                                     title="View fullscreen"
                                   >
                                     <Expand className="w-3 h-3" />
@@ -1263,12 +1310,12 @@ const CreativeStudio = () => {
                 </div>
 
                 <div className="mt-4 p-3 bg-card border border-primary/20 rounded">
-                  <p className="text-[10px] text-primary font-mono font-bold mb-1">âš¡ KEY DIFFERENCES:</p>
+                  <p className="text-[10px] text-primary font-mono font-bold mb-1">⚡ KEY DIFFERENCES:</p>
                   <ul className="text-[10px] text-muted-foreground font-mono space-y-1">
-                    <li>â€¢ <span className="text-primary">REEL (9:16)</span>: Vertical format for Instagram Reels, TikTok, YouTube Shorts</li>
-                    <li>â€¢ <span className="text-primary">VIDEO (16:9)</span>: Horizontal format for YouTube, Facebook, Instagram Feed</li>
-                    <li>â€¢ <span className="text-amber-400">Duration limit: 4-8 seconds</span> (API constraint, cannot be changed)</li>
-                    <li>â€¢ <span className="text-amber-400">Generates 1 video per request</span> (unlike captions which create 3 variants)</li>
+                    <li>• <span className="text-primary">REEL (9:16)</span>: Vertical format for Instagram Reels, TikTok, YouTube Shorts</li>
+                    <li>• <span className="text-primary">VIDEO (16:9)</span>: Horizontal format for YouTube, Facebook, Instagram Feed</li>
+                    <li>• <span className="text-amber-400">Duration limit: 4-8 seconds</span> (API constraint, cannot be changed)</li>
+                    <li>• <span className="text-amber-400">Generates 1 video per request</span> (unlike captions which create 3 variants)</li>
                   </ul>
                 </div>
               </div>
@@ -1283,7 +1330,7 @@ const CreativeStudio = () => {
                           GENERATED MEDIA
                         </h3>
                         <Badge className="bg-emerald-500 text-black font-mono text-[10px]">
-                          âœ“ READY
+                          •“ READY
                         </Badge>
                       </div>
 
@@ -1313,7 +1360,7 @@ const CreativeStudio = () => {
                               if (generatedVideos.asset_ids && generatedVideos.asset_ids[idx]) {
                                 try {
                                   await assetService.markAssetUsed(generatedVideos.asset_ids[idx]);
-                                  console.log(`âœ… Video asset usage tracked: ${generatedVideos.asset_ids[idx]}`);
+                                  console.log(`•… Video asset usage tracked: ${generatedVideos.asset_ids[idx]}`);
                                 } catch (trackError) {
                                   console.error("Failed to track video asset usage:", trackError);
                                   toast.warning("Usage tracking failed", {
@@ -1347,7 +1394,7 @@ const CreativeStudio = () => {
 
                       <div className="mt-4 p-3 bg-primary/10 border border-primary/30 rounded">
                         <p className="text-[10px] text-primary font-mono">
-                          âœ“ Generated {generatedVideos.count} video(s) â€¢ {generatedVideos.duration_seconds}s each
+                          •“ Generated {generatedVideos.count} video(s) • {generatedVideos.duration_seconds}s each
                         </p>
                       </div>
                     </div>
@@ -1413,7 +1460,7 @@ const CreativeStudio = () => {
                           }
                         }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3">
+                      <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3">
                         <p className="text-[10px] text-foreground font-mono">Variation {idx + 1}</p>
                         <button
                           onClick={async () => {
@@ -1488,7 +1535,7 @@ const CreativeStudio = () => {
 
                     {selectedVariantId === variant.id && (
                       <Badge className="absolute top-3 right-4 bg-primary text-black font-mono text-[9px] z-20 font-bold py-1 px-3">
-                        âœ“ SELECTED
+                        •“ SELECTED
                       </Badge>
                     )}
 
@@ -1523,7 +1570,7 @@ const CreativeStudio = () => {
                             </div>
                             <div className="mt-2 pt-2 border-t border-primary/10">
                               <p className="text-[9px] text-primary/70 font-mono">
-                                âœ“ {explanation.bestFor}
+                                •“ {explanation.bestFor}
                               </p>
                             </div>
                           </div>
@@ -1647,7 +1694,7 @@ const CreativeStudio = () => {
                             <p className="text-[10px] text-muted-foreground/60 font-mono uppercase tracking-widest">Engagement Hashtags:</p>
                             {variant.hashtag_source && (
                               <span className="text-[8px] text-primary/60 font-mono uppercase bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
-                                {variant.hashtag_source.includes('ml') ? 'âœ¨ ML RECOMMENDED' : 'ðŸ¤– AI GENERATED'}
+                                {variant.hashtag_source.includes('ml') ? '•¨ ML RECOMMENDED' : 'ðŸ¤– AI GENERATED'}
                               </span>
                             )}
                           </div>
@@ -1792,13 +1839,13 @@ const CreativeStudio = () => {
       {/* â”€â”€ Lightbox / Fullscreen Image Viewer â”€â”€ */}
       {lightboxImage && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-md"
           onClick={() => setLightboxImage(null)}
         >
           {/* Close */}
           <button
             onClick={() => setLightboxImage(null)}
-            className="absolute top-4 right-4 z-10 bg-foreground/10 hover:bg-white/20 text-foreground rounded-full p-2.5 transition-all border border-border/50"
+            className="absolute top-4 right-4 z-10 bg-foreground/10 hover:bg-foreground/20 text-foreground rounded-full p-2.5 transition-all border border-border/50"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1839,7 +1886,7 @@ const CreativeStudio = () => {
                 setLightboxIndex(prev);
                 setLightboxImage(generatedImages[prev]);
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-foreground/10 hover:bg-white/20 text-foreground rounded-full p-3 transition-all border border-border/50"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-foreground/10 hover:bg-foreground/20 text-foreground rounded-full p-3 transition-all border border-border/50"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -1866,7 +1913,7 @@ const CreativeStudio = () => {
                 setLightboxIndex(next);
                 setLightboxImage(generatedImages[next]);
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-foreground/10 hover:bg-white/20 text-foreground rounded-full p-3 transition-all border border-border/50"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-foreground/10 hover:bg-foreground/20 text-foreground rounded-full p-3 transition-all border border-border/50"
             >
               <ChevronRight className="w-5 h-5" />
             </button>

@@ -7,7 +7,7 @@
 @layer base {
   :root {
     /* Light Mode Theme - Professional High Contrast */
-    --background: 0 0% 100%;
+    --background: 0 0% 100%; /* Pure white */
     --foreground: 0 0% 9%;
 
     --card: 0 0% 98%;
@@ -33,6 +33,7 @@
 
     --border: 0 0% 70%;
     --input: 0 0% 75%;
+    --ring: 176 67% 31%;
     --ring: 176 67% 31%;
 
     --radius: 1rem;

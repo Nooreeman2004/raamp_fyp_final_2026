@@ -57,7 +57,7 @@ export const ABAnalysisResult = ({
         }
         // Fallback for undefined/unknown levels
         return (
-            <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/50">
+            <Badge className="bg-muted/50 text-muted-foreground border-border">
                 <AlertCircle className="w-3 h-3 mr-1" />
                 UNKNOWN
             </Badge>
@@ -281,12 +281,12 @@ export const ABAnalysisResult = ({
                                                 </div>
                                             </div>
                                             <div className="grid md:grid-cols-2 gap-4">
-                                                <div className="p-3 bg-emerald-500/5 border border-emerald-500/30 rounded-lg">
-                                                    <p className="font-medium text-emerald-500 mb-1 flex items-center gap-2 text-sm"><CheckCircle className="w-4 h-4" /> Strengths</p>
+                                                <div className="p-3 bg-blue-500/5 border border-blue-500/30 rounded-lg">
+                                                    <p className="font-medium text-blue-400 mb-1 flex items-center gap-2 text-sm"><CheckCircle className="w-4 h-4" /> Strengths</p>
                                                     <p className="text-xs text-muted-foreground whitespace-pre-line">{image.why_good}</p>
                                                 </div>
                                                 <div className="p-3 bg-red-500/5 border border-red-500/30 rounded-lg">
-                                                    <p className="font-medium text-red-500 mb-1 flex items-center gap-2 text-sm"><AlertTriangle className="w-4 h-4" /> Weaknesses</p>
+                                                    <p className="font-medium text-red-400 mb-1 flex items-center gap-2 text-sm"><AlertTriangle className="w-4 h-4" /> Weaknesses</p>
                                                     <p className="text-xs text-muted-foreground whitespace-pre-line">{image.why_bad}</p>
                                                 </div>
                                             </div>

@@ -1,5 +1,22 @@
 # RAAMP Agent Lessons
 
+## Generation Persistence Implementation (Dec 2024)
+
+### Lesson: Use React Context for Cross-Page State Persistence
+**Context**: User requested generated content persist when navigating between modules.  
+**What was needed**: Images/videos/content generated in Creative Studio should survive page navigation.  
+**Implementation**: Created GenerationContext with localStorage backing for 24h persistence.  
+**Rule**: For app-wide state that needs to persist across navigation, use Context + localStorage rather than component-level state. This provides centralized control and automatic persistence.
+
+### Lesson: True Background Processing Requires Backend Support
+**Context**: User wanted generation to "continue in background" after navigation.  
+**Limitation**: Browser-side JS can't truly run tasks in background after unmount.  
+**Partial Solution**: Implemented persistence so results survive navigation, but generation is cancelled if user leaves mid-process.  
+**Full Solution Would Require**: Backend task queue, polling endpoints, WebSocket notifications.  
+**Rule**: Be honest about browser limitations. "Background generation" needs async backend APIs, not just frontend state management.
+
+---
+
 ## Campaign Planner Flow Issues (April 24, 2026)
 
 ### Lesson: Enforce Brand Constraints Explicitly in All Content Generation

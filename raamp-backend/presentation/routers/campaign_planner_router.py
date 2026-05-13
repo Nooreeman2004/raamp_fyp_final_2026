@@ -44,6 +44,7 @@ def _post_item(p: CampaignPlannedPostModel) -> PlannedPostItem:
         title=p.title,
         post_type=p.post_type,
         status=p.status,
+        caption=p.caption,
         prompts=p.prompts or {},
         cta=p.cta,
         hashtags=p.hashtags or [],
@@ -348,6 +349,11 @@ async def generate_image_for_post(
         raise HTTPException(status_code=404, detail="Planned post not found")
     
     try:
+        import uuid as _uuid
+        from pathlib import Path
+        from infrastructure.repositories.asset_repository import AssetRepository
+        from infrastructure.database.models.asset_model import AssetType, GenerationSource
+
         logger.info("Generating single image for planned post %s", post_id)
         image_service = get_image_generation_service()
         
@@ -368,6 +374,31 @@ async def generate_image_for_post(
         
         image_url = image_urls[0]
         logger.info("Image generated successfully: %s", image_url)
+
+        # Register the image as an asset in the library
+        try:
+            file_path = Path(image_url.lstrip("/"))
+            file_size = file_path.stat().st_size if file_path.exists() else 0
+            asset_repo = AssetRepository()
+            await asset_repo.create({
+                "asset_id": str(_uuid.uuid4()),
+                "user_id": current_user_email,
+                "file_path": str(file_path),
+                "storage_url": image_url,
+                "cloudinary_url": None,
+                "file_name": file_path.name,
+                "file_size_bytes": file_size,
+                "content_type": "image/png",
+                "asset_type": AssetType.GENERATED_IMAGE,
+                "generation_source": GenerationSource.AI,
+                "generation_prompt": body.creative_prompt,
+                "campaign_idea": post.title,
+                "variation_number": 1,
+                "model_used": getattr(image_service, "image_model", None),
+            })
+            logger.info("Asset saved to library for post %s", post_id)
+        except Exception as asset_err:
+            logger.warning("Asset registration failed (image still returned): %s", asset_err)
         
         return GenerateImageFromPromptResponse(
             success=True,

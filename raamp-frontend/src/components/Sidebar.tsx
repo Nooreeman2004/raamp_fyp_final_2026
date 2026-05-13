@@ -22,7 +22,8 @@ import {
     MessageSquare,
     LifeBuoy,
     AlertTriangle,
-    CreditCard
+    CreditCard,
+    FileText
 } from "lucide-react";
 import { authService } from "@/services/authService";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -50,6 +51,7 @@ const menuItems = [
     { icon: CalendarDays, label: "Campaign Planner", href: "/dashboard/campaign-planner" },
     { icon: TrendingUp, label: "Trend Arbitrage", href: "/dashboard/trends" },
     { icon: ShieldCheck, label: "Approvals", href: "/dashboard/approvals" },
+    { icon: FileText, label: "My Drafts", href: "/dashboard/drafts" },
     { icon: MessageSquare, label: "Auto Replies", href: "/dashboard/auto-replies" },
     { icon: AlertTriangle, label: "Social Moderation", href: "/dashboard/escalations" },
     { icon: FlaskConical, label: "The Lab (A/B)", href: "/dashboard/ab-optimizer" },

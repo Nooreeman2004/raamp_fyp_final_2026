@@ -18,6 +18,7 @@ import {
   Bell,
   Link2,
   Shield,
+  CreditCard,
   LogOut,
   ChevronRight,
   Info,
@@ -30,6 +31,7 @@ import {
   Calendar,
   CalendarDays,
   ShieldCheck,
+  FileText,
   type LucideIcon
 } from "lucide-react";
 import type { UserResponse } from "@/types";
@@ -84,6 +86,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Campaign Planner", icon: CalendarDays, href: "/dashboard/campaign-planner" },
     { label: "Trend Arbitrage", icon: TrendIcon, href: "/dashboard/trends" },
     { label: "Approvals", icon: ShieldCheck, href: "/dashboard/approvals" },
+    { label: "My Drafts", icon: FileText, href: "/dashboard/drafts" },
     { label: "Auto Replies", icon: MessageSquare, href: "/dashboard/auto-replies" },
     { label: "Social Moderation", icon: AlertTriangle, href: "/dashboard/escalations" },
     { label: "The Lab (A/B)", icon: Flask, href: "/dashboard/ab-optimizer" },
@@ -98,6 +101,7 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     { label: "Auto Replies", icon: MessageSquare, href: "/settings/auto-replies" },
     { label: "Integrations", icon: Link2, href: "/settings/integrations" },
     { label: "Account & Security", icon: Shield, href: "/settings/security" },
+    { label: "Billing", icon: CreditCard, href: "/billing" },
   ];
 
   // Information items - only shown to non-logged-in users

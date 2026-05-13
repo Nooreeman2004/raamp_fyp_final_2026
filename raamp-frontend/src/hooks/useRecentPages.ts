@@ -22,6 +22,7 @@ export function useRecentPages(): { recentPages: RecentPage[]; clearRecentPages:
     "/dashboard/trends": "Trend Arbitrage",
     "/dashboard/ab-testing": "A/B Testing",
     "/dashboard/assistant": "RAAMP Assistant",
+    "/dashboard/billing": "Billing",
     "/profile/user": "User Profile",
     "/profile/restaurant": "Restaurant Profile",
     "/profile/onboarding": "Onboarding",

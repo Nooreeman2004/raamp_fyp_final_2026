@@ -282,11 +282,11 @@ export const ABGenerateAdBrief = ({
               </div>
               <Separator />
               <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                <Label className="text-sm font-medium text-amber-500 flex items-center gap-2">
+                <Label className="text-sm font-medium text-amber-400 flex items-center gap-2">
                   <CheckCircle className="w-4 h-4" />
                   What NOT to Change
                 </Label>
-                <p className="mt-1 text-sm">{adBrief.what_not_to_change}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{adBrief.what_not_to_change}</p>
               </div>
             </div>
           </HolographicCard>

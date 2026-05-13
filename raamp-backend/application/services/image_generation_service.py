@@ -179,7 +179,7 @@ Do NOT replace, omit, or generalise the user's stated objects or scene."""
             contents: list = []
             if logo_url:
                 try:
-                    with httpx.Client(timeout=8.0) as http:
+                    with httpx.Client(timeout=30.0) as http:  # Increased from 8s to 30s
                         logo_resp = http.get(logo_url)
                     if logo_resp.status_code == 200:
                         img_bytes = logo_resp.content

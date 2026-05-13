@@ -178,11 +178,11 @@ export const ABScheduleRecommendation = ({
               </div>
 
               {recommendation.next_optimal && (
-                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
-                  <p className="font-semibold text-emerald-500 mb-1">
+                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <p className="font-semibold text-blue-400 mb-1">
                     Next Optimal Window
                   </p>
-                  <p className="text-sm">
+                  <p className="text-sm text-foreground">
                     {recommendation.next_optimal.day} at{" "}
                     {recommendation.next_optimal.time}
                   </p>

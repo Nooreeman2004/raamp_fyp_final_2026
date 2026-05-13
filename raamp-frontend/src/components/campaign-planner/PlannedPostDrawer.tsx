@@ -22,6 +22,51 @@ import { CommentIntelligenceGrid } from "./CommentIntelligenceGrid";
 
 // ─── main component ──────────────────────────────────────────────────────────
 
+// ─── persistent storage helpers ──────────────────────────────────────────────
+const STORAGE_KEY = "campaign_planner_generated_images";
+
+function loadGeneratedImage(postId: string): string | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    const data = JSON.parse(stored);
+    return data[postId] || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveGeneratedImage(postId: string, imageUrl: string) {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const data = stored ? JSON.parse(stored) : {};
+    data[postId] = imageUrl;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.error("Failed to save generated image to storage", err);
+  }
+}
+
+function clearGeneratedImage(postId: string) {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return;
+    const data = JSON.parse(stored);
+    delete data[postId];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Silent fail
+  }
+}
+
+/**
+ * Clear all generated images for a campaign plan (useful when regenerating plan)
+ * Export this so other components can call it when needed
+ */
+export function clearCampaignPlanImages(campaignPlanId: string, postIds: string[]) {
+  postIds.forEach((postId) => clearGeneratedImage(postId));
+}
+
 export function PlannedPostDrawer({
   open,
   onOpenChange,
@@ -43,7 +88,18 @@ export function PlannedPostDrawer({
   const [mode, setMode] = useState<"post_now" | "schedule_post" | "post_story">("schedule_post");
   const [platform, setPlatform] = useState<"instagram" | "facebook" | "both">("instagram");
 
-  // Reset when dialog closes
+  // Restore generated image from persistent storage when item changes
+  useEffect(() => {
+    if (open && item) {
+      const savedImageUrl = loadGeneratedImage(item.id);
+      if (savedImageUrl) {
+        setGeneratedImageUrl(savedImageUrl);
+        setMediaUrl(savedImageUrl);
+      }
+    }
+  }, [open, item?.id]);
+
+  // Clear local state when dialog closes (but keep in localStorage)
   useEffect(() => {
     if (!open) {
       setMediaUrl("");
@@ -63,7 +119,10 @@ export function PlannedPostDrawer({
       setSubmitting(true);
       const res = await campaignPlannerService.convertToDraft(item.id);
       if (!res?.success) throw new Error("Convert to draft failed");
-      toast.success("Draft created", { description: `Draft ID: ${res.draft_id}` });
+      toast.success("Draft created", {
+        description: "You can open it in Creative Studio from My Drafts.",
+        action: { label: "View Drafts", onClick: () => navigate("/dashboard/drafts") },
+      });
       onUpdated();
     } catch (e: any) {
       toast.error("Failed to convert", { description: e?.message || "Please try again." });
@@ -116,6 +175,10 @@ export function PlannedPostDrawer({
       // Auto-populate media URL and show preview
       setMediaUrl(res.image_url);
       setGeneratedImageUrl(res.image_url);
+      
+      // Persist to localStorage so image survives navigation
+      saveGeneratedImage(item.id, res.image_url);
+      
       toast.success("Image generated!", {
         description: "Image is ready. Download or request approval below.",
       });
@@ -257,6 +320,9 @@ export function PlannedPostDrawer({
                     size="sm"
                     className="w-full text-[10px] text-muted-foreground/70 hover:text-muted-foreground"
                     onClick={() => {
+                      if (item) {
+                        clearGeneratedImage(item.id);
+                      }
                       setGeneratedImageUrl(null);
                       setMediaUrl("");
                     }}

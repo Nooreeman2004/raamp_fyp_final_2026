@@ -9,6 +9,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import ProfileGuard from "./components/ProfileGuard";
 import { AuthProvider } from "@/hooks/useAuth";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { GenerationProvider } from "./contexts/GenerationContext";
 import { SmoothScroll } from "@/components/ui/smooth-scroll";
 import { CustomCursor } from "@/components/ui/custom-cursor";
 import { CommandMenu } from "@/components/ui/command-menu";
@@ -59,6 +60,7 @@ const AutoReplies = lazy(() => import("./pages/AutoReplies"));
 const AutoReplySettings = lazy(() => import("./pages/AutoReplySettings"));
 const SocialModeration = lazy(() => import("./pages/SocialModeration"));
 const Complaints = lazy(() => import("./pages/Complaints"));
+const CampaignDrafts = lazy(() => import("./pages/CampaignDrafts"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +84,7 @@ const App = () => (
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
           <NotificationProvider>
+          <GenerationProvider>
             <TooltipProvider>
               <SmoothScroll>
                 <CustomCursor />
@@ -219,6 +222,16 @@ const App = () => (
                       }
                     />
                     <Route
+                      path="/dashboard/drafts"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <CampaignDrafts />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
                       path="/dashboard/auto-replies"
                       element={
                         <ProtectedRoute>
@@ -244,6 +257,16 @@ const App = () => (
                         <ProtectedRoute>
                           <ProfileGuard>
                             <Complaints />
+                          </ProfileGuard>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/billing"
+                      element={
+                        <ProtectedRoute>
+                          <ProfileGuard>
+                            <Billing />
                           </ProfileGuard>
                         </ProtectedRoute>
                       }
@@ -398,6 +421,7 @@ const App = () => (
                 </Suspense>
               </SmoothScroll>
             </TooltipProvider>
+          </GenerationProvider>
           </NotificationProvider>
         </AuthProvider>
         </ThemeProvider>

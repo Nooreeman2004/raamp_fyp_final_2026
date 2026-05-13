@@ -73,19 +73,23 @@ export default function CampaignPlanner() {
     const now = new Date().getTime();
 
     return rows.filter((r) => {
-      // 1. Status Filter
-      if (statusFilter !== "all") {
-        if (statusFilter === "failed" && r.generation_status.toLowerCase() !== "failed") {
-          return false;
-        }
-        if (statusFilter === "active" || statusFilter === "past") {
-          if (r.generation_status.toLowerCase() === "failed") return false;
-          
-          const endMs = new Date(r.end_date).getTime();
-          if (statusFilter === "active" && endMs < now) return false;
-          if (statusFilter === "past" && endMs >= now) return false;
-        }
+      // NEVER show failed campaigns unless explicitly filtered to "failed"
+      const isFailed = r.generation_status.toLowerCase() === "failed";
+      if (statusFilter !== "failed" && isFailed) {
+        return false;
       }
+      
+      // 1. Status Filter
+      if (statusFilter === "failed") {
+        // Only show failed campaigns
+        if (!isFailed) return false;
+      } else if (statusFilter === "active" || statusFilter === "past") {
+        // For active/past, check date range
+        const endMs = new Date(r.end_date).getTime();
+        if (statusFilter === "active" && endMs < now) return false;
+        if (statusFilter === "past" && endMs >= now) return false;
+      }
+      // "all" shows everything except failed (already filtered above)
       
       // 2. Search Filter
       if (!q) return true;

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Trophy, ChevronRight, ChevronLeft, TrendingUp, Heart, MessageCircle, Share2, Bookmark, Users, MousePointer } from "lucide-react";
+import { Trophy, ChevronRight, ChevronLeft, TrendingUp, Heart, MessageCircle, Share2, Bookmark, Users, MousePointer, RefreshCw, Instagram, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HolographicCard } from "@/components/ui/holographic-card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { abOptimizerService, WinnerResult, EngagementMetrics } from "@/services/abOptimizerService";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ABCalculateWinnerProps {
   scheduleId: string;
@@ -22,6 +23,8 @@ export const ABCalculateWinner = ({
 }: ABCalculateWinnerProps) => {
   const { toast } = useToast();
   const [isCalculating, setIsCalculating] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const [autoFetchAttempted, setAutoFetchAttempted] = useState(false);
   const [winnerResult, setWinnerResult] = useState<WinnerResult | null>(null);
   
   const [variantA, setVariantA] = useState<EngagementMetrics>({
@@ -41,6 +44,57 @@ export const ABCalculateWinner = ({
     reach: 0,
     ctr: 0,
   });
+
+  const handleAutoFetch = async () => {
+    setIsFetching(true);
+    setAutoFetchAttempted(true);
+    try {
+      const result = await abOptimizerService.fetchInstagramMetrics(scheduleId);
+      
+      if (result.status === 'success') {
+        // Populate metrics from Instagram
+        if (result.variant_a_metrics) {
+          setVariantA(result.variant_a_metrics);
+        }
+        if (result.variant_b_metrics) {
+          setVariantB(result.variant_b_metrics);
+        }
+        
+        toast({
+          title: "Metrics Loaded",
+          description: "Successfully fetched engagement data from Instagram!",
+        });
+      } else if (result.status === 'partial') {
+        // Partial success - load what we got
+        if (result.variant_a_metrics) {
+          setVariantA(result.variant_a_metrics);
+        }
+        if (result.variant_b_metrics) {
+          setVariantB(result.variant_b_metrics);
+        }
+        
+        toast({
+          title: "Partial Success",
+          description: result.message,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Auto-Fetch Failed",
+          description: result.message,
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Auto-Fetch Failed",
+        description: error instanceof Error ? error.message : "Unable to fetch metrics from Instagram. Please enter them manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
   const handleCalculate = async () => {
     // Validation
@@ -140,7 +194,7 @@ export const ABCalculateWinner = ({
             Calculate Winner
           </h2>
           <p className="text-muted-foreground mt-1">
-            Enter engagement metrics from your social media analytics
+            Fetch metrics from Instagram or enter them manually
           </p>
         </div>
         {!winnerResult && (
@@ -151,6 +205,30 @@ export const ABCalculateWinner = ({
         )}
       </div>
 
+      {/* Auto-Fetch Section */}
+      {!winnerResult && (
+        <Alert className="bg-blue-500/10 border-blue-500/30">
+          <Instagram className="h-4 w-4 text-blue-400" />
+          <AlertDescription className="text-sm text-foreground">
+            <div className="flex items-center justify-between">
+              <span>
+                You have Instagram connected! Click below to automatically fetch engagement metrics from your posts.
+              </span>
+              <Button 
+                onClick={handleAutoFetch} 
+                loading={isFetching}
+                disabled={isFetching}
+                className="ml-4"
+                size="sm"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Auto-Fetch Metrics
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {!winnerResult ? (
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Variant A Metrics */}
@@ -160,7 +238,7 @@ export const ABCalculateWinner = ({
                 <Badge variant="outline">Variant A</Badge>
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Enter metrics from your first post
+                Metrics from your first post {!autoFetchAttempted && "(or use Auto-Fetch above)"}
               </p>
             </div>
             <div className="space-y-4">
@@ -180,7 +258,7 @@ export const ABCalculateWinner = ({
                 <Badge variant="outline">Variant B</Badge>
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Enter metrics from your second post
+                Metrics from your second post {!autoFetchAttempted && "(or use Auto-Fetch above)"}
               </p>
             </div>
             <div className="space-y-4">
@@ -262,7 +340,7 @@ export const ABCalculateWinner = ({
 
           {/* Recommendation */}
           <HolographicCard className="p-6 bg-blue-500/10 border-blue-500/30">
-            <h4 className="font-semibold text-blue-500 mb-2 flex items-center gap-2">
+            <h4 className="font-semibold text-blue-400 mb-2 flex items-center gap-2">
               <TrendingUp className="w-5 h-5" />
               Recommendation
             </h4>
