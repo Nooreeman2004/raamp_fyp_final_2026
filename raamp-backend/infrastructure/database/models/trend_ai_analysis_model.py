@@ -55,6 +55,7 @@ class TrendAIAnalysisModel(Document):
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    model_config = {"protected_namespaces": ()}
 
     class Settings:
         name = "trend_ai_analysis"

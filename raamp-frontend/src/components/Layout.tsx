@@ -11,6 +11,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { useThemeMode } from "@/hooks/useThemeMode";
+import { useIsMobile } from "@/hooks/use-mobile";
 import * as React from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,6 +26,7 @@ interface LayoutProps {
 
 const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbOverride, headerActions }: LayoutProps) => {
   const { user, sessionUncertain, dismissSessionWarning, refreshUser } = useAuth();
+  const isMobile = useIsMobile();
   const [scrolled, setScrolled] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sessionRetrying, setSessionRetrying] = useState(false);
@@ -98,12 +100,12 @@ const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbO
         <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
         <motion.main
-          animate={{ paddingLeft: sidebarCollapsed ? 80 : 240 }}
+          animate={{ paddingLeft: isMobile ? 0 : (sidebarCollapsed ? 80 : 240) }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="min-h-screen relative z-10 hidden lg:block w-full min-w-0 max-w-[100vw] overflow-x-clip box-border"
+          className="min-h-screen relative z-10 w-full min-w-0 max-w-[100vw] overflow-x-clip box-border flex flex-col"
         >
-          {/* Top Header for Dashboard — flex/grid hybrid: wrap + min-w-0 prevents breadcrumb overflow */}
-          <div className="min-h-[4.5rem] sm:min-h-20 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 sm:px-6 xl:px-8 border-b border-border bg-background/50 backdrop-blur-xl sticky top-0 z-40">
+          {/* Top Header for Dashboard (Desktop) */}
+          <div className="hidden lg:flex min-h-[4.5rem] sm:min-h-20 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 sm:px-6 xl:px-8 border-b border-border bg-background/50 backdrop-blur-xl sticky top-0 z-40">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
               {showBreadcrumbs && (
                 <Breadcrumbs items={breadcrumbOverride ? breadcrumbOverride.map(b => ({ label: b.label, href: b.path })) : breadcrumbItems} />
@@ -130,48 +132,44 @@ const Layout = ({ children, showBreadcrumbs = true, breadcrumbItems, breadcrumbO
             </div>
           </div>
 
-          <div className="p-4 sm:p-6 xl:p-8 w-full min-w-0 max-w-full">
+          {/* Top Header for Dashboard (Mobile Fallback to Drawer) */}
+          <div className="lg:hidden w-full min-w-0 max-w-[100vw] overflow-x-clip">
+            <nav
+              className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border flex min-h-[3.25rem] items-center justify-between gap-2 px-3 sm:px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2"
+              style={{ paddingLeft: "max(0.75rem, env(safe-area-inset-left))", paddingRight: "max(0.75rem, env(safe-area-inset-right))" }}
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                <AppDrawer user={user} />
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="touch-target inline-flex shrink-0 items-center justify-center rounded-md text-muted-foreground/80 hover:text-primary transition-colors sm:min-h-0 sm:min-w-0 sm:p-2"
+                  aria-label="Refresh Page"
+                >
+                  <RefreshCw className="h-[1.125rem] w-[1.125rem] sm:h-[1.125rem] sm:w-[1.125rem]" />
+                </button>
+                <BrandMark variant="navbar" size={32} className="shrink-0" />
+              </div>
+              <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                {headerActions}
+                <ThemeToggle />
+                <div className="flex items-center gap-2 rounded-full border border-border/50 bg-background/60 px-2 py-1">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 dark:from-gray-800 dark:to-black flex items-center justify-center border border-primary/30 dark:border-border/50">
+                    <span className="text-xs font-bold text-foreground">
+                      {getUserInitials()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </nav>
+            <div className="h-14 sm:h-16" />
+          </div>
+
+          <div className="p-4 sm:p-6 xl:p-8 w-full min-w-0 max-w-full flex-1">
             {sessionBanner}
             {children}
           </div>
         </motion.main>
-
-        {/* Mobile Layout (Fallback to Drawer) */}
-        <div className="lg:hidden w-full min-w-0 max-w-[100vw] overflow-x-clip">
-          <nav
-            className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border flex min-h-[3.25rem] items-center justify-between gap-2 px-3 sm:px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2"
-            style={{ paddingLeft: "max(0.75rem, env(safe-area-inset-left))", paddingRight: "max(0.75rem, env(safe-area-inset-right))" }}
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-              <AppDrawer user={user} />
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="touch-target inline-flex shrink-0 items-center justify-center rounded-md text-muted-foreground/80 hover:text-primary transition-colors sm:min-h-0 sm:min-w-0 sm:p-2"
-                aria-label="Refresh Page"
-              >
-                <RefreshCw className="h-[1.125rem] w-[1.125rem] sm:h-[1.125rem] sm:w-[1.125rem]" />
-              </button>
-              <BrandMark variant="navbar" size={32} className="shrink-0" />
-            </div>
-            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-              {headerActions}
-              <ThemeToggle />
-              <div className="flex items-center gap-2 rounded-full border border-border/50 bg-background/60 px-2 py-1">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 dark:from-gray-800 dark:to-black flex items-center justify-center border border-primary/30 dark:border-border/50">
-                  <span className="text-xs font-bold text-foreground">
-                    {getUserInitials()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </nav>
-          <div className="h-14 sm:h-16" />
-          <main className="w-full min-w-0 max-w-[100vw] overflow-x-clip px-3 py-4 sm:px-4 md:px-6">
-            {sessionBanner}
-            {children}
-          </main>
-        </div>
 
         <RAMPFloatingWidget
           userName={user?.first_name || user?.username || "Commander"}

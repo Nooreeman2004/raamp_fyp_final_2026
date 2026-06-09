@@ -3,7 +3,7 @@ import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Mail, Check } from "lucide-react";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
+import raampIcon from "@/assets/raamp-logo-v6-transparent.png";
 import { toast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
 

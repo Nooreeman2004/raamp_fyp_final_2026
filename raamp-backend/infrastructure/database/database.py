@@ -158,7 +158,7 @@ async def init_db():
     )
     from infrastructure.database.models.auto_reply_settings_model import AutoReplySettingsModel
     from infrastructure.database.models.social_escalation_ticket_model import SocialEscalationTicketModel
-    from application.services.job_health_monitor_service import JobExecutionLogModel
+    from infrastructure.database.models.job_execution_log_model import JobExecutionLogModel
     from infrastructure.database.models.trend_signal_model import TrendSignalModel
     from infrastructure.database.models.trend_detection_model import TrendDetectionModel
     from infrastructure.database.models.trend_watchlist_model import TrendWatchlistModel

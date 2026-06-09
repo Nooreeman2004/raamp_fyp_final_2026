@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
+import raampIcon from "@/assets/raamp-logo-v6-transparent.png";
 import { Phone, Building, Briefcase, Loader2, HelpCircle } from "lucide-react";
 import { authService } from "@/services/authService";
 import { toast as sonner } from "sonner";

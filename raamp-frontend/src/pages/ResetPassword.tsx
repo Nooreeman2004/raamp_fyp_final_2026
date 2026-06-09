@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Eye, EyeOff, Check, X, Key } from "lucide-react";
-import raampIcon from "@/assets/raamp-icon-transparent.png";
+import raampIcon from "@/assets/raamp-logo-v6-transparent.png";
 import { toast } from "@/hooks/use-toast";
 
 // Animation Imports

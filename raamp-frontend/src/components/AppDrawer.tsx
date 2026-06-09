@@ -2,61 +2,72 @@ import { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 import {
   Menu,
   LayoutDashboard,
   MapPin,
   Sparkles,
-  TrendingUp as TrendIcon,
-  FlaskConical as Flask,
-  User,
-  Building2,
-  Palette,
-  Bell,
-  Link2,
-  Shield,
-  CreditCard,
+  TrendingUp,
+  FlaskConical,
+  Settings,
   LogOut,
-  ChevronRight,
-  Info,
-  BookOpen,
-  Scale,
-  Images,
-  MessageSquare,
-  AlertTriangle,
-  LifeBuoy,
+  Bell,
+  Search,
   Calendar,
   CalendarDays,
+  Images,
   ShieldCheck,
+  MessageSquare,
+  LifeBuoy,
+  AlertTriangle,
+  CreditCard,
   FileText,
-  type LucideIcon
+  User,
+  Info,
+  BookOpen,
+  Scale
 } from "lucide-react";
 import type { UserResponse } from "@/types";
 import { authService } from "@/services/authService";
 import { toast as sonner } from "sonner";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
-import { staggerContainer } from "@/utils/animations";
-import { springSlide } from "@/utils/motion";
 import { BrandMark } from "@/components/BrandMark";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { Separator } from "@/components/ui/separator";
 
 interface AppDrawerProps {
   user: UserResponse | null;
 }
 
-interface NavItem {
-  label: string;
-  icon: LucideIcon;
-  href: string;
-  badge?: string;
-}
+const menuItems = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { icon: MapPin, label: "Geo-Intent", href: "/dashboard/geo-intent" },
+  { icon: Sparkles, label: "Creative Studio", href: "/dashboard/creative" },
+  { icon: Images, label: "Asset Library", href: "/dashboard/assets" },
+  { icon: Calendar, label: "Smart Scheduling", href: "/dashboard/smart-scheduling" },
+  { icon: CalendarDays, label: "Campaign Planner", href: "/dashboard/campaign-planner" },
+  { icon: TrendingUp, label: "Trend Arbitrage", href: "/dashboard/trends" },
+  { icon: ShieldCheck, label: "Approvals", href: "/dashboard/approvals" },
+  { icon: FileText, label: "My Drafts", href: "/dashboard/drafts" },
+  { icon: MessageSquare, label: "Auto Replies", href: "/dashboard/auto-replies" },
+  { icon: AlertTriangle, label: "Social Moderation", href: "/dashboard/escalations" },
+  { icon: FlaskConical, label: "The Lab (A/B)", href: "/dashboard/ab-optimizer" },
+  { icon: CreditCard, label: "Billing", href: "/billing" },
+];
 
-interface NavSection {
-  title: string;
-  items: NavItem[];
-}
+const bottomItems = [
+  { icon: LifeBuoy, label: "Support", href: "/dashboard/complaints" },
+  { icon: Bell, label: "Notifications", href: "/notifications" },
+  { icon: Settings, label: "Settings", href: "/settings" },
+];
+
+const infoItems = [
+  { label: "About Us", icon: Info, href: "/about" },
+  { label: "Resources", icon: BookOpen, href: "/resources" },
+  { label: "Legal & Compliance", icon: Scale, href: "/legal" },
+];
 
 const AppDrawer = ({ user }: AppDrawerProps) => {
   const [open, setOpen] = useState(false);
@@ -65,6 +76,9 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  const notificationContext = useNotifications();
+  const unreadCount = notificationContext?.unreadCount || 0;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (containerRef.current) {
@@ -76,80 +90,22 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
     }
   };
 
-  // MODULE STATUS & QUICK ACTIONS - Core dashboard modules
-  const moduleItems: NavItem[] = [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-    { label: "Geo-Intent", icon: MapPin, href: "/dashboard/geo-intent" },
-    { label: "Creative Studio", icon: Sparkles, href: "/dashboard/creative" },
-    { label: "Asset Library", icon: Images, href: "/dashboard/assets" },
-    { label: "Smart Scheduling", icon: Calendar, href: "/dashboard/smart-scheduling" },
-    { label: "Campaign Planner", icon: CalendarDays, href: "/dashboard/campaign-planner" },
-    { label: "Trend Arbitrage", icon: TrendIcon, href: "/dashboard/trends" },
-    { label: "Approvals", icon: ShieldCheck, href: "/dashboard/approvals" },
-    { label: "My Drafts", icon: FileText, href: "/dashboard/drafts" },
-    { label: "Auto Replies", icon: MessageSquare, href: "/dashboard/auto-replies" },
-    { label: "Social Moderation", icon: AlertTriangle, href: "/dashboard/escalations" },
-    { label: "The Lab (A/B)", icon: Flask, href: "/dashboard/ab-optimizer" },
-  ];
-
-  // SETTINGS - All editable screens
-  const settingsItems: NavItem[] = [
-    { label: "Edit User Profile", icon: User, href: "/profile/user" },
-    { label: "Edit Business Details", icon: Building2, href: "/profile/business-setup" },
-    { label: "Brand Settings", icon: Palette, href: "/profile/brand-settings" },
-    { label: "Notification Preferences", icon: Bell, href: "/settings/notifications" },
-    { label: "Auto Replies", icon: MessageSquare, href: "/settings/auto-replies" },
-    { label: "Integrations", icon: Link2, href: "/settings/integrations" },
-    { label: "Account & Security", icon: Shield, href: "/settings/security" },
-    { label: "Billing", icon: CreditCard, href: "/billing" },
-  ];
-
-  // Information items - only shown to non-logged-in users
-  const infoItems: NavItem[] = [
-    { label: "About Us", icon: Info, href: "/about" },
-    { label: "Resources", icon: BookOpen, href: "/resources" },
-    { label: "Legal & Compliance", icon: Scale, href: "/legal" },
-  ];
-
-  // Build navigation sections for logged-in users
-  // Marketing pages (About, Resources, Legal) are intentionally excluded for logged-in users
-  const navSections: NavSection[] = user ? [
-    { title: "Module Status & Quick Actions", items: moduleItems },
-    { title: "Help & Support", items: [
-      { label: "Complaints & Support", icon: LifeBuoy, href: "/dashboard/complaints" },
-    ]},
-    { title: "Settings", items: settingsItems },
-  ] : [];
-
   const handleLogout = async () => {
     try {
       await authService.logout();
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-      sonner.success("Logged Out", {
-        description: "You have been successfully logged out.",
+    } catch {
+      // Don't block sign-out UX on network/server failures
+      sonner.message("Signed out locally", {
+        description: "We couldn’t reach the server, but this device has been signed out.",
       });
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       setOpen(false);
       navigate("/login");
-    } catch (e) {
-      sonner.error("Error", {
-        description: "Failed to logout. Please try again.",
-      });
     }
-  };
-
-  const getUserInitials = () => {
-    if (!user) return "U";
-    const first = user.first_name?.[0] || "";
-    const last = user.last_name?.[0] || user.first_name?.[1] || "";
-    return (first + last).toUpperCase() || user.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U";
-  };
-
-  const isActive = (href: string) => {
-    if (href === "/dashboard") {
-      return location.pathname === href;
-    }
-    return location.pathname.startsWith(href);
   };
 
   return (
@@ -180,110 +136,88 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
           />
 
           {/* Header */}
-          <SheetHeader className="p-6 pb-4 border-b border-border/50 relative z-10">
-            <div className="flex items-center justify-between">
-              <Link
-                to={user ? "/dashboard" : "/"}
-                className="flex items-center gap-3 group"
-                onClick={() => setOpen(false)}
-              >
-                <BrandMark variant="drawer" size={40} />
-                <SheetTitle className="text-2xl font-bold text-foreground tracking-wider font-heading font-semibold group-hover:text-primary transition-colors">RAAMP</SheetTitle>
-              </Link>
-            </div>
+          <SheetHeader className="h-20 flex items-center justify-between px-6 border-b border-border/50 relative z-10 m-0">
+            <Link
+              to={user ? "/dashboard" : "/"}
+              className="flex items-center gap-3 w-full h-full"
+              onClick={() => setOpen(false)}
+            >
+              <div className="relative flex-shrink-0">
+                <div className="absolute inset-0 bg-primary/20 blur-lg rounded-full opacity-50" />
+                <BrandMark variant="drawer" size={32} className="relative z-10" />
+              </div>
+              <SheetTitle className="font-heading font-semibold text-xl tracking-wider text-foreground whitespace-nowrap overflow-hidden">
+                RAAMP
+              </SheetTitle>
+            </Link>
           </SheetHeader>
 
-          {/* User Profile Section - Only for logged in users */}
+          {/* Command Shortcut Hint */}
           {user && (
-            <div className="px-6 py-4 bg-foreground/5 border-b border-border/50 relative z-10">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12 border border-border/80 ring-2 ring-transparent group-hover:ring-primary/50 transition-all">
-                  <AvatarImage src={user.profile_picture || undefined} alt={user.username} />
-                  <AvatarFallback className="bg-card text-primary font-bold border border-border/50">
-                    {getUserInitials()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate text-foreground">
-                    {user.first_name && user.last_name
-                      ? `${user.first_name} ${user.last_name}`
-                      : user.username || user.email}
-                  </p>
-                  <p className="text-xs text-muted-foreground/80 truncate">{user.email}</p>
-                </div>
-              </div>
+            <div className="px-4 py-4 relative z-10">
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-foreground/5 border border-border text-xs text-muted-foreground hover:bg-foreground/10 hover:border-border/50 transition-all group"
+              >
+                <Search size={14} />
+                <span className="flex-1 text-left">Search...</span>
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 group-hover:text-foreground">
+                  <span className="text-xs">⌘</span>K
+                </kbd>
+              </button>
             </div>
           )}
 
           {/* Navigation Sections */}
-          <div className="flex-1 overflow-y-auto py-4 relative z-10 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-primary/50">
+          <div className="flex-1 overflow-y-auto py-2 px-3 space-y-2 relative z-10 scrollbar-none">
             <AnimatePresence>
               {user ? (
-                // Logged in: Show modules and settings
-                navSections.map((section, sectionIdx) => (
-                  <motion.div
-                    key={section.title}
-                    className="mb-6"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: sectionIdx * 0.1, duration: 0.3 }}
-                  >
-                    <h3 className="px-6 mb-3 text-[10px] font-bold text-primary/80 uppercase tracking-[0.2em]">
-                      {section.title}
-                    </h3>
-                    <motion.nav
-                      className="space-y-0.5 px-3"
-                      variants={staggerContainer}
-                      initial="hidden"
-                      animate="visible"
-                    >
-                      {section.items.map((item, itemIdx) => {
-                        const Icon = item.icon;
-                        const active = isActive(item.href);
-                        return (
+                // Logged in: Show exactly what Sidebar shows
+                <>
+                  {menuItems.map((item) => {
+                    const isActive = location.pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex min-h-[2.75rem] items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
+                          isActive
+                            ? "bg-primary/10 text-primary shadow-[0_0_20px_rgba(0,224,208,0.1)]"
+                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                        )}
+                      >
+                        {isActive && (
                           <motion.div
-                            key={item.href}
-                            variants={springSlide}
-                            custom={itemIdx}
-                          >
-                            <Link
-                              to={item.href}
-                              onClick={() => setOpen(false)}
-                              className={`
-                                group flex min-h-[2.75rem] items-center gap-3 px-3 py-2.5 rounded-r-lg transition-all duration-300 relative overflow-hidden
-                                ${active
-                                  ? 'bg-primary/10 text-primary border-l-2 border-primary'
-                                  : 'text-muted-foreground/80 hover:text-foreground hover:bg-foreground/5 border-l-2 border-transparent'
-                                }
-                              `}
-                            >
-                              <Icon className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 ${active ? 'text-primary' : 'text-muted-foreground/60 group-hover:text-primary'}`} />
-                              <span className="text-sm flex-1 font-medium tracking-wide">{item.label}</span>
-                              {item.badge && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-primary/20 text-primary border border-primary/30">
-                                  {item.badge}
-                                </span>
-                              )}
-                              <ChevronRight className={`w-3.5 h-3.5 transition-all duration-300 ${active ? 'opacity-100 translate-x-0 text-primary' : 'opacity-0 -translate-x-2 group-hover:opacity-50 group-hover:translate-x-0'}`} />
+                            layoutId="mobileActiveTab"
+                            className="absolute inset-0 border border-primary/20 rounded-xl"
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                          />
+                        )}
+                        <item.icon size={20} className={cn("flex-shrink-0 transition-transform duration-300", isActive && "scale-110")} />
+                        <span className="font-medium text-sm whitespace-nowrap overflow-hidden relative z-10">
+                          {item.label}
+                        </span>
 
-                              {/* Active Glow Background */}
-                              {active && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-50 -z-10" />
-                              )}
-                            </Link>
-                          </motion.div>
-                        );
-                      })}
-                    </motion.nav>
-                    {sectionIdx < navSections.length - 1 && (
-                      <Separator className="mt-4 mx-6 bg-foreground/10" />
-                    )}
-                  </motion.div>
-                ))
+                        {/* Active Glow Dot */}
+                        {isActive && (
+                          <motion.div
+                            layoutId="mobileActiveDot"
+                            className="absolute right-3 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_#00E0D0] z-10"
+                          />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </>
               ) : (
                 // Not logged in: Show login/signup options
                 <motion.div
-                  className="px-3 space-y-2"
+                  className="space-y-2"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
@@ -305,43 +239,64 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
                     <span className="text-sm font-medium">Create Account</span>
                   </Link>
 
-                  <Separator className="my-4 bg-foreground/10" />
+                  <Separator className="my-4 bg-foreground/10 mx-3" />
 
                   <div className="space-y-1">
-                    {infoItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.href}
-                          to={item.href}
-                          onClick={() => setOpen(false)}
-                          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/5 text-muted-foreground/80 hover:text-foreground transition-all"
-                        >
-                          <Icon className="w-4 h-4 text-muted-foreground/60" />
-                          <span className="text-sm">{item.label}</span>
-                        </Link>
-                      );
-                    })}
+                    {infoItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/5 text-muted-foreground/80 hover:text-foreground transition-all"
+                      >
+                        <item.icon className="w-4 h-4 text-muted-foreground/60" />
+                        <span className="text-sm">{item.label}</span>
+                      </Link>
+                    ))}
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Footer Actions */}
+          {/* Bottom Section */}
           {user && (
-            <div className="p-4 border-t border-border/50 bg-card/50 relative z-10">
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+            <div className="p-3 border-t border-border space-y-2 bg-card/50 relative z-10">
+              {bottomItems.map((item) => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex min-h-[2.75rem] items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-muted-foreground hover:text-foreground hover:bg-foreground/5 relative",
+                    location.pathname === item.href && "text-foreground bg-foreground/5"
+                  )}
+                >
+                  <item.icon size={20} className="flex-shrink-0" />
+                  <span className="font-medium text-sm whitespace-nowrap overflow-hidden">
+                    {item.label}
+                  </span>
+                  {item.label === "Notifications" && unreadCount > 0 && (
+                    <div className="absolute right-3 w-5 h-5 bg-destructive text-foreground text-[10px] font-bold flex items-center justify-center rounded-full">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </div>
+                  )}
+                </Link>
+              ))}
+
+              <button
+                type="button"
+                className="w-full flex min-h-[2.75rem] items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-red-400 hover:text-red-300 hover:bg-red-500/10"
                 onClick={() => {
                   setOpen(false);
                   setShowLogoutDialog(true);
                 }}
               >
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
-              </Button>
+                <LogOut size={20} className="flex-shrink-0" />
+                <span className="font-medium text-sm whitespace-nowrap overflow-hidden">
+                  Sign Out
+                </span>
+              </button>
             </div>
           )}
         </SheetContent>
@@ -352,9 +307,9 @@ const AppDrawer = ({ user }: AppDrawerProps) => {
         open={showLogoutDialog}
         onOpenChange={setShowLogoutDialog}
         onConfirm={handleLogout}
-        title="Confirm Logout"
-        description="Are you sure you want to logout? You'll need to login again to access your account."
-        confirmText="Logout"
+        title="Sign out of RAAMP?"
+        description="You'll be returned to the login screen. You can sign back in anytime."
+        confirmText="Sign out"
         cancelText="Cancel"
         variant="destructive"
       />

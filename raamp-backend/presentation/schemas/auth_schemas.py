@@ -15,7 +15,7 @@ class SignupRequest(BaseModel):
     @classmethod
     def username_lowercase_alphanumeric(cls, v: str) -> str:
         """Ensure username is lowercase letters and numbers only (7-20 chars)"""
-        if not v.islower() or not v.isalnum():
+        if not v.isalnum() or any(c.isupper() for c in v):
             raise ValueError('Username must contain only lowercase letters and numbers')
         return v
     

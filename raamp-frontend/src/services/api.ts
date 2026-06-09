@@ -170,6 +170,18 @@ class ApiClient {
         const errorData = isJson ? data : {};
 
         if (isJson) {
+          // Extract nested FastAPI HTTPException detail object if present
+          if (data.detail && typeof data.detail === 'object' && !Array.isArray(data.detail)) {
+             if (data.detail.details && data.detail.details.errors) {
+                 data.errors = data.detail.details.errors;
+             } else if (data.detail.errors) {
+                 data.errors = data.detail.errors;
+             }
+             if (data.detail.message) {
+                 data.message = data.detail.message;
+             }
+          }
+
           // Priority 1: Explicit 'errors' object (e.g. from 400 Bad Request)
           if (data.errors && typeof data.errors === 'object') {
             errorMessage = `${data.message || 'Validation Error'}: ${Object.entries(data.errors).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join(' | ')}`;
